@@ -132,6 +132,37 @@ class KayakGenerator:
         mesh_obj.save(filename)
         print(f"Saved {filename}")
 
+    def get_mesh_arrays(self, part_type: str) -> tuple[np.ndarray, np.ndarray]:
+        """Return (vertices, faces) as NumPy arrays.
+
+        vertices: shape (N, 3) - x, y, z
+        faces:    shape (M, 3) - triangle indices into vertices
+        """
+        x_positions = np.linspace(-self.L / 2, self.L / 2, self.num_stations)
+        all_slices = []
+        for x in x_positions:
+            slice_pts = self._get_slice_points(x, part_type)
+            full_pts = np.column_stack(
+                (np.full(len(slice_pts), x), slice_pts[:, 0], slice_pts[:, 1])
+            )
+            all_slices.append(full_pts)
+
+        vertices = np.vstack(all_slices)
+        pts_per_slice = len(all_slices[0])
+        num_slices = len(all_slices)
+
+        faces = []
+        for i in range(num_slices - 1):
+            s, n = i * pts_per_slice, (i + 1) * pts_per_slice
+            for j in range(pts_per_slice - 1):
+                c1, c2, n1, n2 = s + j, s + j + 1, n + j, n + j + 1
+                if part_type == "hull":
+                    faces.extend([[c1, n1, c2], [c2, n1, n2]])
+                else:
+                    faces.extend([[c1, n2, c2], [c2, n2, n1]])
+
+        return vertices, np.array(faces)
+
 if __name__ == "__main__":
     kayak = KayakGenerator(length=4.5, beam=0.55, draft=0.12, deck_height=0.23, 
                            Cp=0.55, deck_flatness=8.0, center_box_ratio=0.33)

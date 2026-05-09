@@ -1,0 +1,84 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "gui-usability",
+  "workflow_version": "2026-05-09",
+  "name": "GUI Usability Improvements (Codex)",
+  "branch": {
+    "mode": "auto",
+    "suggested_name": "feature/gui-usability",
+    "allow_dirty": true
+  },
+  "coordinator": {
+    "role_id": "coordinator",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Code (local)",
+      "command": ["sh", "-c", "cat >/dev/null"],
+      "capabilities": ["write", "review"]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "OpenAI Codex (codex exec)",
+      "command": ["scripts/codex-striatum-adapter.sh"],
+      "capabilities": ["write"]
+    }
+  },
+  "roles": {
+    "coordinator": {
+      "definition_path": "roles/coordinator.md"
+    },
+    "implementer": {
+      "definition_path": "roles/implementer.md"
+    }
+  },
+  "context_docs": [
+    "docs/rfcs/0002-gui-usability.md",
+    "gui.py",
+    "pyvista_view.py",
+    "generator.py"
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 1,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement",
+      "type": "build",
+      "title": "Implement RFC 0002 GUI usability improvements",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "objective": "Implement all seven usability improvements specified in RFC 0002.",
+      "task_prompt": {
+        "path": "docs/workflows/gui-usability.json/prompts/implement.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "gui.py",
+          "pyvista_view.py",
+          "generator.py",
+          "docs/workflows/gui-usability.json/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "implementation",
+          "kind": "other",
+          "path": "docs/workflows/gui-usability.json/IMPLEMENTATION.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "cycles": []
+}
