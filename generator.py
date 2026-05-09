@@ -132,13 +132,14 @@ class KayakGenerator:
         mesh_obj.save(filename)
         print(f"Saved {filename}")
 
-    def get_mesh_arrays(self, part_type: str) -> tuple[np.ndarray, np.ndarray]:
+    def get_mesh_arrays(self, part_type: str, stations: int = None) -> tuple[np.ndarray, np.ndarray]:
         """Return (vertices, faces) as NumPy arrays.
 
         vertices: shape (N, 3) - x, y, z
         faces:    shape (M, 3) - triangle indices into vertices
         """
-        x_positions = np.linspace(-self.L / 2, self.L / 2, self.num_stations)
+        n = stations if stations is not None else self.num_stations
+        x_positions = np.linspace(-self.L / 2, self.L / 2, n)
         all_slices = []
         for x in x_positions:
             slice_pts = self._get_slice_points(x, part_type)
