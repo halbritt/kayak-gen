@@ -54,7 +54,7 @@
       "lane_id": "codex",
       "objective": "Implement the 3D rendering panel exactly as specified in DESIGN.md using PyVista.",
       "task_prompt": {
-        "path": "prompts/implement.md"
+        "path": "docs/workflows/3d-rendering-implement.json/prompts/implement.md"
       },
       "write_scope": {
         "mode": "repo_write",
