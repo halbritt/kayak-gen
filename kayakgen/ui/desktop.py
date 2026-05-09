@@ -1,0 +1,331 @@
+"""Matplotlib + PyQt6 desktop GUI for kayakgen.
+
+Refactor of the legacy ``gui.py`` onto the new package boundary
+(RFC 0007 step 7). Two changes from the legacy version:
+
+- The cross-section, sheer plan, and plan view now consume the public
+  geometry accessors on :class:`HullGeometry` (``section``,
+  ``waterplane``, ``keel_line``, ``deck_centreline``) instead of
+  reaching into ``_get_area_fraction`` / ``_get_deck_height_scaling`` /
+  ``_get_slice_points``.
+- The metrics panel is sourced from
+  :func:`kayakgen.eval.hydrostatics.evaluate` — a single integrated
+  truth value — rather than the prior formula envelope.
+"""
+
+from __future__ import annotations
+
+import os
+
+import matplotlib
+
+matplotlib.use("qtagg")
+
+import matplotlib.pyplot as plt
+import matplotlib.widgets as widgets
+import numpy as np
+from matplotlib.gridspec import GridSpec
+from PyQt6.QtCore import QTimer
+
+from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
+from kayakgen.model.hull import Hull
+
+
+_HULL_FIELDS = (
+    "length_m",
+    "beam_oa_m",
+    "draft_m",
+    "deck_height_m",
+    "Cp",
+    "deck_flatness",
+    "center_box_ratio",
+)
+_GUI_TO_HULL = {
+    "length": "length_m",
+    "beam": "beam_oa_m",
+    "draft": "draft_m",
+    "deck_height": "deck_height_m",
+    "Cp": "Cp",
+    "deck_flatness": "deck_flatness",
+    "center_box_ratio": "center_box_ratio",
+}
+
+
+def _hull_from_gui_params(params: dict) -> Hull:
+    return Hull(**{hull_key: params[gui_key] for gui_key, hull_key in _GUI_TO_HULL.items()})
+
+
+class KayakGUI:
+    SLIDERS = [
+        ("length", "Length (m)", 2.0, 6.0),
+        ("beam", "Beam (m)", 0.3, 0.9),
+        ("draft", "Draft (m)", 0.05, 0.25),
+        ("deck_height", "Deck Height (m)", 0.15, 0.40),
+        ("Cp", "Prismatic Coeff", 0.45, 0.70),
+        ("deck_flatness", "Deck Flatness", 2.0, 16.0),
+        ("center_box_ratio", "Parallel Mid-Body", 0.10, 0.60),
+    ]
+
+    DEFAULTS = dict(
+        length=4.5,
+        beam=0.55,
+        draft=0.12,
+        deck_height=0.23,
+        Cp=0.55,
+        deck_flatness=8.0,
+        center_box_ratio=0.33,
+    )
+
+    def __init__(self, hull: Hull | None = None) -> None:
+        if hull is not None:
+            self.params = {gui_key: getattr(hull, hull_key) for gui_key, hull_key in _GUI_TO_HULL.items()}
+        else:
+            self.params = dict(self.DEFAULTS)
+
+        self.fig = plt.figure(figsize=(16, 9))
+        self.fig.suptitle("Kayak Generator", fontsize=14, fontweight="bold")
+
+        gs = GridSpec(
+            3,
+            1,
+            figure=self.fig,
+            left=0.38,
+            right=0.97,
+            top=0.93,
+            bottom=0.13,
+            hspace=0.45,
+            height_ratios=[2, 1, 1],
+        )
+        self.ax_section = self.fig.add_subplot(gs[0])
+        self.ax_profile = self.fig.add_subplot(gs[1])
+        self.ax_plan = self.fig.add_subplot(gs[2], sharex=self.ax_profile)
+
+        self._build_sliders()
+        self._last_slider_key = list(self.sliders.keys())[0]
+        self.fig.canvas.mpl_connect("key_press_event", self._on_key)
+        for key, s in self.sliders.items():
+            s.on_changed(lambda _v, k=key: self._track_slider(k))
+
+        self._pv_window = None
+        self.station_x = 0.0
+        self._3d_timer = QTimer()
+        self._3d_timer.setSingleShot(True)
+        self._3d_timer.setInterval(80)
+        self._3d_timer.timeout.connect(self._flush_3d)
+
+        self._build_button()
+        self.update_plots()
+        self._refresh_metrics()
+        plt.show()
+
+    def _build_sliders(self) -> None:
+        n = len(self.SLIDERS)
+        top_start, bot_end = 0.93, 0.18
+        step = (top_start - bot_end) / n
+
+        self.sliders: dict[str, widgets.Slider] = {}
+        for i, (key, label, vmin, vmax) in enumerate(self.SLIDERS):
+            y = top_start - (i + 0.5) * step - 0.015
+            ax = self.fig.add_axes([0.07, y, 0.26, 0.025])
+            s = widgets.Slider(ax, label, vmin, vmax, valinit=self.params[key])
+            s.label.set_fontsize(7)
+            s.label.set_position((0.5, -1.8))
+            s.label.set_horizontalalignment("center")
+            s.on_changed(self._on_change)
+            self.sliders[key] = s
+
+    def _build_button(self) -> None:
+        ax_btn = self.fig.add_axes([0.05, 0.205, 0.12, 0.045])
+        self.btn = widgets.Button(ax_btn, "Generate STLs", color="steelblue", hovercolor="royalblue")
+        self.btn.label.set_color("white")
+        self.btn.on_clicked(self._on_generate)
+
+        ax_rst = self.fig.add_axes([0.19, 0.205, 0.12, 0.045])
+        self.btn_reset = widgets.Button(ax_rst, "Reset", color="0.75", hovercolor="0.85")
+        self.btn_reset.on_clicked(self._on_reset)
+
+        ax_3d = self.fig.add_axes([0.05, 0.255, 0.26, 0.045])
+        self.btn_3d = widgets.Button(ax_3d, "3D View", color="0.25", hovercolor="0.35")
+        self.btn_3d.label.set_color("white")
+        self.btn_3d.on_clicked(self._on_open_3d)
+
+        self.ax_status = self.fig.add_axes([0.05, 0.160, 0.26, 0.040])
+        self.ax_status.axis("off")
+        self.status = self.ax_status.text(
+            0.5,
+            0.5,
+            "",
+            ha="center",
+            va="center",
+            transform=self.ax_status.transAxes,
+            fontsize=8,
+        )
+
+        self.ax_metrics = self.fig.add_axes([0.05, 0.020, 0.26, 0.100])
+        self.ax_metrics.axis("off")
+        self.metrics_text = self.ax_metrics.text(
+            0.0,
+            1.0,
+            "",
+            ha="left",
+            va="top",
+            transform=self.ax_metrics.transAxes,
+            fontsize=7.5,
+            fontfamily="monospace",
+        )
+
+        half_L = self.params["length"] / 2
+        self.ax_station = self.fig.add_axes([0.38, 0.04, 0.59, 0.025])
+        self.station_slider = widgets.Slider(
+            self.ax_station, "Station X (m)", -half_L, half_L, valinit=0.0
+        )
+        self.station_slider.on_changed(self._on_station_change)
+
+    def _on_change(self, _val) -> None:
+        for key, s in self.sliders.items():
+            self.params[key] = s.val
+        self.status.set_text("")
+        self.update_plots()
+        if self._pv_window is not None and self._pv_window.isVisible():
+            self._3d_timer.start()
+        self._refresh_metrics()
+        half_L = self.params["length"] / 2
+        self.station_slider.valmin = -half_L
+        self.station_slider.valmax = half_L
+        self.station_slider.ax.set_xlim(-half_L, half_L)
+        self.station_x = float(np.clip(self.station_x, -half_L, half_L))
+        self.station_slider.set_val(self.station_x)
+
+    def _on_station_change(self, val) -> None:
+        self.station_x = float(val)
+        self.update_plots()
+
+    def _on_reset(self, _event) -> None:
+        for key, s in self.sliders.items():
+            s.set_val(self.DEFAULTS[key])
+
+    def _on_generate(self, _event) -> None:
+        from PyQt6.QtWidgets import QFileDialog
+
+        path, _ = QFileDialog.getSaveFileName(
+            None, "Save kayak STLs", "kayak", "STL files (*.stl)"
+        )
+        if not path:
+            return
+        stem = path.removesuffix("_hull.stl").removesuffix(".stl")
+        self.status.set_text("Generating…")
+        self.fig.canvas.draw()
+        geom = _hull_from_gui_params(self.params).to_geometry()
+        geom.generate_stl("hull", f"{stem}_hull.stl")
+        geom.generate_stl("deck", f"{stem}_deck.stl")
+        self.status.set_text(f"Saved {os.path.basename(stem)}_hull/deck.stl")
+        self.fig.canvas.draw()
+
+    def _on_open_3d(self, _event) -> None:
+        self.btn_3d.label.set_text("Opening…")
+        self.fig.canvas.draw()
+        from kayakgen.ui.pv_window import PyVistaWindow
+
+        if self._pv_window is None or not self._pv_window.isVisible():
+            self._pv_window = PyVistaWindow(self.params)
+            self._pv_window.show()
+        self.btn_3d.label.set_text("3D View")
+        self.fig.canvas.draw()
+
+    def _flush_3d(self) -> None:
+        if self._pv_window is not None and self._pv_window.isVisible():
+            self._pv_window.update_mesh(self.params)
+
+    def _refresh_metrics(self) -> None:
+        # Single source of truth: integrated hydrostatics on the same mesh
+        # the STL exporter and CFD will see. Stations reduced from the
+        # default 150 to 60 here so the per-slider call stays under ~30 ms.
+        hull = _hull_from_gui_params(self.params)
+        h = evaluate_hydrostatics(hull, stations=60)
+        lob = hull.length_m / hull.beam_oa_m
+        txt = (
+            f"Displacement {h.displaced_mass_kg:6.1f} kg\n"
+            f"Wetted surf  {h.wetted_surface_m2:6.3f} m²\n"
+            f"Waterplane   {h.waterplane_area_m2:6.3f} m²\n"
+            f"Cp / Cm      {h.Cp_actual:.3f} / {h.Cm_actual:.3f}\n"
+            f"LOA/B ratio  {lob:6.2f}"
+        )
+        self.metrics_text.set_text(txt)
+
+    def _track_slider(self, key: str) -> None:
+        self._last_slider_key = key
+
+    def _on_key(self, event) -> None:
+        if event.key not in ("left", "right", "up", "down"):
+            return
+        s = self.sliders[self._last_slider_key]
+        delta = (s.valmax - s.valmin) * 0.01
+        direction = 1 if event.key in ("right", "up") else -1
+        s.set_val(float(np.clip(s.val + direction * delta, s.valmin, s.valmax)))
+
+    def _geometry(self):
+        return _hull_from_gui_params(self.params).to_geometry()
+
+    def update_plots(self) -> None:
+        geom = self._geometry()
+        wp = geom.waterplane(n=200)
+        keel = geom.keel_line(n=200)
+        deck_cl = geom.deck_centreline(n=200)
+        xs = wp[:, 0]
+        half_beam = wp[:, 1]
+        keel_z = keel[:, 1]
+        deck_cl_z = deck_cl[:, 1]
+
+        hull_pts = geom.section(self.station_x, "hull")
+        deck_pts = geom.section(self.station_x, "deck")
+
+        ax = self.ax_section
+        ax.cla()
+        ax.fill(hull_pts[:, 0], hull_pts[:, 1], alpha=0.15, color="steelblue")
+        ax.fill(deck_pts[:, 0], deck_pts[:, 1], alpha=0.15, color="seagreen")
+        ax.plot(hull_pts[:, 0], hull_pts[:, 1], color="steelblue", linewidth=2, label="Hull")
+        ax.plot(deck_pts[:, 0], deck_pts[:, 1], color="seagreen", linewidth=2, label="Deck")
+        ax.axhline(0, color="k", linewidth=0.8, linestyle="--", alpha=0.5)
+        ax.set_aspect("equal")
+        half_L = geom.L / 2
+        pct = (self.station_x / half_L * 100) if half_L > 0 else 0
+        side = "fwd" if self.station_x < -0.01 else ("aft" if self.station_x > 0.01 else "mid")
+        ax.set_title(
+            f"Cross-Section  x = {self.station_x:+.2f} m  ({abs(pct):.0f}% {side})",
+            fontsize=9,
+        )
+        ax.set_xlabel("Y (m)")
+        ax.set_ylabel("Z (m)")
+        ax.legend(fontsize=8, loc="upper right")
+        ax.grid(True, alpha=0.25)
+
+        ax = self.ax_profile
+        ax.cla()
+        ax.fill_between(xs, keel_z, 0, alpha=0.15, color="steelblue")
+        ax.fill_between(xs, 0, deck_cl_z, alpha=0.15, color="seagreen")
+        ax.plot(xs, keel_z, color="steelblue", linewidth=2, label="Keel line")
+        ax.axhline(0, color="k", lw=0.8, ls="--", alpha=0.5, label="Waterline")
+        ax.plot(xs, deck_cl_z, color="seagreen", linewidth=2, label="Deck centreline")
+        ax.set_title("Sheer Plan", fontsize=10)
+        ax.set_ylabel("Z (m)")
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.25)
+        ax.axvline(self.station_x, color="crimson", lw=1.2, ls="--", alpha=0.85)
+
+        ax = self.ax_plan
+        ax.cla()
+        ax.fill_between(xs, -half_beam, half_beam, alpha=0.20, color="steelblue")
+        ax.plot(xs, half_beam, color="steelblue", linewidth=2)
+        ax.plot(xs, -half_beam, color="steelblue", linewidth=2)
+        ax.axhline(0, color="k", linewidth=0.5, linestyle="--", alpha=0.4)
+        ax.set_title("Plan View", fontsize=10)
+        ax.set_xlabel("X (m)")
+        ax.set_ylabel("Y (m)")
+        ax.grid(True, alpha=0.25)
+        ax.axvline(self.station_x, color="crimson", lw=1.2, ls="--", alpha=0.85)
+
+        self.fig.canvas.draw_idle()
+
+
+if __name__ == "__main__":
+    KayakGUI()

@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kayakgen"
+version = "0.1.0"
+description = "Parametric kayak hull generator and evaluation pipeline"
+readme = "AGENTS.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Heath Albritton" }]
+dependencies = [
+    "numpy>=1.26",
+    "numpy-stl>=3.0",
+    "pydantic>=2.5",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+desktop = [
+    "matplotlib>=3.8",
+    "PyQt6>=6.5",
+    "pyvista>=0.43",
+    "pyvistaqt>=0.11",
+]
+web = [
+    "trame>=3.5",
+    "trame-vuetify>=2.4",
+    "trame-vtk>=2.7",
+    "trame-matplotlib>=2.0",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-benchmark>=4.0",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+kayakgen = "kayakgen.cli.main:app"
+
+[tool.setuptools.packages.find]
+include = ["kayakgen*"]
+exclude = ["tests*", ".venv*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
