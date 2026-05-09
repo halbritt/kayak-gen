@@ -1,11 +1,11 @@
 {
   "schema_version": "striatum.workflow.v1",
-  "workflow_id": "3d-rendering-implement",
+  "workflow_id": "gui-usability",
   "workflow_version": "2026-05-09",
-  "name": "3D Rendering: Implementation (Codex)",
+  "name": "GUI Usability Improvements (Codex)",
   "branch": {
     "mode": "auto",
-    "suggested_name": "feature/3d-rendering",
+    "suggested_name": "feature/gui-usability",
     "allow_dirty": true
   },
   "coordinator": {
@@ -35,10 +35,10 @@
     }
   },
   "context_docs": [
-    "docs/workflows/3d-rendering-design.json/DESIGN.md",
-    "docs/workflows/3d-rendering-design.json/RESEARCH.md",
-    "generator.py",
-    "gui.py"
+    "docs/rfcs/0002-gui-usability.md",
+    "gui.py",
+    "pyvista_view.py",
+    "generator.py"
   ],
   "parallelism": {
     "mode": "declared",
@@ -49,21 +49,21 @@
     {
       "id": "implement",
       "type": "build",
-      "title": "Implement 3D rendering panel",
+      "title": "Implement RFC 0002 GUI usability improvements",
       "role_id": "implementer",
       "lane_id": "codex",
-      "objective": "Implement the 3D rendering panel exactly as specified in DESIGN.md using PyVista.",
+      "objective": "Implement all seven usability improvements specified in RFC 0002.",
       "task_prompt": {
-        "path": "docs/workflows/3d-rendering-implement.json/prompts/implement.md"
+        "path": "docs/workflows/gui-usability.json/prompts/implement.md"
       },
       "write_scope": {
         "mode": "repo_write",
         "repo_write": true,
         "allowed_paths": [
-          "generator.py",
           "gui.py",
           "pyvista_view.py",
-          "docs/workflows/3d-rendering-implement.json/"
+          "generator.py",
+          "docs/workflows/gui-usability.json/"
         ],
         "forbidden_paths": [
           ".striatum/"
@@ -73,7 +73,7 @@
         {
           "logical_name": "implementation",
           "kind": "other",
-          "path": "docs/workflows/3d-rendering-implement.json/IMPLEMENTATION.md",
+          "path": "docs/workflows/gui-usability.json/IMPLEMENTATION.md",
           "required": true
         }
       ]

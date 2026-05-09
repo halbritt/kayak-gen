@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use("qtagg")
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.widgets as widgets
@@ -64,6 +66,12 @@ class KayakGUI:
         self.btn_reset = widgets.Button(ax_rst, "Reset", color="0.75", hovercolor="0.85")
         self.btn_reset.on_clicked(self._on_reset)
 
+        ax_3d = self.fig.add_axes([0.04, 0.13, 0.24, 0.045])
+        self.btn_3d = widgets.Button(ax_3d, "3D View", color="0.25", hovercolor="0.35")
+        self.btn_3d.label.set_color("white")
+        self.btn_3d.on_clicked(self._on_open_3d)
+        self._pv_window = None
+
         self.ax_status = self.fig.add_axes([0.04, 0.01, 0.24, 0.04])
         self.ax_status.axis("off")
         self.status = self.ax_status.text(0.5, 0.5, "", ha="center", va="center",
@@ -88,6 +96,12 @@ class KayakGUI:
         kg.generate_stl("deck", "kayak_deck.stl")
         self.status.set_text("Saved kayak_hull.stl + kayak_deck.stl")
         self.fig.canvas.draw()
+
+    def _on_open_3d(self, _event):
+        from pyvista_view import PyVistaWindow
+        if self._pv_window is None or not self._pv_window.isVisible():
+            self._pv_window = PyVistaWindow(self.params)
+            self._pv_window.show()
 
     # ------------------------------------------------------------------
     def _make_generator(self):
@@ -156,6 +170,9 @@ class KayakGUI:
         ax.grid(True, alpha=0.25)
 
         self.fig.canvas.draw_idle()
+
+        if self._pv_window is not None and self._pv_window.isVisible():
+            self._pv_window.update_mesh(self.params)
 
 
 if __name__ == "__main__":
