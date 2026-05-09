@@ -14,7 +14,18 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 
 | RFC | Status | Topic |
 | --- | --- | --- |
-| TODO — replace with first RFC row | TODO | TODO |
+| [0001](0001-template.md) | template | RFC template — copy for new RFCs |
+| [0002](0002-gui-usability.md) | proposed | GUI usability improvements |
+| [0003](0003-layout-and-station-view.md) | proposed | Window layout and station-view slider |
+| [0004](0004-plumb-bow.md) | proposed | Plumb bow support (`bow_rake` parameter) |
+| [0005](0005-cfd-resistance.md) | proposed | Resistance estimation (Michell + ITTC) |
+| [0006](0006-design-constraints.md) | proposed | Hull design constraints — canonical parameter space and class presets |
+| [0007](0007-architectural-revisit.md) | proposed | Architectural revisit — extract `kayakgen` package before more parameters land |
+| [0008](0008-web-frontend.md) | proposed | Portable web frontend via Trame |
+
+RFCs 0007 and 0008 are the load-bearing ones for current direction.
+0005, 0006, and earlier RFCs target the new package layout 0007
+proposes; expect them to be retargeted as 0007 lands.
 
 ## Template
 

@@ -31,4 +31,4 @@ expected to honor the budget; older rows may be grandfathered.
 
 | ID | Status | Decision | Context | Consequence | Revisit |
 | --- | --- | --- | --- | --- | --- |
-| D001 | proposed | TODO — replace with the project's first decision | TODO | TODO | TODO |
+| D001 | accepted | Adopt the striatum context-hygiene practices: an `AGENTS.md` entry-point reading list, vendored `docs/CONTEXT_HYGIENE.md`, a real RFC index, and labeled negative space for scaffold-only docs. | Repo had `DDD.md` / `SPEC.md` / `UBIQUITOUS_LANGUAGE.md` / `DECISION_LOG.md` skeletons but no entry-point file, and the RFC index and this log were both TODO placeholders. New agents had to triage the doc tree before doing useful work. | `AGENTS.md` (root) is the canonical reading list; `docs/CONTEXT_HYGIENE.md` is vendored byte-identical from striatum so upstream updates can be diffed; `docs/rfcs/README.md` index now lists 0001–0008. PRD/SPEC/RFC scope drift is flagged in `AGENTS.md` rather than silently merged. | If `AGENTS.md` outgrows the 5–8 file budget, or if the PRD is updated to absorb RFC 0005–0008's scope so the "where the docs and the RFCs disagree" section is no longer needed. |
