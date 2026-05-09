@@ -1,0 +1,78 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "layout-station-view",
+  "workflow_version": "2026-05-09",
+  "name": "Layout Fix, Sheer Plan Rename, Interactive Station View (Codex)",
+  "branch": {
+    "mode": "auto",
+    "suggested_name": "feature/layout-station-view",
+    "allow_dirty": true
+  },
+  "coordinator": {
+    "role_id": "coordinator",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Code (local)",
+      "command": ["sh", "-c", "cat >/dev/null"],
+      "capabilities": ["write", "review"]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "OpenAI Codex (codex exec)",
+      "command": ["scripts/codex-striatum-adapter.sh"],
+      "capabilities": ["write"]
+    }
+  },
+  "roles": {
+    "coordinator": {
+      "definition_path": "roles/coordinator.md"
+    },
+    "implementer": {
+      "definition_path": "roles/implementer.md"
+    }
+  },
+  "context_docs": [
+    "docs/rfcs/0003-layout-and-station-view.md",
+    "gui.py"
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 1,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement",
+      "type": "build",
+      "title": "Implement RFC 0003",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "objective": "Fix layout overlap, rename Sheer Plan, add interactive station cross-section view.",
+      "task_prompt": {
+        "path": "docs/workflows/layout-station-view.json/prompts/implement.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "gui.py",
+          "docs/workflows/layout-station-view.json/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "implementation",
+          "kind": "other",
+          "path": "docs/workflows/layout-station-view.json/IMPLEMENTATION.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "cycles": []
+}

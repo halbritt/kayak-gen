@@ -24,7 +24,7 @@ class PyVistaWindow(QMainWindow):
 
     def __init__(self, params: dict):
         super().__init__()
-        self.setWindowTitle("Kayak 3D View")
+        self._update_title(params)
         self.resize(900, 650)
 
         central = QWidget()
@@ -49,10 +49,15 @@ class PyVistaWindow(QMainWindow):
         self._plotter.add_axes()
         self._plotter.reset_camera()
 
+    def _update_title(self, params: dict):
+        self.setWindowTitle(
+            f"Kayak 3D — {params['length']:.1f}m × {params['beam']:.2f}m beam"
+        )
+
     def _build_scene(self, params: dict):
         kg = KayakGenerator(**params)
-        hull_pv = _build_pv_mesh(*kg.get_mesh_arrays("hull"))
-        deck_pv = _build_pv_mesh(*kg.get_mesh_arrays("deck"))
+        hull_pv = _build_pv_mesh(*kg.get_mesh_arrays("hull", stations=80))
+        deck_pv = _build_pv_mesh(*kg.get_mesh_arrays("deck", stations=80))
 
         self._hull_actor = self._plotter.add_mesh(
             hull_pv, color="#3a7ebf", smooth_shading=True,
@@ -73,13 +78,14 @@ class PyVistaWindow(QMainWindow):
     def update_mesh(self, params: dict):
         kg = KayakGenerator(**params)
         for part, attr in [("hull", "_hull_actor"), ("deck", "_deck_actor")]:
-            verts, faces = kg.get_mesh_arrays(part)
+            verts, faces = kg.get_mesh_arrays(part, stations=80)
             pv_mesh = _build_pv_mesh(verts, faces)
             actor = getattr(self, attr)
             actor.mapper.dataset.points = pv_mesh.points
             actor.mapper.dataset.faces = pv_mesh.faces
             actor.mapper.dataset.compute_normals(inplace=True)
         self._plotter.render()
+        self._update_title(params)
 
     def _set_camera(self, cam):
         self._plotter.camera_position = cam
