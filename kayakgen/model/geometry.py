@@ -73,6 +73,21 @@ class LoftedHullGeometry(HullGeometry):
         return self.hull.beam_oa_m
 
     @property
+    def B_wl(self) -> float:
+        """Beam at the design waterline; falls back to overall beam if unset."""
+        return self.hull.beam_wl_m if self.hull.beam_wl_m is not None else self.hull.beam_oa_m
+
+    def _half_beam_for_part(self, part: PartType) -> float:
+        """Half-beam to use at midship for ``part``.
+
+        The hull (wetted surface) tapers from the keel up to the waterline
+        at ``beam_wl``; the deck (topside surface) carries the overall beam
+        ``beam_oa``. When ``beam_wl_m`` is None on the Hull, both fall back
+        to the overall beam, preserving legacy behaviour.
+        """
+        return (self.B_wl if part == "hull" else self.B) / 2.0
+
+    @property
     def T(self) -> float:
         return self.hull.draft_m
 
@@ -116,7 +131,7 @@ class LoftedHullGeometry(HullGeometry):
         fraction = self._get_area_fraction(x)
         hull_decay = np.sqrt(fraction)
 
-        local_B = (self.B / 2.0) * hull_decay
+        local_B = self._half_beam_for_part(part_type) * hull_decay
         local_T = self.T * hull_decay
         deck_scale = self._get_deck_height_scaling(x)
         local_Deck = (self.H - self.T) * deck_scale
@@ -191,7 +206,7 @@ class LoftedHullGeometry(HullGeometry):
 
     def waterplane(self, n: int = 200) -> np.ndarray:
         xs = np.linspace(-self.L / 2, self.L / 2, n)
-        half = np.array([(self.B / 2.0) * np.sqrt(self._get_area_fraction(x)) for x in xs])
+        half = np.array([(self.B_wl / 2.0) * np.sqrt(self._get_area_fraction(x)) for x in xs])
         return np.column_stack((xs, half))
 
     def keel_line(self, n: int = 200) -> np.ndarray:
