@@ -8,6 +8,7 @@ import typer
 
 from kayakgen.eval.contract import EvaluationResult
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
+from kayakgen.eval.resistance import resistance_curve
 from kayakgen.io.json import load_hull, save_evaluation, save_hull
 from kayakgen.io.stl import write_stl
 from kayakgen.model.hull import Hull
@@ -44,11 +45,17 @@ def generate(
 def evaluate(
     hull_path: Path = typer.Argument(..., exists=True, dir_okay=False),
     out: Path | None = typer.Option(None, "--out", help="Where to write the EvaluationResult JSON; default is <hull>.eval.json."),
+    skip_resistance: bool = typer.Option(False, "--skip-resistance", help="Skip the Michell+ITTC sweep (faster)."),
 ) -> None:
     """Run all available evaluators on a hull and write the EvaluationResult."""
     hull = load_hull(hull_path)
     hydrostatics = evaluate_hydrostatics(hull)
-    result = EvaluationResult(hull_hash=hull.hash(), hydrostatics=hydrostatics)
+    resistance = None if skip_resistance else resistance_curve(hull)
+    result = EvaluationResult(
+        hull_hash=hull.hash(),
+        hydrostatics=hydrostatics,
+        resistance=resistance,
+    )
     out_path = out if out is not None else hull_path.with_suffix(".eval.json")
     save_evaluation(result, out_path)
     typer.echo(f"wrote {out_path}")
