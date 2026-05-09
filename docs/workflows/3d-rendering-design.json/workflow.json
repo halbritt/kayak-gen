@@ -1,0 +1,107 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "3d-rendering-design",
+  "workflow_version": "2026-05-09",
+  "name": "3D Rendering: Research + Design",
+  "branch": {
+    "mode": "auto",
+    "suggested_name": "striatum/3d-rendering-design",
+    "allow_dirty": true
+  },
+  "coordinator": {
+    "role_id": "author",
+    "lane_id": "local"
+  },
+  "lanes": {
+    "local": {
+      "adapter": "process",
+      "display_model": "Claude Code (local)",
+      "command": ["sh", "-c", "cat >/dev/null"],
+      "capabilities": ["write", "review"]
+    }
+  },
+  "roles": {
+    "author": {
+      "definition_path": "roles/author.md"
+    }
+  },
+  "context_docs": [
+    "docs/PRD.md",
+    "generator.py",
+    "gui.py"
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 1,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "research",
+      "type": "build",
+      "title": "Research Python 3D rendering options",
+      "role_id": "author",
+      "lane_id": "local",
+      "objective": "Research available Python 3D rendering libraries suitable for live interactive 3D preview in the kayak generator desktop GUI.",
+      "task_prompt": {
+        "path": "prompts/research.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/workflows/3d-rendering-design.json/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "research",
+          "kind": "synthesis",
+          "path": "docs/workflows/3d-rendering-design.json/RESEARCH.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "design",
+      "type": "build",
+      "title": "Design the 3D rendering implementation",
+      "role_id": "author",
+      "lane_id": "local",
+      "objective": "Based on the research findings, produce a concrete technical design for implementing live 3D rendering in the kayak generator GUI.",
+      "task_prompt": {
+        "path": "prompts/design.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/workflows/3d-rendering-design.json/",
+          "docs/rfcs/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "design",
+          "kind": "handoff",
+          "path": "docs/workflows/3d-rendering-design.json/DESIGN.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "research",
+      "to": "design",
+      "on": "completed"
+    }
+  ],
+  "cycles": []
+}
