@@ -70,8 +70,7 @@ def _half_breadth_grid(hull: Hull, n_stations: int, n_depths: int) -> tuple[np.n
 
     f_grid = np.zeros((n_stations, n_depths))
     for i, x in enumerate(xs):
-        frac = geom._get_area_fraction(x)
-        decay = math.sqrt(frac)
+        decay = geom._end_decay(x)  # honours bow_rake (RFC 0004)
         local_T = T * decay
         local_half_B = half_B_wl * decay
         if local_T <= 0 or local_half_B <= 0:

@@ -42,6 +42,7 @@ _GUI_TO_HULL = {
     "Cp": "Cp",
     "deck_flatness": "deck_flatness",
     "center_box_ratio": "center_box_ratio",
+    "bow_rake": "bow_rake",
 }
 
 
@@ -59,6 +60,7 @@ class KayakGUI:
         ("Cp", "Prismatic Coeff", 0.45, 0.70),
         ("deck_flatness", "Deck Flatness", 2.0, 16.0),
         ("center_box_ratio", "Parallel Mid-Body", 0.10, 0.60),
+        ("bow_rake", "Bow Rake (1=raked)", 0.0, 1.0),
         ("target_speed_kt", "Target Speed (kt)", 1.0, 6.0),
     ]
 
@@ -71,6 +73,7 @@ class KayakGUI:
         Cp=0.55,
         deck_flatness=8.0,
         center_box_ratio=0.33,
+        bow_rake=1.0,
         target_speed_kt=3.5,
     )
 

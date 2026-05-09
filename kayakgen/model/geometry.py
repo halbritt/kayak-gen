@@ -120,6 +120,29 @@ class LoftedHullGeometry(HullGeometry):
         exponent = self.Cp / (1.0 - self.Cp)
         return 1 - abs(x_norm) ** exponent
 
+    PLUMB_TRANSITION_FRAC = 0.05  # RFC 0004 §"Modified decay function"
+
+    def _end_decay(self, x: float) -> float:
+        """Blended decay between fully raked (sqrt area) and fully plumb.
+
+        ``hull.bow_rake`` interpolates: 1.0 reproduces the original raked
+        loft (``sqrt(area_fraction)``), 0.0 produces a near-vertical stem
+        with the keel held at full draft until the last ``PLUMB_TRANSITION_FRAC``
+        of each half-length. Intermediate values blend linearly.
+        """
+        frac = self._get_area_fraction(x)
+        if frac <= 0.0:
+            return 0.0
+        raked = np.sqrt(frac)
+        x_norm = abs((2 * x) / self.L)
+        if x_norm <= 1.0 - self.PLUMB_TRANSITION_FRAC:
+            plumb = 1.0
+        else:
+            phase = (1.0 - x_norm) / self.PLUMB_TRANSITION_FRAC
+            plumb = max(0.0, min(1.0, phase))
+        rake = self.hull.bow_rake
+        return float(rake * raked + (1.0 - rake) * plumb)
+
     def _get_deck_height_scaling(self, x: float) -> float:
         x_norm = abs((2 * x) / self.L)
         if x_norm <= self.center_ratio:
@@ -128,8 +151,11 @@ class LoftedHullGeometry(HullGeometry):
         return 1 - decay_phase**2
 
     def _get_slice_points(self, x: float, part_type: PartType) -> np.ndarray:
-        fraction = self._get_area_fraction(x)
-        hull_decay = np.sqrt(fraction)
+        # _end_decay blends raked (sqrt-of-area-fraction, the legacy form)
+        # with plumb (full-draft until the last PLUMB_TRANSITION_FRAC of the
+        # half-length). With bow_rake=1.0 (default) it reproduces the
+        # original loft bit-for-bit; the golden tests pin this.
+        hull_decay = self._end_decay(x)
 
         local_B = self._half_beam_for_part(part_type) * hull_decay
         local_T = self.T * hull_decay
@@ -206,12 +232,12 @@ class LoftedHullGeometry(HullGeometry):
 
     def waterplane(self, n: int = 200) -> np.ndarray:
         xs = np.linspace(-self.L / 2, self.L / 2, n)
-        half = np.array([(self.B_wl / 2.0) * np.sqrt(self._get_area_fraction(x)) for x in xs])
+        half = np.array([(self.B_wl / 2.0) * self._end_decay(x) for x in xs])
         return np.column_stack((xs, half))
 
     def keel_line(self, n: int = 200) -> np.ndarray:
         xs = np.linspace(-self.L / 2, self.L / 2, n)
-        zs = np.array([-self.T * np.sqrt(self._get_area_fraction(x)) for x in xs])
+        zs = np.array([-self.T * self._end_decay(x) for x in xs])
         return np.column_stack((xs, zs))
 
     def deck_centreline(self, n: int = 200) -> np.ndarray:
