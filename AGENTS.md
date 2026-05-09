@@ -15,9 +15,9 @@ keep going.
 1. **`AGENTS.md`** (this file) — orientation, current direction,
    labeled negative space. Read first.
 2. **`docs/PRD.md`** — who the project serves and what it is for.
-   *Scope-frozen at original drafting; see "Where the docs and the
-   RFCs disagree" below before treating PRD's "out of scope" list as
-   authoritative.*
+   In scope: parametric hull geometry, hydrostatics, analytical
+   resistance, desktop and web frontends. The out-of-scope list is
+   four items, all genuine domain boundaries (not difficulty walls).
 3. **`docs/design/kayak_hull_design_constraints.md`** — the domain
    knowledge the design space rests on. Parameter ranges, class
    boundaries, evaluation metrics, the speed/stability tradeoff
@@ -38,26 +38,6 @@ keep going.
    replication checklist this `AGENTS.md` is the answer to.
 
 That is the whole list. Anything else is on-demand.
-
-## Where the docs and the RFCs disagree
-
-`docs/PRD.md` was drafted before RFCs 0005–0008 existed. Its "out of
-scope" section explicitly excludes:
-
-- Hydrostatics calculations — *contradicted by RFC 0006 and §10 of
-  the constraints doc.*
-- Hosted SaaS / web interface — *contradicted by RFC 0008.*
-- Panel-method or CFD analysis — *contradicted by RFC 0005 (Michell
-  + ITTC) and RFC 0007 §6 (CFD seam).*
-
-Treat the PRD as **authoritative for original-scope features** and
-the RFC trail as **authoritative for current direction**. When the
-two disagree, the RFC wins and the PRD will be updated when the
-relevant RFC moves from `proposed` to `accepted`.
-
-If you are about to edit the PRD: don't, unless an RFC has been
-accepted. If you are about to write something the PRD says is out of
-scope: check whether an RFC already proposes it (it probably does).
 
 ## Labeled negative space
 
