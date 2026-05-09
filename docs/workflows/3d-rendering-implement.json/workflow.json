@@ -1,0 +1,84 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "3d-rendering-implement",
+  "workflow_version": "2026-05-09",
+  "name": "3D Rendering: Implementation (Codex)",
+  "branch": {
+    "mode": "auto",
+    "suggested_name": "feature/3d-rendering",
+    "allow_dirty": true
+  },
+  "coordinator": {
+    "role_id": "coordinator",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Code (local)",
+      "command": ["sh", "-c", "cat >/dev/null"],
+      "capabilities": ["write", "review"]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "OpenAI Codex (codex exec)",
+      "command": ["scripts/codex-striatum-adapter.sh"],
+      "capabilities": ["write"]
+    }
+  },
+  "roles": {
+    "coordinator": {
+      "definition_path": "roles/coordinator.md"
+    },
+    "implementer": {
+      "definition_path": "roles/implementer.md"
+    }
+  },
+  "context_docs": [
+    "docs/workflows/3d-rendering-design.json/DESIGN.md",
+    "docs/workflows/3d-rendering-design.json/RESEARCH.md",
+    "generator.py",
+    "gui.py"
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 1,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement",
+      "type": "build",
+      "title": "Implement 3D rendering panel",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "objective": "Implement the 3D rendering panel exactly as specified in DESIGN.md using PyVista.",
+      "task_prompt": {
+        "path": "prompts/implement.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "generator.py",
+          "gui.py",
+          "pyvista_view.py",
+          "docs/workflows/3d-rendering-implement.json/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "implementation",
+          "kind": "other",
+          "path": "docs/workflows/3d-rendering-implement.json/IMPLEMENTATION.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [],
+  "cycles": []
+}
