@@ -28,6 +28,7 @@ from matplotlib.gridspec import GridSpec
 from PyQt6.QtCore import QTimer
 
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
+from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance
 from kayakgen.model.classes import list_classes
 from kayakgen.model.hull import Hull
 
@@ -58,6 +59,7 @@ class KayakGUI:
         ("Cp", "Prismatic Coeff", 0.45, 0.70),
         ("deck_flatness", "Deck Flatness", 2.0, 16.0),
         ("center_box_ratio", "Parallel Mid-Body", 0.10, 0.60),
+        ("target_speed_kt", "Target Speed (kt)", 1.0, 6.0),
     ]
 
     DEFAULTS = dict(
@@ -69,7 +71,11 @@ class KayakGUI:
         Cp=0.55,
         deck_flatness=8.0,
         center_box_ratio=0.33,
+        target_speed_kt=3.5,
     )
+
+    # target_speed_kt is a viewing parameter, not a Hull field.
+    _NON_HULL_GUI_KEYS = ("target_speed_kt",)
 
     def __init__(self, hull: Hull | None = None) -> None:
         if hull is not None:
@@ -260,13 +266,22 @@ class KayakGUI:
         h = evaluate_hydrostatics(hull, stations=60)
         lob = hull.length_m / hull.beam_oa_m
         klass = self._classify(hull)
+        V_ms = self.params["target_speed_kt"] * KNOTS_TO_MS
+        # Coarser station/depth/theta grids on the live path so the call
+        # stays under ~30 ms per slider tick. RFC 0005 budgets <100 ms for
+        # the full curve; this is a single-speed evaluation.
+        r = evaluate_resistance(hull, V_ms, Sw=h.wetted_surface_m2, n_stations=40, n_depths=12, n_theta=20)
         txt = (
             f"Class        {klass}\n"
             f"Displacement {h.displaced_mass_kg:6.1f} kg\n"
             f"Wetted surf  {h.wetted_surface_m2:6.3f} m²\n"
             f"Waterplane   {h.waterplane_area_m2:6.3f} m²\n"
             f"Cp / Cm      {h.Cp_actual:.3f} / {h.Cm_actual:.3f}\n"
-            f"LOA/B ratio  {lob:6.2f}"
+            f"LOA/B ratio  {lob:6.2f}\n"
+            f"At {self.params['target_speed_kt']:.1f} kt (Fn {r['Fn']:.2f}):\n"
+            f"  Viscous   {r['Rv_N']:6.1f} N\n"
+            f"  Wave      {r['Rw_N']:6.1f} N\n"
+            f"  Total     {r['Rt_N']:6.1f} N"
         )
         self.metrics_text.set_text(txt)
 
