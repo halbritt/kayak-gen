@@ -28,21 +28,14 @@ from matplotlib.gridspec import GridSpec
 from PyQt6.QtCore import QTimer
 
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
+from kayakgen.model.classes import list_classes
 from kayakgen.model.hull import Hull
 
 
-_HULL_FIELDS = (
-    "length_m",
-    "beam_oa_m",
-    "draft_m",
-    "deck_height_m",
-    "Cp",
-    "deck_flatness",
-    "center_box_ratio",
-)
 _GUI_TO_HULL = {
     "length": "length_m",
     "beam": "beam_oa_m",
+    "beam_wl": "beam_wl_m",
     "draft": "draft_m",
     "deck_height": "deck_height_m",
     "Cp": "Cp",
@@ -57,8 +50,9 @@ def _hull_from_gui_params(params: dict) -> Hull:
 
 class KayakGUI:
     SLIDERS = [
-        ("length", "Length (m)", 2.0, 6.0),
-        ("beam", "Beam (m)", 0.3, 0.9),
+        ("length", "Length (m)", 2.0, 6.5),
+        ("beam", "Beam OA (m)", 0.30, 0.90),
+        ("beam_wl", "Beam WL (m)", 0.30, 0.90),
         ("draft", "Draft (m)", 0.05, 0.25),
         ("deck_height", "Deck Height (m)", 0.15, 0.40),
         ("Cp", "Prismatic Coeff", 0.45, 0.70),
@@ -69,6 +63,7 @@ class KayakGUI:
     DEFAULTS = dict(
         length=4.5,
         beam=0.55,
+        beam_wl=0.55,
         draft=0.12,
         deck_height=0.23,
         Cp=0.55,
@@ -184,6 +179,11 @@ class KayakGUI:
     def _on_change(self, _val) -> None:
         for key, s in self.sliders.items():
             self.params[key] = s.val
+        # beam_wl must not exceed beam_oa: clamp live, never the other way.
+        if self.params["beam_wl"] > self.params["beam"]:
+            self.params["beam_wl"] = self.params["beam"]
+            self.sliders["beam_wl"].set_val(self.params["beam"])
+            return  # the set_val above re-enters _on_change
         self.status.set_text("")
         self.update_plots()
         if self._pv_window is not None and self._pv_window.isVisible():
@@ -236,6 +236,22 @@ class KayakGUI:
         if self._pv_window is not None and self._pv_window.isVisible():
             self._pv_window.update_mesh(self.params)
 
+    def _classify(self, hull: Hull) -> str:
+        """Return a short label describing where this hull sits in the class envelope (RFC 0006)."""
+        l_over_bwl = hull.length_m / (hull.beam_wl_m or hull.beam_oa_m)
+        for kc in list_classes():
+            if (
+                kc.length_m.min <= hull.length_m <= kc.length_m.max
+                and kc.beam_oa_m.min <= hull.beam_oa_m <= kc.beam_oa_m.max
+                and kc.beam_wl_m.min <= (hull.beam_wl_m or hull.beam_oa_m) <= kc.beam_wl_m.max
+            ):
+                return kc.label
+        if l_over_bwl < 8:
+            return f"Custom — sub-touring (L/B_wl={l_over_bwl:.1f})"
+        if l_over_bwl > 15:
+            return f"Custom — beyond elite (L/B_wl={l_over_bwl:.1f})"
+        return f"Custom (L/B_wl={l_over_bwl:.1f})"
+
     def _refresh_metrics(self) -> None:
         # Single source of truth: integrated hydrostatics on the same mesh
         # the STL exporter and CFD will see. Stations reduced from the
@@ -243,7 +259,9 @@ class KayakGUI:
         hull = _hull_from_gui_params(self.params)
         h = evaluate_hydrostatics(hull, stations=60)
         lob = hull.length_m / hull.beam_oa_m
+        klass = self._classify(hull)
         txt = (
+            f"Class        {klass}\n"
             f"Displacement {h.displaced_mass_kg:6.1f} kg\n"
             f"Wetted surf  {h.wetted_surface_m2:6.3f} m²\n"
             f"Waterplane   {h.waterplane_area_m2:6.3f} m²\n"
