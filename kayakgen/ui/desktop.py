@@ -29,7 +29,7 @@ from PyQt6.QtCore import QTimer
 
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance
-from kayakgen.model.classes import list_classes
+from kayakgen.model.classes import KayakClass, get_class, list_classes
 from kayakgen.model.hull import Hull
 
 
@@ -118,9 +118,43 @@ class KayakGUI:
         self._3d_timer.timeout.connect(self._flush_3d)
 
         self._build_button()
+        self._build_class_selector()
         self.update_plots()
         self._refresh_metrics()
         plt.show()
+
+    def _build_class_selector(self) -> None:
+        """Radio buttons for class presets (RFC 0006 §4)."""
+        labels = [kc.label for kc in list_classes()] + ["Custom"]
+        self._class_names = [kc.name for kc in list_classes()] + ["custom"]
+        ax = self.fig.add_axes([0.05, 0.330, 0.26, 0.110])
+        ax.set_title("Class preset", fontsize=8, loc="left")
+        self.class_radio = widgets.RadioButtons(ax, labels, active=len(labels) - 1)
+        for txt in self.class_radio.labels:
+            txt.set_fontsize(7)
+        self.class_radio.on_clicked(self._on_class_select)
+
+    def _on_class_select(self, label: str) -> None:
+        idx = next(
+            (i for i, kc in enumerate(list_classes()) if kc.label == label),
+            None,
+        )
+        if idx is None:
+            return  # "Custom" — no-op; user is free to slide
+        kc = list_classes()[idx]
+        seeds = {
+            "length": kc.length_m.default,
+            "beam": kc.beam_oa_m.default,
+            "beam_wl": kc.beam_wl_m.default,
+            "draft": kc.draft_m.default,
+            "Cp": kc.Cp.default,
+        }
+        # Setting slider values in turn fires _on_change, which rebuilds
+        # plots and 3D once per call. Cheap because we set five values.
+        for key, val in seeds.items():
+            slider = self.sliders.get(key)
+            if slider is not None:
+                slider.set_val(val)
 
     def _build_sliders(self) -> None:
         n = len(self.SLIDERS)
