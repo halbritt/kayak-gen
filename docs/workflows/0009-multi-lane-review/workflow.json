@@ -1,0 +1,352 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0009-multi-lane-review",
+  "workflow_version": "2026-05-10",
+  "name": "0009 \u2014 Multi-lane review of RFCs 0004-0008 implementation",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0009-multi-lane-review",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "coordinator",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": [
+        "claude",
+        "--model",
+        "opus",
+        "-p"
+      ],
+      "capabilities": [
+        "review",
+        "synthesis"
+      ]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "-"
+      ],
+      "capabilities": [
+        "review",
+        "synthesis"
+      ]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": [
+        "gemini",
+        "--model",
+        "gemini-3.1-pro-preview"
+      ],
+      "capabilities": [
+        "review"
+      ]
+    }
+  },
+  "roles": {
+    "coordinator": {
+      "definition_path": "roles/coordinator.md"
+    },
+    "reviewer_math": {
+      "definition_path": "roles/reviewer_math.md"
+    },
+    "reviewer_arch": {
+      "definition_path": "roles/reviewer_arch.md"
+    },
+    "reviewer_integrity": {
+      "definition_path": "roles/reviewer_integrity.md"
+    },
+    "ledger": {
+      "definition_path": "roles/ledger.md"
+    },
+    "synthesizer": {
+      "definition_path": "roles/synthesizer.md"
+    },
+    "final_reviewer": {
+      "definition_path": "roles/final_reviewer.md"
+    }
+  },
+  "context_docs": [
+    {
+      "path": "AGENTS.md",
+      "required": true
+    },
+    {
+      "path": "docs/PRD.md",
+      "required": true
+    },
+    {
+      "path": "docs/design/kayak_hull_design_constraints.md",
+      "required": false
+    },
+    {
+      "path": "docs/rfcs/0004-plumb-bow.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0005-cfd-resistance.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0006-design-constraints.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0007-architectural-revisit.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0008-web-frontend.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0002-0003-audit.md",
+      "required": true
+    },
+    {
+      "path": "docs/workflows/0009-multi-lane-review/SOURCES.md",
+      "required": true
+    },
+    {
+      "path": "pyproject.toml",
+      "required": false
+    }
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "review_math",
+      "type": "review",
+      "title": "Review math/physics correctness across RFCs 0004, 0005, 0006, 0007",
+      "role_id": "reviewer_math",
+      "lane_id": "codex",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Audit naval-architecture correctness: hydrostatics integration, ITTC + Michell formulation, Wigley calibration, plumb-bow blend, beam_wl semantics, Cp/Cm recomputation. Flag any disagreements with RFC math, the constraints document, or the regression net.",
+      "task_prompt": {
+        "path": "prompts/review_math.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0009-multi-lane-review/codex/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0009-multi-lane-review/codex/REVIEW_MATH.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_arch",
+      "type": "review",
+      "title": "Review architecture, package layout, and RFC 0007 acceptance",
+      "role_id": "reviewer_arch",
+      "lane_id": "gemini",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Audit the kayakgen package extraction: module boundaries, ABC discipline, Pydantic schema, EvaluationResult contract, CLI surface, shim strategy. Cross-check every RFC 0007 acceptance criterion against current code; surface missing or weakened items.",
+      "task_prompt": {
+        "path": "prompts/review_arch.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0009-multi-lane-review/gemini/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0009-multi-lane-review/gemini/REVIEW_ARCH.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_integrity",
+      "type": "review",
+      "title": "Review integrity, process, and the RFC 0008 web layer",
+      "role_id": "reviewer_integrity",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Audit two cross-cutting things: (1) integrity of the work \u2014 commit author/byline conventions, claims in commit messages vs. actual code, the striatum-workflow bypass on the seven feature branches; (2) the RFC 0008 Trame web layer \u2014 state round-trip, REST shape, Docker build, parity with desktop. Flag overstatements and gaps honestly.",
+      "task_prompt": {
+        "path": "prompts/review_integrity.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0009-multi-lane-review/claude/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0009-multi-lane-review/claude/REVIEW_INTEGRITY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "ledger",
+      "title": "Merge the three reviews into a deduplicated findings ledger",
+      "role_id": "ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Read all three review artifacts. Produce one consolidated ledger keyed by finding ID with severity (blocker / major / minor / nit), affected RFC, file path(s), and a short rationale. Dedupe overlaps; preserve dissent when reviewers disagree.",
+      "task_prompt": {
+        "path": "prompts/findings_ledger.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/0009-multi-lane-review/ledger/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "ledger",
+          "kind": "findings_ledger",
+          "path": "striatum/0009-multi-lane-review/ledger/FINDINGS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "synthesis",
+      "type": "synthesis",
+      "title": "Synthesize remediation plan from the findings ledger",
+      "role_id": "synthesizer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Convert the ledger into an actionable remediation plan: for each blocker/major finding, propose a fix (file diff sketch or follow-on RFC) and order them. Identify any findings that should be deferred or rejected and explain why.",
+      "task_prompt": {
+        "path": "prompts/synthesis.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/0009-multi-lane-review/synthesis/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "synthesis",
+          "kind": "synthesis",
+          "path": "striatum/0009-multi-lane-review/synthesis/REMEDIATION.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final review: gate the remediation plan",
+      "role_id": "final_reviewer",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Verify every blocker / major finding from the ledger is addressed in the remediation plan. Verdict: accepted (run ends) or needs_revision (cycle back to synthesis with notes).",
+      "task_prompt": {
+        "path": "prompts/final_review.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0009-multi-lane-review/final/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "final_review",
+          "kind": "finding",
+          "path": "striatum/0009-multi-lane-review/final/FINAL_REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "review_math",
+      "to": "findings_ledger",
+      "on": "completed"
+    },
+    {
+      "from": "review_arch",
+      "to": "findings_ledger",
+      "on": "completed"
+    },
+    {
+      "from": "review_integrity",
+      "to": "findings_ledger",
+      "on": "completed"
+    },
+    {
+      "from": "findings_ledger",
+      "to": "synthesis",
+      "on": "completed"
+    },
+    {
+      "from": "synthesis",
+      "to": "final_review",
+      "on": "completed"
+    }
+  ],
+  "cycles": [
+    {
+      "from": "final_review",
+      "to": "synthesis",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1
+    }
+  ]
+}
