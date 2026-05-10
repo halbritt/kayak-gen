@@ -82,5 +82,26 @@ def view(
         KayakGUI()
 
 
+@app.command()
+def serve(
+    hull_path: Path | None = typer.Argument(
+        None,
+        help="Optional Hull JSON to seed initial state; defaults to Hull().",
+    ),
+    host: str = typer.Option("127.0.0.1", "--host", help="Bind host."),
+    port: int = typer.Option(8080, "--port", help="Bind port."),
+) -> None:
+    """Run the Trame web frontend (RFC 0008) locally."""
+    try:
+        from kayakgen.ui.web.app import create_app
+    except ImportError as exc:
+        typer.echo(f"web extras not installed (pip install 'kayakgen[web]'): {exc}", err=True)
+        raise typer.Exit(code=1)
+
+    initial_hull = load_hull(hull_path) if hull_path is not None else None
+    web = create_app(initial_hull=initial_hull)
+    web.server.start(host=host, port=port)
+
+
 if __name__ == "__main__":
     app()

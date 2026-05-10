@@ -29,6 +29,7 @@ web = [
     "trame-vuetify>=2.4",
     "trame-vtk>=2.7",
     "trame-matplotlib>=2.0",
+    "vtk>=9.3",
 ]
 dev = [
     "pytest>=8.0",

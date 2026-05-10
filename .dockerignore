@@ -1,0 +1,11 @@
+.venv/
+.striatum/
+.claude/
+.pytest_cache/
+__pycache__/
+*.egg-info/
+*.stl
+docs/
+tests/
+.git/
+.gitignore
