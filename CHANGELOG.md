@@ -57,6 +57,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   resistance and forged legacy final-prediction strings cannot become accepted
   calibrated prediction without fixture IDs, model version, fit evidence, and a
   validity envelope.
+- Hardened RFC 0027 resistance calibration acceptance gates so only
+  `accepted_fit` records with metrics, accepted fixture IDs, model version, and
+  validity envelopes can satisfy calibrated-prediction provenance, while weak
+  calibration/validation fixture metadata remains rejected.
 - `kayakgen evaluate` and compact web metrics now show visible warnings when
   resistance values are the current uncalibrated comparative filter.
 - Refreshed project Striatum Claude/Codex skill bundles to the running 1.36.0

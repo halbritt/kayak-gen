@@ -77,6 +77,37 @@ def _write_run_with_resistance_metadata(
     (root / "run.json").write_text(run.model_dump_json(indent=2))
 
 
+def _complete_calibrated_resistance_metadata(
+    *,
+    fit_status: str = "accepted_fit",
+    calibration_fixture_ids: list[str] | None = None,
+    validation_fixture_ids: list[str] | None = None,
+) -> ResistanceMetadata:
+    return ResistanceMetadata(
+        claim_state="calibrated_model",
+        calibration_status="calibrated",
+        accepted_uses=["final_prediction"],
+        calibration_fixture_ids=(
+            ["accepted-fixture-001"]
+            if calibration_fixture_ids is None
+            else calibration_fixture_ids
+        ),
+        validation_fixture_ids=(
+            ["validation-fixture-001"]
+            if validation_fixture_ids is None
+            else validation_fixture_ids
+        ),
+        model_version="resistance-test-v1",
+        fit_status=fit_status,
+        fit_metrics={
+            "force_rmse_N": 0.42,
+            "mean_absolute_percentage_error": 2.5,
+        },
+        validity_envelope={"Fn": [0.25, 0.50], "L_B": [8.0, 12.0]},
+        warnings=[],
+    )
+
+
 def test_default_comparison_report_is_deterministic(tmp_path: Path) -> None:
     run_sweep(_spec(), tmp_path)
 
@@ -261,12 +292,80 @@ def test_forged_legacy_final_prediction_metadata_is_not_accepted(tmp_path: Path)
     assert "metric requires accepted-use provenance: Rt_N_last" in summary.warnings
 
 
+def test_complete_accepted_fit_contract_allows_resistance_objective(
+    tmp_path: Path,
+) -> None:
+    _write_run_with_resistance_metadata(
+        tmp_path,
+        _complete_calibrated_resistance_metadata(),
+    )
+
+    report = build_comparison_report(
+        tmp_path,
+        objectives=[Objective(metric="Rt_N_last", direction="min")],
+    )
+    summary = report.candidate_summaries[0]
+
+    assert summary.provenance["Rt_N_last"]["accepted_use"] is True
+    assert summary.provenance["Rt_N_last"]["fit_status"] == "accepted_fit"
+    assert summary.provenance["Rt_N_last"]["fit_metrics"]
+    assert "metric requires accepted-use provenance: Rt_N_last" not in summary.warnings
+
+
+@pytest.mark.parametrize("fit_status", ["candidate_fit", "rejected_fit"])
+def test_comparison_rejects_candidate_or_rejected_fit_with_metrics(
+    tmp_path: Path,
+    fit_status: str,
+) -> None:
+    _write_run_with_resistance_metadata(
+        tmp_path,
+        _complete_calibrated_resistance_metadata(fit_status=fit_status),
+    )
+
+    report = build_comparison_report(
+        tmp_path,
+        objectives=[Objective(metric="Rt_N_last", direction="min")],
+    )
+    summary = report.candidate_summaries[0]
+
+    assert summary.provenance["Rt_N_last"]["accepted_use"] is False
+    assert summary.provenance["Rt_N_last"]["fit_status"] == fit_status
+    assert summary.provenance["Rt_N_last"]["fit_metrics"]
+    assert "metric requires accepted-use provenance: Rt_N_last" in summary.warnings
+
+
+def test_comparison_rejects_validation_only_resistance_metadata(
+    tmp_path: Path,
+) -> None:
+    _write_run_with_resistance_metadata(
+        tmp_path,
+        _complete_calibrated_resistance_metadata(
+            calibration_fixture_ids=[],
+            validation_fixture_ids=["validation-fixture-001"],
+        ),
+    )
+
+    report = build_comparison_report(
+        tmp_path,
+        objectives=[Objective(metric="Rt_N_last", direction="min")],
+    )
+    summary = report.candidate_summaries[0]
+
+    assert summary.provenance["Rt_N_last"]["accepted_use"] is False
+    assert summary.provenance["Rt_N_last"]["calibration_fixture_ids"] == []
+    assert summary.provenance["Rt_N_last"]["validation_fixture_ids"] == [
+        "validation-fixture-001"
+    ]
+    assert "metric requires accepted-use provenance: Rt_N_last" in summary.warnings
+
+
 @pytest.mark.parametrize(
     ("metadata_update", "expected_missing"),
     [
         ({"calibration_fixture_ids": []}, "calibration_fixture_ids"),
         ({"model_version": None}, "model_version"),
         ({"fit_status": None, "fit_metrics": {}}, "fit_status"),
+        ({"fit_metrics": {}}, "fit_metrics"),
         ({"validity_envelope": None}, "validity_envelope"),
     ],
 )
@@ -280,8 +379,13 @@ def test_calibrated_prediction_requires_full_claim_contract(
         "calibration_status": "calibrated",
         "accepted_uses": ["final_prediction"],
         "calibration_fixture_ids": ["accepted-fixture-001"],
+        "validation_fixture_ids": ["validation-fixture-001"],
         "model_version": "resistance-test-v1",
-        "fit_status": "passed",
+        "fit_status": "accepted_fit",
+        "fit_metrics": {
+            "force_rmse_N": 0.42,
+            "mean_absolute_percentage_error": 2.5,
+        },
         "validity_envelope": {"Fn": [0.25, 0.50]},
         "warnings": [],
     } | metadata_update
@@ -304,16 +408,7 @@ def test_calibrated_prediction_requires_full_claim_contract(
 def test_calibrated_resistance_is_not_final_design_fitness(tmp_path: Path) -> None:
     _write_run_with_resistance_metadata(
         tmp_path,
-        ResistanceMetadata(
-            claim_state="calibrated_model",
-            calibration_status="calibrated",
-            accepted_uses=["final_prediction"],
-            calibration_fixture_ids=["accepted-fixture-001"],
-            model_version="resistance-test-v1",
-            fit_status="passed",
-            validity_envelope={"Fn": [0.25, 0.50]},
-            warnings=[],
-        ),
+        _complete_calibrated_resistance_metadata(),
         summary_extra={"design_fitness": 0.75},
     )
 

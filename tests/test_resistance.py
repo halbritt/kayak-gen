@@ -27,6 +27,7 @@ from kayakgen.eval.claims import (
     claim_allows_calibrated_prediction,
     claim_allows_final_design_fitness,
 )
+from kayakgen.eval.contract import ResistanceMetadata
 from kayakgen.eval.resistance import (
     KNOTS_TO_MS,
     SEAWATER_DENSITY_KG_M3,
@@ -36,6 +37,64 @@ from kayakgen.eval.resistance import (
     wetted_surface,
 )
 from kayakgen.model.hull import Hull
+
+
+def _complete_calibrated_metadata(
+    *,
+    fit_status: str = "accepted_fit",
+    calibration_fixture_ids: list[str] | None = None,
+    validation_fixture_ids: list[str] | None = None,
+) -> ResistanceMetadata:
+    return ResistanceMetadata(
+        claim_state="calibrated_model",
+        calibration_status="calibrated",
+        accepted_uses=["final_prediction"],
+        calibration_fixture_ids=(
+            ["accepted-calibration-fixture-001"]
+            if calibration_fixture_ids is None
+            else calibration_fixture_ids
+        ),
+        validation_fixture_ids=(
+            ["validation-fixture-001"]
+            if validation_fixture_ids is None
+            else validation_fixture_ids
+        ),
+        model_version="resistance-test-v1",
+        fit_status=fit_status,
+        fit_metrics={
+            "force_rmse_N": 0.42,
+            "mean_absolute_percentage_error": 2.5,
+        },
+        validity_envelope={"Fn": [0.25, 0.50], "L_B": [8.0, 12.0]},
+        warnings=[],
+    )
+
+
+def _accepted_calibration_fixture_payload(
+    **updates: object,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "source_id": "synthetic_calibration_fixture",
+        "title": "Synthetic calibration fixture",
+        "url": "https://example.invalid/calibration-fixture",
+        "source_type": "test_fixture",
+        "intended_use": "calibration_fixture",
+        "measured_data": True,
+        "hull_class": "sea_kayak",
+        "rights_status": "test_fixture_redistributable",
+        "extraction_status": "machine_readable_rows_checked",
+        "notes": "Synthetic fixture used only to exercise metadata gates.",
+        "warnings": [],
+        "fixture_id": "calibration-fixture-001",
+        "measured_quantity": "total_resistance",
+        "measurement_units": "N",
+        "hull_envelope": {"L_B": [8.0, 12.0]},
+        "uncertainty_notes": "Synthetic uncertainty budget is documented.",
+        "validity_ranges": {"Fn": [0.25, 0.50]},
+        "fixture_review_status": "accepted",
+    }
+    payload.update(updates)
+    return payload
 
 
 def test_zero_speed_is_zero_drag() -> None:
@@ -133,6 +192,7 @@ def test_resistance_curve_shape_and_units() -> None:
     assert curve.metadata.validation_fixture_ids == []
     assert curve.metadata.model_version is None
     assert curve.metadata.fit_status is None
+    assert curve.metadata.fit_metrics == {}
     assert curve.metadata.validity_envelope is None
     assert curve.metadata.model_family == "raw_ittc_michell"
     assert curve.metadata.calibration_status == "uncalibrated"
@@ -179,6 +239,7 @@ def test_resistance_metadata_round_trips_optional_provenance_fields() -> None:
     assert loaded.metadata.validation_fixture_ids == []
     assert loaded.metadata.model_version is None
     assert loaded.metadata.fit_status is None
+    assert loaded.metadata.fit_metrics == {}
     assert loaded.metadata.validity_envelope is None
     assert loaded.metadata.calibration_name is None
     assert loaded.metadata.calibration_version is None
@@ -196,6 +257,52 @@ def test_resistance_claim_state_is_serialized_and_not_promoted() -> None:
     assert "claim_state" in payload["metadata"]
     assert claim_allows_calibrated_prediction(curve.metadata) is False
     assert claim_allows_final_design_fitness(curve.metadata) is False
+
+
+@pytest.mark.parametrize("fit_status", ["candidate_fit", "rejected_fit"])
+def test_candidate_or_rejected_fit_with_metrics_cannot_claim_calibrated_prediction(
+    fit_status: str,
+) -> None:
+    metadata = _complete_calibrated_metadata(fit_status=fit_status)
+
+    assert metadata.fit_metrics
+    assert claim_allows_calibrated_prediction(metadata) is False
+
+
+@pytest.mark.parametrize("fit_status", ["passed", "accepted", "fit_passed"])
+def test_legacy_fit_aliases_do_not_claim_calibrated_prediction(
+    fit_status: str,
+) -> None:
+    metadata = _complete_calibrated_metadata(fit_status=fit_status)
+
+    assert metadata.fit_metrics
+    assert claim_allows_calibrated_prediction(metadata) is False
+
+
+def test_accepted_fit_complete_contract_allows_calibrated_prediction() -> None:
+    metadata = _complete_calibrated_metadata()
+
+    assert metadata.fit_status == "accepted_fit"
+    assert claim_allows_calibrated_prediction(metadata) is True
+
+
+def test_accepted_fit_without_metrics_cannot_claim_calibrated_prediction() -> None:
+    metadata = _complete_calibrated_metadata()
+    metadata.fit_metrics.clear()
+
+    assert metadata.fit_status == "accepted_fit"
+    assert metadata.fit_metrics == {}
+    assert claim_allows_calibrated_prediction(metadata) is False
+
+
+def test_validation_only_metadata_cannot_claim_calibrated_prediction() -> None:
+    metadata = _complete_calibrated_metadata(
+        calibration_fixture_ids=[],
+        validation_fixture_ids=["validation-fixture-001"],
+    )
+
+    assert metadata.validation_fixture_ids == ["validation-fixture-001"]
+    assert claim_allows_calibrated_prediction(metadata) is False
 
 
 def test_default_resistance_source_registry_has_no_calibration_fixtures() -> None:
@@ -253,3 +360,36 @@ def test_calibration_fixture_requires_review_metadata() -> None:
 
     with pytest.raises(ValidationError, match="fixture review metadata"):
         ResistanceSourceRecord.model_validate(candidate)
+
+
+@pytest.mark.parametrize(
+    "metadata_update",
+    [
+        {"measured_data": False},
+        {"rights_status": ""},
+        {"extraction_status": ""},
+    ],
+)
+def test_calibration_fixture_rejects_weak_source_evidence(
+    metadata_update: dict[str, object],
+) -> None:
+    payload = _accepted_calibration_fixture_payload(**metadata_update)
+
+    with pytest.raises(ValidationError, match="calibration_fixture"):
+        ResistanceSourceRecord.model_validate(payload)
+
+
+def test_validation_fixture_requires_reproducible_fixture_metadata() -> None:
+    with pytest.raises(ValidationError, match="validation_fixture"):
+        ResistanceSourceRecord(
+            source_id="under_described_validation_fixture",
+            title="Under-described validation fixture",
+            url="https://example.invalid/validation-fixture",
+            source_type="test_fixture",
+            intended_use="validation_fixture",
+            measured_data=True,
+            hull_class="sprint_k1",
+            rights_status="test_only",
+            extraction_status="checked_for_parser_validation",
+            notes="Missing stable fixture identity, measured quantity, and units.",
+        )

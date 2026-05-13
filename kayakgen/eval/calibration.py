@@ -19,6 +19,20 @@ SourceUse = Literal[
 ]
 
 
+def _metadata_value_missing(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, (dict, list, tuple, set)):
+        return len(value) == 0
+    return False
+
+
+def _missing_metadata_fields(values: dict[str, Any]) -> list[str]:
+    return sorted(name for name, value in values.items() if _metadata_value_missing(value))
+
+
 class ResistanceSourceRecord(BaseModel):
     """Citation/provenance record for a candidate resistance source."""
 
@@ -44,9 +58,14 @@ class ResistanceSourceRecord(BaseModel):
     fixture_review_status: Literal["accepted", "candidate", "not_reviewed"] | None = None
 
     @model_validator(mode="after")
-    def _calibration_fixture_requires_review(self) -> "ResistanceSourceRecord":
-        if self.intended_use != "calibration_fixture":
-            return self
+    def _fixture_records_require_metadata(self) -> "ResistanceSourceRecord":
+        if self.intended_use == "calibration_fixture":
+            self._validate_calibration_fixture_metadata()
+        elif self.intended_use == "validation_fixture":
+            self._validate_validation_fixture_metadata()
+        return self
+
+    def _validate_calibration_fixture_metadata(self) -> None:
         required_values = {
             "fixture_id": self.fixture_id,
             "measured_quantity": self.measured_quantity,
@@ -55,8 +74,12 @@ class ResistanceSourceRecord(BaseModel):
             "uncertainty_notes": self.uncertainty_notes,
             "validity_ranges": self.validity_ranges,
             "fixture_review_status": self.fixture_review_status,
+            "rights_status": self.rights_status,
+            "extraction_status": self.extraction_status,
         }
-        missing = sorted(name for name, value in required_values.items() if not value)
+        missing = _missing_metadata_fields(required_values)
+        if self.measured_data is not True:
+            missing.append("measured_data=True")
         if self.fixture_review_status != "accepted":
             missing.append("fixture_review_status=accepted")
         if missing:
@@ -64,7 +87,21 @@ class ResistanceSourceRecord(BaseModel):
                 "calibration_fixture requires fixture review metadata: "
                 + ", ".join(dict.fromkeys(missing))
             )
-        return self
+
+    def _validate_validation_fixture_metadata(self) -> None:
+        required_values = {
+            "fixture_id": self.fixture_id,
+            "measured_quantity": self.measured_quantity,
+            "measurement_units": self.measurement_units,
+            "rights_status": self.rights_status,
+            "extraction_status": self.extraction_status,
+        }
+        missing = _missing_metadata_fields(required_values)
+        if missing:
+            raise ValueError(
+                "validation_fixture requires reproducible fixture metadata: "
+                + ", ".join(missing)
+            )
 
 
 def default_resistance_source_registry() -> tuple[ResistanceSourceRecord, ...]:

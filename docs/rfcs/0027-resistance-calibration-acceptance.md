@@ -35,6 +35,21 @@ fixture" and "fit passed acceptance."
 
 Revise RFC 0019 into a three-stage acceptance model.
 
+The three stage labels are normative groupings over the existing source-state
+vocabulary, not a second serialized taxonomy. The implementation source state
+remains `kayakgen/eval/calibration.py::SourceUse` with these five literal
+values:
+
+| RFC 0027 stage label | Existing `SourceUse` values | Required behavior |
+|---|---|---|
+| `candidate_source` | `citation_only`, `validation_candidate`, `calibration_fixture_candidate` | Records are usable for citation or review queues only. They do not provide validation evidence, calibration fixture IDs, or calibrated-model evidence. Current registry records stay in this grouping unless a later review explicitly promotes them. |
+| `validation_fixture` | `validation_fixture` | Data may exercise parsers, reports, adapter behavior, and holdout metrics. It cannot fit the default model, change resistance output to `calibrated_model`, or remove uncalibrated warnings. |
+| `calibration_fixture` | `calibration_fixture` | Data passed source and fixture review and may be used to fit a named model within a declared envelope. Promotion requires explicit fixture metadata and review status; loading rows is insufficient. |
+
+Do not add a `candidate_source` literal or any parallel source-state enum. UI,
+report, or documentation surfaces may display the three stage labels only as
+derived groupings from `SourceUse`.
+
 Stage 1, candidate source:
 
 - rights and citation are known enough to discuss;
@@ -79,9 +94,26 @@ Initial accepted metrics should include at least:
 - monotonicity and non-negative resistance checks;
 - holdout or validation-fixture error if a validation fixture is declared.
 
+RFC 0027 inherits RFC 0025's claim gates. Specifically, it inherits the model
+promotion rule that a model may become calibrated only after fitting code
+records accepted calibration fixture IDs, fitted parameters, metrics,
+residuals, and the envelope where claims apply. The shared implementation gate
+for calibrated resistance prediction is
+`kayakgen/eval/claims.py::claim_allows_calibrated_prediction`; RFC 0027 work
+must extend and harden that helper rather than creating a resistance-specific
+parallel helper. For resistance fit records, the canonical passing status is
+`accepted_fit`. Legacy migration aliases, validation fixtures, or non-empty
+metrics alone must not satisfy the calibrated-prediction gate.
+
+The RFC 0025 forbidden-overclaim rules also remain in force: raw CFD must not
+be treated as validated, a validation fixture must not be treated as a
+calibration fixture, uncalibrated resistance must not be treated as calibrated,
+and calibrated resistance must not be treated as final design fitness.
+
 Resistance output may stop saying `uncalibrated` only when:
 
-- at least one `calibration_fixture` is accepted;
+- selected curve metadata satisfies `claim_allows_calibrated_prediction`;
+- at least one accepted `calibration_fixture` is referenced by ID;
 - a named model version has an `accepted_fit`;
 - fit metrics and residuals are persisted and tests assert the acceptance
   thresholds;
@@ -91,8 +123,11 @@ Resistance output may stop saying `uncalibrated` only when:
 
 ## Acceptance Criteria
 
-- Fixture records distinguish `candidate_source`, `validation_fixture`, and
-  `calibration_fixture`.
+- Fixture records keep the existing five `SourceUse` values and may group them
+  under `candidate_source`, `validation_fixture`, and `calibration_fixture`
+  only through the normative mapping table above.
+- No current default registry record becomes a validation fixture or calibration
+  fixture from this vocabulary reconciliation alone.
 - Promotion to calibration fixture requires review metadata and cannot happen
   by loading rows alone.
 - Fit records distinguish `not_fit`, `candidate_fit`, `accepted_fit`, and
@@ -104,7 +139,7 @@ Resistance output may stop saying `uncalibrated` only when:
 - Tests cover rejected promotion, validation-only fixture behavior, accepted
   fit metadata, out-of-envelope warnings, and raw fallback wording.
 - CLI/web/report output may use calibrated wording only when the selected curve
-  metadata satisfies the accepted-fit gate.
+  metadata satisfies `claim_allows_calibrated_prediction`.
 
 ## Open Questions
 
@@ -118,10 +153,12 @@ Resistance output may stop saying `uncalibrated` only when:
 
 ## Implementation Path
 
-1. Add fixture promotion status and review metadata.
+1. Reconcile fixture stage wording with the existing `SourceUse` literals and
+   keep current registry records as candidates or citation-only records.
 2. Add fit-record schema and serialization.
-3. Implement candidate fitting without changing default output claims.
-4. Add acceptance metrics and negative tests for overclaiming.
-5. Switch selected calibrated model output only after a final review accepts the
+3. Extend `claim_allows_calibrated_prediction` so RFC 0027 calibrated
+   prediction requires `accepted_fit` and complete accepted-fit evidence.
+4. Implement candidate fitting without changing default output claims.
+5. Add acceptance metrics and negative tests for overclaiming.
+6. Switch selected calibrated model output only after a final review accepts the
    fit and envelope.
-

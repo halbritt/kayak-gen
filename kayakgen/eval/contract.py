@@ -11,6 +11,8 @@ from kayakgen.eval.claims import (
     ACCEPTED_USE_COMPARATIVE_FILTER,
     ClaimState,
     RawUnvalidatedClaimFields,
+    ResistanceFitStatus,
+    SerializedResistanceFitStatus,
     UNCALIBRATED_COMPARATIVE,
     uncalibrated_resistance_warnings,
 )
@@ -29,7 +31,7 @@ class ResistanceMetadata(BaseModel):
     calibration_fixture_ids: list[str] = Field(default_factory=list)
     validation_fixture_ids: list[str] = Field(default_factory=list)
     model_version: str | None = None
-    fit_status: str | None = None
+    fit_status: SerializedResistanceFitStatus | None = None
     fit_metrics: dict[str, float] = Field(default_factory=dict)
     validity_envelope: dict[str, Any] | None = None
     model_family: str = "raw_ittc_michell"
@@ -72,6 +74,22 @@ class ResistanceMetadata(BaseModel):
         if self.calibration_version != self.model_version:
             raise ValueError("calibration_version and model_version must match")
         return self
+
+
+class ResistanceFitRecord(BaseModel):
+    """RFC 0027 fit-state record for calibrated resistance models."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    model_version: str
+    fit_status: ResistanceFitStatus
+    calibration_fixture_ids: list[str] = Field(default_factory=list)
+    validation_fixture_ids: list[str] = Field(default_factory=list)
+    fitted_parameters: dict[str, float] = Field(default_factory=dict)
+    metrics: dict[str, float] = Field(default_factory=dict)
+    residuals_ref: str | None = None
+    validity_envelope: dict[str, Any] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class ResistanceCurve(BaseModel):

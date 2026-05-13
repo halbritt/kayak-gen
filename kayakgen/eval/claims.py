@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -17,6 +17,15 @@ ClaimState = Literal[
     "validated_design_fitness",
 ]
 
+ResistanceFitStatus = Literal[
+    "not_fit",
+    "candidate_fit",
+    "accepted_fit",
+    "rejected_fit",
+]
+LegacyResistanceFitStatus = Literal["passed", "accepted", "fit_passed"]
+SerializedResistanceFitStatus = ResistanceFitStatus | LegacyResistanceFitStatus
+
 RAW_UNVALIDATED = "raw_unvalidated"
 UNCALIBRATED_COMPARATIVE = "uncalibrated_comparative"
 VALIDATION_FIXTURE = "validation_fixture"
@@ -24,6 +33,11 @@ CALIBRATION_FIXTURE_CANDIDATE = "calibration_fixture_candidate"
 CALIBRATION_FIXTURE = "calibration_fixture"
 CALIBRATED_MODEL = "calibrated_model"
 VALIDATED_DESIGN_FITNESS = "validated_design_fitness"
+
+FIT_STATUS_NOT_FIT: ResistanceFitStatus = "not_fit"
+FIT_STATUS_CANDIDATE_FIT: ResistanceFitStatus = "candidate_fit"
+FIT_STATUS_ACCEPTED_FIT: ResistanceFitStatus = "accepted_fit"
+FIT_STATUS_REJECTED_FIT: ResistanceFitStatus = "rejected_fit"
 
 ACCEPTED_USE_COMPARATIVE_FILTER = "comparative_filter"
 ACCEPTED_USE_FINAL_PREDICTION = "final_prediction"
@@ -34,7 +48,23 @@ WARNING_NOT_FINAL_PERFORMANCE_PREDICTION = "not_final_performance_prediction"
 WARNING_UNCALIBRATED_NO_VALIDITY_ENVELOPE = "uncalibrated_no_validity_envelope"
 WARNING_RAW_CFD_UNVALIDATED = "raw_cfd_unvalidated"
 
-PASSED_FIT_STATUSES = frozenset({"passed", "accepted", "fit_passed"})
+CANONICAL_FIT_STATUSES: frozenset[ResistanceFitStatus] = frozenset(
+    {
+        FIT_STATUS_NOT_FIT,
+        FIT_STATUS_CANDIDATE_FIT,
+        FIT_STATUS_ACCEPTED_FIT,
+        FIT_STATUS_REJECTED_FIT,
+    }
+)
+CANONICAL_PASSING_FIT_STATUSES: frozenset[ResistanceFitStatus] = frozenset(
+    {FIT_STATUS_ACCEPTED_FIT}
+)
+PASSED_FIT_STATUSES = CANONICAL_PASSING_FIT_STATUSES
+LEGACY_FIT_STATUS_ALIASES: dict[LegacyResistanceFitStatus, ResistanceFitStatus] = {
+    "passed": FIT_STATUS_ACCEPTED_FIT,
+    "accepted": FIT_STATUS_ACCEPTED_FIT,
+    "fit_passed": FIT_STATUS_ACCEPTED_FIT,
+}
 UNCALIBRATED_WARNING_CODES = frozenset(
     {
         WARNING_COMPARATIVE_FILTER_ONLY,
@@ -42,6 +72,17 @@ UNCALIBRATED_WARNING_CODES = frozenset(
         WARNING_UNCALIBRATED_NO_VALIDITY_ENVELOPE,
     }
 )
+
+
+def map_legacy_fit_status_alias(
+    fit_status: SerializedResistanceFitStatus | str | None,
+) -> ResistanceFitStatus | None:
+    """Explicitly map legacy fit aliases to the RFC 0027 status vocabulary."""
+    if fit_status is None:
+        return None
+    if fit_status in CANONICAL_FIT_STATUSES:
+        return cast(ResistanceFitStatus, fit_status)
+    return LEGACY_FIT_STATUS_ALIASES.get(cast(LegacyResistanceFitStatus, fit_status))
 
 
 class ClaimMetadata(BaseModel):
@@ -54,7 +95,7 @@ class ClaimMetadata(BaseModel):
     calibration_fixture_ids: list[str] = Field(default_factory=list)
     validation_fixture_ids: list[str] = Field(default_factory=list)
     model_version: str | None = None
-    fit_status: str | None = None
+    fit_status: SerializedResistanceFitStatus | None = None
     fit_metrics: dict[str, float] = Field(default_factory=dict)
     validity_envelope: dict[str, Any] | None = None
     warnings: list[str] = Field(default_factory=list)
@@ -70,7 +111,7 @@ class RawUnvalidatedClaimFields(BaseModel):
     calibration_fixture_ids: list[str] = Field(default_factory=list)
     validation_fixture_ids: list[str] = Field(default_factory=list)
     model_version: str | None = None
-    fit_status: str | None = None
+    fit_status: SerializedResistanceFitStatus | None = None
     fit_metrics: dict[str, float] = Field(default_factory=dict)
     validity_envelope: dict[str, Any] | None = None
     warnings: list[str] = Field(default_factory=lambda: [WARNING_RAW_CFD_UNVALIDATED])
@@ -102,13 +143,24 @@ def raw_cfd_warnings() -> list[str]:
     return [WARNING_RAW_CFD_UNVALIDATED]
 
 
-def claim_metadata_from_fields(value: Any) -> ClaimMetadata:
+def claim_metadata_from_fields(
+    value: Any,
+    *,
+    map_legacy_fit_status: bool = False,
+) -> ClaimMetadata:
     """Build the shared claim model from a Pydantic model or mapping.
 
     Legacy field names are copied only as aliases. They never promote a record
-    to a stronger claim state without the first-class RFC 0025 fields.
+    to a stronger claim state without the first-class RFC 0025 fields. Legacy
+    fit-status values remain readable for serialized compatibility, but only an
+    explicit ``map_legacy_fit_status=True`` migration maps them to RFC 0027
+    canonical values.
     """
     if isinstance(value, ClaimMetadata):
+        if map_legacy_fit_status:
+            return value.model_copy(
+                update={"fit_status": map_legacy_fit_status_alias(value.fit_status)}
+            )
         return value
     if hasattr(value, "model_dump"):
         data = value.model_dump(mode="python")
@@ -128,7 +180,11 @@ def claim_metadata_from_fields(value: Any) -> ClaimMetadata:
         "calibration_fixture_ids": data.get("calibration_fixture_ids", []),
         "validation_fixture_ids": data.get("validation_fixture_ids", []),
         "model_version": data.get("model_version"),
-        "fit_status": data.get("fit_status"),
+        "fit_status": (
+            map_legacy_fit_status_alias(data.get("fit_status"))
+            if map_legacy_fit_status
+            else data.get("fit_status")
+        ),
         "fit_metrics": data.get("fit_metrics", {}),
         "validity_envelope": data.get("validity_envelope"),
         "warnings": data.get("warnings", []),
@@ -147,7 +203,8 @@ def claim_allows_calibrated_prediction(value: Any) -> bool:
         and ACCEPTED_USE_FINAL_PREDICTION in claim.accepted_uses
         and bool(claim.calibration_fixture_ids)
         and bool(claim.model_version)
-        and (claim.fit_status in PASSED_FIT_STATUSES or bool(claim.fit_metrics))
+        and claim.fit_status in CANONICAL_PASSING_FIT_STATUSES
+        and bool(claim.fit_metrics)
         and bool(claim.validity_envelope)
         and not UNCALIBRATED_WARNING_CODES.intersection(claim.warnings)
     )
