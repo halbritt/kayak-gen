@@ -17,7 +17,8 @@ Verdict must be `accept` or `needs_revision`. Verify that:
   first-viewport scan path, parameter editing, warning triage, responsive
   collapse, focus/keyboard behavior, and desktop/web conceptual parity.
 - Every chip, persistent banner, and status-bar segment renders the exact
-  copy from RFC 0033 §4–§6 and the original Claude Design handoff.
+  copy quoted in RFC 0033 §4–§6 and its acceptance criteria. RFC 0033 is the
+  canonical source for scope, copy, and acceptance criteria.
 - The forbidden-claim regression tests cover every no-go string in RFC 0033
   §8 and pass.
 - `kayakgen/ui/theme.py` is the only home for hex colour literals and named

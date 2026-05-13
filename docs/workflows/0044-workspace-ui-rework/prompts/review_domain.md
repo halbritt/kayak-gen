@@ -5,8 +5,10 @@ sub-agent help was used in the artifact.
 
 Read `docs/workflows/0044-workspace-ui-rework/SOURCES.md`, especially
 `kayakgen/eval/claims.py`, `kayakgen/eval/mesh_diagnostics.py`,
-`kayakgen/eval/cfd/jobs.py`, and the chip/banner text tables in RFC 0033 §4–§6
-and the original Claude Design handoff §6.
+`kayakgen/eval/cfd/jobs.py`, and the chip/banner text quoted in RFC 0033
+§4–§6 and its acceptance criteria. RFC 0033 is the canonical source for
+scope, copy, and acceptance criteria; the original handoff bundle is not
+stored in the repo.
 
 Produce
 `striatum/0044-workspace-ui-rework/domain/REVIEW_DOMAIN.md`.

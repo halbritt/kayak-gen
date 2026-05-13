@@ -19,6 +19,14 @@ Updated: 2026-05-13
   schema version 15); a backup was written to
   `.striatum/scratch/operator-db-repair-20260513T/state.sqlite3.before-v16-repair`
   before local state repair. No Striatum source changes are being made.
+- 2026-05-13T21:49:27Z checkpoint: workflow 0044 run
+  `run_4966ab190f8840d9b2f9c82b4044edad` is running on branch
+  `striatum/0044-workspace-ui-rework`. The review_remediation job completed
+  with artifact `art_3d85bc3387e6463fa1ac272cd9230323`, after a direct
+  headless Codex retry bypassed the local bubblewrap failure. The remediation
+  made RFC 0033 canonical for scope/copy/acceptance criteria and removed
+  review-scaffold dependence on an unstored handoff bundle. Four first-pass
+  review lanes are now queued for parallel launch.
 - Next maximum-parallel batch queued from the ready backlog: workflows 0033,
   0037, 0038, 0039, 0040, and 0041. Workflows 0034 and 0035 remain queued until
   0033 lands because they depend on generated closed-body evidence.

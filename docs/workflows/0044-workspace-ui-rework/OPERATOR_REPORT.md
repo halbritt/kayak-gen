@@ -23,7 +23,13 @@ Updated: 2026-05-13
   Export STLs rename, embedded PyVista, theme-driven plots, status bar),
   and a new test file for the layout and forbidden-claim regressions.
 - No runtime product code was changed by this scaffold.
+- 2026-05-13T21:49:27Z: `review_remediation` completed for run
+  `run_4966ab190f8840d9b2f9c82b4044edad` and published
+  `art_3d85bc3387e6463fa1ac272cd9230323`. The remediation tightened RFC 0033
+  and review prompts so RFC 0033 is the canonical source for scope, copy, and
+  acceptance criteria; reviewers no longer need the unstored Claude Design
+  handoff bundle. Four first-pass review lanes are queued next.
 
 ## Next action
 
-- Start the Striatum run after RFC 0033 is accepted or amended.
+- Launch traceability, domain, ergonomics/design, and ops reviews in parallel.

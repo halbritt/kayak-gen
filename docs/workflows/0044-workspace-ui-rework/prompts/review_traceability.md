@@ -17,8 +17,8 @@ risk. Verdict intent is `accept`, `accept_with_findings`, `needs_revision`, or
 Focus on whether RFC 0033 cleanly maps to the existing RFCs and controllers,
 whether the named deferrals (hosted CFD, calibrated drag, high-angle GZ,
 multi-variant overlay, web-side mesh-package authoring API) are unambiguous,
-and whether the §9 acceptance checks from the handoff are represented in the
-RFC. Use `needs_revision` for RFC/workflow blockers that must return to
+and whether RFC 0033's acceptance checks are represented in the workflow. Use
+`needs_revision` for RFC/workflow blockers that must return to
 `review_remediation`; use `accept_with_findings` for implementation findings
 that can flow to the ledger.
 

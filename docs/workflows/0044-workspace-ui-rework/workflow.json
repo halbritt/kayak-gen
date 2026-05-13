@@ -93,7 +93,7 @@
       "lane_id": "claude",
       "parallel_group": "reviews",
       "fresh_session_required": true,
-      "objective": "Map RFC 0033 to RFC 0008, 0010, 0013, 0018, 0025, and 0031, the existing controllers/payloads, and the handoff acceptance checks.",
+      "objective": "Map RFC 0033 to RFC 0008, 0010, 0013, 0018, 0025, and 0031, the existing controllers/payloads, and RFC 0033's acceptance checks.",
       "task_prompt": {"path": "prompts/review_traceability.md"},
       "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0044-workspace-ui-rework/traceability/"], "forbidden_paths": [".striatum/"]},
       "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0044-workspace-ui-rework/traceability/REVIEW_TRACEABILITY.md", "required": true}]
@@ -132,7 +132,7 @@
       "lane_id": "codex",
       "parallel_group": "reviews",
       "fresh_session_required": true,
-      "objective": "Review the rework against existing REST routes, controller helpers, accessibility expectations, and the §9 acceptance checks from the handoff.",
+      "objective": "Review the rework against existing REST routes, controller helpers, accessibility expectations, and RFC 0033's acceptance checks.",
       "task_prompt": {"path": "prompts/review_ops.md"},
       "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0044-workspace-ui-rework/ops/"], "forbidden_paths": [".striatum/"]},
       "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0044-workspace-ui-rework/ops/REVIEW_OPS.md", "required": true}]

@@ -5,9 +5,12 @@ Date: 2026-05-13
 Context: distills the Claude Design "UI Rework Handoff" bundle for
 `kayak-gen`. Companion to RFC 0008 (web frontend), RFC 0013 (Pareto
 comparison UI), RFC 0018 (web CFD job routes), and RFC 0031 (design
-constraint surfacing revision). The handoff itself is captured in
-`docs/workflows/0044-workspace-ui-rework/SOURCES.md`. See `striatum/0044-workspace-ui-rework/`
-for run artifacts once the workflow lands.
+constraint surfacing revision). The handoff provenance and source
+policy are captured in `docs/workflows/0044-workspace-ui-rework/SOURCES.md`;
+because the handoff bundle itself is not stored in the repo, this RFC
+is canonical for scope, copy, and acceptance criteria. See
+`striatum/0044-workspace-ui-rework/` for run artifacts once the
+workflow lands.
 
 ## Problem
 
@@ -59,7 +62,7 @@ viewport.
 - Keep the rework primarily frontend-only. Backend touches are limited
   to a structured advisory record and a handful of read-model helpers
   for the new view models.
-- Make every "do not claim" string from the handoff visible to a
+- Make every handoff-derived "do not claim" string visible to a
   regression test, so future copy edits can not quietly reintroduce
   forbidden language.
 - Preserve every existing REST route and CLI behaviour.
@@ -109,7 +112,7 @@ Drive `Hull` editing with constraints visible.
   reseeds five sliders and narrows their ranges to the class
   envelope (existing `KayakClass`). Any subsequent edit flips to
   Custom; this preserves the desktop semantics today.
-- One slider per Hull field in the order documented in the handoff:
+- One slider per Hull field in the order canonicalized here from the handoff:
   `length_m`, `beam_oa_m`, `beam_wl_m`, `draft_m`, `deck_height_m`,
   `Cp`, `Cm`, `deck_flatness`, `center_box_ratio`, `bow_rake`,
   `stern_rake`, plus the view-only `target_speed_kt`. `Cm` is
@@ -168,8 +171,9 @@ Five tabs, in order: Hydro, Mesh, Comparison, CFD, Advisories.
   hull mass / cargo / KG) drives the bounded fixed-body equilibrium
   readout; the trim/sinkage result carries the
   `uncalibrated_comparative` claim chip. A permanent **High-angle GZ
-  unavailable** block reproduces the exact handoff copy and cites RFC
-  0020 / RFC 0024 by number only.
+  unavailable** block renders that exact heading, states that
+  high-angle GZ visualisation is deferred, and cites RFC 0020 / RFC
+  0024 by number only.
 - **Resistance** — header "Resistance — raw comparative filter" with
   the persistent caption "Uncalibrated; no accepted final-prediction
   validity envelope. Compare nearby candidates, do not report as
@@ -201,11 +205,11 @@ the `spec_hash` (monospace, selectable) and any report-level
 warnings.
 
 **CFD**: the existing setup → status → artifact panel surfaces, with
-exact chip and banner copy from the handoff (top banner: "Local
+the exact chip and banner copy quoted here (top banner: "Local
 filesystem CFD jobs on this server only; no hosted worker is
 running.", post-status strapline: "Raw solver artifact only; not
-calibrated or validated."). Status chips and error-kind copy follow
-the §6 tables.
+calibrated or validated."). Status chips and error-kind copy use the
+existing `CfdRunStatus` literals.
 
 **Advisories**: a flat list of `design_advisory` warnings with
 clickable field-name chips that focus the relevant slider in the rail.
@@ -247,8 +251,8 @@ tokens, typography stacks, and chip text.
   `matplotlib_rc_params()` for the desktop plots, and
   `vtk_background_rgb(dark=False)` for the 3D viewport.
 - The theme module is the only authorised home for hex colour
-  literals and named colours under `kayakgen/ui/`. Acceptance §10
-  enforces this with a lint test.
+  literals and named colours under `kayakgen/ui/`. The acceptance
+  criteria enforce this with a lint test.
 
 ### 7. Structured advisory record
 
@@ -270,9 +274,9 @@ rail can attach advisory dots to specific fields.
 ### 8. Forbidden-claim guard
 
 The rework must not introduce forbidden strings into normal UI
-output. The handoff §1 and §6 enumerate the no-go list; the
-acceptance tests below convert each into a grep-style assertion so
-this constraint is enforced going forward.
+output. The canonical no-go list is the acceptance criteria below;
+the new tests convert each listed forbidden string into a grep-style
+assertion so this constraint is enforced going forward.
 
 ### 9. Compatibility
 
@@ -322,7 +326,8 @@ this constraint is enforced going forward.
   `{package, readiness, resistance_claim, cfd_status,
   advisories}` for the Status bar.
 - Every existing `tests/test_web.py` test passes unchanged.
-- New `tests/test_web_layout.py` covers the §10 assertions below.
+- New `tests/test_web_layout.py` covers the acceptance assertions
+  above.
 
 ## Open Questions
 
@@ -362,8 +367,9 @@ this constraint is enforced going forward.
 7. Add `tests/test_web_layout.py` for the new layout, chip, and
    forbidden-string assertions, plus a `tests/test_ui_theme.py`
    covering the orphan-colour-literal lint.
-8. Update `CHANGELOG.md`, `docs/USER_GUIDE.md`, and `OPERATOR_REPORT.md`
-   to describe the new workspace.
+8. Update `CHANGELOG.md`, `docs/USER_GUIDE.md`, and the workflow-local
+   operator report if directed by the operator to describe the new
+   workspace. Do not update the repo-root `OPERATOR_REPORT.md`.
 
 ## Domain Modeling
 
