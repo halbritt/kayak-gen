@@ -115,6 +115,20 @@ Updated: 2026-05-13
   pytest` -> 263 passed; 0043 reported `pytest -q` -> 252 passed plus
   browser-acceptance and focused web/CFD suites. Final-review jobs for 0042 and
   0043 are now running in parallel on the Claude lane.
+- 2026-05-13T20:14:22Z checkpoint: integrated `main` verification passed:
+  `.venv/bin/python -m pytest -q` -> 264 passed, and `.venv/bin/python -m
+  pytest tests/test_web_browser.py -m browser_acceptance --browser-acceptance
+  -q` -> 1 passed. 0042 final review published as
+  `art_a699f8a3625047b084808222ad01a4ed` with `accept_with_findings`; the
+  residual finding is the expected changelog gap because workflow build scopes
+  excluded root `CHANGELOG.md`. 0042 run is complete. 0043 final review is
+  still running.
+- 2026-05-13T20:17:05Z checkpoint: 0043 final review published as
+  `art_ec2468a675bb4d179510e2f7d229dea2` with `accept`; 0043 run is complete.
+  The final review also noted a non-blocking root `CHANGELOG.md` gap.
+- 2026-05-13T20:18:12Z checkpoint: root `CHANGELOG.md` was updated as
+  operator release hygiene using the two implementation patch summaries, closing
+  the non-blocking changelog gap noted by both final reviews.
 - 2026-05-13T17:46:07Z checkpoint: the four unblocked ledger jobs completed
   and were published without `author:` bylines: 0033
   `art_b263fcf6154e4503b62f8ad2a142813a`, 0037

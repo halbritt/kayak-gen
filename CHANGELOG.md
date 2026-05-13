@@ -65,6 +65,15 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   workflow 0041: local browser-acceptance plus hosted-demo documentation scope,
   three first-pass review lanes, and a declared review-revision anchor for
   browser `needs_revision` routing.
+- Added workflow 0042's RFC 0031 design-validity metadata across evaluate JSON,
+  web payloads, desktop/web warning helpers, sweeps, and comparison reports
+  while preserving advisory-only behavior, existing validation boundaries, and
+  deferred geometry/CFD claims.
+- Landed workflow 0043's local browser-acceptance profile, hosted-demo runbook
+  documentation, exact `/paraview/` browser-probe handling, Share/STL/3D
+  browser checks, and raw/unvalidated `/api/cfd/*` fixture-success coverage
+  while keeping public hosting, real solver execution, validated CFD,
+  calibrated resistance, and final design-fitness claims deferred.
 
 ### Changed
 
