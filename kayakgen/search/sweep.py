@@ -272,12 +272,14 @@ def _evaluate_candidate(
 
 
 def _write_summary(path: Path, records: list[CandidateRecord]) -> None:
+    parameter_names = sorted({key for record in records for key in record.parameters})
     fieldnames = [
         "candidate_index",
         "candidate_key",
         "status",
         "hull_hash",
         "error",
+        *[f"param_{name}" for name in parameter_names],
         "displaced_mass_kg",
         "wetted_surface_m2",
         "GM0_m",
@@ -295,7 +297,9 @@ def _write_summary(path: Path, records: list[CandidateRecord]) -> None:
                 "hull_hash": record.hull_hash or "",
                 "error": record.error or "",
             }
-            for key in fieldnames[5:]:
+            for name in parameter_names:
+                row[f"param_{name}"] = record.parameters.get(name, "")
+            for key in fieldnames[5 + len(parameter_names):]:
                 row[key] = record.summary.get(key, "")
             writer.writerow(row)
 

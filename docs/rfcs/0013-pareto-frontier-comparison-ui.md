@@ -1,9 +1,15 @@
 # RFC 0013: Pareto Frontier and Candidate Comparison UI
 
-Status: proposed
+Status: landed-report-cli
 Date: 2026-05-13
 Context: builds on RFC 0009 sweep records, RFC 0010 mesh diagnostics, RFC 0011
 stability/load cases, RFC 0012 resistance metadata, and RFC 0008 web frontend.
+
+Status note (workflow 0014, 2026-05-13): the comparison report and CLI slice has
+landed. Web comparison views remain deferred until RFC 0008 browser acceptance
+and report formats stabilize. Default reports exclude raw uncalibrated
+resistance; explicitly requested resistance objectives produce exploratory
+frontiers unless future calibrated provenance satisfies RFC 0012.
 
 ## Problem
 

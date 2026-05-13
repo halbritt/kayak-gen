@@ -30,11 +30,14 @@ def test_expand_candidates_is_deterministic() -> None:
 
 def test_run_sweep_writes_records_and_summary(tmp_path: Path) -> None:
     run = run_sweep(_spec(), tmp_path)
+    summary_header = (tmp_path / "summary.csv").read_text().splitlines()[0]
     assert run.completed_count == 2
     assert run.failed_count == 0
     assert (tmp_path / "run.json").exists()
     assert (tmp_path / "spec.json").exists()
-    assert (tmp_path / "summary.csv").read_text().startswith("candidate_index")
+    assert summary_header.startswith("candidate_index")
+    assert "param_beam_wl_m" in summary_header
+    assert "param_Cp" in summary_header
     for record in run.candidates:
         assert record.hull_hash
         assert (tmp_path / record.artifacts["hull"]).exists()

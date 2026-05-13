@@ -16,6 +16,7 @@ from kayakgen.io.json import load_hull, save_evaluation, save_hull
 from kayakgen.io.stl import write_stl
 from kayakgen.model.geometry import PartType
 from kayakgen.model.hull import Hull
+from kayakgen.search.compare import parse_objective, write_comparison_report
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="kayakgen pipeline CLI")
 
@@ -170,6 +171,27 @@ def sweep(
         f"wrote {out} ({run.completed_count} complete, {run.failed_count} failed, "
         f"{run.skipped_count} skipped)"
     )
+
+
+@app.command()
+def compare(
+    run_dir: Path = typer.Argument(..., exists=True, file_okay=False, help="Sweep run directory."),
+    out: Path = typer.Option(..., "--out", help="Where to write comparison report JSON."),
+    objective: list[str] | None = typer.Option(
+        None,
+        "--objective",
+        "-o",
+        help="Objective as metric:min or metric:max. May be repeated.",
+    ),
+) -> None:
+    """Compare a sweep run and write a Pareto frontier report."""
+    try:
+        objectives = [parse_objective(item) for item in objective] if objective else None
+        report = write_comparison_report(run_dir, out, objectives=objectives)
+    except Exception as exc:
+        typer.echo(f"compare failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"wrote {out} ({len(report.pareto_front_keys)} pareto candidates)")
 
 
 if __name__ == "__main__":

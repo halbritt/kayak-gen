@@ -26,7 +26,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0010](0010-cfd-ready-mesh-contract.md) | proposed | CFD-ready mesh contract |
 | [0011](0011-hydrostatic-stability-load-cases.md) | proposed | Hydrostatic stability and load cases |
 | [0012](0012-resistance-model-calibration.md) | proposed | Resistance model calibration |
-| [0013](0013-pareto-frontier-comparison-ui.md) | proposed | Pareto frontier and candidate comparison UI |
+| [0013](0013-pareto-frontier-comparison-ui.md) | landed report/CLI | Pareto frontier and candidate comparison UI |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
@@ -36,8 +36,9 @@ interactive latency remain deferred. RFCs 0004, 0006, and 0008 remain
 partial as of workflow 0010: they have useful implementation, but their
 acceptance criteria are not fully satisfied.
 
-RFCs 0009-0013 are proposed roadmap RFCs for the pivot from single-hull
-generation to a reproducible generative pipeline. They are intentionally
+RFCs 0009-0013 are roadmap RFCs for the pivot from single-hull generation to a
+reproducible generative pipeline. RFC 0013's report/CLI slice has landed; web
+comparison UI remains deferred. The remaining proposed items are intentionally
 sequenced from run records and mesh diagnostics toward stability, resistance
 calibration, and Pareto comparison.
 
