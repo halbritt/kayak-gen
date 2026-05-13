@@ -44,6 +44,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0028](0028-plumb-stem-closure-semantics.md) | partial safe-slice | Plumb-stem closure semantics |
 | [0029](0029-design-constraint-surfacing.md) | proposed | Design constraint surfacing and validity metadata |
 | [0030](0030-web-hosted-browser-acceptance.md) | proposed | Web hosted and browser acceptance |
+| [0031](0031-design-constraint-surfacing-revision.md) | proposed | Design constraint surfacing revision |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
@@ -83,12 +84,12 @@ solver success, normalized solver outputs, watertight geometry, or
 calibrated/validated CFD claims; all CFD dispatch output remains raw and
 unvalidated.
 
-RFCs 0016-0030 are mostly proposed, not accepted implementation commitments
+RFCs 0016-0031 are mostly proposed, not accepted implementation commitments
 except for the explicitly marked landed or partial safe slices. RFCs 0016-0020
 split the major remaining deferrals into broad design documents:
 closed-volume geometry, first real CFD adapter, web CFD job routes, resistance
 calibration fixtures, and high-angle `GZ` / secondary stability. RFCs
-0021-0030 narrow the next implementation slices and may revise or supersede
+0021-0031 narrow the next implementation slices and may revise or supersede
 parts of the broader RFCs where that improves progress.
 
 RFC 0021 has landed only for explicit synthetic closed-volume diagnostics: the
@@ -113,6 +114,12 @@ closed-body construction, then RFC 0023 watertight volume-mesh handoff and RFC
 readiness, calibrated drag, and final design fitness remain deferred until the
 upstream evidence exists.
 
+RFC 0031 supersedes RFC 0029 as the implementation target for design-constraint
+surfacing. It keeps RFC 0029's structured validity direction, but narrows the
+first pass to additive design-validity metadata, compatibility with existing
+advisory strings, CLI/web/desktop text parity, sweep/report propagation, and
+unsupported-state disclosure for reserved shape fields.
+
 The evaluation/claims side can advance in parallel through RFC 0025 claim gates
 and then feed RFC 0026 fixture-first CFD adapter work and RFC 0027 resistance
 calibration acceptance. Workflow 0037 pins the RFC 0026 fixture choices: a
@@ -121,8 +128,8 @@ checked-in `python -m kayakgen.eval.cfd.fixture_command` command,
 `open_wetted_surface_resistance_v1` as the only accepted mesh profile. Those
 fixture records remain raw/unvalidated; RFC 0017's OpenFOAM/SU2 selection
 remains deferred. The older partials are split into RFC 0028 plumb-stem closure
-semantics, RFC 0029 design-constraint surfacing, and RFC 0030 hosted browser
-acceptance.
+semantics, RFC 0029 design-constraint surfacing, RFC 0030 hosted browser
+acceptance, and RFC 0031 design-constraint surfacing revision.
 
 Hosted demo deployment, full plot/dashboard parity, remaining legacy RFC
 deferrals, high-angle `GZ` stability, resistance calibration, watertight solid

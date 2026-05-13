@@ -1,0 +1,189 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0042-design-constraint-surfacing-revision",
+  "workflow_version": "2026-05-13",
+  "name": "0042 - Design constraint surfacing revision",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0042-design-constraint-surfacing-revision",
+    "allow_dirty": false
+  },
+  "coordinator": {"role_id": "coordinator", "lane_id": "claude"},
+  "lanes": {
+    "claude": {"adapter": "process", "display_model": "Claude Opus 4.7", "command": ["claude", "--model", "opus", "-p"], "capabilities": ["review", "synthesis"]},
+    "codex": {"adapter": "process", "display_model": "Codex GPT-5.5", "command": ["codex", "exec", "--model", "gpt-5.5", "-"], "capabilities": ["write", "review", "synthesis"]},
+    "gemini": {"adapter": "process", "display_model": "Gemini Pro 3.1", "command": ["gemini", "--model", "gemini-3.1-pro-preview"], "capabilities": ["review"]}
+  },
+  "roles": {
+    "coordinator": {"definition_path": "roles/coordinator.md"},
+    "review_remediator": {"definition_path": "roles/review_remediator.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_domain": {"definition_path": "roles/reviewer_domain.md"},
+    "reviewer_ops": {"definition_path": "roles/reviewer_ops.md"},
+    "ledger": {"definition_path": "roles/ledger.md"},
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/PRD.md", "required": true},
+    {"path": "docs/USER_GUIDE.md", "required": true},
+    {"path": "docs/design/kayak_hull_design_constraints.md", "required": true},
+    {"path": "docs/rfcs/0006-design-constraints.md", "required": true},
+    {"path": "docs/rfcs/0029-design-constraint-surfacing.md", "required": true},
+    {"path": "docs/rfcs/0031-design-constraint-surfacing-revision.md", "required": true},
+    {"path": "docs/workflows/0042-design-constraint-surfacing-revision/SOURCES.md", "required": true},
+    {"path": "docs/workflows/0040-design-constraint-surfacing/workflow.json", "required": true},
+    {"path": "docs/workflows/0040-design-constraint-surfacing/RUNBOOK.md", "required": true},
+    {"path": "docs/workflows/0040-design-constraint-surfacing/SOURCES.md", "required": true},
+    {"path": "docs/workflows/0040-design-constraint-surfacing/OPERATOR_REPORT.md", "required": true},
+    {"path": "docs/workflows/0033-generated-closed-body-construction/workflow.json", "required": true},
+    {"path": "docs/workflows/0039-plumb-stem-closure-semantics/workflow.json", "required": true},
+    {"path": "kayakgen/model/advisory.py", "required": false},
+    {"path": "kayakgen/model/classes.py", "required": false},
+    {"path": "kayakgen/model/hull.py", "required": false},
+    {"path": "kayakgen/eval", "required": false},
+    {"path": "kayakgen/search", "required": false},
+    {"path": "kayakgen/ui", "required": false},
+    {"path": "tests", "required": true}
+  ],
+  "parallelism": {"mode": "declared", "max_active_jobs": 3, "require_disjoint_write_scopes": true},
+  "review_revision_policy": {
+    "root_review_needs_revision": "declared_cycle",
+    "description": "First-pass review needs_revision verdicts cycle to review_remediation before re-review."
+  },
+  "jobs": [
+    {
+      "id": "review_remediation",
+      "type": "synthesis",
+      "title": "Prepare or remediate first-pass review packet",
+      "role_id": "review_remediator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Prepare initial review context and, on needs_revision cycles, remediate first-pass reviewer-blocking RFC/workflow issues before re-review.",
+      "task_prompt": {"path": "prompts/review_remediation.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/rfcs/0031-design-constraint-surfacing-revision.md",
+          "docs/rfcs/README.md",
+          "docs/workflows/0042-design-constraint-surfacing-revision/",
+          "CHANGELOG.md",
+          "striatum/0042-design-constraint-surfacing-revision/review_remediation/"
+        ],
+        "forbidden_paths": [".striatum/", "OPERATOR_REPORT.md"]
+      },
+      "expected_artifacts": [{"logical_name": "review_remediation", "kind": "synthesis", "path": "striatum/0042-design-constraint-surfacing-revision/review_remediation/REMEDIATION.md", "required": true}]
+    },
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review constraint revision traceability",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Map RFC 0031 to RFC 0029, RFC 0006 partials, constraints-document sections, surface requirements, tests, and workflow remediation routing.",
+      "task_prompt": {"path": "prompts/review_traceability.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0042-design-constraint-surfacing-revision/traceability/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0042-design-constraint-surfacing-revision/traceability/REVIEW_TRACEABILITY.md", "required": true}]
+    },
+    {
+      "id": "review_domain",
+      "type": "review",
+      "title": "Review design-validity domain semantics",
+      "role_id": "reviewer_domain",
+      "lane_id": "gemini",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review enforced, advisory, and unsupported validity semantics against the constraints document, class presets, and reserved field boundaries.",
+      "task_prompt": {"path": "prompts/review_domain.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0042-design-constraint-surfacing-revision/domain/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0042-design-constraint-surfacing-revision/domain/REVIEW_DOMAIN.md", "required": true}]
+    },
+    {
+      "id": "review_ops",
+      "type": "review",
+      "title": "Review design-validity ops and tests",
+      "role_id": "reviewer_ops",
+      "lane_id": "codex",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review CLI JSON, web payloads, desktop/web warning text, sweep/report propagation, compatibility, and tests for shared design-validity metadata.",
+      "task_prompt": {"path": "prompts/review_ops.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0042-design-constraint-surfacing-revision/ops/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0042-design-constraint-surfacing-revision/ops/REVIEW_OPS.md", "required": true}]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "ledger",
+      "title": "Consolidate design-validity findings",
+      "role_id": "ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate review findings and define the conservative implementation slice for RFC 0031.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/0042-design-constraint-surfacing-revision/ledger/",
+          "docs/workflows/0042-design-constraint-surfacing-revision/OPERATOR_REPORT.md"
+        ],
+        "forbidden_paths": [".striatum/", "OPERATOR_REPORT.md"]
+      },
+      "expected_artifacts": [{"logical_name": "ledger", "kind": "findings_ledger", "path": "striatum/0042-design-constraint-surfacing-revision/ledger/FINDINGS.md", "required": true}]
+    },
+    {
+      "id": "implement_findings",
+      "type": "build",
+      "title": "Implement design-validity metadata",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Implement the accepted RFC 0031 design-validity metadata slice while preserving advisory freedom, schema compatibility, and deferred geometry boundaries.",
+      "task_prompt": {"path": "prompts/implement_findings.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/",
+          "kayakgen/",
+          "tests/",
+          "striatum/0042-design-constraint-surfacing-revision/implementation/"
+        ],
+        "forbidden_paths": [".striatum/", "OPERATOR_REPORT.md"]
+      },
+      "expected_artifacts": [{"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0042-design-constraint-surfacing-revision/implementation/PATCH_SUMMARY.md", "required": true}]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final gate for design-validity metadata",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify RFC 0031 validity metadata, compatibility, parity, unsupported-state wording, tests, and no-overclaiming boundaries.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0042-design-constraint-surfacing-revision/final/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "final_review", "kind": "finding", "path": "striatum/0042-design-constraint-surfacing-revision/final/FINAL_REVIEW.md", "required": true}]
+    }
+  ],
+  "edges": [
+    {"from": "review_remediation", "to": "review_traceability", "on": "completed"},
+    {"from": "review_remediation", "to": "review_domain", "on": "completed"},
+    {"from": "review_remediation", "to": "review_ops", "on": "completed"},
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_domain", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops", "to": "findings_ledger", "on": "completed"},
+    {"from": "findings_ledger", "to": "implement_findings", "on": "completed"},
+    {"from": "implement_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {"from": "review_traceability", "to": "review_remediation", "on_verdict": "needs_revision", "max_iterations": 1},
+    {"from": "review_domain", "to": "review_remediation", "on_verdict": "needs_revision", "max_iterations": 1},
+    {"from": "review_ops", "to": "review_remediation", "on_verdict": "needs_revision", "max_iterations": 1, "allow_same_lane": true},
+    {"from": "final_review", "to": "implement_findings", "on_verdict": "needs_revision", "max_iterations": 1}
+  ]
+}
