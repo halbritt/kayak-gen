@@ -112,6 +112,15 @@ Updated: 2026-05-13
   implementation job was completed, and branch commit `6903857` was pushed
   after rebasing onto current `main`. The 0033 final-review job is now running
   in a Claude Opus lane. 0039 remains the only active implementation job.
+- 2026-05-13T18:14:59Z checkpoint: root prompt
+  `CLAUDE_DESIGN_UI_REWORK_PROMPT.md` was added and pushed on `main` as
+  `212d250` for a future Claude Design UI handoff. 0039 implementation
+  finished; its patch summary was published as
+  `art_fc269f6e6d67403ea97b9008b67b1d1a`, the implementation job completed,
+  and branch commit `8367b65` was pushed after rebasing onto current `main`.
+  The 0039 final-review job is now running. Striatum 1.37.0 no longer honors
+  bare `STRIATUM_DAEMON_REQUIRED=0`; SQLite fallback now requires the paired
+  `STRIATUM_TEST_HARNESS=1` compatibility env for this unmigrated repo state.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is
