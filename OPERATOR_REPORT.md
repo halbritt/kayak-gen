@@ -162,6 +162,16 @@ Updated: 2026-05-13
   shape. 0042 landed on `main` as `8cdc4a0`; 0043 required an external
   integration agent for the RFC index conflict and then landed on `main` as
   `bc7da82`. Both successor workflows are ready to prepare/start.
+- 2026-05-13T19:18:33Z checkpoint: successor scaffolds and this report were
+  pushed to `main` as `94ec9f0`. The old scaffold branches were detached from
+  their temporary worktrees, reset to current `main`, and pushed as active run
+  branches. Striatum successor runs are started: 0042
+  `run_de90d1b197c640fd93ace51cfa37471b` on
+  `striatum/0042-design-constraint-surfacing-revision`, and 0043
+  `run_355c9ef7756449ce869550a3323e51c8` on
+  `striatum/0043-web-hosted-browser-acceptance-revision`. The next claimable
+  jobs are the two Codex revision-anchor/remediation roots, which can run in
+  parallel because their write scopes are separate.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is
