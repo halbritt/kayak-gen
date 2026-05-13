@@ -1,0 +1,26 @@
+# Sources - 0019 legacy RFC partial closure
+
+- `AGENTS.md`
+- `docs/rfcs/0004-plumb-bow.md`
+- `docs/rfcs/0006-design-constraints.md`
+- `docs/rfcs/0007-architectural-revisit.md`
+- `docs/rfcs/README.md`
+- `docs/design/kayak_hull_design_constraints.md`
+- `docs/workflows/0018-deferred-backlog/QUEUE.md`
+- `striatum/0010-rfc-completion-review-remediation/ledger/FINDINGS.md`
+- `kayakgen/model/hull.py`
+- `kayakgen/model/geometry.py`
+- `kayakgen/model/classes.py`
+- `kayakgen/eval/hydrostatics.py`
+- `kayakgen/ui/desktop.py`
+- `kayakgen/ui/gui_params.py`
+- `kayakgen/ui/web/app.py`
+- `kayakgen/ui/web/state.py`
+- `kayakgen/ui/web/controllers.py`
+- `kayakgen/cli/main.py`
+- `tests/test_plumb_bow.py`
+- `tests/test_classes.py`
+- `tests/test_gui_params.py`
+- `tests/test_web.py`
+- `tests/test_hydrostatics.py`
+- `pyproject.toml`
