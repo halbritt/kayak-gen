@@ -29,7 +29,22 @@ Updated: 2026-05-13
   and review prompts so RFC 0033 is the canonical source for scope, copy, and
   acceptance criteria; reviewers no longer need the unstored Claude Design
   handoff bundle. Four first-pass review lanes are queued next.
+- 2026-05-13T21:53:32Z: first-pass review agents launched in parallel:
+  traceability (`claude`, `sess_a928572451f44342ac477d459eeacf88`), domain
+  (`gemini`, `sess_68591801843b4651a08f8af3409f61ae`),
+  ergonomics/design (`claude`, `sess_0c0ba04dd8a0485a87adaaffc3ca35a7`), and
+  ops (`codex`, `sess_6b84a282fe744e1b964d76c7d13162aa`). Each prompt
+  restricts the lane to review-only work, forbids Striatum mutation, and asks
+  for maximal useful sub-agent/parallel assistance.
+- 2026-05-13T21:58:52Z: all four first-pass reviews are published in
+  Striatum. Traceability accepted with findings
+  (`art_2b53fc2405ac4a8dac1a13e8a824d345`), domain accepted
+  (`art_784a311d19a842ec9020b17bfae648f8`), ergonomics/design accepted with
+  findings (`art_2c2743081cd84ffeb5e82ea58cf77da5`), and ops accepted with
+  findings (`art_91ef98eb947d4004896205f1e511fded`). The domain lane used a
+  Gemini Flash retry after the primary Gemini model returned quota exhaustion
+  before producing an artifact.
 
 ## Next action
 
-- Launch traceability, domain, ergonomics/design, and ops reviews in parallel.
+- Claim and run the queued findings ledger job.

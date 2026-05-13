@@ -27,6 +27,18 @@ Updated: 2026-05-13
   made RFC 0033 canonical for scope/copy/acceptance criteria and removed
   review-scaffold dependence on an unstored handoff bundle. Four first-pass
   review lanes are now queued for parallel launch.
+- 2026-05-13T21:53:32Z checkpoint: workflow 0044 first-pass reviews were
+  launched in parallel across traceability (`claude`), domain (`gemini`),
+  ergonomics/design (`claude`), and ops (`codex`). The lane prompts preserve
+  review-only boundaries, forbid Striatum mutation, and request maximal useful
+  sub-agent/parallel assistance from each assigned reviewer.
+- 2026-05-13T21:58:52Z checkpoint: workflow 0044 first-pass reviews are
+  published. Verdicts: traceability `accept_with_findings`
+  (`art_2b53fc2405ac4a8dac1a13e8a824d345`), domain `accept`
+  (`art_784a311d19a842ec9020b17bfae648f8`), ergonomics/design
+  `accept_with_findings` (`art_2c2743081cd84ffeb5e82ea58cf77da5`), and ops
+  `accept_with_findings` (`art_91ef98eb947d4004896205f1e511fded`). Striatum
+  queued the findings ledger for workflow 0044.
 - Next maximum-parallel batch queued from the ready backlog: workflows 0033,
   0037, 0038, 0039, 0040, and 0041. Workflows 0034 and 0035 remain queued until
   0033 lands because they depend on generated closed-body evidence.
