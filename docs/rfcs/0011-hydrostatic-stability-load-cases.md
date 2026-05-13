@@ -16,6 +16,20 @@ The project also reserves a `GZCurve`, but it does not yet define what volume is
 used for heeled stability, how load displacement is solved, or which outputs are
 safe to compare.
 
+## Human Decisions Recorded 2026-05-13
+
+- Stability should support both design-waterline diagnostics and an
+  equilibrium-solved mode. The current diagnostic mode remains useful, but it is
+  not the final load-case answer.
+- The equilibrium mode should solve sinkage and trim together.
+- KG inputs should support multiple references and normalize internally for
+  computation. Keel/baseline, design waterline, and seat-relative references are
+  all useful user-facing inputs.
+- Nick Schade's kayak-stability explainer is adopted as non-normative design
+  context: stability curves are CG/CB/righting-arm curves over heel angle, the
+  fixed-paddler-CG assumption is explicit, waterline shape drives initial
+  stability, and seat/CG height materially changes the curve.
+
 ## Goals
 
 - Replace hidden `KG` assumptions with explicit, serializable load cases.
@@ -55,13 +69,15 @@ paddler_mass_kg: float = 85.0
 hull_mass_kg: float = 18.0
 cargo_mass_kg: float = 0.0
 kg_above_keel_m: float = 0.25
+kg_reference: Literal["keel", "waterline", "seat"] = "keel"
+kg_reference_value_m: float | None = None
+seat_height_above_keel_m: float | None = None
 seawater_density_kg_m3: float = 1025.0
 ```
 
 The initial implementation should allow `Hydrostatics.GM0_m` to remain
 available and make its baseline/keel-referenced `KG` source explicit. Full
-`GZ` and load-equilibrium waterline solving remain reserved until humans choose
-the heeled-volume and sinkage/trim semantics.
+`GZ` and equilibrium sinkage/trim solving remain separate implementation steps.
 
 CLI:
 
@@ -72,6 +88,8 @@ kayakgen stability hull.json --load-case load-case.json --out stability.json
 ## Acceptance Criteria
 
 - `LoadCase` serializes and round-trips.
+- `LoadCase` accepts keel, waterline, and seat-relative KG references and
+  normalizes them to keel/baseline height for computation.
 - Default initial `GM0` remains populated and is tied to an explicit load case.
 - Raising `kg_above_keel_m` lowers initial `GM0`.
 - Increasing `beam_wl_m` increases initial `GM0` for otherwise equal hulls.
@@ -87,8 +105,9 @@ kayakgen stability hull.json --load-case load-case.json --out stability.json
 
 - Should high-angle stability use hull-body-only volume, hull-plus-deck volume,
   or a new evaluation-only closed volume?
-- Should future load cases reference KG from keel, seat, or design waterline?
 - What default paddler/hull/cargo masses should be canonical?
+- What numerical tolerance should define equilibrium convergence for sinkage and
+  trim?
 
 ## Implementation Path
 
@@ -98,7 +117,8 @@ kayakgen stability hull.json --load-case load-case.json --out stability.json
 - Step 3 - Add CLI and JSON helpers.
 - Step 4 - Keep full `GZ` curve reserved with tests proving it does not claim
   computed output.
-- Step 5 - Revisit full `GZ` after RFC 0010 mesh/volume decisions.
+- Step 5 - Add equilibrium sinkage/trim solving.
+- Step 6 - Revisit full `GZ` after RFC 0010 mesh/volume decisions.
 
 ## Domain Modeling
 

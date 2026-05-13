@@ -10,7 +10,8 @@ Review inputs: roadmap, domain/math/mesh, implementation/ops
 - Deduplicated findings: 12
 - By severity: blocker 4 / high 6 / medium 2 / low 0
 - Actionable now: 8
-- Needs human decision: 4
+- Needs human decision at final review: 4
+- Human decisions answered post-run: 6
 
 ## Findings
 
@@ -72,6 +73,8 @@ Review inputs: roadmap, domain/math/mesh, implementation/ops
 - Required remediation: Record as a human decision. Do not silently choose in
   implementation. RFC/code may include nullable or provisional metadata fields
   and warnings that bow-positive convention is undecided.
+- Post-run decision: `+x` points toward the stern, `-x` points toward the bow;
+  bow appears on the left in standard side views.
 
 ### F-005 - Load-case displacement semantics are undefined
 
@@ -87,6 +90,8 @@ Review inputs: roadmap, domain/math/mesh, implementation/ops
   Add explicit `load_mass_kg`, `displaced_mass_kg`, and
   `displacement_error_kg`; warn that the result is not an equilibrium load-case
   stability pass/fail until a human chooses sinkage/trim semantics.
+- Post-run decision: RFC 0011 should support both diagnostic and equilibrium
+  modes, with equilibrium solving sinkage and trim together.
 
 ### F-006 - KG reference frame conflicts with current GM formula
 
@@ -101,6 +106,8 @@ Review inputs: roadmap, domain/math/mesh, implementation/ops
 - Required remediation: Do not guess a new reference frame. Rename the safe v1
   field to `kg_above_keel_m`/baseline-referenced, preserve numeric compatibility,
   and record waterline/seat reference as a human decision.
+- Post-run decision: support keel, waterline, and seat-relative KG references
+  and normalize internally to keel/baseline height for computation.
 
 ### F-007 - Stability result contract must replace top-level `GZCurve`
 
@@ -131,6 +138,9 @@ Review inputs: roadmap, domain/math/mesh, implementation/ops
   `comparative_filter`, include quadrature/constants/warnings, and rename
   Wigley language to verification unless a human-selected calibration dataset
   exists.
+- Post-run decision: prefer published kayak/canoe resistance data if a usable
+  source can be found and licensed; Sea Kayaker-derived tables and published
+  passive-drag studies are first candidates to vet.
 
 ### F-009 - Pareto comparison must not default to exploratory resistance
 
@@ -145,6 +155,8 @@ Review inputs: roadmap, domain/math/mesh, implementation/ops
 - Required remediation: Add objective provenance requirements and label any
   raw-resistance frontier as exploratory. In this workflow, implement only pure
   Pareto utilities/tests and avoid default CLI/UI ranking on raw resistance.
+- Post-run decision: uncalibrated analytical resistance is not allowed as a
+  default Pareto objective; wait for calibrated RFC 0012 output.
 
 ### F-010 - Sweep records lack evaluator provenance
 
@@ -200,10 +212,16 @@ Safe now:
 
 Do not implement without human decision:
 
-- Exact CFD readiness semantics for watertight vs open-surface solver profiles.
-- Bow-positive coordinate convention and flow direction.
-- Equilibrium waterline/sinkage/trim solving.
-- Waterline- or seat-referenced KG semantics.
-- Canonical resistance calibration dataset or raw validity envelope.
+- Exact CFD readiness semantics for watertight vs open-surface solver profiles:
+  decided for first profile as open wetted surface; watertight remains future.
+- Bow-positive coordinate convention and flow direction: decided as stern
+  positive (`+x` stern, `-x` bow).
+- Equilibrium waterline/sinkage/trim solving: decided as a required mode that
+  solves sinkage and trim together.
+- Waterline- or seat-referenced KG semantics: decided as multi-reference input
+  normalized internally to keel/baseline height.
+- Canonical resistance calibration dataset or raw validity envelope: direction
+  chosen as published kayak/canoe data, but the concrete dataset still requires
+  source/provenance review.
 - Default Pareto ranking that includes exploratory resistance as a primary
-  objective.
+  objective: decided no; wait for calibrated resistance.

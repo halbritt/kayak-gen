@@ -33,6 +33,43 @@ def test_raising_baseline_kg_lowers_initial_gm0() -> None:
     assert high.initial_GM0_m < low.initial_GM0_m
 
 
+def test_waterline_kg_reference_normalizes_to_keel_height() -> None:
+    hull = Hull(draft_m=0.12)
+    keel_ref = evaluate_initial_stability(hull, LoadCase(kg_above_keel_m=0.32))
+    waterline_ref = evaluate_initial_stability(
+        hull,
+        LoadCase(
+            kg_reference="waterline",
+            kg_reference_value_m=0.20,
+        ),
+    )
+    assert waterline_ref.initial_GM0_m == keel_ref.initial_GM0_m
+    assert "kg_reference_normalized_to_keel" in waterline_ref.warnings
+
+
+def test_seat_kg_reference_requires_seat_height() -> None:
+    hull = Hull()
+    with pytest.raises(ValueError, match="seat-referenced"):
+        evaluate_initial_stability(
+            hull,
+            LoadCase(kg_reference="seat", kg_reference_value_m=0.12),
+        )
+
+
+def test_seat_kg_reference_normalizes_to_keel_height() -> None:
+    hull = Hull()
+    keel_ref = evaluate_initial_stability(hull, LoadCase(kg_above_keel_m=0.25))
+    seat_ref = evaluate_initial_stability(
+        hull,
+        LoadCase(
+            kg_reference="seat",
+            kg_reference_value_m=0.05,
+            seat_height_above_keel_m=0.20,
+        ),
+    )
+    assert seat_ref.initial_GM0_m == keel_ref.initial_GM0_m
+
+
 def test_wider_waterline_beam_increases_initial_gm0() -> None:
     narrow = evaluate_initial_stability(Hull(beam_oa_m=0.60, beam_wl_m=0.45))
     wide = evaluate_initial_stability(Hull(beam_oa_m=0.60, beam_wl_m=0.60))

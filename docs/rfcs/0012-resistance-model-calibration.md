@@ -15,6 +15,18 @@ model output from calibrated design-score output.
 Without that separation, sweeps and future Pareto ranking can optimize a signal
 that is presented as stronger than it is.
 
+## Human Decisions Recorded 2026-05-13
+
+- Prefer published kayak/canoe resistance data as the first calibration source,
+  if a usable and licensable dataset can be found.
+- Initial candidates to vet are Sea Kayaker-derived resistance tables and
+  peer-reviewed kayak passive-drag data such as Gomes et al. (2017). The former
+  is broad and sea-kayak-specific but appears to mix historically published
+  review data with model-derived values; the latter is experimental but narrow
+  to a sprint K1 kayak and simulated paddler weights.
+- Until the dataset is selected and checked into an explicit data/provenance
+  format, analytical output stays `uncalibrated`.
+
 ## Goals
 
 - Make resistance provenance explicit in every curve.
@@ -28,7 +40,8 @@ that is presented as stronger than it is.
 
 - RANS, OpenFOAM, panel-method integration, or seakeeping.
 - Claiming final performance prediction accuracy.
-- Picking a canonical dataset without human review.
+- Claiming a canonical dataset before source, license, hull coverage, and
+  extraction quality are reviewed.
 - Replacing sweep/Pareto decisions with a single score.
 
 ## Proposal
@@ -79,7 +92,8 @@ the numerical implementation, not a kayak calibration dataset.
 
 ## Open Questions
 
-- Which published/model-test dataset is canonical?
+- Which published kayak/canoe dataset is canonical after source/provenance
+  review?
 - Should calibration tune total resistance only, or viscous form factor and wave
   component separately?
 - Is the original 200 ms curve budget still real acceptance, or should it be

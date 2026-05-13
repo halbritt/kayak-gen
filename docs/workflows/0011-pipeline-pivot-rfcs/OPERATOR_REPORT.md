@@ -74,6 +74,11 @@ Updated: 2026-05-13
   `1.30.0`.
 - Final Striatum status has no claimable jobs, no blockers, and doctor reports
   zero problems.
+- Post-merge interview captured human decisions: `+x` stern, first CFD target
+  is open wetted surface, stability should support both diagnostic and
+  sinkage/trim-equilibrium modes, KG should support multiple references
+  normalized internally, calibration should prefer published kayak/canoe data if
+  usable, and default Pareto ranking should wait for calibrated resistance.
 
 ## Findings recorded
 
@@ -82,13 +87,14 @@ Updated: 2026-05-13
 - Actionable implementation landed for mesh diagnostics, raw resistance
   metadata, initial stability/load-case models, deterministic sweep records,
   CLI entry points, and pure Pareto utilities.
-- Deferred human-decision boundaries are recorded for CFD flow direction,
-  solver-specific mesh readiness semantics, equilibrium sinkage/trim load
-  solving, canonical calibration data, and default Pareto ranking policy.
+- Human-decision boundaries were answered post-run where possible. The remaining
+  follow-up is concrete data/source selection for published kayak/canoe
+  resistance calibration.
 
 ## Next action
 
 - Human/operator handoff. No further run should be started without new
   instructions.
-- Worktree remains intentionally dirty with the completed 0010 and 0011 changes;
-  review/commit sequencing is the next operator decision.
+- Main has been fast-forwarded through workflows 0010 and 0011. The next
+  operator decision is whether to start a new workflow for the post-run decision
+  implementation work.

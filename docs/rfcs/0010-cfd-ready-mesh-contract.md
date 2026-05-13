@@ -16,6 +16,16 @@ quality checks, metadata, and failure modes.
 The current hull and deck meshes are useful display/export surfaces. They should
 not be silently promoted to a watertight CFD artifact.
 
+## Human Decisions Recorded 2026-05-13
+
+- Longitudinal coordinates are stern-positive: `+x` points toward the stern,
+  `-x` points toward the bow. In left-to-right side views, the bow is expected
+  on the left.
+- The first CFD mesh target is an open wetted-surface resistance profile. A
+  complete deck or capped hull/deck solid is not required for that profile.
+- Watertight solid readiness remains a separate future solver profile, not the
+  global meaning of `cfd_ready`.
+
 ## Goals
 
 - Define the minimum mesh and metadata contract required by future CFD workers.
@@ -82,7 +92,7 @@ Example manifest:
   "hull_hash": "...",
   "units": "m",
   "coordinate_system": {
-    "x": "longitudinal, current geometry spans -L/2 to +L/2",
+    "x": "longitudinal, stern positive, bow negative, spans -L/2 to +L/2",
     "y": "port/starboard",
     "z": "up positive",
     "waterline_z_m": 0.0
@@ -116,11 +126,8 @@ kayakgen mesh-package hull.json --out mesh-package/
 
 ## Open Questions
 
-- Which direction of the current longitudinal axis should be declared bow
-  positive for downstream solvers?
-- Does `cfd_ready` require capped watertight hull/deck solids, or can a solver
-  profile accept a wetted-surface-only mesh?
 - Which external solver profile lands first?
+- What additional checks are needed for a future watertight solid profile?
 
 ## Implementation Path
 

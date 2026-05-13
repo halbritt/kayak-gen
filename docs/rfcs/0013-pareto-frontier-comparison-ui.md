@@ -21,8 +21,8 @@ discard stability, load fit, or manufacturability.
 - Provide machine-readable comparison reports.
 - Add a path to web comparison views without blocking on full UI polish.
 - Keep uncertainty and partial-model warnings visible.
-- Treat raw uncalibrated resistance as exploratory unless the user explicitly
-  opts in to using it as a Pareto objective.
+- Exclude uncalibrated analytical resistance from default Pareto objectives
+  until resistance calibration exists.
 
 ## Non-Goals
 
@@ -43,12 +43,14 @@ Add comparison utilities over candidate/evaluation records:
 Initial objectives:
 
 - minimize resistance at target speed only when the resistance result satisfies
-  the objective's accepted-use requirement, or when the report is explicitly
-  marked exploratory;
+  the objective's accepted-use requirement and is calibrated;
 - maximize initial `GM0_m`;
 - minimize displacement error against load case when available;
 - minimize mesh diagnostic problem count when RFC 0010 reports are present;
 - keep class/range warnings visible.
+
+Manual/expert reports may still include raw uncalibrated resistance, but those
+reports are explicitly non-default and labeled exploratory.
 
 CLI:
 
@@ -74,6 +76,8 @@ Web follow-up:
 - A default tiny sweep can be compared deterministically.
 - Reports that include raw uncalibrated resistance as an objective are labeled
   `exploratory_frontier`.
+- Default reports exclude uncalibrated analytical resistance until RFC 0012 has
+  a calibrated result with declared accepted use.
 - Web UI acceptance is deferred until RFC 0008 browser acceptance and
   CLI/report formats stabilize.
 

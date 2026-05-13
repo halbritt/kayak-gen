@@ -26,8 +26,9 @@ def evaluate_initial_stability(
     load_case = load_case or LoadCase()
     hydro = evaluate_hydrostatics(hull)
     gm0 = None
+    kg_above_keel_m = load_case.kg_above_keel_for_draft(hull.draft_m)
     if hydro.GM0_m is not None:
-        gm0 = hydro.GM0_m + COMPAT_KG_ABOVE_KEEL_M - load_case.kg_above_keel_m
+        gm0 = hydro.GM0_m + COMPAT_KG_ABOVE_KEEL_M - kg_above_keel_m
     displacement_error = hydro.displaced_mass_kg - load_case.total_mass_kg
     warnings = [
         "design_waterline_initial_stability_only",
@@ -36,6 +37,8 @@ def evaluate_initial_stability(
     ]
     if abs(displacement_error) > 5.0:
         warnings.append("load_displacement_mismatch")
+    if load_case.kg_reference_value_m is not None and load_case.kg_reference != "keel":
+        warnings.append("kg_reference_normalized_to_keel")
     return StabilityResult(
         load_case=load_case,
         initial_GM0_m=gm0,
