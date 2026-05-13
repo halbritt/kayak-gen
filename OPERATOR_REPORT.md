@@ -4,6 +4,13 @@ Updated: 2026-05-13
 
 ## Current State
 
+- Operator-only constraint reaffirmed: design, implementation, and review work
+  must be performed by Striatum-assigned agents, with this session limited to
+  orchestration, artifact handling, report updates, trunk hygiene, and branch
+  cleanup.
+- Next maximum-parallel batch queued from the ready backlog: workflows 0033,
+  0037, 0038, 0039, 0040, and 0041. Workflows 0034 and 0035 remain queued until
+  0033 lands because they depend on generated closed-body evidence.
 - `main` includes the completed 0032, 0036, and 0029 workflow landings; the
   workflow code landed through `d13d0ad` before this final report update.
 - All temporary workflow branches and worktrees from the 0032/0036/0029 batch
