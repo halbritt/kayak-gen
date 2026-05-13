@@ -95,10 +95,40 @@ def test_create_app_does_not_start_server() -> None:
     assert web.state.length_m == 4.5
 
 
+def test_create_app_renders_nonblank_offscreen_scene() -> None:
+    """Headless visual smoke for the VTK scene used by VtkRemoteView."""
+    import vtk
+    from vtk.util.numpy_support import vtk_to_numpy
+
+    from kayakgen.ui.web.app import create_app
+
+    web = create_app(initial_hull=Hull())
+    assert web._renderer.GetActors().GetNumberOfItems() == 2
+    assert web._render_window.GetInteractor() is not None
+
+    web._render_window.Render()
+    image_filter = vtk.vtkWindowToImageFilter()
+    image_filter.SetInput(web._render_window)
+    image_filter.Update()
+
+    image = image_filter.GetOutput()
+    assert image.GetDimensions()[0:2] == (300, 300)
+    pixels = vtk_to_numpy(image.GetPointData().GetScalars())
+    assert pixels.size > 0
+    assert int(pixels.max()) > int(pixels.min())
+
+
 def test_load_from_query_seeds_state() -> None:
     from kayakgen.ui.web.app import create_app
 
-    custom = Hull(name="touring", length_m=5.0, beam_oa_m=0.58, beam_wl_m=0.53, Cp=0.54, draft_m=0.12)
+    custom = Hull(
+        name="touring",
+        length_m=5.0,
+        beam_oa_m=0.58,
+        beam_wl_m=0.53,
+        Cp=0.54,
+        draft_m=0.12,
+    )
     web = create_app()
     web.load_from_query(encode_hull_query(custom))
     assert web.state.name == "touring"

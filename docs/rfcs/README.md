@@ -21,7 +21,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0005](0005-cfd-resistance.md) | landed raw-filter | Resistance estimation (Michell + ITTC) |
 | [0006](0006-design-constraints.md) | partial | Hull design constraints — canonical parameter space and class presets |
 | [0007](0007-architectural-revisit.md) | landed | Architectural revisit — extract `kayakgen` package before more parameters land |
-| [0008](0008-web-frontend.md) | partial | Portable web frontend via Trame |
+| [0008](0008-web-frontend.md) | partial verified-headless | Portable web frontend via Trame |
 | [0009](0009-sweep-run-records.md) | proposed | Sweep and candidate run records |
 | [0010](0010-cfd-ready-mesh-contract.md) | landed package/profile | CFD-ready mesh contract |
 | [0011](0011-hydrostatic-stability-load-cases.md) | landed equilibrium-sinkage | Hydrostatic stability and load cases |
@@ -39,7 +39,8 @@ acceptance criteria are not fully satisfied.
 RFCs 0009-0013 are roadmap RFCs for the pivot from single-hull generation to a
 reproducible generative pipeline. RFC 0010's mesh package/profile slice, RFC
 0011's load-case plus equilibrium-sinkage slice, and RFC 0013's report/CLI
-slice have landed; solver dispatch, watertight solid readiness, generalized
+slice have landed; solver dispatch, watertight solid readiness,
+browser/Lighthouse web acceptance, hosted demo deployment, generalized
 trim/high-angle stability, and web comparison UI remain deferred. The remaining
 proposed items are intentionally sequenced from run records and mesh diagnostics
 toward resistance calibration and Pareto comparison.

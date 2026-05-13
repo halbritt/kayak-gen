@@ -1,15 +1,16 @@
 # RFC 0008: Portable Web Frontend (Trame)
 
-Status: partial
+Status: partial verified-headless
 Date: 2026-05-09
 Context: builds on RFC 0007 (architectural revisit). Touches the
 `kayakgen.ui` and `kayakgen.cli` boundaries; does not change
 `kayakgen.model` or `kayakgen.eval`.
 
-Status note (workflow 0010, 2026-05-12): partially landed. The Trame shell,
-sliders, VTK view, metrics helpers, share-query encoding, REST route
-scaffolding, and Docker build path exist. Plot tabs, full browser smoke,
-Lighthouse verification, and hosted demo deployment remain follow-up work.
+Status note (workflow 0017, 2026-05-13): partially landed and headless-verified.
+The Trame shell, sliders, VTK view, metrics helpers, share-query encoding, REST
+route scaffolding, Docker build path, and offscreen VTK visual smoke test exist.
+Plot tabs, Playwright/browser smoke, Lighthouse verification, hosted demo
+deployment, and web comparison views remain follow-up work.
 
 ## Problem
 
@@ -216,9 +217,9 @@ deploys; configuration is environment variables only.
   same `EvaluationResult` as `kayakgen evaluate <hull.json>`.
 - **3D mesh:** the `VtkRemoteView`'s underlying mesh has the same
   vertex count as the desktop GUI's `pv_window` for the same hull.
-- **Smoke test:** Playwright / pytest-playwright launches the app,
-  drags the length slider, and asserts that the metrics panel
-  changes. One end-to-end test, run on CI.
+- **Smoke test:** headless tests construct the app and verify offscreen VTK
+  rendering. A future Playwright / pytest-playwright test should launch the app,
+  drag the length slider, and assert that the metrics panel changes.
 
 ## Acceptance Criteria
 
@@ -238,6 +239,10 @@ deploys; configuration is environment variables only.
   desktop GUI to 1e-6 (same evaluator, same hull).
 - Lighthouse "Best Practices" score ≥ 90 on the served page (no
   console errors, no mixed-content warnings).
+
+Current verification status: headless Trame/controller/VTK checks are
+implemented in `tests/test_web.py`. Playwright, Lighthouse, hosted demo, plot
+tabs, and web comparison views are not yet landed.
 
 ## Open Questions
 
@@ -292,8 +297,8 @@ existing). Steps assume that.
 6. **`kayakgen serve` CLI subcommand** — Typer command, wraps
    `app.create_app().start()`. (~20 lines.)
 7. **`Dockerfile`** at repo root, plus `.dockerignore`. (~30 lines.)
-8. **Tests** — state round-trip, REST contract, mesh parity,
-   one Playwright smoke test. (~150 lines.)
+8. **Tests** — state round-trip, REST contract, mesh parity, offscreen VTK
+   visual smoke, and a future Playwright smoke test. (~150 lines.)
 9. **Public demo deploy** — host on Fly.io / Railway / Render / a
    small VPS. (Operational task; out of code scope.)
 

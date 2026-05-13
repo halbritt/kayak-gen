@@ -105,6 +105,8 @@ class KayakgenApp:
         self._render_window = vtk.vtkRenderWindow()
         self._render_window.AddRenderer(self._renderer)
         self._render_window.SetOffScreenRendering(1)
+        self._interactor = vtk.vtkRenderWindowInteractor()
+        self._interactor.SetRenderWindow(self._render_window)
 
         self._hull_actor: vtk.vtkActor | None = None
         self._deck_actor: vtk.vtkActor | None = None
