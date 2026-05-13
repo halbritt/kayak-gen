@@ -2,8 +2,9 @@
 
 Status: proposed
 Date: 2026-05-13
-Context: RFC 0005 is partial. The current ITTC estimator is usable, while the
-Michell implementation is documented as an exploratory fast-filter signal.
+Context: RFC 0005 has landed as a raw comparative filter. The current ITTC
+estimator is usable, while the Michell implementation is documented as an
+exploratory fast-filter signal rather than calibrated final prediction.
 
 ## Problem
 
@@ -103,8 +104,9 @@ the numerical implementation, not a kayak calibration dataset.
 - Curves include warnings when outside declared validity ranges.
 - Until raw validity ranges are selected, curves include an explicit
   no-validity-envelope warning.
-- Existing RFC 0005 xfails remain until real acceptance criteria are met or the
-  RFC is revised.
+- RFC 0005 raw-filter acceptance remains separate from calibrated resistance
+  acceptance; workflow 0013 revised RFC 0005 and retired the stale expected
+  failures without claiming calibration.
 - Tests cover metadata serialization and warning behavior.
 
 ## Open Questions

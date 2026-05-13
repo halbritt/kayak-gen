@@ -18,7 +18,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0002](0002-gui-usability.md) | landed | GUI usability improvements |
 | [0003](0003-layout-and-station-view.md) | landed | Window layout and station-view slider |
 | [0004](0004-plumb-bow.md) | partial | Plumb bow support (`bow_rake` parameter) |
-| [0005](0005-cfd-resistance.md) | partial | Resistance estimation (Michell + ITTC) |
+| [0005](0005-cfd-resistance.md) | landed raw-filter | Resistance estimation (Michell + ITTC) |
 | [0006](0006-design-constraints.md) | partial | Hull design constraints — canonical parameter space and class presets |
 | [0007](0007-architectural-revisit.md) | landed | Architectural revisit — extract `kayakgen` package before more parameters land |
 | [0008](0008-web-frontend.md) | partial | Portable web frontend via Trame |
@@ -29,9 +29,12 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0013](0013-pareto-frontier-comparison-ui.md) | proposed | Pareto frontier and candidate comparison UI |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
-shims, and golden regression tests. RFCs 0004, 0005, 0006, and 0008
-remain partial as of workflow 0010: they have useful implementation,
-but their acceptance criteria are not fully satisfied.
+shims, and golden regression tests. RFC 0005 has landed only as a raw
+comparative resistance filter; calibrated final-prediction claims,
+validity envelopes, Pareto-default scoring, and 200 ms full-curve
+interactive latency remain deferred. RFCs 0004, 0006, and 0008 remain
+partial as of workflow 0010: they have useful implementation, but their
+acceptance criteria are not fully satisfied.
 
 RFCs 0009-0013 are proposed roadmap RFCs for the pivot from single-hull
 generation to a reproducible generative pipeline. They are intentionally

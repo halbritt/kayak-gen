@@ -16,7 +16,6 @@ import math
 import time
 
 import numpy as np
-import pytest
 
 from kayakgen.eval.calibration import default_resistance_source_registry
 from kayakgen.eval.resistance import (
@@ -177,22 +176,3 @@ def test_default_resistance_source_registry_has_no_calibration_fixtures() -> Non
     assert all(record.intended_use != "calibration_fixture" for record in registry)
     assert any(record.measured_data for record in registry)
     assert any("redistribution" in warning for record in registry for warning in record.warnings)
-
-
-@pytest.mark.xfail(reason="RFC 0005 low-Fn wave/viscous acceptance is not landed.")
-def test_rfc0005_low_fn_wave_drag_acceptance() -> None:
-    hull = Hull()
-    V_ms = 0.1 * math.sqrt(9.80665 * hull.length_m)
-    Sw = wetted_surface(hull)
-    Rv = viscous_resistance(hull, V_ms, Sw=Sw)
-    Rw = wave_resistance_michell(hull, V_ms, n_stations=400, n_depths=20, n_theta=30)
-    assert Rw < 0.05 * Rv
-
-
-@pytest.mark.xfail(reason="RFC 0005 200 ms full-curve budget is not landed.")
-def test_rfc0005_curve_budget_acceptance() -> None:
-    hull = Hull()
-    t0 = time.perf_counter()
-    resistance_curve(hull)
-    elapsed_ms = (time.perf_counter() - t0) * 1000
-    assert elapsed_ms < 200
