@@ -78,6 +78,13 @@ Updated: 2026-05-13
   GPT-5.5 agents in isolated branch worktrees under `/tmp`. Prompts require
   maximal useful sub-agent use, forbid `author:` bylines, and keep publishing
   and completion with the operator.
+- 2026-05-13T19:29:24Z checkpoint: successor runs 0042 and 0043 are active on
+  current `main` to resolve the blocked 0040 and 0041 findings. Six review
+  jobs were registered, claimed, and acknowledged in parallel: 0042
+  traceability/domain/ops and 0043 traceability/browser/ops. The launch prompts
+  preserve lane ownership, require maximal useful sub-agent use, forbid Striatum
+  mutation commands, and require exactly one `Verdict intent:` line before the
+  operator will publish a review.
 - 2026-05-13T17:46:07Z checkpoint: the four unblocked ledger jobs completed
   and were published without `author:` bylines: 0033
   `art_b263fcf6154e4503b62f8ad2a142813a`, 0037
