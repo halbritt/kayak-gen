@@ -18,6 +18,15 @@ Updated: 2026-05-13
   `run_53f17f26285941c3a3992705772ce07d` (0039),
   `run_48d834656e604d66aa430eb5f60ea643` (0040), and
   `run_4c920dd1311f42a5b0bbac4126af0cbd` (0041).
+- The 0033/0037/0038/0039/0040/0041 prompt files now include an operator
+  parallelism instruction asking agents to use the maximal number of useful
+  sub-agents or parallel workers while preserving their assigned Striatum role.
+- Eighteen first-pass review sessions were registered, claimed, acknowledged,
+  and launched through their configured process-adapter lanes: Claude for
+  traceability, Gemini for domain/browser, and Codex for ops/ops-test.
+- Current Striatum CLI state is SQLite-backed while Striatum 1.37.0 enforces
+  daemon-required by default, so operator Striatum commands for this batch use
+  `STRIATUM_DAEMON_REQUIRED=0`; no Striatum source changes were made.
 - `main` includes the completed 0032, 0036, and 0029 workflow landings; the
   workflow code landed through `d13d0ad` before this final report update.
 - All temporary workflow branches and worktrees from the 0032/0036/0029 batch
