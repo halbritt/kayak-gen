@@ -35,6 +35,12 @@ Updated: 2026-05-13
   is running through explicit headless Claude/Gemini/Codex invocations that
   generate markdown artifacts without `author:` bylines; the operator will only
   publish artifacts that include the agent's own `Verdict intent:` line.
+- 2026-05-13T17:22:31Z checkpoint: mechanical artifact checks found no
+  `author:` bylines. Several Codex ops artifacts were explicit repository
+  read-failure artifacts, so they are not publishable. Those six ops/ops-test
+  lanes are being retried in parallel with a direct repo working directory and
+  sandbox bypass. The Gemini 0040 domain lane from the second pass is still
+  running; downstream ledger/build/final jobs remain untouched.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is
