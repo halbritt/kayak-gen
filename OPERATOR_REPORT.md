@@ -75,18 +75,27 @@ Updated: 2026-05-13
   forbidden-string grep tests should cover all RFC 0033 no-go strings, patch
   summary changelog wording is cosmetic-stale after the operator changelog
   entry, and full desktop region/test-id parity remains an explicit deferral.
-- 2026-05-13T22:43:00Z checkpoint: after landing 0044, backlog inspection found
+- 2026-05-13T22:41:20Z checkpoint: after landing 0044, backlog inspection found
   only stale open predecessor runs 0040 and 0041. They are superseded by
   completed successor workflows 0042 and 0043 respectively; their queued
   downstream jobs should not be claimed. Operator disposition is to record the
   supersession, cancel the stale runs, and prune their obsolete branches.
-- 2026-05-13T22:44:00Z checkpoint: recorded supersession decisions
+- 2026-05-13T22:41:20Z checkpoint: recorded supersession decisions
   `dec_dc5ce467f37b48f295b73ed29477efa6` (0040 -> 0042) and
   `dec_8195ead3a4d741a493848da2be1086aa` (0041 -> 0043), resolved both
   checkpoints with cancel action, and canceled runs
   `run_48d834656e604d66aa430eb5f60ea643` and
   `run_4c920dd1311f42a5b0bbac4126af0cbd`. Striatum now reports no human
   checkpoints or open blockers.
+- 2026-05-13T22:41:44Z checkpoint: deleted obsolete local and remote branches
+  `striatum/0040-design-constraint-surfacing` and
+  `striatum/0041-web-hosted-browser-acceptance`. `striatum doctor --json`
+  reports no problems, `git ls-remote --heads origin 'refs/heads/striatum/*'`
+  returns zero striatum branches, and explicit queued-job checks for the two
+  canceled runs return zero queued items. The aggregate `status --json`
+  `claimable_jobs` field still shows stale claimable summaries for the canceled
+  runs, but `list jobs --state queued` and the jobs summary show only completed
+  or canceled work.
 - Next maximum-parallel batch queued from the ready backlog: workflows 0033,
   0037, 0038, 0039, 0040, and 0041. Workflows 0034 and 0035 remain queued until
   0033 lands because they depend on generated closed-body evidence.

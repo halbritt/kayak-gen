@@ -8,7 +8,7 @@ Updated: 2026-05-13
 - Scope targets RFC 0029 and the RFC 0006 constraint-surfacing partials.
 - The workflow uses three review lanes: traceability, domain, and ops/test.
 - No runtime code or shared status documents were changed by this scaffold.
-- 2026-05-13T22:43:00Z: superseded. The first-pass domain lane reached a
+- 2026-05-13T22:41:20Z: superseded. The first-pass domain lane reached a
   `needs_revision` human checkpoint without a declared revision cycle. The
   successor workflow `0042-design-constraint-surfacing-revision` targets RFC
   0031, includes the missing review-remediation route, completed through final
@@ -21,4 +21,4 @@ Updated: 2026-05-13
 
 ## Next action
 
-- Prune the obsolete branch.
+- None. The run is canceled and the obsolete branch was pruned.

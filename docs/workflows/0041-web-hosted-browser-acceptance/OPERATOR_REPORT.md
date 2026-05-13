@@ -8,7 +8,7 @@ Updated: 2026-05-13
 - Scope targets RFC 0030 and the RFC 0008 hosted/browser acceptance partials.
 - The workflow uses three review lanes: traceability, browser, and ops/test.
 - No runtime code or shared status documents were changed by this scaffold.
-- 2026-05-13T22:43:00Z: superseded. The first-pass browser lane reached a
+- 2026-05-13T22:41:20Z: superseded. The first-pass browser lane reached a
   `needs_revision` human checkpoint without a declared revision cycle. The
   successor workflow `0043-web-hosted-browser-acceptance-revision` targets RFC
   0032, includes the missing review-revision route, completed through final
@@ -21,4 +21,4 @@ Updated: 2026-05-13
 
 ## Next action
 
-- Prune the obsolete branch.
+- None. The run is canceled and the obsolete branch was pruned.
