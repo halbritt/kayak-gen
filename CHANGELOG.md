@@ -61,6 +61,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 - Scaffolded workflows 0032-0042 for those RFCs using the three-lane
   Striatum review pattern and implementer prompts requesting maximal useful
   sub-agent fanout with disjoint write scopes.
+- Added RFC 0032 and workflow 0043 as the conservative successor to blocked
+  workflow 0041: local browser-acceptance plus hosted-demo documentation scope,
+  three first-pass review lanes, and a declared review-revision anchor for
+  browser `needs_revision` routing.
 
 ### Changed
 

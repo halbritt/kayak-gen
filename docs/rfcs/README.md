@@ -45,6 +45,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0029](0029-design-constraint-surfacing.md) | proposed | Design constraint surfacing and validity metadata |
 | [0030](0030-web-hosted-browser-acceptance.md) | proposed | Web hosted and browser acceptance |
 | [0031](0031-design-constraint-surfacing-revision.md) | proposed | Design constraint surfacing revision |
+| [0032](0032-web-hosted-browser-acceptance-revision.md) | proposed | Web hosted browser acceptance revision |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
@@ -84,12 +85,12 @@ solver success, normalized solver outputs, watertight geometry, or
 calibrated/validated CFD claims; all CFD dispatch output remains raw and
 unvalidated.
 
-RFCs 0016-0031 are mostly proposed, not accepted implementation commitments
+RFCs 0016-0032 are mostly proposed, not accepted implementation commitments
 except for the explicitly marked landed or partial safe slices. RFCs 0016-0020
 split the major remaining deferrals into broad design documents:
 closed-volume geometry, first real CFD adapter, web CFD job routes, resistance
 calibration fixtures, and high-angle `GZ` / secondary stability. RFCs
-0021-0031 narrow the next implementation slices and may revise or supersede
+0021-0032 narrow the next implementation slices and may revise or supersede
 parts of the broader RFCs where that improves progress.
 
 RFC 0021 has landed only for explicit synthetic closed-volume diagnostics: the
@@ -129,7 +130,11 @@ checked-in `python -m kayakgen.eval.cfd.fixture_command` command,
 fixture records remain raw/unvalidated; RFC 0017's OpenFOAM/SU2 selection
 remains deferred. The older partials are split into RFC 0028 plumb-stem closure
 semantics, RFC 0029 design-constraint surfacing, RFC 0030 hosted browser
-acceptance, and RFC 0031 design-constraint surfacing revision.
+acceptance, RFC 0031 design-constraint surfacing revision, and RFC 0032 web
+hosted browser acceptance revision. RFC 0032 revises the blocked RFC 0030
+successor path into a conservative local browser-acceptance and hosted-demo
+documentation slice, with explicit workflow revision routing for first-pass
+browser-review `needs_revision` verdicts.
 
 Hosted demo deployment, full plot/dashboard parity, remaining legacy RFC
 deferrals, high-angle `GZ` stability, resistance calibration, watertight solid
