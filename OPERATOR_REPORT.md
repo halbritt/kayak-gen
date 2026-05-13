@@ -46,6 +46,33 @@ Updated: 2026-05-13
   failure artifacts. Three traceability artifacts repeated `Verdict intent:`
   more than once, so those traceability lanes are being retried with a strict
   format override before any review artifact is submitted.
+- 2026-05-13T17:34:14Z checkpoint: all 18 first-pass review artifacts were
+  mechanically valid and published to Striatum without `author:` bylines. Review
+  artifact IDs are:
+  0033 `art_31c33028a7af4d48bac8feb5f0e167ab`,
+  `art_ab155900ecda4c7ab605441ae6a0dd1b`,
+  `art_ffe135063751468cb1cc225df4c684a6`; 0037
+  `art_62044238cfb2488192cf48e2efe9ed10`,
+  `art_7962a49951cf48d0a7afcb6a57bf1049`,
+  `art_2b2b5cf6c2774530a01d45a616f512ad`; 0038
+  `art_58223a360c3c4d4e857a8980f8066cf6`,
+  `art_665137deaf264e79a7922d39da9063c8`,
+  `art_b5b84e3d2c1b4719928fa0d4216fd9bf`; 0039
+  `art_076598903e2b467ab53615e76a158ff3`,
+  `art_598bb00706ae410cb8769ec64d35fe96`,
+  `art_7de2bfd52c3b405ab800cd19983e94ac`; 0040
+  `art_20c727dfc7844bfa962423f32cd2c977`,
+  `art_5672dc677e554a53b86c7be26b7e5b77`,
+  `art_be8c6766c64a41beb097a722a324c42f`; 0041
+  `art_007666f675f44bea88b3f07c5b5b5e6a`,
+  `art_268d41d46b2c4d268daa61abb4c7e5bc`,
+  `art_f20703ca138449adb5a8258850481dd8`.
+- Striatum opened human-checkpoint blockers for 0040 `review_domain` and 0041
+  `review_browser` because those lanes returned `needs_revision` and the
+  workflows have no matching revision cycle. The operator is not overriding
+  those review verdicts. Ledger/implementation can proceed for 0033, 0037,
+  0038, and 0039; 0040 and 0041 remain blocked pending an owner/workflow
+  decision.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is
