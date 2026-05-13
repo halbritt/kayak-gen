@@ -127,6 +127,14 @@ Updated: 2026-05-13
   `accept_with_findings`. The initial 0033 final-review output was a status
   message rather than an artifact, so 0033 final review is being retried with a
   stricter artifact-only prompt. 0039 final review is still running.
+- 2026-05-13T18:27:41Z checkpoint: 0039 final review was accepted with findings
+  and the workflow branch was fast-forwarded into `main`; `main` is pushed at
+  `9a56257`. 0033 final review retry was accepted and published, but rebasing
+  the 0033 branch onto current `main` hit conflicts in `CHANGELOG.md` and
+  `tests/test_generated_closed_body.py` after 0039 landed overlapping generated
+  closed-body tests. A separate Codex integration agent is resolving the rebase
+  conflict in `/tmp/kayak-gen-ledger-worktrees/0033`; the operator is not
+  resolving implementation content directly.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is
