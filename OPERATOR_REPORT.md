@@ -129,6 +129,10 @@ Updated: 2026-05-13
 - 2026-05-13T20:18:12Z checkpoint: root `CHANGELOG.md` was updated as
   operator release hygiene using the two implementation patch summaries, closing
   the non-blocking changelog gap noted by both final reviews.
+- 2026-05-13T20:19:30Z checkpoint: temporary successor worktrees were removed
+  and merged 0042/0043 local and remote branches were deleted. Older 0040/0041
+  branches were preserved because their remote tips are not ancestors of
+  `main`.
 - 2026-05-13T17:46:07Z checkpoint: the four unblocked ledger jobs completed
   and were published without `author:` bylines: 0033
   `art_b263fcf6154e4503b62f8ad2a142813a`, 0037
