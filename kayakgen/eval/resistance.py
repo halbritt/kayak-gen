@@ -12,9 +12,9 @@ uses the polar form:
           \\int_0^{\\pi/2} (P^2 + Q^2)\\, \\sec^3\\theta\\, d\\theta
 
 with ``f(x, z)`` the hull half-breadth at longitudinal position ``x`` and
-depth ``z`` below the waterline. The 16/π prefactor is calibrated against
-the Wigley parabolic hull (L=1, B=0.1, T=0.0625): Cw matches published
-values within 5 % at Fn 0.30/0.40/0.50 with ≥800 stations.
+depth ``z`` below the waterline. The 16/π prefactor is verified against the
+Wigley parabolic hull (L=1, B=0.1, T=0.0625): Cw matches published values
+within 5 % at Fn 0.30/0.40/0.50 with ≥800 stations.
 
 **Known limitation for sharp-ended hulls.** The kayak loft has ``∂f/∂x``
 of order ``ε^(-1/2)`` near the bow and stern (where the area fraction
@@ -49,6 +49,14 @@ GRAVITY_M_S2 = 9.80665
 SEAWATER_DENSITY_KG_M3 = 1025.0
 SEAWATER_KINEMATIC_VISCOSITY_M2_S = 1.19e-6  # 15 °C
 KNOTS_TO_MS = 0.514444
+
+
+def _raw_resistance_warnings() -> list[str]:
+    return [
+        "comparative_filter_only",
+        "not_final_performance_prediction",
+        "uncalibrated_no_validity_envelope",
+    ]
 
 
 def _half_breadth_grid(hull: Hull, n_stations: int, n_depths: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -127,7 +135,7 @@ def wave_resistance_michell(
 
     # Factor 16 (= 4 × 4): the 4 from the standard Michell prefactor times
     # a 4 from the (port + starboard) × (fore + aft) symmetry of integrating
-    # ∂f/∂x once over the half-hull. Calibrated against the Wigley parabolic
+    # ∂f/∂x once over the half-hull. Verified against the Wigley parabolic
     # hull (L=1, B=0.1, T=0.0625): with this factor, computed Cw at Fn=0.30
     # matches the published 1.3e-3 ± 5%, and at Fn=0.50 the published 2.6e-3.
     R_w = (16.0 * rho * g * g / (math.pi * V_ms * V_ms)) * np.trapezoid(pq2 * sec3_t, thetas)
@@ -172,11 +180,7 @@ def resistance_curve(
             "n_depths": n_depths,
             "n_theta": n_theta,
         },
-        warnings=[
-            "comparative_filter_only",
-            "not_final_performance_prediction",
-            "uncalibrated_no_validity_envelope",
-        ],
+        warnings=_raw_resistance_warnings(),
     )
 
     return ResistanceCurve(

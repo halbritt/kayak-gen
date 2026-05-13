@@ -1,6 +1,6 @@
 """Resistance — ITTC viscous + Michell wave-making sanity checks.
 
-The Michell implementation is calibrated against the Wigley parabolic
+The Michell implementation is verified against the Wigley parabolic
 hull at Fn 0.30/0.40/0.50 to within 5 %. For the lofted kayak, the
 ``ε^(-1/2)`` gradient at the sharp bow/stern produces a known
 non-monotone convergence; tests therefore assert qualitative shape
@@ -18,6 +18,7 @@ import time
 import numpy as np
 import pytest
 
+from kayakgen.eval.calibration import default_resistance_source_registry
 from kayakgen.eval.resistance import (
     KNOTS_TO_MS,
     SEAWATER_DENSITY_KG_M3,
@@ -59,8 +60,8 @@ def test_wave_resistance_returns_finite_positive() -> None:
         assert Rw >= 0.0
 
 
-def test_michell_calibrated_against_wigley() -> None:
-    """Calibration of the 16/π prefactor against the Wigley parabolic hull.
+def test_michell_verified_against_wigley() -> None:
+    """Verification of the 16/π prefactor against the Wigley parabolic hull.
 
     Wigley f(x,z) = (B/2) (1 - (2x/L)²) (1 - (z/T)²) is the standard
     thin-ship benchmark. With ≥800 stations and ≥40 theta, our
@@ -120,8 +121,12 @@ def test_resistance_curve_shape_and_units() -> None:
     assert all(rt == rv + rw for rt, rv, rw in zip(curve.Rt_N, curve.Rv_N, curve.Rw_N))
     assert curve.metadata.model_family == "raw_ittc_michell"
     assert curve.metadata.calibration_status == "uncalibrated"
+    assert curve.metadata.calibration_name is None
+    assert curve.metadata.valid_fn_range is None
+    assert curve.metadata.source_license is None
     assert "comparative_filter" in curve.metadata.accepted_use
     assert "not_final_performance_prediction" in curve.metadata.warnings
+    assert "uncalibrated_no_validity_envelope" in curve.metadata.warnings
 
 
 def test_viscous_drag_scales_with_wetted_surface() -> None:
@@ -148,6 +153,30 @@ def test_resistance_metadata_records_quadrature_settings() -> None:
         "n_theta": 19,
     }
     assert "wigley_parabolic_hull" in curve.metadata.verification_fixtures
+
+
+def test_resistance_metadata_round_trips_optional_provenance_fields() -> None:
+    curve = resistance_curve(Hull())
+    loaded = type(curve).model_validate_json(curve.model_dump_json())
+    assert loaded.metadata.calibration_name is None
+    assert loaded.metadata.calibration_version is None
+    assert loaded.metadata.valid_fn_range is None
+    assert loaded.metadata.valid_l_b_range is None
+    assert loaded.metadata.source_citation is None
+    assert loaded.metadata.extraction_method is None
+
+
+def test_default_resistance_source_registry_has_no_calibration_fixtures() -> None:
+    registry = default_resistance_source_registry()
+    assert registry
+    assert {record.source_id for record in registry} >= {
+        "sea_kayaker_kanu_compilation",
+        "gomes_2018_k1_drag_components",
+        "tzabiras_k1_tow_tank",
+    }
+    assert all(record.intended_use != "calibration_fixture" for record in registry)
+    assert any(record.measured_data for record in registry)
+    assert any("redistribution" in warning for record in registry for warning in record.warnings)
 
 
 @pytest.mark.xfail(reason="RFC 0005 low-Fn wave/viscous acceptance is not landed.")

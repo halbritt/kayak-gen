@@ -16,6 +16,13 @@ class ResistanceMetadata(BaseModel):
 
     model_family: str = "raw_ittc_michell"
     calibration_status: str = "uncalibrated"
+    calibration_name: str | None = None
+    calibration_version: str | None = None
+    valid_fn_range: tuple[float, float] | None = None
+    valid_l_b_range: tuple[float, float] | None = None
+    source_citation: str | None = None
+    source_license: str | None = None
+    extraction_method: str | None = None
     accepted_use: list[str] = Field(default_factory=lambda: ["comparative_filter"])
     verification_fixtures: list[str] = Field(default_factory=list)
     constants: dict[str, float] = Field(default_factory=dict)

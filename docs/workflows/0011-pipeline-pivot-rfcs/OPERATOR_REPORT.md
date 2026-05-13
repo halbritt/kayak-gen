@@ -7,8 +7,8 @@ Updated: 2026-05-13
 - User asked to draft proposed pivot RFCs 0009-0013, scaffold a 3-lane
   workflow, and drive safe implementation without waiting for human decisions.
 - Created branch `striatum/0011-pipeline-pivot-rfcs`.
-- Previous workflow 0010 remains uncommitted in this worktree. This workflow
-  therefore declares `allow_dirty: true`; that is intentional and recorded.
+- Previous workflow 0010 was uncommitted when this run started. This workflow
+  therefore declared `allow_dirty: true`; that was intentional and is recorded.
 - Spawned three read-only sub-agents:
   - RFC 0009/0010 outline review.
   - RFC 0011/0012/0013 outline review.

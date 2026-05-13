@@ -13,11 +13,13 @@ no current source is suitable and keep analytical resistance uncalibrated.
 
 ## 2. Resistance closure
 
-Workflow to scaffold after gate success: `0013-resistance-closure`
+Workflow to scaffold after this gate: `0013-resistance-closure`
 
-Scope: create the calibration data schema/fixtures if the source gate accepts,
-wire calibrated metadata, and either satisfy or revise the RFC 0005 low-Froude
-and 200 ms xfailed acceptance tests.
+Scope: because workflow 0012 did not accept a canonical calibration fixture,
+revise or split RFC 0005 acceptance honestly, preserve raw analytical
+resistance as comparative-only, and decide whether the two current xfails remain
+expected or become revised RFC criteria. Add calibrated metadata only if a new
+source permission/dataset appears before this workflow starts.
 
 ## 3. Comparison reports
 
