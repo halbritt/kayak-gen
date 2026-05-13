@@ -17,6 +17,7 @@ from kayakgen.eval.claims import (
     uncalibrated_resistance_warnings,
 )
 from kayakgen.eval.hydrostatics import Hydrostatics
+from kayakgen.model.validity import DesignValidityReport
 
 
 class ResistanceMetadata(BaseModel):
@@ -289,3 +290,4 @@ class EvaluationResult(BaseModel):
     stability: StabilityResult | None = None
     cfd: CfdResult | None = None
     timings_ms: dict[str, float] = Field(default_factory=dict)
+    design_validity: DesignValidityReport = Field(default_factory=DesignValidityReport)

@@ -7,7 +7,7 @@ import math
 from pathlib import Path
 from typing import Any, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from kayakgen.eval.claims import (
     claim_allows_calibrated_prediction,
@@ -15,6 +15,7 @@ from kayakgen.eval.claims import (
     claim_metadata_from_fields,
 )
 from kayakgen.eval.contract import EvaluationResult
+from kayakgen.model.validity import DesignValidityReport
 from kayakgen.search.pareto import CandidatePoint, Direction, Objective, pareto_front
 from kayakgen.search.sweep import CandidateRecord, SweepRunRecord
 
@@ -40,9 +41,18 @@ class CandidateSummary(BaseModel):
     metrics: dict[str, float] = Field(default_factory=dict)
     objective_values: dict[str, float | None] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
+    design_validity: DesignValidityReport = Field(default_factory=DesignValidityReport)
+    design_warning_count: int = 0
+    design_unsupported_count: int = 0
     error: str | None = None
     artifacts: dict[str, str] = Field(default_factory=dict)
     provenance: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _sync_design_validity_counts(self) -> "CandidateSummary":
+        self.design_warning_count = self.design_validity.warning_count
+        self.design_unsupported_count = self.design_validity.unsupported_count
+        return self
 
 
 class ComparisonReport(BaseModel):
@@ -58,6 +68,27 @@ class ComparisonReport(BaseModel):
     pareto_front_keys: list[str]
     candidate_summaries: list[CandidateSummary]
     warnings: list[str] = Field(default_factory=list)
+    design_validity: dict[str, DesignValidityReport] = Field(default_factory=dict)
+    design_warning_count: int = 0
+    design_unsupported_count: int = 0
+
+    @model_validator(mode="after")
+    def _sync_design_validity_counts(self) -> "ComparisonReport":
+        if self.candidate_summaries:
+            self.design_warning_count = sum(
+                summary.design_warning_count for summary in self.candidate_summaries
+            )
+            self.design_unsupported_count = sum(
+                summary.design_unsupported_count for summary in self.candidate_summaries
+            )
+        else:
+            self.design_warning_count = sum(
+                report.warning_count for report in self.design_validity.values()
+            )
+            self.design_unsupported_count = sum(
+                report.unsupported_count for report in self.design_validity.values()
+            )
+        return self
 
 
 def parse_objective(value: str) -> Objective:
@@ -154,6 +185,17 @@ def build_comparison_report(
         pareto_front_keys=[point.id for point in front],
         candidate_summaries=candidate_summaries,
         warnings=report_warnings,
+        design_validity={
+            summary.candidate_key: summary.design_validity
+            for summary in candidate_summaries
+            if summary.design_validity.findings
+        },
+        design_warning_count=sum(
+            summary.design_warning_count for summary in candidate_summaries
+        ),
+        design_unsupported_count=sum(
+            summary.design_unsupported_count for summary in candidate_summaries
+        ),
     )
 
 
@@ -176,11 +218,14 @@ def _candidate_summary(root: Path, record: CandidateRecord) -> CandidateSummary:
     }
     warnings = list(record.warnings)
     provenance: dict[str, Any] = {}
+    design_validity = record.design_validity
 
     if record.error:
         _append_once(warnings, "candidate error recorded")
 
     evaluation = _load_evaluation(root, record)
+    if evaluation is not None and not design_validity.findings:
+        design_validity = evaluation.design_validity
     resistance_claim = None
     if evaluation is not None and evaluation.resistance is not None:
         resistance = evaluation.resistance
@@ -246,6 +291,9 @@ def _candidate_summary(root: Path, record: CandidateRecord) -> CandidateSummary:
         parameters=record.parameters,
         metrics=metrics,
         warnings=warnings,
+        design_validity=design_validity,
+        design_warning_count=design_validity.warning_count,
+        design_unsupported_count=design_validity.unsupported_count,
         error=record.error,
         artifacts=record.artifacts,
         provenance=provenance,

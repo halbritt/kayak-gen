@@ -9,6 +9,7 @@ import pytest
 from kayakgen.eval.contract import EvaluationResult, ResistanceCurve, ResistanceMetadata
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.model.hull import Hull
+from kayakgen.model.validity import CODE_L_BWL_LOW
 from kayakgen.search.compare import (
     ComparisonReport,
     build_comparison_report,
@@ -187,6 +188,25 @@ def test_missing_objective_metrics_are_candidate_warnings(tmp_path: Path) -> Non
         "missing metric: mesh_problem_count" in summary.warnings
         for summary in report.candidate_summaries
     )
+
+
+def test_comparison_preserves_design_validity_without_changing_frontier(tmp_path: Path) -> None:
+    spec = SweepSpec(
+        name="compare-advisory",
+        base_hull={"length_m": 4.0, "beam_oa_m": 0.70},
+        variables={"beam_wl_m": {"kind": "values", "values": [0.65]}},
+    )
+    run_sweep(spec, tmp_path)
+
+    report = build_comparison_report(tmp_path)
+    summary = report.candidate_summaries[0]
+
+    assert report.pareto_front_keys == [summary.candidate_key]
+    assert summary.design_warning_count == 1
+    assert report.design_warning_count == 1
+    assert summary.design_validity.findings[0].code == CODE_L_BWL_LOW
+    assert report.design_validity[summary.candidate_key].findings[0].code == CODE_L_BWL_LOW
+    assert "design_warning_count" not in summary.metrics
 
 
 def test_failed_candidates_remain_visible_but_not_frontier_members(tmp_path: Path) -> None:

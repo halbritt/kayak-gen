@@ -328,6 +328,11 @@ class KayakGUI:
             hull,
             cp=h.Cp_actual,
             displaced_mass_kg=h.displaced_mass_kg,
+            selected_class=(
+                self._active_class_name
+                if self._active_class_name != "custom"
+                else None
+            ),
         )
         klass = self._classify(hull)
         if self._active_class_name != "custom":

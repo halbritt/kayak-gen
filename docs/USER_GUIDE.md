@@ -103,6 +103,13 @@ Resistance output is an analytical screening estimate. It is explicitly
 uncalibrated, has no accepted final-prediction validity envelope, and is meant
 for comparative filtering across nearby candidates.
 
+The evaluation JSON also includes additive `design_validity` metadata for
+valid hulls. These records separate non-blocking design advisories, such as
+`L/B_wl`, `Cp`, and displacement guidance, from unsupported reserved controls
+such as non-neutral `LCB_frac`, `rocker_bow_m`, or `rocker_stern_m`. Advisory
+and unsupported records do not make the hull invalid, do not change sweep or
+comparison ranking, and are not proof of seaworthiness or final design fitness.
+
 ### `stability`
 
 Write initial-stability results for a load case:

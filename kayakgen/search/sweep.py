@@ -19,6 +19,7 @@ from kayakgen.eval.resistance import resistance_curve
 from kayakgen.eval.stability import evaluate_equilibrium_stability, evaluate_initial_stability
 from kayakgen.io.json import save_evaluation, save_hull
 from kayakgen.model.hull import Hull
+from kayakgen.model.validity import DesignValidityReport, evaluate_design_validity
 
 ParameterKind = Literal["values", "linspace"]
 CandidateStatus = Literal["complete", "failed", "skipped"]
@@ -109,7 +110,16 @@ class CandidateRecord(BaseModel):
     evaluator_versions: dict[str, str] = Field(default_factory=dict)
     summary: dict[str, Any] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
+    design_validity: DesignValidityReport = Field(default_factory=DesignValidityReport)
+    design_warning_count: int = 0
+    design_unsupported_count: int = 0
     error: str | None = None
+
+    @model_validator(mode="after")
+    def _sync_design_validity_counts(self) -> "CandidateRecord":
+        self.design_warning_count = self.design_validity.warning_count
+        self.design_unsupported_count = self.design_validity.unsupported_count
+        return self
 
 
 class SweepRunRecord(BaseModel):
@@ -224,7 +234,13 @@ def _evaluate_candidate(
     hull_path = candidates_dir / f"{candidate_key}.hull.json"
     eval_path = candidates_dir / f"{candidate_key}.eval.json"
 
-    hydro = evaluate_hydrostatics(hull) if spec.evaluators.hydrostatics else evaluate_hydrostatics(hull)
+    hydro = evaluate_hydrostatics(hull)
+    design_validity = evaluate_design_validity(
+        hull,
+        cp=hydro.Cp_actual,
+        displaced_mass_kg=hydro.displaced_mass_kg,
+        surface=("sweep",),
+    )
     resistance = resistance_curve(hull) if spec.evaluators.resistance else None
     stability = None
     if spec.evaluators.stability:
@@ -244,6 +260,7 @@ def _evaluate_candidate(
         hydrostatics=hydro,
         resistance=resistance,
         stability=stability,
+        design_validity=design_validity,
     )
     save_hull(hull, hull_path)
     save_evaluation(evaluation, eval_path)
@@ -301,6 +318,9 @@ def _evaluate_candidate(
         },
         summary=summary,
         warnings=warnings,
+        design_validity=design_validity,
+        design_warning_count=design_validity.warning_count,
+        design_unsupported_count=design_validity.unsupported_count,
     )
 
 

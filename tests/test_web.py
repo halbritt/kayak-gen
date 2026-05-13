@@ -15,7 +15,9 @@ import pytest
 
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.mesh_package import watertight_solid_profile, write_mesh_package
+from kayakgen.model.advisory import design_advisory
 from kayakgen.model.hull import Hull
+from kayakgen.model.validity import CODE_L_BWL_LOW
 
 
 pytest.importorskip("trame", reason="kayakgen[web] not installed")
@@ -27,6 +29,7 @@ from kayakgen.ui.web.controllers import (  # noqa: E402
     CfdWebError,
     CfdWebStore,
     HullStore,
+    analysis_view_model,
     analysis_lines_from_state,
     candidate_state_from_report_json,
     clamp_beam_wl_state,
@@ -117,6 +120,16 @@ def test_analysis_lines_include_units_and_resistance_warnings() -> None:
     assert "  comparative_filter_only" in lines
 
 
+def test_analysis_model_keeps_design_and_resistance_warnings_separate() -> None:
+    state = state_dict_from_hull(Hull(length_m=4.0, beam_oa_m=0.70, beam_wl_m=0.65))
+
+    model = analysis_view_model(state)
+
+    assert model["design_warnings"] == ["L/B_wl below touring guidance"]
+    assert "not_final_performance_prediction" in model["resistance_warnings"]
+    assert model["design_validity"]["findings"][0]["code"] == CODE_L_BWL_LOW
+
+
 def test_web_state_clamps_beam_wl_before_metrics_and_validation() -> None:
     state = state_dict_from_hull(Hull(beam_oa_m=0.55, beam_wl_m=0.50)) | {
         "beam_wl_m": 0.80,
@@ -127,6 +140,18 @@ def test_web_state_clamps_beam_wl_before_metrics_and_validation() -> None:
     assert hull_from_web_state(state).beam_wl_m == 0.55
     metrics = metrics_from_state(state, stations=40)
     assert abs(metrics["l_over_bwl"] - Hull().length_m / 0.55) < 1e-6
+
+
+def test_web_metrics_design_warnings_use_shared_validity_report() -> None:
+    hull = Hull(length_m=4.0, beam_oa_m=0.70, beam_wl_m=0.65)
+    state = state_dict_from_hull(hull) | {"target_speed_kt": 3.5}
+
+    metrics = metrics_from_state(state, stations=40)
+    advisory = design_advisory(hull)
+
+    assert metrics["advisory_warnings"] == advisory.warnings
+    assert metrics["design_warning_codes"] == advisory.design_validity.codes()
+    assert metrics["design_validity"]["findings"][0]["code"] == CODE_L_BWL_LOW
 
 
 def test_validation_error_payload_is_stable_and_controlled() -> None:
@@ -298,6 +323,7 @@ def test_rest_payload_helpers() -> None:
     state = state_dict_from_hull(Hull()) | {"target_speed_kt": 3.5}
     evaluation = evaluation_payload(state)
     assert evaluation["hull_hash"] == Hull().hash()
+    assert evaluation["design_validity"]["findings"] == []
     store = HullStore()
     stored = store_hull_payload(state, store)
     assert load_hull_payload(stored["id"], store)["schema_version"] == "1"

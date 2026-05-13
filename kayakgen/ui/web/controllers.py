@@ -34,6 +34,7 @@ from kayakgen.eval.mesh_package import MeshPackageManifest
 from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance, resistance_curve
 from kayakgen.model.advisory import design_advisory
 from kayakgen.model.hull import Hull
+from kayakgen.model.validity import evaluate_design_validity
 from kayakgen.search.compare import ComparisonReport
 from kayakgen.ui.web.state import HULL_STATE_FIELDS
 from kayakgen.ui.web.state import hull_from_state_dict
@@ -103,7 +104,11 @@ def metrics_from_state(state: dict[str, Any], stations: int = 60) -> dict[str, A
         hull, V_ms, Sw=h.wetted_surface_m2, n_stations=400, n_depths=20, n_theta=30
     )
     resistance_claim = ResistanceMetadata()
-    advisory = design_advisory(hull, cp=h.Cp_actual, displaced_mass_kg=h.displaced_mass_kg)
+    advisory = design_advisory(
+        hull,
+        cp=h.Cp_actual,
+        displaced_mass_kg=h.displaced_mass_kg,
+    )
     return {
         "displaced_mass_kg": h.displaced_mass_kg,
         "wetted_surface_m2": h.wetted_surface_m2,
@@ -119,6 +124,12 @@ def metrics_from_state(state: dict[str, Any], stations: int = 60) -> dict[str, A
         "resistance_accepted_uses": resistance_claim.accepted_uses,
         "resistance_warnings": resistance_claim.warnings,
         "advisory_warnings": advisory.warnings,
+        "design_validity": advisory.design_validity.model_dump(mode="json"),
+        "design_warning_codes": tuple(
+            finding.code
+            for finding in advisory.design_validity.findings
+            if finding.level == "advisory" and finding.severity == "warning"
+        ),
     }
 
 
@@ -167,6 +178,9 @@ def analysis_view_model(state: dict[str, Any]) -> dict[str, Any]:
     return {
         "hydro_rows": hydro_rows,
         "resistance_rows": resistance_rows,
+        "design_warnings": list(advisory.warnings),
+        "design_validity": advisory.design_validity.model_dump(mode="json"),
+        "resistance_warnings": list(resistance.metadata.warnings),
         "warnings": [*advisory.warnings, *resistance.metadata.warnings],
         "resistance_metadata": resistance.metadata.model_dump(mode="json"),
     }
@@ -188,8 +202,18 @@ def analysis_lines_from_state(state: dict[str, Any]) -> list[str]:
         f"{row['Rw_N']:>7.1f}  {row['Rt_N']:>7.1f}"
         for row in model["resistance_rows"]
     )
-    if model["warnings"]:
-        lines.extend(["", "Warnings", *[f"  {warning}" for warning in model["warnings"]]])
+    if model["design_warnings"]:
+        lines.extend(
+            ["", "Design warnings", *[f"  {warning}" for warning in model["design_warnings"]]]
+        )
+    if model["resistance_warnings"]:
+        lines.extend(
+            [
+                "",
+                "Resistance warnings",
+                *[f"  {warning}" for warning in model["resistance_warnings"]],
+            ]
+        )
     return lines
 
 
@@ -295,7 +319,18 @@ def evaluation_for_state(state: dict[str, Any]) -> EvaluationResult:
         rc = resistance_curve(hull)
     except Exception:
         rc = None
-    return EvaluationResult(hull_hash=hull.hash(), hydrostatics=h, resistance=rc)
+    design_validity = evaluate_design_validity(
+        hull,
+        cp=h.Cp_actual,
+        displaced_mass_kg=h.displaced_mass_kg,
+        surface=("web",),
+    )
+    return EvaluationResult(
+        hull_hash=hull.hash(),
+        hydrostatics=h,
+        resistance=rc,
+        design_validity=design_validity,
+    )
 
 
 class HullStore:

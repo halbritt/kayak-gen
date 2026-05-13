@@ -10,6 +10,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from kayakgen.model.hull import Hull
+from kayakgen.model.validity import (
+    DesignValidityReport,
+    design_warning_messages,
+    evaluate_design_validity,
+)
 
 
 @dataclass(frozen=True)
@@ -20,6 +25,7 @@ class DesignAdvisory:
     cp: float
     displaced_mass_kg: float | None
     warnings: tuple[str, ...]
+    design_validity: DesignValidityReport
 
 
 def design_advisory(
@@ -27,6 +33,7 @@ def design_advisory(
     *,
     cp: float | None = None,
     displaced_mass_kg: float | None = None,
+    selected_class: str | None = None,
 ) -> DesignAdvisory:
     """Return non-blocking advisory metrics for hull-design feedback.
 
@@ -41,27 +48,17 @@ def design_advisory(
     beam_wl = hull.beam_wl_m or hull.beam_oa_m
     l_over_bwl = hull.length_m / beam_wl
     cp_value = hull.Cp if cp is None else cp
-
-    warnings: list[str] = []
-    if l_over_bwl < 8.0:
-        warnings.append("L/B_wl below touring guidance")
-    elif l_over_bwl > 15.5:
-        warnings.append("L/B_wl beyond elite surfski guidance")
-
-    if cp_value < 0.50:
-        warnings.append("Cp below recommended kayak range")
-    elif cp_value > 0.65:
-        warnings.append("Cp above recommended kayak range")
-
-    if displaced_mass_kg is not None:
-        if displaced_mass_kg < 0.075 * 1025.0:
-            warnings.append("displacement below typical single-paddler load")
-        elif displaced_mass_kg > 0.180 * 1025.0:
-            warnings.append("displacement above typical single-paddler load")
+    report = evaluate_design_validity(
+        hull,
+        cp=cp_value,
+        displaced_mass_kg=displaced_mass_kg,
+        selected_class=selected_class,
+    )
 
     return DesignAdvisory(
         l_over_bwl=l_over_bwl,
         cp=cp_value,
         displaced_mass_kg=displaced_mass_kg,
-        warnings=tuple(warnings),
+        warnings=design_warning_messages(report),
+        design_validity=report,
     )
