@@ -6,17 +6,21 @@ Context: builds on RFC 0007 (architectural revisit). Touches the
 `kayakgen.ui` and `kayakgen.cli` boundaries; does not change
 `kayakgen.model` or `kayakgen.eval`.
 
-Status note (workflows 0017/0021, 2026-05-13): partially landed with default
-headless verification, optional Playwright browser smoke, and a compact
-web-analysis slice. The Trame shell, sliders, VTK view, metrics helpers,
-share-query encoding, REST route scaffolding, Docker build path, offscreen VTK
-visual smoke test, browser smoke, unit-labeled hydrostatics/resistance analysis
-rows, and comparison report inspection are present. Lighthouse Best Practices
-scored 92 in workflow 0020, but the console-errors audit still reported a Trame
-`/paraview/` 405 network log. Full desktop-equivalent plot parity, hosted demo
-deployment, auto-opening a browser by default, console-clean Lighthouse
-acceptance, mobile view-only mode, and larger comparison-dashboard work remain
-follow-up work.
+Status note (workflows 0017/0021/0043, 2026-05-13): partially landed with
+default headless verification, optional Playwright browser smoke, a required
+local browser-acceptance profile, and a compact web-analysis slice. The Trame
+shell, sliders, VTK view, metrics helpers, share-query encoding, REST route
+scaffolding, Docker build path, offscreen VTK visual smoke test,
+browser-visible analysis checks, nonblank 3D checks, Share reload, STL bytes,
+unit-labeled hydrostatics/resistance analysis rows, and comparison report
+inspection are present. Compact analysis with units and raw/uncalibrated
+warnings plus compact comparison report inspection is the accepted RFC 0032
+web-analysis boundary. Lighthouse Best Practices scored 92 in workflow 0020,
+and workflow 0043 added direct local console/page/network checks plus an exact
+local `/ws` connection response for the historical `POST /paraview/` 405
+browser probe. Hosted public demo operation, full desktop-equivalent plot
+parity, auto-opening a browser by default, mobile editing parity, and larger
+comparison-dashboard work remain follow-up work.
 
 ## Problem
 
@@ -251,12 +255,14 @@ deploys; configuration is environment variables only.
   console errors, no mixed-content warnings).
 
 Current verification status: headless Trame/controller/VTK and web-analysis
-checks are implemented in `tests/test_web.py`. Optional Playwright browser
-smoke exists in `tests/test_web_browser.py`, passed in workflows 0020/0021, and
-self-skips when Playwright or Chromium is unavailable. Lighthouse
-score-threshold verification ran at 92, but console-clean Lighthouse
-acceptance, hosted demo, full plot parity, and larger web comparison dashboard
-work are not yet landed.
+checks are implemented in `tests/test_web.py`. `tests/test_web_browser.py`
+supports both optional smoke and a required `browser_acceptance` profile; the
+acceptance profile fails when Playwright or Chromium is unavailable, starts
+`kayakgen serve`, checks browser-visible analysis content, nonblank 3D before
+and after mutation, Share reload, STL bytes, and unexpected console/page/network
+failures. Lighthouse score-threshold verification ran at 92 in workflow 0020;
+hosted public demo operation, full plot parity, and larger web comparison
+dashboard work are not yet landed.
 
 ## Open Questions
 

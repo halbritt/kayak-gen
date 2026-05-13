@@ -275,7 +275,10 @@ kayakgen cfd profiles
 
 Current profiles are placeholders for deterministic job-state behavior:
 `unavailable-open-wetted-surface`, `unavailable-watertight-solid`, and
-`mock-failing-local-command`.
+`mock-failing-local-command`. The `fixture-local-command` profile is also
+available as a checked-in deterministic test adapter; it writes a
+`raw-result.json` fixture artifact for route and CLI plumbing tests, but it is
+not a real CFD solver and does not produce validated or calibrated output.
 
 ### `cfd prepare`
 
@@ -311,7 +314,9 @@ kayakgen cfd run runs/cfd/cfd-xxxxxxxxxxxxxxxx
 No real OpenFOAM, SU2, hosted worker, Docker solver, or calibrated CFD result
 is available in the current CLI. The unavailable profiles report
 `solver_unavailable`; the mock local-command profile deliberately fails for
-dispatch testing. All CFD run records are raw and unvalidated.
+dispatch testing. The fixture local-command profile can produce a deterministic
+successful raw fixture record for tests. All CFD run records are raw and
+unvalidated.
 
 ### `view`
 
@@ -336,9 +341,10 @@ kayakgen serve hull.json --host 127.0.0.1 --port 8080
 
 Install `kayakgen[web]` first, then open the printed local URL. The web shell
 supports interactive hull inspection, compact analysis views, comparison report
-loading, and a local CFD job panel. Hosted-demo acceptance, full browser
-parity, hosted CFD workers, cancellation guarantees, authentication, and real
-solver adapters are not complete.
+loading, and a local CFD job panel. Required local browser acceptance and
+hosted-demo documentation are covered by the web verification runbook; public
+hosting, full dashboard parity, hosted CFD workers, cancellation guarantees,
+authentication, and real solver adapters are not complete.
 
 The web CFD panel and `/api/cfd/*` routes use the same local filesystem job
 records as `kayakgen cfd`. They accept an explicit server-local

@@ -588,7 +588,12 @@ def cfd_job_raw_result_payload(job_id: str, store: CfdWebStore) -> dict[str, Any
 
 def cfd_status_lines_from_payload(payload: dict[str, Any] | None) -> list[str]:
     """Text lines used by the compact browser CFD panel."""
-    lines = ["CFD local job", CFD_RAW_RESULTS_WARNING, CFD_LOCAL_FILESYSTEM_NOTICE]
+    lines = [
+        "CFD local job",
+        CFD_RAW_RESULTS_WARNING,
+        CFD_LOCAL_FILESYSTEM_NOTICE,
+        "fixture-local-command is a deterministic checked-in test adapter, not real CFD.",
+    ]
     if not payload:
         return [*lines, "No CFD job prepared."]
 
@@ -977,7 +982,12 @@ def load_hull_payload(hull_id: str, store: HullStore) -> dict[str, Any] | None:
 
 
 def job_stub_payload() -> dict[str, str]:
-    return {"error": "heavy CFD jobs are reserved by RFC 0008 and not implemented"}
+    payload = _cfd_common_payload()
+    payload["error"] = (
+        "heavy CFD jobs are reserved by RFC 0008 and not implemented; "
+        "RFC 0032 acceptance uses the local raw /api/cfd/* route surface"
+    )
+    return payload
 
 
 def register_rest_routes(

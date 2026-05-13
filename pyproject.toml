@@ -51,6 +51,9 @@ exclude = ["tests*", ".venv*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+    "browser_acceptance: required real-browser acceptance profile for the web frontend",
+]
 
 [tool.ruff]
 line-length = 100

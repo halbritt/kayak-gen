@@ -45,7 +45,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0029](0029-design-constraint-surfacing.md) | proposed background | Design constraint surfacing and validity metadata, superseded by RFC 0031 for implementation |
 | [0030](0030-web-hosted-browser-acceptance.md) | proposed | Web hosted and browser acceptance |
 | [0031](0031-design-constraint-surfacing-revision.md) | accepted implementation target | Design constraint surfacing revision |
-| [0032](0032-web-hosted-browser-acceptance-revision.md) | proposed | Web hosted browser acceptance revision |
+| [0032](0032-web-hosted-browser-acceptance-revision.md) | landed local-browser-docs | Web hosted browser acceptance revision |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
@@ -57,10 +57,14 @@ deferrals recorded in the RFCs: exact plumb end caps, watertight
 hull-plus-deck solid readiness, asymmetric rake, future shape parameters,
 desktop yellow-banner/manual closure, and browser/Lighthouse acceptance are not
 fully satisfied.
-RFC 0008 also remains partial, with headless verification, an optional
-Playwright browser-smoke path, and compact web-analysis views landed. Workflow
-0020 recorded a Lighthouse Best Practices score of 92, but console-clean
-Lighthouse acceptance and hosted-demo acceptance remain open.
+RFC 0008 also remains partial, with headless verification, optional Playwright
+browser smoke, a required local browser-acceptance profile, and compact
+web-analysis views landed. Compact analysis with units and raw/uncalibrated
+warnings plus compact comparison report inspection is the accepted RFC 0032
+web-analysis boundary. Workflow 0020 recorded a Lighthouse Best Practices score
+of 92; workflow 0043 adds direct console/page/network browser checks and
+hosted-demo documentation, while hosted public demo operation, full plot parity,
+and larger dashboard work remain open.
 
 RFCs 0009-0020 cover the pivot from single-hull generation to a reproducible
 generative and evaluation pipeline. RFC 0010's mesh package/profile slice, RFC
