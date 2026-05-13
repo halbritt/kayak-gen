@@ -48,6 +48,12 @@ Updated: 2026-05-13
   implementation as `accept_with_findings`, with 12 safe-now implementation
   findings, 3 test/docs/scaffold findings, explicit deferrals, and a required
   validation matrix. Striatum queued workflow 0044 `implement_findings`.
+- 2026-05-13T22:06:40Z checkpoint: workflow 0044 implementation is claimed
+  and running under Codex session `sess_b58bda9e3d5e4169ba20d467387ad8ae`.
+  The implementer prompt asks for maximal useful sub-agent fanout, disjoint
+  scopes, in-scope docs/user-guide updates, tests, and a patch summary with a
+  proposed root changelog entry because root `CHANGELOG.md` is outside the
+  Striatum write scope.
 - Next maximum-parallel batch queued from the ready backlog: workflows 0033,
   0037, 0038, 0039, 0040, and 0041. Workflows 0034 and 0035 remain queued until
   0033 lands because they depend on generated closed-body evidence.

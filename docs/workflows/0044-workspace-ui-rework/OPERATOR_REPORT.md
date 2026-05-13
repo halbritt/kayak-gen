@@ -53,8 +53,14 @@ Updated: 2026-05-13
   `accept_with_findings`; it carries 12 safe-now implementation findings, 3
   test/docs/scaffold findings, explicit deferrals, and a validation matrix.
   Striatum has queued `implement_findings` for workflow 0044.
+- 2026-05-13T22:06:40Z: implementation job claimed as
+  `job_run_4966ab190f8840d9b2f9c82b4044edad_implement_findings` under Codex
+  session `sess_b58bda9e3d5e4169ba20d467387ad8ae` and launched. The prompt
+  instructs the implementer to use maximal useful sub-agent fanout with disjoint
+  scopes, stay inside the Striatum write scope, and place any root changelog
+  proposal in the patch summary rather than editing root `CHANGELOG.md`.
 
 ## Next action
 
-- Commit and push the ledger packet, then claim and launch the implementation
-  job.
+- Monitor implementation, then publish/complete the patch summary and advance to
+  final review.
