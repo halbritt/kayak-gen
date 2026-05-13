@@ -2,9 +2,9 @@
 
 Updated: 2026-05-13
 
-This queue structures the remaining known work after workflows 0012-0018. The
-IDs below are proposed workflow IDs. They are ordered by dependency and
-implementation leverage, not by RFC number.
+This queue records completed backlog workflows after 0018 and structures the
+remaining known work starting at workflow 0026. The IDs below are ordered by
+dependency and implementation leverage, not by RFC number.
 
 Each implementation workflow should use three review lanes before coding:
 
@@ -21,237 +21,230 @@ each workflow must include: "Use the maximal number of useful sub-agents with
 disjoint write scopes. Prefer parallel agents for independent code, test, docs,
 and review tasks, but keep one agent responsible for final integration."
 
-## 0019 - Legacy RFC Partial Closure
+## Completed History
 
-Target RFCs: 0004, 0006.
+Workflows 0019-0025 have landed on `main` and are no longer queued work:
 
-Purpose: close the old partially landed design-space work before more
-generation, stability, and CFD logic depends on it. This includes plumb-bow
-semantics, class presets, constraint validation, and truthful status updates.
+- 0019 legacy RFC partial closure: landed safe package/core slices for RFCs 0004
+  and 0006, with exact plumb end caps, watertight hull-plus-deck solid
+  readiness, asymmetric rake, future shape parameters, desktop yellow-banner
+  closure, and browser/Lighthouse acceptance left as explicit deferrals.
+- 0020 browser acceptance and demo: landed headless verification and optional
+  Playwright browser-smoke coverage; Lighthouse console-clean and hosted-demo
+  acceptance remain open.
+- 0021 web plots and comparison UI: landed compact web analysis/comparison
+  views, report loading, tests, and status updates.
+- 0022 generalized trim and GZ stability: landed longitudinal load components,
+  bounded fixed-body upright trim equilibrium, CLI/sweep summaries, and the
+  explicit high-angle GZ deferral pending closed-volume geometry.
+- 0023 resistance calibration dataset vetting: recorded the University of
+  Edinburgh Pacific-canoe dataset as validation-only source metadata; no kayak
+  calibration fixture landed and resistance remains uncalibrated.
+- 0024 watertight solid mesh profile: landed
+  `watertight_solid_resistance_v1` as a blocked readiness profile and kept
+  current generated packages below `cfd_ready`.
+- 0025 CFD solver dispatch and jobs: landed local job/run/profile records,
+  readiness gating, local artifact directories, unavailable solver state, mock
+  failed-command state, and `kayakgen cfd prepare/status/run/profiles`; real
+  solver adapters, normalized physical outputs, web job routes, container
+  execution, and validated CFD claims remain deferred.
 
-Prerequisites: clean `main`; current golden tests passing.
+## 0026 - Docs Roadmap And User Guide
+
+Target docs: `docs/PRD.md`, `docs/USER_GUIDE.md`, `docs/rfcs/README.md`,
+proposed RFCs 0016-0020,
+`docs/workflows/0018-deferred-backlog/QUEUE.md`, `OPERATOR_REPORT.md`.
+
+Purpose: reconcile stale documentation after workflows 0019-0025 and add a
+practical user guide that tells users what the tool can do today without
+claiming watertight solids, calibrated resistance, high-angle GZ, full web
+parity, or real CFD execution.
+
+Prerequisites: workflow 0025 landed; Striatum bundle refresh landed.
 
 Review lanes:
 
-- Traceability: map every RFC 0004 and 0006 acceptance criterion to landed code,
-  missing work, or explicit deferral.
-- Domain: check bow/stern coordinate wording, class boundary definitions, and
-  constraint ranges against `docs/design/kayak_hull_design_constraints.md`.
-- Ops/test: check presets, validation errors, CLI/web/desktop propagation, and
-  golden-test impact.
+- Documentation accuracy: verify current/delivered wording against landed
+  behavior and known deferrals.
+- User guide: verify quick start, CLI task examples, desktop/web entry points,
+  mesh packaging, local CFD dispatch status, troubleshooting, and limitations.
+- Roadmap: verify next RFC/workflow links and ensure proposed work is not
+  described as accepted implementation.
 
 Implementation prompt:
 
 ```text
-Implement the safe RFC 0004/0006 closure items from the findings ledger. Use the
-maximal number of useful sub-agents with disjoint write scopes. Prefer parallel
-agents for independent code, test, docs, and review tasks, but keep one agent
-responsible for final integration. Suggested splits: domain model and presets;
-CLI/serialization; web/desktop propagation; tests/docs/status. Do not rewrite
-the hull generator unless a finding proves it is necessary.
+Reconcile stale documentation after workflows 0019-0025. Use the maximal number
+of useful sub-agents with disjoint write scopes. Prefer parallel agents for
+independent docs, RFC/navigation, backlog, and review tasks, but keep one agent
+responsible for final integration. Do not edit runtime code. Do not describe
+raw/unvalidated resistance or CFD outputs as calibrated or physically accepted.
 ```
 
-Exit criteria: RFC 0004/0006 statuses are either landed or have sharply named
-remaining deferrals; tests cover the accepted parameter-space behavior.
+Exit criteria: user-facing docs distinguish current behavior from roadmap
+deferrals, completed workflows 0019-0025 are history, proposed RFCs 0016-0020
+exist, and workflow 0026 is the active docs-roadmap run.
 
-## 0020 - Browser Acceptance and Demo
+## 0027 - Closed-Volume Geometry Contract
 
-Target RFC: 0008.
+Target RFCs: 0004, 0006, 0010, 0015, and proposed RFC 0016.
 
-Purpose: finish the browser-facing acceptance gap left by workflow 0017:
-Playwright or equivalent real-browser smoke coverage, optional Lighthouse checks
-when tooling is available, and hosted demo/deployment instructions.
+Purpose: define and implement the first explicit closed-volume hull-plus-deck
+geometry contract that future high-angle GZ and real solver dispatch can depend
+on. This is the successor to the blocked watertight profile from workflow 0024,
+not a relabeling of current open surfaces.
 
-Prerequisites: workflow 0017 landed; VTK offscreen smoke remains passing.
+Prerequisites: RFC 0016 accepted or amended.
 
 Review lanes:
 
-- Traceability: map RFC 0008 acceptance criteria to headless tests, real-browser
-  tests, docs, and explicit unavailable tooling.
-- Browser/domain: verify actual rendering state, first-screen usability,
-  hull-view framing, and no false visual acceptance.
-- Ops/test: verify dependency installation, Docker/runtime libraries,
-  skip/xfail policy, and CI feasibility.
-
-Implementation prompt:
-
-```text
-Implement real-browser web acceptance where the environment supports it and
-document truthful skips where it does not. Use the maximal number of useful
-sub-agents with disjoint write scopes. Prefer parallel agents for independent
-code, test, docs, and review tasks, but keep one agent responsible for final
-integration. Suggested splits: Playwright/pytest integration; Docker/CI/runtime
-deps; deployment docs; RFC/status updates. Do not claim Lighthouse or hosted
-demo success unless the command was actually run or the deployment exists.
-```
-
-Exit criteria: real-browser smoke tests are present or explicitly skipped with
-actionable dependency reasons; RFC 0008 status is truthful.
-
-## 0021 - Web Plots and Comparison UI
-
-Target RFCs: 0008, 0013.
-
-Purpose: move the web frontend from basic parameter/render verification toward
-the analysis UI promised by RFCs 0008 and 0013: hydrostatics/resistance plot
-tabs, comparison report loading, Pareto/candidate views, and candidate reload
-into the editor.
-
-Prerequisites: browser acceptance scaffolding from workflow 0020 or a documented
-reason to defer browser automation.
-
-Review lanes:
-
-- Traceability: map web UI requirements from RFC 0008 and RFC 0013 to views and
-  tests.
-- Domain: verify plotted metrics, units, Pareto axes, and comparison wording.
-- Ops/test: verify state management, fixture reports, browser/headless tests,
-  and performance risk.
-
-Implementation prompt:
-
-```text
-Implement the smallest coherent web analysis slice that satisfies the accepted
-RFC 0008/0013 criteria. Use the maximal number of useful sub-agents with
-disjoint write scopes. Prefer parallel agents for independent code, test, docs,
-and review tasks, but keep one agent responsible for final integration.
-Suggested splits: web state/controllers; plot/view components; comparison
-fixtures and tests; docs/RFC status. Do not add decorative UI or marketing
-pages; keep the app task-focused.
-```
-
-Exit criteria: users can inspect key curves/reports in the web app, tests cover
-the new views, and unsupported comparison actions are explicit.
-
-## 0022 - Generalized Trim and GZ Stability
-
-Target RFCs: 0011, 0014.
-
-Purpose: extend equilibrium stability beyond centered sinkage by adding
-longitudinal load cases, trim solving, and a truthful path for high-angle GZ.
-
-Prerequisites: RFC 0014 accepted or amended; workflow 0019 legacy coordinate
-closure preferred.
-
-Review lanes:
-
-- Traceability: verify RFC 0011 deferrals and RFC 0014 acceptance criteria.
-- Domain: verify load-position conventions, moment balance, fixed-paddler-CG
-  assumption, and high-angle volume semantics.
-- Ops/test: verify CLI/JSON compatibility, sweep record compatibility, numerical
-  tolerances, and non-convergence tests.
-
-Implementation prompt:
-
-```text
-Implement only the accepted stability slice from the findings ledger. Use the
-maximal number of useful sub-agents with disjoint write scopes. Prefer parallel
-agents for independent code, test, docs, and review tasks, but keep one agent
-responsible for final integration. Suggested splits: load-case model and
-serialization; trim solver; CLI/sweep integration; tests/docs/status. Do not
-emit high-angle GZ values unless the closed-volume decision is accepted and
-implemented with tests.
-```
-
-Exit criteria: trim equilibrium is computed or explicitly deferred with reasons;
-high-angle stability remains unavailable unless backed by a named volume model.
-
-## 0023 - Resistance Calibration Dataset Vetting
-
-Target RFC: 0012.
-
-Purpose: revisit resistance calibration only when a licensed and relevant source
-dataset can be identified. Workflow 0012 found no acceptable source, so this is
-a gated research-and-implementation workflow.
-
-Prerequisites: candidate dataset or source family to vet; otherwise run as a
-review-only workflow and record blockers.
-
-Review lanes:
-
-- Traceability: verify RFC 0012 acceptance requirements and prior workflow 0012
-  findings.
-- Domain/source: verify dataset hull class, measurement type, units, licensing,
-  and applicability to kayak-scale slender hulls.
-- Ops/test: verify fixture size, provenance metadata, reproducible fitting, and
-  no calibrated-claim leakage.
-
-Implementation prompt:
-
-```text
-If and only if the ledger accepts a dataset, implement the calibration ingest
-and metadata slice. Use the maximal number of useful sub-agents with disjoint
-write scopes. Prefer parallel agents for independent code, test, docs, and
-review tasks, but keep one agent responsible for final integration. Suggested
-splits: source/provenance docs; data ingestion; fitting/report code; tests/RFC
-status. If no dataset is accepted, do not fabricate fixtures; record blockers.
-```
-
-Exit criteria: either a licensed calibration fixture lands with provenance and
-tests, or RFC 0012 remains proposed with precise blockers.
-
-## 0024 - Watertight Solid Mesh Profile
-
-Target RFCs: 0010, 0015.
-
-Purpose: add a named watertight solid readiness profile and package output that
-future solver dispatch can depend on. This is separate from the already landed
-open wetted-surface package/profile.
-
-Prerequisites: workflow 0019 plumb/end-cap decisions preferred; mesh package
-profile from workflow 0015 landed.
-
-Review lanes:
-
-- Traceability: verify RFC 0010 open questions and CFD-readiness claims.
+- Traceability: map exact plumb end-cap, watertight solid, readiness-profile,
+  and solver-dispatch deferrals to the accepted geometry contract.
 - Domain/geometry: verify closure policy, deck/hull body semantics, normal
-  orientation, manifold checks, and waterline handling.
+  orientation, manifold checks, volume integration boundaries, and waterline
+  handling.
 - Ops/test: verify deterministic package artifacts, synthetic invalid meshes,
   CLI behavior, and downstream solver profile hooks.
 
 Implementation prompt:
 
 ```text
-Implement a named watertight solid mesh readiness profile only where the
-geometry contract is explicit. Use the maximal number of useful sub-agents with
-disjoint write scopes. Prefer parallel agents for independent code, test, docs,
-and review tasks, but keep one agent responsible for final integration.
-Suggested splits: geometry/profile design; diagnostics/package writer; CLI and
-manifest tests; docs/RFC status. Do not relabel open surfaces as watertight.
+Implement closed-volume geometry only where the accepted RFC defines the
+contract. Use the maximal number of useful sub-agents with disjoint write
+scopes. Prefer parallel agents for independent geometry/profile, diagnostics,
+CLI/package, tests, and docs tasks, but keep one agent responsible for final
+integration. Do not relabel open surfaces as watertight.
 ```
 
-Exit criteria: current packages remain honestly classified, and any new
-watertight profile has tests proving manifold/closure behavior.
+Exit criteria: current open packages remain honestly classified, and any new
+closed-volume profile has tests proving manifold/closure behavior.
 
-## 0025 - CFD Solver Dispatch and Jobs
+## 0028 - Real CFD Solver Adapter
 
-Target RFC: 0015.
+Target RFCs: 0015 and proposed RFC 0017.
 
-Purpose: introduce local CFD job specs, run records, solver profiles, and
-unavailable/mock adapter behavior before any real external solver integration.
+Purpose: integrate the first real external solver only after readiness,
+installation, execution, artifact, and validation boundaries are explicit.
 
-Prerequisites: RFC 0015 accepted or amended; workflow 0024 required for any
-profile that needs watertight solid readiness.
+Prerequisites: RFC 0017 accepted or amended; workflow 0027 closed-volume
+geometry complete if the selected solver requires watertight solid input.
 
 Review lanes:
 
-- Traceability: verify RFC 0015 acceptance criteria and RFC 0008 job-stub
-  expectations.
-- Domain/CFD: verify raw/unvalidated result wording, solver profile readiness
-  requirements, speed/fluid inputs, and artifact provenance.
-- Ops/test: verify local filesystem queue, failure capture, CLI status behavior,
-  and no dependency on unavailable solver binaries for baseline tests.
+- Traceability: map RFC 0015 deferrals and the accepted adapter RFC to landed
+  behavior, missing work, or explicit future slices.
+- Domain/CFD: verify solver setup, boundary conditions, raw/unvalidated result
+  wording, speed/fluid inputs, and artifact provenance.
+- Ops/test: verify dependency detection, local execution isolation,
+  reproducible job directories, failure capture, and baseline tests that do not
+  require unavailable solver binaries.
 
 Implementation prompt:
 
 ```text
-Implement the local dispatch contract and unavailable/mock adapter first. Use
-the maximal number of useful sub-agents with disjoint write scopes. Prefer
-parallel agents for independent code, test, docs, and review tasks, but keep one
-agent responsible for final integration. Suggested splits: job/run models; CLI
-commands; adapter/failure handling; web status/docs/tests. Do not integrate a
-real solver until readiness and installation requirements are explicit.
+Implement the first accepted real CFD adapter slice. Use the maximal number of
+useful sub-agents with disjoint write scopes. Prefer parallel agents for
+independent adapter, CLI, artifact, docs, and test tasks, but keep one agent
+responsible for final integration. Do not normalize raw outputs into calibrated
+physical claims unless a separate validation/calibration RFC has landed.
 ```
 
-Exit criteria: CLI/web can represent CFD job states without fake solver
-success, and real solver integration is a separate accepted slice.
+Exit criteria: the first real solver path is executable where dependencies are
+installed, unavailable dependencies fail truthfully, and outputs remain clearly
+raw/unvalidated unless backed by calibration work.
+
+## 0029 - Web CFD Job Routes
+
+Target RFCs: 0008, 0015, and proposed RFC 0018.
+
+Purpose: expose CFD job preparation, status, and artifact inspection in the web
+frontend without implying solver success or validated physics.
+
+Prerequisites: workflow 0025 local dispatch landed; web-routes RFC accepted or
+amended; real adapter optional if unavailable/mock states remain first-class.
+
+Review lanes:
+
+- Traceability: map RFC 0008 job-stub expectations and RFC 0015 dispatch
+  behavior to routes, UI states, tests, and explicit deferrals.
+- Browser/domain: verify state wording, artifact visibility, and no false CFD
+  acceptance.
+- Ops/test: verify route error handling, local filesystem queue access,
+  browser/headless coverage, and security boundaries for served artifacts.
+
+Implementation prompt:
+
+```text
+Implement accepted web CFD job routes and UI states over the existing local
+dispatch contract. Use the maximal number of useful sub-agents with disjoint
+write scopes. Prefer parallel agents for independent API, UI, tests, docs, and
+review tasks, but keep one agent responsible for final integration. Do not fake
+solver success and do not hide unavailable solver states.
+```
+
+Exit criteria: web users can prepare or inspect CFD jobs according to the
+accepted contract, with truthful unavailable/failure states and tests covering
+the route/UI behavior.
+
+## 0030 - Resistance Calibration Fixture
+
+Target RFCs: 0012 and proposed RFC 0019.
+
+Purpose: land a licensed, relevant kayak-scale calibration or validation fixture
+before any calibrated resistance claim appears in the product docs.
+
+Prerequisites: dataset source accepted by RFC; provenance and licensing checked.
+
+Review lanes:
+
+- Traceability: verify RFC 0012 acceptance requirements and calibration RFC
+  requirements.
+- Domain/source: verify hull class, measurement type, units, licensing, and
+  applicability to kayak-scale slender hulls.
+- Ops/test: verify fixture size, provenance metadata, reproducible fitting, and
+  no calibrated-claim leakage.
+
+Implementation prompt:
+
+```text
+If and only if the accepted RFC approves a dataset, implement calibration ingest
+and provenance metadata. Use the maximal number of useful sub-agents with
+disjoint write scopes. Prefer parallel agents for independent source,
+ingestion, fitting/report, tests, and docs tasks, but keep one agent responsible
+for final integration. If no dataset is accepted, do not fabricate fixtures.
+```
+
+Exit criteria: either a licensed fixture lands with provenance and tests, or the
+calibration RFC remains blocked with precise reasons.
+
+## 0031 - High-Angle GZ And Secondary Stability
+
+Target RFCs: 0011, 0014, proposed RFC 0016, and proposed RFC 0020.
+
+Purpose: compute secondary-stability curves only after closed-volume geometry
+and heeled-volume semantics are accepted and implemented.
+
+Prerequisites: workflow 0027 closed-volume geometry complete; RFC 0020 accepted
+or amended.
+
+Review lanes:
+
+- Traceability: map RFC 0011/0014 deferrals and accepted GZ requirements to
+  tests and docs.
+- Domain: verify load-position conventions, heeled volume integration,
+  righting-arm sign conventions, and secondary-stability interpretation.
+- Ops/test: verify numerical tolerances, non-convergence handling, CLI/JSON
+  compatibility, sweep record compatibility, and frontend display behavior.
+
+Implementation prompt:
+
+```text
+Implement high-angle GZ only against the accepted closed-volume model. Use the
+maximal number of useful sub-agents with disjoint write scopes. Prefer parallel
+agents for independent geometry, solver, CLI/frontend, tests, and docs tasks,
+but keep one agent responsible for final integration. Do not emit secondary
+stability values for open-surface packages.
+```
+
+Exit criteria: high-angle GZ is available only for supported closed-volume
+geometry and remains explicitly unavailable elsewhere.

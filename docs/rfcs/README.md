@@ -29,6 +29,11 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0013](0013-pareto-frontier-comparison-ui.md) | landed report/web-slice | Pareto frontier and candidate comparison UI |
 | [0014](0014-generalized-trim-and-gz-stability.md) | partial trim-slice | Generalized trim and high-angle GZ stability |
 | [0015](0015-cfd-solver-dispatch-and-jobs.md) | partial local-dispatch | CFD solver dispatch and job artifacts |
+| [0016](0016-closed-volume-geometry.md) | proposed | Closed-volume geometry contract |
+| [0017](0017-first-real-cfd-adapter.md) | proposed | First real CFD adapter |
+| [0018](0018-web-cfd-job-routes.md) | proposed | Web CFD job routes |
+| [0019](0019-resistance-calibration-fixtures.md) | proposed | Resistance calibration fixtures |
+| [0020](0020-high-angle-gz-secondary-stability.md) | proposed | High-angle GZ and secondary stability |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
@@ -45,8 +50,8 @@ Playwright browser-smoke path, and compact web-analysis views landed. Workflow
 0020 recorded a Lighthouse Best Practices score of 92, but console-clean
 Lighthouse acceptance and hosted-demo acceptance remain open.
 
-RFCs 0009-0015 are roadmap RFCs for the pivot from single-hull generation to a
-reproducible generative pipeline. RFC 0010's mesh package/profile slice, RFC
+RFCs 0009-0020 cover the pivot from single-hull generation to a reproducible
+generative and evaluation pipeline. RFC 0010's mesh package/profile slice, RFC
 0011's load-case plus equilibrium-sinkage slice, RFC 0013's report/CLI and
 compact web inspection slices, and RFC 0014's partial trim slice have landed.
 The RFC 0014 slice includes compatible longitudinal load components, bounded
@@ -61,12 +66,20 @@ profile/readiness gating, CLI prepare/status/run/profiles surfaces, unavailable
 solver state, and mock failed-command state. It does not include OpenFOAM, SU2,
 hosted workers, Docker/container execution, web job routes, normalized solver
 outputs, watertight geometry, or calibrated/validated CFD claims; all CFD
-dispatch output remains raw and unvalidated. Hosted demo deployment, full
-plot/dashboard parity, remaining legacy RFC deferrals, high-angle `GZ`
-stability, resistance calibration, watertight solid geometry, and real CFD
-solver dispatch are queued in `docs/workflows/0018-deferred-backlog/QUEUE.md`.
-High-angle `GZ` remains unavailable because a closed-volume body for heeled
-integration is not defined.
+dispatch output remains raw and unvalidated.
+
+RFCs 0016-0020 are proposed, not accepted implementation commitments. They
+break the major remaining deferrals into explicit design documents:
+closed-volume geometry, first real CFD adapter, web CFD job routes, resistance
+calibration fixtures, and high-angle `GZ` / secondary stability. Hosted demo
+deployment, full plot/dashboard parity, remaining legacy RFC deferrals,
+high-angle `GZ` stability, resistance calibration, watertight solid geometry,
+and real CFD solver dispatch remain queued in
+`docs/workflows/0018-deferred-backlog/QUEUE.md`. High-angle `GZ` remains
+unavailable because a closed-volume body for heeled integration is not defined.
+
+For current user-facing commands and limitations, start with
+[`docs/USER_GUIDE.md`](../USER_GUIDE.md).
 
 ## Template
 

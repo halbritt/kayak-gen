@@ -13,48 +13,61 @@ load-bearing rationale.
 
 ## Audience
 
-Independent kayak builders, naval architecture enthusiasts, surfski and sea-kayak paddlers, and maker-community designers who want to produce and *evaluate* a custom kayak hull from first principles — specifying the boat's key dimensions and form coefficients rather than sculpting geometry manually in CAD. The user understands basic boat terminology (length, beam, draft, prismatic coefficient) and wants live feedback as they design: a 3D preview, integrated hydrostatics, and a useful estimate of resistance at paddling speeds. The tool is approachable from either a desktop application or a browser, and a hull's parameters are shareable as a URL so designs travel between collaborators without anyone exporting STLs first.
+Independent kayak builders, naval architecture enthusiasts, surfski and sea-kayak paddlers, and maker-community designers who want to produce and *evaluate* a custom kayak hull from first principles — specifying the boat's key dimensions and form coefficients rather than sculpting geometry manually in CAD. The user understands basic boat terminology (length, beam, draft, prismatic coefficient) and wants fast feedback as they design: a 3D preview, integrated hydrostatics, and an honest early-stage estimate of resistance at paddling speeds. The project now has desktop, CLI, and browser surfaces, but not every roadmap capability is equally complete on every surface.
 
 This is not positioned against professional naval architecture suites that run full URANS / panel-method CFD on supercomputers. It is positioned as a tool that gives an individual designer a fast, honest hydrodynamic read on a hull while they are still moving the sliders.
 
-## In scope
+## Delivered Today
+
+This section describes current behavior, not the whole roadmap.
 
 ### Geometry
 
 - User specifies overall kayak dimensions (length, beam-overall, beam-at-waterline, draft, deck height) and naval-architecture form coefficients (prismatic coefficient Cp, midship section coefficient Cm, deck flatness exponent, parallel mid-body ratio, longitudinal centre of buoyancy fraction).
-- Generator computes a longitudinal station series (cross-sections) at configurable resolution and triangulates them into a watertight mesh. Cross-section geometry is parametrically controlled: hull sections range from V-shaped through arched to U-shaped; deck camber is controlled by a power-curve exponent.
-- Bow geometry covers the full range from traditional Greenland-style raked stems through modern plumb bows (per RFC 0004's `bow_rake` parameter).
+- Generator computes a longitudinal station series (cross-sections) at configurable resolution and triangulates open hull and deck surfaces. Cross-section geometry is parametrically controlled: hull sections range from V-shaped through arched to U-shaped; deck camber is controlled by a power-curve exponent.
+- Bow geometry includes RFC 0004's `bow_rake` parameter, but exact plumb end-cap semantics, asymmetric rake, and watertight hull-plus-deck closure remain deferred.
 - Ends taper using a prismatic-coefficient-derived area curve. The centre parallel mid-body fraction is configurable.
-- Class presets (touring sea kayak, performance sea kayak, intermediate surfski, elite surfski) seed a hull at sensible defaults derived from `docs/design/kayak_hull_design_constraints.md`. Users can deviate from the preset; the GUI flags out-of-class combinations as advisory rather than blocking.
-- Hull body (below waterline) and deck (above waterline) are each exported as separate binary STL files suitable for slicer software (PrusaSlicer, Bambu Studio) or CAD import. Output mesh density is configurable.
+- Class presets (touring sea kayak, performance sea kayak, intermediate surfski, elite surfski) seed a hull at sensible defaults derived from `docs/design/kayak_hull_design_constraints.md`. Users can deviate from the preset; surfaced constraint checks are advisory and still incomplete in the desktop GUI.
+- Hull body and deck are exported as separate binary STL surfaces suitable for inspection, CAD import, or downstream packaging. Current generated mesh packages remain open-surface candidates and are not classified as `cfd_ready`.
 
 ### Evaluation
 
-- **Hydrostatics, computed from the integrated geometry** — not from a formula envelope. Displaced volume, displaced mass at seawater density, wetted surface area, waterplane area, longitudinal centre of buoyancy, primary metacentric height GM₀, and the full righting-arm GZ curve from 0° to 90° heel.
-- **Resistance estimation at user-selected paddling speeds.** Viscous resistance via the ITTC-57 friction line; wave-making resistance via the Michell (thin-ship) integral. Both run analytically in Python with no external solver, fast enough to update live as sliders move (sub-200 ms per speed point per RFC 0005).
+- **Hydrostatics, computed from the integrated geometry** — not from a formula envelope. Delivered readouts include displaced volume, displaced mass at seawater density, wetted surface area, waterplane area, longitudinal centre of buoyancy, and primary metacentric height GM₀. Upright trim equilibrium exists for explicit component load cases. High-angle GZ / secondary-stability curves are not currently available because the project has not accepted and implemented a closed-volume body model for heeled integration.
+- **Resistance estimation at user-selected paddling speeds.** Viscous resistance via the ITTC-57 friction line; wave-making resistance via the Michell (thin-ship) integral. This is an exploratory analytical screening filter for comparing candidates, not a calibrated final prediction.
 - **Speed sweep curve** broken into viscous and wave components, plotted against speed in knots and Froude number, with the user's target speed marked.
-- **Future heavy-CFD tier reserved.** RFC 0007 §6 and RFC 0008 §6 reserve a job-queue seam for high-fidelity panel-method or RANS evaluation on selected designs. The live in-app feedback stays on the analytical tier; the heavy tier runs asynchronously when wired up.
+- **Local CFD dispatch state.** Current CFD support is job/run/profile plumbing with readiness gates, local artifact directories, unavailable solver state, and mock failed-command state. It does not run OpenFOAM, SU2, hosted workers, Dockerized solvers, or any real CFD adapter.
 
 ### Frontends and tooling
 
 - **Headless CLI.** `kayakgen generate / evaluate / sweep / view` makes every capability scriptable from a terminal, a notebook, or CI. The GUI is one consumer of the core, not its entry point.
 - **Desktop GUI.** PyQt6 + matplotlib + PyVista. Sliders for all design parameters; live 2D cross-section, sheer plan, and plan-view previews; a separate interactive 3D window with hull+deck rendered as distinct surfaces and smooth shading.
-- **Portable web frontend.** Browser-based UI built on Trame, with visual parity with the desktop GUI — same sliders, same 3D view, same metrics, same STL export. Hulls are shareable as URLs (`?hull=…`) so a design travels between collaborators without anyone exporting STLs.
-- **One Docker container** deploys the web frontend; one `pip install` runs it locally.
+- **Portable web frontend.** Browser-based UI built on Trame, with parameter editing, rendered hull inspection, compact analysis views, comparison report loading, and optional browser smoke coverage. Full desktop parity, console-clean Lighthouse acceptance, hosted-demo acceptance, and web CFD job routes remain roadmap items.
+- **Installation and local operation.** The Python package and CLI run locally; deployment and packaging work continues through RFC-backed slices.
+
+## Roadmap And Deferrals
+
+These capabilities remain in scope, but they should not be described as delivered until their RFCs and tests land:
+
+- Watertight, closed-volume hull-plus-deck geometry with exact end-cap semantics and a named readiness profile suitable for real solver dispatch.
+- Calibrated resistance prediction backed by licensed, relevant kayak-scale validation fixtures.
+- High-angle GZ / secondary-stability curves based on an accepted closed-volume integration model.
+- Real CFD solver adapters, normalized solver outputs, Docker/container execution, hosted workers, and browser job-management routes.
+- Full browser parity with the desktop application, including hosted-demo acceptance and any remaining real-browser/Lighthouse criteria.
+- Generative search and multi-objective optimization over reproducible sweep and candidate records.
 
 ## Out of scope
 
 The list below is deliberately short. If something hard-but-desirable is missing, it is *not* out of scope — it is on the RFC trail or reserved for a future RFC. The genuine non-goals are domain boundaries, not difficulty walls:
 
-- **Watertight hull-plus-deck assembly into a single manifold solid.** The project produces hull and deck as separate STL surfaces; joining, lofting a sheer line, and closing the boat into one solid is a CAD operation left to the user's tool. This is a domain boundary (hull *generation* vs. solid *modeling*), not a difficulty boundary.
+- **Production-ready build assembly into a finished manifold boat.** The project may add closed-volume geometry for analysis and solver readiness, but joining, detailing, thickening, and preparing a build-ready solid hull-plus-deck assembly remains a CAD operation left to the user's tool. This is a domain boundary (hull *generation* vs. finished solid *modeling*), not a difficulty boundary.
 - **Structural / scantling design.** Wall thickness, rib placement, material selection, layup schedules, and structural adequacy are a different engineering domain. The mesh this project produces is the input to that work, not the output.
 - **Outfitting.** Cockpit ergonomics, hatch placement and sealing, deck fittings, foot-brace and rudder geometry, rigging, and seat shape are out of scope. The project produces hull and deck shells; everything that gets bolted to them is somebody else's tool.
 - **Non-kayak hull forms.** Catamarans, sailing-craft keels, planing powerboat hulls, and cargo vessels are not supported. The parameter ranges, preset classes, and resistance regime (displacement, Fn ≲ 0.6) are tuned for human-powered single hulls.
 
 What is *not* on this list, and why:
 
-- *Hydrostatics, web frontend, and resistance estimation* are in scope per the relevant RFCs.
-- *High-fidelity CFD* (panel method, RANS) is reserved for the asynchronous evaluation tier — it has a defined seam, not an exclusion.
+- *Hydrostatics, web frontend, and resistance estimation* are in scope per the relevant RFCs, with the delivered/roadmap split above.
+- *High-fidelity CFD* (panel method, RANS) is reserved for the asynchronous evaluation tier — it has local job-state plumbing and future solver seams, not a delivered real-solver path.
 - *Generative search / multi-objective optimisation* is reserved for a future RFC; the architecture (RFC 0007 §1 reserves `kayakgen.search/`) is shaped to make it a clean addition.
 - *Native installer packaging* is moot once the web frontend ships — anyone with a browser can use the tool. A single-binary distribution via PyInstaller is a low-priority convenience, not a non-goal.
 
@@ -63,21 +76,21 @@ What is *not* on this list, and why:
 ### Geometry and export
 
 - A builder can take a set of parameters (length, beam, draft, Cp, etc.), run the generator, and have STL files ready for slicing within 30 seconds on a typical laptop.
-- The generated hull and deck surfaces are visually fair (no hard chines or faceting artifacts at the design mesh density) and pass a basic watertightness check in a slicer.
+- The generated hull and deck surfaces are visually fair (no hard chines or faceting artifacts at the design mesh density) and carry explicit mesh-readiness diagnostics. Watertight solid readiness is a roadmap criterion, not a current baseline.
 - Parameters produce predictably different results: increasing Cp visibly fills the ends; decreasing Cm visibly sharpens the V of the sections; adjusting deck flatness visibly changes the camber profile; setting `bow_rake → 0` produces a recognisably plumb stem.
 - At least one builder has used the output STL to cut foam molds or print hull sections for a real boat build.
 
 ### Evaluation
 
 - Hydrostatic readouts in the GUI are computed from the integrated mesh and agree with an independent reference (e.g., Wigley parabolic hull, analytical) within 1%.
-- Resistance estimates at paddling speeds match published kayak model-test data within 25% across the Fn 0.25–0.50 range (the documented Michell-integral accuracy bound per RFC 0005).
-- The full GZ curve from 0° to 90° heel is computed and rendered for any hull within 200 ms, so secondary stability is visible during design rather than after export.
+- Resistance estimates at paddling speeds are useful for ranking nearby candidate hulls. Matching published kayak model-test data within 25% across the Fn 0.25–0.50 range remains a calibration-roadmap criterion.
+- High-angle GZ from 0° to 90° heel is computed and rendered only after the closed-volume model and secondary-stability RFC work lands.
 
 ### Frontends
 
 - The 3D view renders a full hull+deck model smoothly (no perceptible lag) on a standard laptop as sliders are dragged, so the design loop feels interactive rather than batch.
-- The web frontend has visual and functional parity with the desktop GUI: the same controls produce the same hull, the same metrics, the same STL.
-- A hull URL produced by one user reconstructs to a byte-identical hull on another user's machine — designs are shareable without exporting and re-importing files.
+- The web frontend exposes the core design loop and compact analysis/comparison views; full visual and functional parity with the desktop GUI remains a roadmap criterion.
+- A hull URL produced by one user reconstructs the same design parameters on another user's machine — byte-identical export guarantees remain a stricter roadmap criterion.
 
 ### Codebase
 
