@@ -1,0 +1,236 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0025-cfd-solver-dispatch-and-jobs",
+  "workflow_version": "2026-05-13",
+  "name": "0025 - CFD solver dispatch and jobs",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0025-cfd-solver-dispatch-and-jobs",
+    "allow_dirty": false
+  },
+  "coordinator": {"role_id": "coordinator", "lane_id": "claude"},
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["claude", "--model", "opus", "-p"],
+      "capabilities": ["review", "synthesis"]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["codex", "exec", "--model", "gpt-5.5", "-"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["gemini", "--model", "gemini-3.1-pro-preview"],
+      "capabilities": ["review"]
+    }
+  },
+  "roles": {
+    "coordinator": {"definition_path": "roles/coordinator.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_domain": {"definition_path": "roles/reviewer_domain.md"},
+    "reviewer_ops": {"definition_path": "roles/reviewer_ops.md"},
+    "ledger": {"definition_path": "roles/ledger.md"},
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/PRD.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/rfcs/0008-web-frontend.md", "required": true},
+    {"path": "docs/rfcs/0010-cfd-ready-mesh-contract.md", "required": true},
+    {"path": "docs/rfcs/0012-resistance-model-calibration.md", "required": true},
+    {"path": "docs/rfcs/0015-cfd-solver-dispatch-and-jobs.md", "required": true},
+    {"path": "docs/workflows/0024-watertight-solid-mesh-profile/OPERATOR_REPORT.md", "required": true},
+    {"path": "docs/workflows/0018-deferred-backlog/QUEUE.md", "required": true},
+    {"path": "docs/workflows/0025-cfd-solver-dispatch-and-jobs/SOURCES.md", "required": true},
+    {"path": "kayakgen/eval/mesh_package.py", "required": true},
+    {"path": "kayakgen/cli/main.py", "required": true},
+    {"path": "tests/test_mesh_package.py", "required": true},
+    {"path": "tests/test_cli.py", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review CFD dispatch traceability",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review RFC 0015 acceptance criteria, RFC 0008 job-stub expectations, and workflow 0024 readiness-profile results.",
+      "task_prompt": {"path": "prompts/review_traceability.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0025-cfd-solver-dispatch-and-jobs/traceability/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0025-cfd-solver-dispatch-and-jobs/traceability/REVIEW_TRACEABILITY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_domain",
+      "type": "review",
+      "title": "Review CFD domain and raw-result semantics",
+      "role_id": "reviewer_domain",
+      "lane_id": "gemini",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review solver profile readiness requirements, speed/fluid inputs, raw/unvalidated result wording, and artifact provenance.",
+      "task_prompt": {"path": "prompts/review_domain.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0025-cfd-solver-dispatch-and-jobs/domain/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0025-cfd-solver-dispatch-and-jobs/domain/REVIEW_DOMAIN.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_ops",
+      "type": "review",
+      "title": "Review CFD ops and tests",
+      "role_id": "reviewer_ops",
+      "lane_id": "codex",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review local filesystem job queue, failure capture, CLI status behavior, determinism, and no dependency on solver binaries.",
+      "task_prompt": {"path": "prompts/review_ops.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0025-cfd-solver-dispatch-and-jobs/ops/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0025-cfd-solver-dispatch-and-jobs/ops/REVIEW_OPS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "ledger",
+      "title": "Consolidate CFD dispatch findings",
+      "role_id": "ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate CFD dispatch findings and define the safe implementation slice.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/0025-cfd-solver-dispatch-and-jobs/ledger/",
+          "docs/workflows/0025-cfd-solver-dispatch-and-jobs/OPERATOR_REPORT.md"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "ledger",
+          "kind": "findings_ledger",
+          "path": "striatum/0025-cfd-solver-dispatch-and-jobs/ledger/FINDINGS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "implement_findings",
+      "type": "build",
+      "title": "Implement CFD dispatch contract",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Implement the local dispatch contract and unavailable/mock adapter behavior accepted by the ledger.",
+      "task_prompt": {"path": "prompts/implement_findings.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/",
+          "docs/workflows/0025-cfd-solver-dispatch-and-jobs/",
+          "kayakgen/eval/",
+          "kayakgen/cli/",
+          "tests/",
+          "striatum/0025-cfd-solver-dispatch-and-jobs/implementation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "striatum/0025-cfd-solver-dispatch-and-jobs/implementation/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final gate for CFD dispatch",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify local dispatch truthfulness, tests, docs, and no fake solver success.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0025-cfd-solver-dispatch-and-jobs/final/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "final_review",
+          "kind": "finding",
+          "path": "striatum/0025-cfd-solver-dispatch-and-jobs/final/FINAL_REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_domain", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops", "to": "findings_ledger", "on": "completed"},
+    {"from": "findings_ledger", "to": "implement_findings", "on": "completed"},
+    {"from": "implement_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {
+      "from": "final_review",
+      "to": "implement_findings",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1
+    }
+  ]
+}
