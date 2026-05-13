@@ -8,8 +8,17 @@ Updated: 2026-05-13
 - Scope targets RFC 0030 and the RFC 0008 hosted/browser acceptance partials.
 - The workflow uses three review lanes: traceability, browser, and ops/test.
 - No runtime code or shared status documents were changed by this scaffold.
+- 2026-05-13T22:43:00Z: superseded. The first-pass browser lane reached a
+  `needs_revision` human checkpoint without a declared revision cycle. The
+  successor workflow `0043-web-hosted-browser-acceptance-revision` targets RFC
+  0032, includes the missing review-revision route, completed through final
+  review, and landed on `main`. No queued downstream jobs from 0041 should be
+  claimed.
+- Supersession decision recorded as
+  `dec_8195ead3a4d741a493848da2be1086aa` /
+  `art_37ef87d30a444beea971eedb64c1e56b`; checkpoint resolved with cancel
+  action and run `run_4c920dd1311f42a5b0bbac4126af0cbd` canceled.
 
 ## Next action
 
-- Validate `workflow.json`.
-- Start the Striatum run after RFC 0030 is accepted or amended.
+- Prune the obsolete branch.
