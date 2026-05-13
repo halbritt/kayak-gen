@@ -18,7 +18,10 @@ from trame.widgets import vuetify3 as v3
 from kayakgen.model.hull import Hull
 from kayakgen.ui.web.controllers import (
     HullStore,
+    analysis_lines_from_state,
+    candidate_state_from_report_json,
     clamp_beam_wl_state,
+    comparison_view_model_from_json,
     hull_from_web_state,
     metrics_from_state,
     register_rest_routes,
@@ -103,6 +106,13 @@ class KayakgenApp:
         self.state.target_speed_kt = 3.5
         self.state.share_url = ""
         self.state.metrics_lines = []
+        self.state.analysis_tab = "analysis"
+        self.state.analysis_lines = []
+        self.state.comparison_json = ""
+        self.state.comparison_status = "Paste a comparison report JSON to inspect candidates."
+        self.state.comparison_lines = []
+        self.state.comparison_candidate_options = []
+        self.state.selected_candidate_index = 0
 
         self._renderer = vtk.vtkRenderer()
         self._renderer.SetBackground(0.10, 0.10, 0.18)
@@ -120,6 +130,9 @@ class KayakgenApp:
         self.ctrl.export_stl = lambda part: self._export_stl(part)
         self.ctrl.share_url = lambda: self._share_url()
         self.ctrl.reset = lambda: self._reset()
+        self.ctrl.refresh_analysis = lambda: self._refresh_analysis()
+        self.ctrl.load_comparison = lambda: self._load_comparison()
+        self.ctrl.load_candidate = lambda: self._load_selected_candidate()
         self.ctrl.on_server_bind.add(
             lambda ws_server: register_rest_routes(ws_server.app, self._hull_store)
         )
@@ -127,6 +140,7 @@ class KayakgenApp:
         self._wire_state_listeners()
         self._build_layout()
         self._refresh_metrics()
+        self._refresh_analysis()
 
     # ----- 3D scene -----
 
@@ -177,6 +191,15 @@ class KayakgenApp:
                 ["Advisory", *[f"  {w}" for w in m["advisory_warnings"]]]
             )
 
+    def _refresh_analysis(self) -> None:
+        try:
+            self.state.analysis_lines = analysis_lines_from_state(dict(self.state.to_dict()))
+        except Exception as exc:
+            payload = validation_error_payload(exc)
+            details = payload.get("details", [])
+            messages = [f"{d['field']}: {d['message']}" for d in details]
+            self.state.analysis_lines = ["Analysis unavailable", *messages]
+
     def _on_param_change(self, **_kwargs: Any) -> None:
         normalized = clamp_beam_wl_state(dict(self.state.to_dict()))
         if normalized.get("beam_wl_m") != self.state.beam_wl_m:
@@ -186,9 +209,11 @@ class KayakgenApp:
             hull = self._current_hull()
         except Exception:
             self._refresh_metrics()
+            self._refresh_analysis()
             return
         self._rebuild_scene(hull)
         self._refresh_metrics()
+        self._refresh_analysis()
         if hasattr(self, "view") and self.view is not None:
             self.view.update()
 
@@ -209,6 +234,36 @@ class KayakgenApp:
     def _reset(self) -> None:
         self.state.update(state_dict_from_hull(Hull()))
         self.state.target_speed_kt = 3.5
+        self._refresh_analysis()
+
+    def _load_comparison(self) -> None:
+        model = comparison_view_model_from_json(str(self.state.comparison_json or ""))
+        self.state.comparison_status = model["status"]
+        self.state.comparison_lines = model["lines"]
+        self.state.comparison_candidate_options = model["candidate_options"]
+        if model["candidate_options"]:
+            self.state.selected_candidate_index = model["candidate_options"][0]
+
+    def _load_selected_candidate(self) -> None:
+        try:
+            updated = candidate_state_from_report_json(
+                str(self.state.comparison_json or ""),
+                self.state.selected_candidate_index,
+                dict(self.state.to_dict()),
+            )
+        except Exception as exc:
+            self.state.comparison_status = f"Candidate reload failed: {exc}"
+            return
+        self.state.update({key: updated[key] for key in HULL_STATE_FIELDS if key in updated})
+        hull = hull_from_web_state(updated)
+        self._rebuild_scene(hull)
+        self._refresh_metrics()
+        self._refresh_analysis()
+        if hasattr(self, "view") and self.view is not None:
+            self.view.update()
+        self.state.comparison_status = (
+            f"Applied sweep parameters for candidate {self.state.selected_candidate_index}"
+        )
 
     def load_from_query(self, query: str) -> None:
         try:
@@ -218,6 +273,7 @@ class KayakgenApp:
         self.state.update(state_dict_from_hull(hull))
         self._rebuild_scene(hull)
         self._refresh_metrics()
+        self._refresh_analysis()
 
     # ----- layout -----
 
@@ -265,6 +321,60 @@ class KayakgenApp:
             with layout.content:
                 with v3.VContainer(fluid=True, classes="fill-height pa-0"):
                     self.view = vtkw.VtkRemoteView(self._render_window, ref="view")
+                    with v3.VCard(classes="ma-2"):
+                        with v3.VTabs(v_model=("analysis_tab",)):
+                            v3.VTab("Analysis", value="analysis")
+                            v3.VTab("Comparison", value="comparison")
+                        with v3.VWindow(v_model=("analysis_tab",)):
+                            with v3.VWindowItem(value="analysis"):
+                                with v3.VCardText():
+                                    v3.VBtn(
+                                        "Refresh Analysis",
+                                        click=self.ctrl.refresh_analysis,
+                                        density="compact",
+                                    )
+                                    v3.VCardText(
+                                        "<pre>{{ analysis_lines.join('\\n') }}</pre>",
+                                        classes="font-mono text-caption mt-2",
+                                        html=True,
+                                    )
+                            with v3.VWindowItem(value="comparison"):
+                                with v3.VCardText():
+                                    v3.VTextarea(
+                                        v_model=("comparison_json",),
+                                        label="Comparison report JSON",
+                                        rows=5,
+                                        auto_grow=True,
+                                        density="compact",
+                                    )
+                                    v3.VBtn(
+                                        "Load Report",
+                                        click=self.ctrl.load_comparison,
+                                        density="compact",
+                                        classes="mr-2",
+                                    )
+                                    v3.VSelect(
+                                        v_model=("selected_candidate_index",),
+                                        items=("comparison_candidate_options",),
+                                        label="Candidate index",
+                                        density="compact",
+                                        classes="mt-2",
+                                    )
+                                    v3.VBtn(
+                                        "Apply Candidate Parameters",
+                                        click=self.ctrl.load_candidate,
+                                        density="compact",
+                                    )
+                                    v3.VCardText(
+                                        "<pre>{{ comparison_status }}</pre>",
+                                        classes="font-mono text-caption mt-2",
+                                        html=True,
+                                    )
+                                    v3.VCardText(
+                                        "<pre>{{ comparison_lines.join('\\n') }}</pre>",
+                                        classes="font-mono text-caption",
+                                        html=True,
+                                    )
 
 
 def create_app(

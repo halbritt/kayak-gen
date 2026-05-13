@@ -90,6 +90,9 @@ def test_kayakgen_serve_loads_in_chromium_and_updates_metrics() -> None:
                 page.get_by_text("Length (m)").first.wait_for(timeout=10_000)
                 page.get_by_text("Metrics").first.wait_for(timeout=10_000)
                 page.get_by_text("Displacement").first.wait_for(timeout=10_000)
+                page.get_by_text("Analysis").first.wait_for(timeout=10_000)
+                page.get_by_text("Comparison").first.wait_for(timeout=10_000)
+                page.get_by_text("Resistance curve").first.wait_for(timeout=10_000)
 
                 before = page.locator("pre").first.inner_text(timeout=10_000)
                 sliders = page.get_by_role("slider")

@@ -21,12 +21,12 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0005](0005-cfd-resistance.md) | landed raw-filter | Resistance estimation (Michell + ITTC) |
 | [0006](0006-design-constraints.md) | partial safe-slice | Hull design constraints — canonical parameter space and class presets |
 | [0007](0007-architectural-revisit.md) | landed | Architectural revisit — extract `kayakgen` package before more parameters land |
-| [0008](0008-web-frontend.md) | partial browser-smoke | Portable web frontend via Trame |
+| [0008](0008-web-frontend.md) | partial web-analysis | Portable web frontend via Trame |
 | [0009](0009-sweep-run-records.md) | proposed | Sweep and candidate run records |
 | [0010](0010-cfd-ready-mesh-contract.md) | landed package/profile | CFD-ready mesh contract |
 | [0011](0011-hydrostatic-stability-load-cases.md) | landed equilibrium-sinkage | Hydrostatic stability and load cases |
 | [0012](0012-resistance-model-calibration.md) | proposed | Resistance model calibration |
-| [0013](0013-pareto-frontier-comparison-ui.md) | landed report/CLI | Pareto frontier and candidate comparison UI |
+| [0013](0013-pareto-frontier-comparison-ui.md) | landed report/web-slice | Pareto frontier and candidate comparison UI |
 | [0014](0014-generalized-trim-and-gz-stability.md) | proposed | Generalized trim and high-angle GZ stability |
 | [0015](0015-cfd-solver-dispatch-and-jobs.md) | proposed | CFD solver dispatch and job artifacts |
 
@@ -40,18 +40,19 @@ deferrals recorded in the RFCs: exact plumb end caps, watertight
 hull-plus-deck solid readiness, asymmetric rake, future shape parameters,
 desktop yellow-banner/manual closure, and browser/Lighthouse acceptance are not
 fully satisfied.
-RFC 0008 also remains partial, with headless verification and an optional
-Playwright browser-smoke path landed. Workflow 0020 recorded a Lighthouse Best
-Practices score of 92, but console-clean Lighthouse acceptance and hosted-demo
-acceptance remain open.
+RFC 0008 also remains partial, with headless verification, an optional
+Playwright browser-smoke path, and compact web-analysis views landed. Workflow
+0020 recorded a Lighthouse Best Practices score of 92, but console-clean
+Lighthouse acceptance and hosted-demo acceptance remain open.
 
 RFCs 0009-0015 are roadmap RFCs for the pivot from single-hull generation to a
 reproducible generative pipeline. RFC 0010's mesh package/profile slice, RFC
 0011's load-case plus equilibrium-sinkage slice, and RFC 0013's report/CLI
-slice have landed. Browser/Lighthouse web acceptance, hosted demo deployment,
-web comparison UI, remaining legacy RFC deferrals, generalized trim/high-angle
-stability, resistance calibration, watertight solid readiness, and CFD solver
-dispatch are queued in `docs/workflows/0018-deferred-backlog/QUEUE.md`.
+slice and RFC 0013's compact web inspection slice have landed. Hosted demo
+deployment, full plot/dashboard parity, remaining legacy RFC deferrals,
+generalized trim/high-angle stability, resistance calibration, watertight solid
+readiness, and CFD solver dispatch are queued in
+`docs/workflows/0018-deferred-backlog/QUEUE.md`.
 
 ## Template
 

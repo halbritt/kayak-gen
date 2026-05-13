@@ -1,16 +1,19 @@
 # RFC 0013: Pareto Frontier and Candidate Comparison UI
 
-Status: landed-report-cli
+Status: landed-report-web-slice
 Date: 2026-05-13
 Context: builds on RFC 0009 sweep records, RFC 0010 mesh diagnostics, RFC 0011
 stability/load cases, RFC 0012 resistance metadata, and RFC 0008 web frontend.
 
-Status note (workflow 0014, 2026-05-13): the comparison report and CLI slice has
-landed. Workflow 0017 headless-verified the existing web shell, but web
-comparison views remain deferred until RFC 0008 browser acceptance and report
-formats stabilize. Default reports exclude raw uncalibrated resistance;
-explicitly requested resistance objectives produce exploratory frontiers unless
-future calibrated provenance satisfies RFC 0012.
+Status note (workflows 0014/0021, 2026-05-13): the comparison report, CLI slice,
+and compact web inspection slice have landed. The web slice displays report
+kind, objectives, warnings, Pareto membership, candidate status, and candidate
+rows from existing `ComparisonReport` JSON, and can apply a selected candidate's
+sweep parameters to the current editor state. Larger comparison dashboards,
+scatter plots, persistence, and optimizer flows remain deferred. Default reports
+exclude raw uncalibrated resistance; explicitly requested resistance objectives
+produce exploratory frontiers unless future calibrated provenance satisfies RFC
+0012.
 
 ## Problem
 
@@ -85,8 +88,8 @@ Web follow-up:
   `exploratory_frontier`.
 - Default reports exclude uncalibrated analytical resistance until RFC 0012 has
   a calibrated result with declared accepted use.
-- Web UI acceptance is deferred until RFC 0008 browser acceptance and
-  CLI/report formats stabilize.
+- A compact web report-inspection slice is available; larger comparison
+  dashboard work remains deferred.
 
 ## Open Questions
 

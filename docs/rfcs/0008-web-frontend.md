@@ -1,22 +1,22 @@
 # RFC 0008: Portable Web Frontend (Trame)
 
-Status: partial browser-smoke
+Status: partial web-analysis
 Date: 2026-05-09
 Context: builds on RFC 0007 (architectural revisit). Touches the
 `kayakgen.ui` and `kayakgen.cli` boundaries; does not change
 `kayakgen.model` or `kayakgen.eval`.
 
-Status note (workflows 0017/0020, 2026-05-13): partially landed with default
-headless verification and an optional Playwright browser-smoke test that passed
-in the workflow environment after installing Playwright and Chromium. The Trame
-shell, sliders, VTK view, metrics helpers, share-query encoding, REST route
-scaffolding, Docker build path, offscreen VTK visual smoke test, and
-`tests/test_web_browser.py` browser smoke exist. The browser smoke self-skips
-when Playwright or Chromium is unavailable. Lighthouse Best Practices scored 92
-in workflow 0020, but the console-errors audit still reported a Trame
-`/paraview/` 405 network log. Plot tabs, hosted demo deployment, auto-opening a
-browser by default, console-clean Lighthouse acceptance, and web comparison
-views remain follow-up work.
+Status note (workflows 0017/0021, 2026-05-13): partially landed with default
+headless verification, optional Playwright browser smoke, and a compact
+web-analysis slice. The Trame shell, sliders, VTK view, metrics helpers,
+share-query encoding, REST route scaffolding, Docker build path, offscreen VTK
+visual smoke test, browser smoke, unit-labeled hydrostatics/resistance analysis
+rows, and comparison report inspection are present. Lighthouse Best Practices
+scored 92 in workflow 0020, but the console-errors audit still reported a Trame
+`/paraview/` 405 network log. Full desktop-equivalent plot parity, hosted demo
+deployment, auto-opening a browser by default, console-clean Lighthouse
+acceptance, mobile view-only mode, and larger comparison-dashboard work remain
+follow-up work.
 
 ## Problem
 
@@ -249,12 +249,13 @@ deploys; configuration is environment variables only.
 - Lighthouse "Best Practices" score ≥ 90 on the served page (no
   console errors, no mixed-content warnings).
 
-Current verification status: headless Trame/controller/VTK checks are
-implemented in `tests/test_web.py`. Optional Playwright browser smoke exists in
-`tests/test_web_browser.py`, passed in workflow 0020, and self-skips when
-Playwright or Chromium is unavailable. Lighthouse score-threshold verification
-ran at 92, but console-clean Lighthouse acceptance, hosted demo, plot tabs, and
-web comparison views are not yet landed.
+Current verification status: headless Trame/controller/VTK and web-analysis
+checks are implemented in `tests/test_web.py`. Optional Playwright browser
+smoke exists in `tests/test_web_browser.py`, passed in workflows 0020/0021, and
+self-skips when Playwright or Chromium is unavailable. Lighthouse
+score-threshold verification ran at 92, but console-clean Lighthouse
+acceptance, hosted demo, full plot parity, and larger web comparison dashboard
+work are not yet landed.
 
 ## Open Questions
 

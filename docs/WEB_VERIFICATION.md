@@ -13,8 +13,9 @@ Run the web-focused tests:
 ```
 
 These tests cover URL/state round trips, metrics parity with the evaluator, STL
-bytes, REST route registration, Trame app construction, reset/query loading, and
-an offscreen VTK visual smoke test that asserts a nonblank hull/deck render.
+bytes, REST route registration, Trame app construction, reset/query loading,
+analysis/comparison view-model helpers, and an offscreen VTK visual smoke test
+that asserts a nonblank hull/deck render.
 
 Run the full suite before merging web changes:
 
@@ -99,6 +100,19 @@ console-errors audit still reported a Trame `/paraview/` 405 network log, so
 the score threshold is recorded but full console-clean browser acceptance
 remains partial.
 
+## Web Analysis Status
+
+The web app includes compact analysis/comparison views:
+
+- hydrostatics rows with units;
+- raw comparative resistance curve rows with warnings;
+- comparison report inspection from existing `ComparisonReport` JSON;
+- Pareto membership, candidate status, warnings, and parameter-only candidate
+  reload into the editor.
+
+Full desktop-equivalent plot parity, larger comparison dashboards, and hosted
+report persistence remain deferred.
+
 ## Hosted Demo Status
 
 No hosted public demo is deployed from this repo today. The Docker image is the
@@ -113,4 +127,4 @@ The following RFC 0008 and RFC 0013 items remain deferred:
 - console-clean Lighthouse acceptance;
 - hosted public demo deployment;
 - plot tabs for sheer plan and cross-section views;
-- web comparison report views.
+- full web comparison dashboards beyond the compact report-inspection slice.
