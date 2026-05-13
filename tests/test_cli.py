@@ -8,7 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from kayakgen.cli.main import app
-from kayakgen.eval.contract import LoadCase
+from kayakgen.eval.contract import LoadCase, LongitudinalLoadComponent
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.model.hull import Hull
 
@@ -180,3 +180,52 @@ def test_stability_equilibrium_flag_writes_equilibrium_result(tmp_path) -> None:
     assert data["status"] == "converged"
     assert data["equilibrium_draft_m"] == pytest.approx(target_draft_m, abs=5e-4)
     assert abs(data["displacement_error_kg"]) <= 0.05
+    assert data["draft_at_midship_m"] == pytest.approx(data["equilibrium_draft_m"])
+    assert data["load_lcg_m"] == pytest.approx(0.0)
+    assert data["moment_error_kg_m"] == pytest.approx(0.0)
+
+
+def test_stability_equilibrium_writes_component_trim_fields(tmp_path) -> None:
+    hull_model = Hull()
+    load_model = LoadCase(
+        components=[
+            LongitudinalLoadComponent(
+                name="test-load",
+                mass_kg=90.0,
+                x_m=-0.30,
+                kg_above_keel_m=0.25,
+            )
+        ]
+    )
+    hull = tmp_path / "hull.json"
+    load = tmp_path / "load.json"
+    out = tmp_path / "stability.json"
+    hull.write_text(hull_model.model_dump_json())
+    load.write_text(load_model.model_dump_json())
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "stability",
+            str(hull),
+            "--load-case",
+            str(load),
+            "--equilibrium",
+            "--tolerance-kg",
+            "0.2",
+            "--moment-tolerance-kg-m",
+            "0.2",
+            "--out",
+            str(out),
+        ],
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(out.read_text())
+    assert data["method"] == "equilibrium_trim"
+    assert data["status"] == "converged"
+    assert data["trim_angle_deg"] < 0.0
+    assert data["load_lcg_m"] == pytest.approx(-0.30)
+    assert data["buoyancy_lcb_m"] == pytest.approx(data["load_lcg_m"], abs=3e-3)
+    assert abs(data["displacement_error_kg"]) <= 0.2
+    assert abs(data["moment_error_kg_m"]) <= data["moment_tolerance_kg_m"]

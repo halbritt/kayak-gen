@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from kayakgen.eval.contract import EvaluationResult, LoadCase
+from kayakgen.eval.contract import EvaluationResult, LoadCase, LongitudinalLoadComponent
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval import stability as stability_eval
 from kayakgen.eval.stability import (
@@ -35,6 +35,23 @@ def test_load_case_total_mass_and_round_trip() -> None:
     load = LoadCase(paddler_mass_kg=80, hull_mass_kg=17, cargo_mass_kg=5)
     assert load.total_mass_kg == 102
     assert LoadCase.model_validate_json(load.model_dump_json()) == load
+
+
+def test_longitudinal_components_round_trip_and_normalize() -> None:
+    load = LoadCase(
+        components=[
+            LongitudinalLoadComponent(name="paddler", mass_kg=80, x_m=-0.20),
+            LongitudinalLoadComponent(name="cargo", mass_kg=20, x_m=0.40, kg_above_keel_m=0.15),
+        ],
+        kg_above_keel_m=0.30,
+    )
+
+    loaded = LoadCase.model_validate_json(load.model_dump_json())
+
+    assert loaded == load
+    assert loaded.total_mass_kg == 100
+    assert loaded.load_lcg_m_for_draft(0.12) == pytest.approx(-0.08)
+    assert loaded.load_kg_above_keel_m_for_draft(0.12) == pytest.approx(0.27)
 
 
 def test_default_initial_stability_preserves_hydrostatics_gm0() -> None:
@@ -112,7 +129,7 @@ def test_evaluation_result_carries_stability_result() -> None:
 
 
 def test_high_angle_gz_is_explicitly_not_implemented() -> None:
-    with pytest.raises(GZNotImplementedError):
+    with pytest.raises(GZNotImplementedError, match="closed_volume_body_not_defined"):
         evaluate_gz_curve(Hull(), LoadCase())
 
 
@@ -143,7 +160,11 @@ def test_equilibrium_result_declares_method_status_and_trim_warning() -> None:
 
     assert result.method == "equilibrium_sinkage"
     assert result.status == "converged"
+    assert result.draft_at_midship_m is not None
     assert result.trim_angle_deg == pytest.approx(0.0)
+    assert result.load_lcg_m == pytest.approx(0.0)
+    assert result.buoyancy_lcb_m == pytest.approx(0.0)
+    assert result.moment_error_kg_m == pytest.approx(0.0)
     assert "generalized_trim_not_implemented" in result.warnings
     assert "high_angle_gz_not_implemented" in result.warnings
 
@@ -194,4 +215,82 @@ def test_equilibrium_out_of_bracket_returns_non_converged_status() -> None:
     assert result.equilibrium_draft_m is None
     assert abs(result.displacement_error_kg) > 0.5
     assert result.equilibrium_iterations == 0
+    assert "equilibrium_mass_out_of_bracket" in result.warnings
+
+
+def _component_load(mass_kg: float, x_m: float) -> LoadCase:
+    return LoadCase(
+        name=f"component-{x_m}",
+        components=[
+            LongitudinalLoadComponent(
+                name="test-load",
+                mass_kg=mass_kg,
+                x_m=x_m,
+                kg_above_keel_m=0.25,
+            )
+        ],
+    )
+
+
+def test_forward_component_lcg_produces_bow_down_trim() -> None:
+    result = stability_eval.evaluate_equilibrium_stability(
+        Hull(),
+        _component_load(90.0, -0.30),
+        tolerance_kg=0.2,
+        max_iterations=60,
+    )
+
+    assert result.method == "equilibrium_trim"
+    assert result.status == "converged"
+    assert result.trim_angle_deg is not None and result.trim_angle_deg < 0.0
+    assert result.load_lcg_m == pytest.approx(-0.30)
+    assert result.buoyancy_lcb_m == pytest.approx(result.load_lcg_m, abs=2e-3)
+    assert abs(result.displacement_error_kg) <= 0.2
+    assert abs(result.moment_error_kg_m or 0.0) <= (result.moment_tolerance_kg_m or 0.0)
+    assert "trim_sign_positive_stern_down" in result.warnings
+    assert "equilibrium_trim_solved" in result.warnings
+
+
+def test_aft_component_lcg_produces_stern_down_trim() -> None:
+    result = stability_eval.evaluate_equilibrium_stability(
+        Hull(),
+        _component_load(90.0, 0.30),
+        tolerance_kg=0.2,
+        max_iterations=60,
+    )
+
+    assert result.method == "equilibrium_trim"
+    assert result.status == "converged"
+    assert result.trim_angle_deg is not None and result.trim_angle_deg > 0.0
+    assert result.load_lcg_m == pytest.approx(0.30)
+    assert result.buoyancy_lcb_m == pytest.approx(result.load_lcg_m, abs=2e-3)
+
+
+def test_trim_equilibrium_max_iterations_reports_non_convergence() -> None:
+    result = stability_eval.evaluate_equilibrium_stability(
+        Hull(),
+        _component_load(90.0, 0.30),
+        tolerance_kg=0.01,
+        moment_tolerance_kg_m=0.001,
+        max_iterations=1,
+    )
+
+    assert result.method == "equilibrium_trim"
+    assert result.status == "not_converged"
+    assert result.equilibrium_iterations == 1
+    assert "max_iterations_exceeded" in result.warnings
+
+
+def test_trim_equilibrium_keeps_too_heavy_component_out_of_bracket() -> None:
+    result = stability_eval.evaluate_equilibrium_stability(
+        Hull(),
+        _component_load(1_000.0, 0.20),
+        tolerance_kg=0.5,
+        max_iterations=20,
+    )
+
+    assert result.method == "equilibrium_trim"
+    assert result.status == "not_converged"
+    assert result.draft_at_midship_m is None
+    assert result.trim_angle_deg is None
     assert "equilibrium_mass_out_of_bracket" in result.warnings

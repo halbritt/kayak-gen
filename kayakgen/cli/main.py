@@ -127,6 +127,11 @@ def stability(
         "--tolerance-kg",
         help="Mass tolerance for equilibrium convergence.",
     ),
+    moment_tolerance_kg_m: float | None = typer.Option(
+        None,
+        "--moment-tolerance-kg-m",
+        help="Moment tolerance for trim equilibrium convergence; defaults from hull length.",
+    ),
     max_iterations: int = typer.Option(
         60,
         "--max-iterations",
@@ -145,6 +150,7 @@ def stability(
             hull,
             load,
             tolerance_kg=tolerance_kg,
+            moment_tolerance_kg_m=moment_tolerance_kg_m,
             max_iterations=max_iterations,
         )
     else:

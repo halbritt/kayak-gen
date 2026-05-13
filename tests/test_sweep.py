@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from kayakgen.search.sweep import CandidateRecord, SweepSpec, expand_candidates, run_sweep
@@ -80,3 +81,43 @@ def test_mesh_diagnostics_are_optional_candidate_artifacts(tmp_path: Path) -> No
     assert "mesh_diagnostics" in record.artifacts
     assert (tmp_path / record.artifacts["mesh_diagnostics"]).exists()
     assert "mesh has boundary edges" in ",".join(record.warnings)
+
+
+def test_stability_is_optional_candidate_artifact_and_summary(tmp_path: Path) -> None:
+    spec = SweepSpec(
+        name="stability",
+        variables={"beam_wl_m": {"kind": "values", "values": [0.50]}},
+        evaluators={
+            "hydrostatics": True,
+            "resistance": False,
+            "stability": True,
+            "stability_equilibrium": True,
+            "stability_load_case": {
+                "components": [
+                    {
+                        "name": "test-load",
+                        "mass_kg": 90.0,
+                        "x_m": 0.20,
+                        "kg_above_keel_m": 0.25,
+                    }
+                ]
+            },
+            "stability_tolerance_kg": 0.2,
+            "stability_moment_tolerance_kg_m": 0.2,
+            "mesh_diagnostics": False,
+            "stl": False,
+        },
+    )
+
+    run = run_sweep(spec, tmp_path)
+    record = run.candidates[0]
+    evaluation = json.loads((tmp_path / record.artifacts["evaluation"]).read_text())
+    summary_header = (tmp_path / "summary.csv").read_text().splitlines()[0]
+
+    assert evaluation["stability"]["method"] == "equilibrium_trim"
+    assert evaluation["stability"]["trim_angle_deg"] > 0.0
+    assert record.summary["stability_status"] == "converged"
+    assert record.summary["trim_angle_deg"] > 0.0
+    assert abs(record.summary["moment_error_kg_m"]) <= 0.2
+    assert "trim_angle_deg" in summary_header
+    assert "moment_error_kg_m" in summary_header

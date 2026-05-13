@@ -24,10 +24,10 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0008](0008-web-frontend.md) | partial web-analysis | Portable web frontend via Trame |
 | [0009](0009-sweep-run-records.md) | proposed | Sweep and candidate run records |
 | [0010](0010-cfd-ready-mesh-contract.md) | landed package/profile | CFD-ready mesh contract |
-| [0011](0011-hydrostatic-stability-load-cases.md) | landed equilibrium-sinkage | Hydrostatic stability and load cases |
+| [0011](0011-hydrostatic-stability-load-cases.md) | landed equilibrium-sinkage + trim-slice | Hydrostatic stability and load cases |
 | [0012](0012-resistance-model-calibration.md) | proposed | Resistance model calibration |
 | [0013](0013-pareto-frontier-comparison-ui.md) | landed report/web-slice | Pareto frontier and candidate comparison UI |
-| [0014](0014-generalized-trim-and-gz-stability.md) | proposed | Generalized trim and high-angle GZ stability |
+| [0014](0014-generalized-trim-and-gz-stability.md) | partial trim-slice | Generalized trim and high-angle GZ stability |
 | [0015](0015-cfd-solver-dispatch-and-jobs.md) | proposed | CFD solver dispatch and job artifacts |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
@@ -47,12 +47,16 @@ Lighthouse acceptance and hosted-demo acceptance remain open.
 
 RFCs 0009-0015 are roadmap RFCs for the pivot from single-hull generation to a
 reproducible generative pipeline. RFC 0010's mesh package/profile slice, RFC
-0011's load-case plus equilibrium-sinkage slice, and RFC 0013's report/CLI
-slice and RFC 0013's compact web inspection slice have landed. Hosted demo
-deployment, full plot/dashboard parity, remaining legacy RFC deferrals,
-generalized trim/high-angle stability, resistance calibration, watertight solid
-readiness, and CFD solver dispatch are queued in
-`docs/workflows/0018-deferred-backlog/QUEUE.md`.
+0011's load-case plus equilibrium-sinkage slice, RFC 0013's report/CLI and
+compact web inspection slices, and RFC 0014's partial trim slice have landed.
+The RFC 0014 slice includes compatible longitudinal load components, bounded
+fixed-body upright trim equilibrium for explicit component load cases, additive
+trim result fields, and CLI/sweep summaries. Hosted demo deployment, full
+plot/dashboard parity, remaining legacy RFC deferrals, high-angle `GZ`
+stability, resistance calibration, watertight solid readiness, and CFD solver
+dispatch are queued in `docs/workflows/0018-deferred-backlog/QUEUE.md`.
+High-angle `GZ` remains unavailable because a closed-volume body for heeled
+integration is not defined.
 
 ## Template
 

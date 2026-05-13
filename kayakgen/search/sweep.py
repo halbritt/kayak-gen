@@ -13,8 +13,10 @@ import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from kayakgen.eval.contract import EvaluationResult
+from kayakgen.eval.contract import LoadCase
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import resistance_curve
+from kayakgen.eval.stability import evaluate_equilibrium_stability, evaluate_initial_stability
 from kayakgen.io.json import save_evaluation, save_hull
 from kayakgen.model.hull import Hull
 
@@ -57,6 +59,11 @@ class EvaluatorOptions(BaseModel):
 
     hydrostatics: bool = True
     resistance: bool = False
+    stability: bool = False
+    stability_equilibrium: bool = False
+    stability_load_case: dict[str, Any] = Field(default_factory=dict)
+    stability_tolerance_kg: float = Field(default=1.0, gt=0)
+    stability_moment_tolerance_kg_m: float | None = Field(default=None, gt=0)
     mesh_diagnostics: bool = False
     stl: bool = False
 
@@ -219,10 +226,24 @@ def _evaluate_candidate(
 
     hydro = evaluate_hydrostatics(hull) if spec.evaluators.hydrostatics else evaluate_hydrostatics(hull)
     resistance = resistance_curve(hull) if spec.evaluators.resistance else None
+    stability = None
+    if spec.evaluators.stability:
+        load_case = LoadCase.model_validate(spec.evaluators.stability_load_case)
+        stability = (
+            evaluate_equilibrium_stability(
+                hull,
+                load_case,
+                tolerance_kg=spec.evaluators.stability_tolerance_kg,
+                moment_tolerance_kg_m=spec.evaluators.stability_moment_tolerance_kg_m,
+            )
+            if spec.evaluators.stability_equilibrium
+            else evaluate_initial_stability(hull, load_case)
+        )
     evaluation = EvaluationResult(
         hull_hash=hull.hash(),
         hydrostatics=hydro,
         resistance=resistance,
+        stability=stability,
     )
     save_hull(hull, hull_path)
     save_evaluation(evaluation, eval_path)
@@ -251,6 +272,15 @@ def _evaluate_candidate(
         summary["resistance_use"] = ",".join(resistance.metadata.accepted_use)
         summary["resistance_warnings"] = ",".join(resistance.metadata.warnings)
         summary["Rt_N_last"] = resistance.Rt_N[-1] if resistance.Rt_N else None
+    if stability is not None:
+        summary["stability_method"] = stability.method
+        summary["stability_status"] = stability.status
+        summary["displacement_error_kg"] = stability.displacement_error_kg
+        summary["initial_GM0_m"] = stability.initial_GM0_m
+        summary["trim_angle_deg"] = stability.trim_angle_deg
+        summary["moment_error_kg_m"] = stability.moment_error_kg_m
+        summary["equilibrium_iterations"] = stability.equilibrium_iterations
+        summary["stability_warnings"] = ",".join(stability.warnings)
 
     return CandidateRecord(
         candidate_index=index,
@@ -265,6 +295,7 @@ def _evaluate_candidate(
             "sweep_schema": "1",
             "hull_schema": hull.schema_version,
             "resistance_model": resistance.metadata.model_family if resistance else "disabled",
+            "stability_model": stability.method if stability else "disabled",
         },
         summary=summary,
         warnings=warnings,
@@ -285,6 +316,13 @@ def _write_summary(path: Path, records: list[CandidateRecord]) -> None:
         "GM0_m",
         "Cp_actual",
         "Rt_N_last",
+        "stability_method",
+        "stability_status",
+        "displacement_error_kg",
+        "initial_GM0_m",
+        "trim_angle_deg",
+        "moment_error_kg_m",
+        "equilibrium_iterations",
     ]
     with path.open("w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from kayakgen.eval.hydrostatics import Hydrostatics
 
@@ -52,6 +53,29 @@ class GZCurve(BaseModel):
     gz_m: list[float]
 
 
+class LongitudinalLoadComponent(BaseModel):
+    """One mass component for upright trim equilibrium.
+
+    The longitudinal coordinate follows the mesh package convention:
+    ``x_m < 0`` is forward toward the bow and ``x_m > 0`` is aft toward the
+    stern.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    mass_kg: float = Field(ge=0)
+    x_m: float = 0.0
+    kg_above_keel_m: float | None = Field(default=None, ge=0)
+
+    @field_validator("mass_kg", "x_m", "kg_above_keel_m")
+    @classmethod
+    def _finite_or_none(cls, value: float | None) -> float | None:
+        if value is not None and not math.isfinite(value):
+            raise ValueError("load component values must be finite")
+        return value
+
+
 class LoadCase(BaseModel):
     """Serializable design-waterline load case for initial stability."""
 
@@ -66,10 +90,17 @@ class LoadCase(BaseModel):
     kg_reference_value_m: float | None = None
     seat_height_above_keel_m: float | None = Field(default=None, ge=0)
     seawater_density_kg_m3: float = Field(default=1025.0, gt=0)
+    components: list[LongitudinalLoadComponent] = Field(default_factory=list)
 
     @property
     def total_mass_kg(self) -> float:
+        if self.components:
+            return sum(component.mass_kg for component in self.components)
         return self.paddler_mass_kg + self.hull_mass_kg + self.cargo_mass_kg
+
+    @property
+    def uses_longitudinal_components(self) -> bool:
+        return bool(self.components)
 
     def kg_above_keel_for_draft(self, draft_m: float) -> float:
         """Normalize the user-facing KG reference to a keel/baseline height."""
@@ -87,6 +118,63 @@ class LoadCase(BaseModel):
             raise ValueError("seat-referenced KG requires seat_height_above_keel_m")
         return self.seat_height_above_keel_m + self.kg_reference_value_m
 
+    def normalized_components(self, draft_m: float) -> list[LongitudinalLoadComponent]:
+        """Return explicit components, expanding compact legacy fields if needed."""
+        default_kg = self.kg_above_keel_for_draft(draft_m)
+        if self.components:
+            return [
+                component.model_copy(
+                    update={
+                        "kg_above_keel_m": (
+                            component.kg_above_keel_m
+                            if component.kg_above_keel_m is not None
+                            else default_kg
+                        )
+                    }
+                )
+                for component in self.components
+            ]
+        return [
+            LongitudinalLoadComponent(
+                name="paddler",
+                mass_kg=self.paddler_mass_kg,
+                x_m=0.0,
+                kg_above_keel_m=default_kg,
+            ),
+            LongitudinalLoadComponent(
+                name="hull",
+                mass_kg=self.hull_mass_kg,
+                x_m=0.0,
+                kg_above_keel_m=default_kg,
+            ),
+            LongitudinalLoadComponent(
+                name="cargo",
+                mass_kg=self.cargo_mass_kg,
+                x_m=0.0,
+                kg_above_keel_m=default_kg,
+            ),
+        ]
+
+    def load_lcg_m_for_draft(self, draft_m: float) -> float:
+        components = self.normalized_components(draft_m)
+        total = sum(component.mass_kg for component in components)
+        if total <= 0:
+            raise ValueError("load case total mass must be positive")
+        return sum(component.mass_kg * component.x_m for component in components) / total
+
+    def load_kg_above_keel_m_for_draft(self, draft_m: float) -> float:
+        components = self.normalized_components(draft_m)
+        total = sum(component.mass_kg for component in components)
+        if total <= 0:
+            raise ValueError("load case total mass must be positive")
+        return (
+            sum(
+                component.mass_kg * float(component.kg_above_keel_m)
+                for component in components
+            )
+            / total
+        )
+
 
 class StabilityResult(BaseModel):
     """Initial-stability read model; high-angle GZ remains explicitly reserved."""
@@ -94,15 +182,24 @@ class StabilityResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     load_case: LoadCase = Field(default_factory=LoadCase)
-    method: Literal["design_waterline_initial", "equilibrium_sinkage"] = "design_waterline_initial"
+    method: Literal[
+        "design_waterline_initial",
+        "equilibrium_sinkage",
+        "equilibrium_trim",
+    ] = "design_waterline_initial"
     status: Literal["computed", "converged", "not_converged", "not_implemented"] = "computed"
     initial_GM0_m: float | None = None
     load_mass_kg: float
     displaced_mass_kg: float
     displacement_error_kg: float
+    draft_at_midship_m: float | None = Field(default=None, gt=0)
     equilibrium_draft_m: float | None = Field(default=None, gt=0)
     sinkage_m: float | None = None
     trim_angle_deg: float | None = None
+    load_lcg_m: float | None = None
+    buoyancy_lcb_m: float | None = None
+    moment_error_kg_m: float | None = None
+    moment_tolerance_kg_m: float | None = Field(default=None, gt=0)
     equilibrium_tolerance_kg: float | None = Field(default=None, gt=0)
     equilibrium_iterations: int | None = Field(default=None, ge=0)
     equilibrium_max_iterations: int | None = Field(default=None, ge=1)

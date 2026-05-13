@@ -48,6 +48,43 @@ def test_default_comparison_excludes_raw_resistance_metric(tmp_path: Path) -> No
     assert all("Rt_N_last" in summary.metrics for summary in report.candidate_summaries)
 
 
+def test_default_comparison_uses_stability_displacement_error_when_available(tmp_path: Path) -> None:
+    spec = SweepSpec(
+        name="compare-stability",
+        base_hull={"beam_oa_m": 0.60},
+        variables={"beam_wl_m": {"kind": "values", "values": [0.50, 0.55]}},
+        evaluators={
+            "hydrostatics": True,
+            "resistance": False,
+            "stability": True,
+            "stability_equilibrium": True,
+            "stability_load_case": {
+                "components": [
+                    {
+                        "name": "test-load",
+                        "mass_kg": 90.0,
+                        "x_m": 0.20,
+                        "kg_above_keel_m": 0.25,
+                    }
+                ]
+            },
+            "stability_tolerance_kg": 0.2,
+            "stability_moment_tolerance_kg_m": 0.3,
+            "mesh_diagnostics": False,
+            "stl": False,
+        },
+    )
+    run_sweep(spec, tmp_path)
+
+    report = build_comparison_report(tmp_path)
+
+    assert "displacement_error_kg" in [objective.metric for objective in report.objectives]
+    assert all(
+        "displacement_error_kg" in summary.metrics
+        for summary in report.candidate_summaries
+    )
+
+
 def test_missing_objective_metrics_are_candidate_warnings(tmp_path: Path) -> None:
     run_sweep(_spec(), tmp_path)
 
