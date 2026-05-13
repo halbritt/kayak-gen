@@ -121,6 +121,12 @@ Updated: 2026-05-13
   The 0039 final-review job is now running. Striatum 1.37.0 no longer honors
   bare `STRIATUM_DAEMON_REQUIRED=0`; SQLite fallback now requires the paired
   `STRIATUM_TEST_HARNESS=1` compatibility env for this unmigrated repo state.
+- 2026-05-13T18:21:53Z checkpoint: 0037 and 0038 final reviews were accepted
+  and their workflow branches were fast-forwarded into `main`. `main` is pushed
+  at `8461d73`. The 0037 final verdict was `accept`; the 0038 final verdict was
+  `accept_with_findings`. The initial 0033 final-review output was a status
+  message rather than an artifact, so 0033 final review is being retried with a
+  stricter artifact-only prompt. 0039 final review is still running.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is
