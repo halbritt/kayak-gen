@@ -27,6 +27,8 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0011](0011-hydrostatic-stability-load-cases.md) | landed equilibrium-sinkage | Hydrostatic stability and load cases |
 | [0012](0012-resistance-model-calibration.md) | proposed | Resistance model calibration |
 | [0013](0013-pareto-frontier-comparison-ui.md) | landed report/CLI | Pareto frontier and candidate comparison UI |
+| [0014](0014-generalized-trim-and-gz-stability.md) | proposed | Generalized trim and high-angle GZ stability |
+| [0015](0015-cfd-solver-dispatch-and-jobs.md) | proposed | CFD solver dispatch and job artifacts |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
@@ -36,14 +38,13 @@ interactive latency remain deferred. RFCs 0004, 0006, and 0008 remain
 partial as of workflow 0010: they have useful implementation, but their
 acceptance criteria are not fully satisfied.
 
-RFCs 0009-0013 are roadmap RFCs for the pivot from single-hull generation to a
+RFCs 0009-0015 are roadmap RFCs for the pivot from single-hull generation to a
 reproducible generative pipeline. RFC 0010's mesh package/profile slice, RFC
 0011's load-case plus equilibrium-sinkage slice, and RFC 0013's report/CLI
-slice have landed; solver dispatch, watertight solid readiness,
-browser/Lighthouse web acceptance, hosted demo deployment, generalized
-trim/high-angle stability, and web comparison UI remain deferred. The remaining
-proposed items are intentionally sequenced from run records and mesh diagnostics
-toward resistance calibration and Pareto comparison.
+slice have landed. Browser/Lighthouse web acceptance, hosted demo deployment,
+web comparison UI, legacy RFC partial closure, generalized trim/high-angle
+stability, resistance calibration, watertight solid readiness, and CFD solver
+dispatch are queued in `docs/workflows/0018-deferred-backlog/QUEUE.md`.
 
 ## Template
 
