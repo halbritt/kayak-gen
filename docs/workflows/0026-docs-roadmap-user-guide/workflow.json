@@ -1,0 +1,232 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0026-docs-roadmap-user-guide",
+  "workflow_version": "2026-05-13",
+  "name": "0026 - Docs roadmap and user guide",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0026-docs-roadmap-user-guide",
+    "allow_dirty": false
+  },
+  "coordinator": {"role_id": "coordinator", "lane_id": "claude"},
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["claude", "--model", "opus", "-p"],
+      "capabilities": ["review", "synthesis"]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["codex", "exec", "--model", "gpt-5.5", "-"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["gemini", "--model", "gemini-3.1-pro-preview"],
+      "capabilities": ["review"]
+    }
+  },
+  "roles": {
+    "coordinator": {"definition_path": "roles/coordinator.md"},
+    "reviewer_doc_accuracy": {"definition_path": "roles/reviewer_doc_accuracy.md"},
+    "reviewer_user_guide": {"definition_path": "roles/reviewer_user_guide.md"},
+    "reviewer_roadmap": {"definition_path": "roles/reviewer_roadmap.md"},
+    "ledger": {"definition_path": "roles/ledger.md"},
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/PRD.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/rfcs/0008-web-frontend.md", "required": true},
+    {"path": "docs/rfcs/0010-cfd-ready-mesh-contract.md", "required": true},
+    {"path": "docs/rfcs/0012-resistance-model-calibration.md", "required": true},
+    {"path": "docs/rfcs/0014-generalized-trim-and-gz-stability.md", "required": true},
+    {"path": "docs/rfcs/0015-cfd-solver-dispatch-and-jobs.md", "required": true},
+    {"path": "docs/workflows/0018-deferred-backlog/QUEUE.md", "required": true},
+    {"path": "OPERATOR_REPORT.md", "required": true},
+    {"path": "kayakgen/cli/main.py", "required": true},
+    {"path": "kayakgen/eval/cfd/jobs.py", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "review_doc_accuracy",
+      "type": "review",
+      "title": "Review documentation truthfulness",
+      "role_id": "reviewer_doc_accuracy",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Find stale or aspirational docs that conflict with the implemented CLI/RFC state.",
+      "task_prompt": {"path": "prompts/review_doc_accuracy.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0026-docs-roadmap-user-guide/doc_accuracy/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0026-docs-roadmap-user-guide/doc_accuracy/REVIEW_DOC_ACCURACY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_user_guide",
+      "type": "review",
+      "title": "Review user guide scope",
+      "role_id": "reviewer_user_guide",
+      "lane_id": "gemini",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Define what a first useful user guide must cover and what it must not overclaim.",
+      "task_prompt": {"path": "prompts/review_user_guide.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0026-docs-roadmap-user-guide/user_guide/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0026-docs-roadmap-user-guide/user_guide/REVIEW_USER_GUIDE.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_roadmap",
+      "type": "review",
+      "title": "Review post-0025 roadmap",
+      "role_id": "reviewer_roadmap",
+      "lane_id": "codex",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Turn remaining deferrals into next RFC/workflow slices with dependencies.",
+      "task_prompt": {"path": "prompts/review_roadmap.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0026-docs-roadmap-user-guide/roadmap/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0026-docs-roadmap-user-guide/roadmap/REVIEW_ROADMAP.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "ledger",
+      "title": "Consolidate docs and roadmap findings",
+      "role_id": "ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate review findings and define the documentation implementation slice.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/0026-docs-roadmap-user-guide/ledger/",
+          "docs/workflows/0026-docs-roadmap-user-guide/OPERATOR_REPORT.md"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "ledger",
+          "kind": "findings_ledger",
+          "path": "striatum/0026-docs-roadmap-user-guide/ledger/FINDINGS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "implement_findings",
+      "type": "build",
+      "title": "Implement docs roadmap and user guide",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Update user-facing docs, stale planning docs, and next RFC/workflow roadmap slices.",
+      "task_prompt": {"path": "prompts/implement_findings.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/",
+          "OPERATOR_REPORT.md",
+          "README.md",
+          "striatum/0026-docs-roadmap-user-guide/implementation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "striatum/0026-docs-roadmap-user-guide/implementation/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final gate for docs roadmap and user guide",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify the docs are accurate, usable, and do not overclaim unimplemented features.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0026-docs-roadmap-user-guide/final/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "final_review",
+          "kind": "finding",
+          "path": "striatum/0026-docs-roadmap-user-guide/final/FINAL_REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "review_doc_accuracy", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_user_guide", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_roadmap", "to": "findings_ledger", "on": "completed"},
+    {"from": "findings_ledger", "to": "implement_findings", "on": "completed"},
+    {"from": "implement_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {
+      "from": "final_review",
+      "to": "implement_findings",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1
+    }
+  ]
+}
