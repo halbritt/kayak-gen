@@ -45,8 +45,11 @@ class KayakClass:
 
 # Numbers come from docs/design/kayak_hull_design_constraints.md §3, §4, §8, §9.
 # RFC 0006 acceptance criteria pin the touring and elite surfski defaults
-# explicitly; performance and intermediate surfski are placed mid-range
-# inside their classes.
+# explicitly; performance and intermediate surfski are placed mid-range inside
+# their classes. Ranges intentionally prefer the named class rows in §4 where
+# they are more specific than the broad generator envelope in §9. Stable
+# surfskis are not merged into the intermediate-surfski preset; that wider edge
+# remains a future class/preset decision.
 CLASSES: dict[str, KayakClass] = {
     "touring": KayakClass(
         name="touring",

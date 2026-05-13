@@ -41,22 +41,22 @@ def test_plumb_keel_holds_full_draft_in_middle() -> None:
 
 
 def test_plumb_keel_drops_in_last_five_percent() -> None:
-    """In the last 5% near the bow, plumb keel ramps down to z=0 linearly."""
+    """In the last 5% near the bow (x < 0), plumb keel ramps to z=0."""
     geom = LoftedHullGeometry(Hull(bow_rake=0.0))
     keel = geom.keel_line(n=2000)
     L = geom.L
-    # 95% of half-length = 0.475 L
-    last5 = keel[keel[:, 0] >= 0.475 * L]
+    # Bow is at negative x; 95% of half-length = 0.475 L.
+    last5 = keel[keel[:, 0] <= -0.475 * L]
     # First sample inside the transition is near full draft, last is at 0.
-    assert last5[0, 1] < -0.10
-    assert last5[-1, 1] == 0.0
+    assert last5[-1, 1] < -0.10
+    assert last5[0, 1] == 0.0
 
 
 def test_plumb_section_at_end_has_nonzero_area() -> None:
     """At bow_rake=0.0, station near x=-L/2 still has positive section area."""
     geom = LoftedHullGeometry(Hull(bow_rake=0.0))
     L = geom.L
-    # Station at 95% to the bow — inside the parallel mid-body for plumb
+    # Bow samples use negative x; this station is just before the end transition.
     area = geom.section_area(-0.45 * L)
     assert area > 0.005
 
@@ -75,8 +75,8 @@ def test_intermediate_rake_blends_monotonically() -> None:
     assert all(b >= a for a, b in zip(vols, vols[1:]))
 
 
-def test_stl_watertight_at_plumb_bow_rake_zero(tmp_path: Path) -> None:
-    """Mesh remains valid (no degenerate end-cap singletons) at bow_rake=0."""
+def test_stl_open_surface_generation_at_plumb_bow_rake_zero(tmp_path: Path) -> None:
+    """Open hull surface generation remains valid at bow_rake=0."""
     geom = LoftedHullGeometry(Hull(bow_rake=0.0))
     out = tmp_path / "plumb.stl"
     geom.generate_stl("hull", str(out))
@@ -95,3 +95,54 @@ def test_waterplane_uses_blended_decay() -> None:
     L = 4.5
     idx = np.argmin(abs(raked[:, 0] - 0.3 * L / 2))
     assert plumb[idx, 1] > raked[idx, 1]
+
+
+def test_plumb_inner_waterplane_is_independent_of_cp() -> None:
+    """For bow_rake=0, Cp must not thin stations before the end transition."""
+    fine = LoftedHullGeometry(Hull(bow_rake=0.0, Cp=0.50, beam_wl_m=0.50))
+    full = LoftedHullGeometry(Hull(bow_rake=0.0, Cp=0.62, beam_wl_m=0.50))
+    L = fine.L
+
+    for x in (-0.45 * L, 0.0, 0.45 * L):
+        np.testing.assert_allclose(
+            fine.section_area(x), full.section_area(x), rtol=0, atol=1e-12
+        )
+
+
+def test_plumb_deck_centreline_holds_bow_freeboard_near_stem() -> None:
+    """bow_rake=0 keeps deck height high until the plumb end transition."""
+    raked = LoftedHullGeometry(Hull(bow_rake=1.0))
+    plumb = LoftedHullGeometry(Hull(bow_rake=0.0))
+    L = plumb.L
+    x = -0.45 * L
+    raked_deck = raked.deck_centreline(n=401)
+    plumb_deck = plumb.deck_centreline(n=401)
+    raked_z = raked_deck[np.argmin(abs(raked_deck[:, 0] - x)), 1]
+    plumb_z = plumb_deck[np.argmin(abs(plumb_deck[:, 0] - x)), 1]
+
+    assert plumb_z > raked_z
+    assert plumb.deck_centreline(n=2)[0, 1] == 0.0
+
+
+def test_nondefault_rake_center_box_ratio_affects_deck_not_hull_waterplane() -> None:
+    """center_box_ratio changes deck length while hull fullness stays fixed."""
+    short_box = LoftedHullGeometry(
+        Hull(bow_rake=0.5, center_box_ratio=0.20, beam_wl_m=0.50)
+    )
+    long_box = LoftedHullGeometry(
+        Hull(bow_rake=0.5, center_box_ratio=0.60, beam_wl_m=0.50)
+    )
+    L = short_box.L
+    x = 0.45 * L
+    short_deck = short_box.deck_centreline(n=401)
+    long_deck = long_box.deck_centreline(n=401)
+    short_deck_z = short_deck[np.argmin(abs(short_deck[:, 0] - x)), 1]
+    long_deck_z = long_deck[np.argmin(abs(long_deck[:, 0] - x)), 1]
+    short_waterplane = short_box.waterplane(n=401)
+    long_waterplane = long_box.waterplane(n=401)
+
+    assert short_waterplane[20:-20, 1].min() == long_waterplane[20:-20, 1].min()
+    np.testing.assert_allclose(
+        short_box.section_area(x), long_box.section_area(x), rtol=0, atol=1e-12
+    )
+    assert long_deck_z > short_deck_z

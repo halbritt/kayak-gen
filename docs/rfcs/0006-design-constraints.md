@@ -12,6 +12,20 @@ model exist. GUI range mutation and advisory text were added during workflow
 0010, but visual/manual confirmation is still recommended before marking the
 desktop acceptance criteria fully landed.
 
+Status note (workflow 0019, 2026-05-13): still partial. The safe package/core
+slice is landed under the RFC 0007 package layout: `kayakgen.model.classes`
+defines the four `KayakClass` presets, `kayakgen.model.Hull` carries
+`beam_wl_m` with validation, `LoftedHullGeometry` honours explicit
+waterline beam in section geometry, and hydrostatics expose displacement,
+wetted surface, `LCB_frac`, `Cp`, and `GM0_m` through the evaluation read
+model. Tests cover preset round-trips, waterline-beam displacement
+monotonicity, invalid `beam_wl_m > beam_oa_m`, legacy
+`generator.KayakGenerator` compatibility for `beam_wl`/`bow_rake`, shared
+design advisory warnings, and coherent web-side `beam_wl_m <= beam_oa_m`
+clamping/advisory behavior. Yellow dismissible desktop banner behavior, manual
+visual confirmation, and future-shape parameters such as rocker, deadrise,
+chine radius, and fully honoured `LCB_frac` remain deferred.
+
 ## Problem
 
 The generator and GUI today expose a flat list of sliders (`length`,
@@ -75,7 +89,7 @@ cite it by section number rather than restating numbers.
 
 ### 2. New `KayakClass` presets
 
-Add `kayak_classes.py` with a small dataclass and four canonical
+Add `kayakgen.model.classes` with a small dataclass and four canonical
 presets, derived directly from §3, §4, §5, and §8 of the document:
 
 ```python
@@ -102,17 +116,17 @@ Exact numbers come from the constraints table; this RFC fixes them as
 the canonical defaults so downstream code does not have to re-derive
 them.
 
-### 3. Generator changes (`generator.py`)
+### 3. Generator/model changes
 
-- Add `beam_wl: float | None = None` to `KayakGenerator.__init__`.
-  When `None`, default to `0.92 * beam` (mid of the 0.85–0.95 ratio
-  guidance in §9). When set, the cross-section is interpolated so that
-  the waterline (z = 0) intercept matches `beam_wl` while the gunwale
-  (sheer) sits at total beam.
+- Add `beam_wl_m: float | None = None` to `kayakgen.model.Hull`.
+  When `None`, the package preserves the legacy `B_wl = B_oa` behavior.
+  When set, validation requires `beam_wl_m <= beam_oa_m`, and the
+  cross-section is interpolated so that the waterline intercept matches
+  `beam_wl_m` while the gunwale (sheer) sits at total beam.
 - Add `LCB_frac: float = 0.50` (longitudinal centre of buoyancy as a
-  fraction of LWL, range 0.48–0.55 per §9). Default keeps current
-  symmetric behaviour.
-- No change to the section-shape routine yet; `beam_wl` is honoured by
+  fraction of LWL, range 0.48-0.55 per §9). The field is present on
+  `Hull`, but the current loft does not yet use it to redistribute volume.
+- No change to the section-shape routine yet; `beam_wl_m` is honoured by
   scaling the lower half of each station independently of the upper
   half. Implementation detail deferred to the implementation step.
 
@@ -136,9 +150,8 @@ them.
 
 ### 5. Hydrostatic / CFD objective contract
 
-Define a single dictionary returned by a new
-`generator.evaluate_hydrostatics()` method, with these keys (matching
-§10 of the document):
+Define a shared hydrostatics read model returned by the package evaluator,
+with these keys (matching §10 of the document):
 
 | Key | Units | Source |
 |---|---|---|
@@ -150,8 +163,8 @@ Define a single dictionary returned by a new
 | `gz_curve`         | dict[deg, m] | empty until the stability RFC lands |
 | `Fn_at`            | dict[float, …] | reserved for resistance plug-in |
 
-`resistance.py` (RFC 0005) and the future stability module both write
-into this dictionary. Treating it as a shared contract here keeps later
+`kayakgen.eval.resistance` (RFC 0005) and the stability module consume the
+same evaluation contract. Treating it as a shared contract here keeps later
 RFCs from re-negotiating the schema.
 
 ### 6. Validation banner
@@ -171,22 +184,27 @@ changes again.
 
 ## Acceptance Criteria
 
-- `docs/design/kayak_hull_design_constraints.md` exists in the repo.
-- `kayak_classes.CLASSES` has exactly the four named presets and each
-  preset's defaults round-trip through `KayakGenerator` without
-  warnings.
-- Selecting "Touring" in the GUI produces a hull with L = 5.0 m,
-  B_oa = 0.58 m, B_wl ≈ 0.53 m, Cp = 0.54, draft ≈ 0.12 m.
-- Selecting "Elite Surfski" produces L = 6.1 m, B_oa = 0.43 m,
-  B_wl ≈ 0.40 m, Cp = 0.58, draft ≈ 0.11 m.
-- A unit test verifies that `KayakGenerator(beam_wl=0.5,
-  beam=0.6).evaluate_hydrostatics()["displaced_volume"]` is strictly
-  less than the same generator with `beam_wl = 0.6`.
-- The advisory text under the metrics panel updates within one slider-
-  drag tick (< 50 ms).
-- No regression: with the GUI in "Custom" and all sliders at their
-  prior defaults, every existing metric and the STL output match the
-  pre-RFC values bit-for-bit.
+- **Landed:** `docs/design/kayak_hull_design_constraints.md` exists in the
+  repo.
+- **Landed in package API:** `kayakgen.model.classes.CLASSES` has exactly the
+  four named presets, and each preset's defaults round-trip through
+  `kayakgen.model.Hull`. The legacy `generator.KayakGenerator` shim accepts
+  `beam_wl`/`bow_rake` compatibility arguments while preserving default
+  geometry.
+- **Landed in preset data:** selecting "Touring" should seed L = 5.0 m,
+  B_oa = 0.58 m, B_wl approximately 0.53 m, Cp = 0.54, draft approximately
+  0.12 m.
+- **Landed in preset data:** selecting "Elite Surfski" should seed L = 6.1 m,
+  B_oa = 0.43 m, B_wl approximately 0.40 m, Cp = 0.58, draft approximately
+  0.11 m.
+- **Landed in package tests:** explicit `beam_wl_m` changes displaced volume
+  monotonically for otherwise equal hulls.
+- **Partial:** desktop class range mutation, shared L/B_wl/Cp/displacement
+  advisories, and coherent web-side clamp/advisory behavior exist. A
+  dismissible yellow banner and manual visual confirmation remain deferred.
+- **Partial:** default package geometry is covered by golden tests, but a full
+  desktop "Custom" regression against all pre-RFC metrics and STL payloads has
+  not been marked complete.
 
 ## Open Questions
 
@@ -210,12 +228,12 @@ changes again.
 
 1. Copy `kayak_hull_design_constraints.md` into `docs/design/` and add
    a one-line pointer in `docs/rfcs/README.md`.
-2. Write `kayak_classes.py` with the dataclass and four presets
+2. Write `kayakgen.model.classes` with the dataclass and four presets
    (~60 lines).
-3. Add `beam_wl` and `LCB_frac` parameters to `KayakGenerator`; modify
+3. Add `beam_wl_m` and `LCB_frac` parameters to `Hull`; modify
    `_get_slice_points` so the lower half of the section honours
-   `beam_wl` (~25 lines changed).
-4. Add `evaluate_hydrostatics()` method returning the contract dict
+   `beam_wl_m` (~25 lines changed).
+4. Add a package hydrostatics evaluator returning the contract read model
    (~40 lines).
 5. Add the class dropdown, `beam_wl` slider, and advisory banner to
    `gui.py` (~80 lines).

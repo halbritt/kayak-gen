@@ -22,15 +22,19 @@ class KayakGenerator(LoftedHullGeometry):
         Cp: float = 0.54,
         deck_flatness: float = 8.0,
         center_box_ratio: float = 0.33,
+        beam_wl: float | None = None,
+        bow_rake: float = 1.0,
     ) -> None:
         hull = Hull(
             length_m=length,
             beam_oa_m=beam,
+            beam_wl_m=beam_wl,
             draft_m=draft,
             deck_height_m=deck_height,
             Cp=Cp,
             deck_flatness=deck_flatness,
             center_box_ratio=center_box_ratio,
+            bow_rake=bow_rake,
         )
         super().__init__(hull)
 

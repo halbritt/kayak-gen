@@ -7,45 +7,94 @@ be unit-tested without a running Vue client.
 from __future__ import annotations
 
 import io
-import struct
-from pathlib import Path
 from typing import Any
 
 import numpy as np
+from pydantic import ValidationError
 from stl import mesh as numpy_stl_mesh
 
 from kayakgen.eval.contract import EvaluationResult, ResistanceCurve
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance
+from kayakgen.model.advisory import design_advisory
 from kayakgen.model.hull import Hull
-from kayakgen.ui.web.state import HULL_STATE_FIELDS, hull_from_state_dict
+from kayakgen.ui.web.state import hull_from_state_dict
 
 
-def metrics_from_state(state: dict[str, Any], stations: int = 60) -> dict[str, float]:
+def clamp_beam_wl_state(state: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy with web ``beam_wl_m`` constrained to ``beam_oa_m``."""
+    normalized = dict(state)
+    beam_oa = normalized.get("beam_oa_m")
+    beam_wl = normalized.get("beam_wl_m")
+    if beam_oa is None or beam_wl is None:
+        return normalized
+    try:
+        beam_oa_f = float(beam_oa)
+        beam_wl_f = float(beam_wl)
+    except (TypeError, ValueError):
+        return normalized
+    if beam_wl_f > beam_oa_f:
+        normalized["beam_wl_m"] = beam_oa_f
+    return normalized
+
+
+def hull_from_web_state(state: dict[str, Any]) -> Hull:
+    """Build a Hull from web state after applying UI-level normalization."""
+    return hull_from_state_dict(clamp_beam_wl_state(state))
+
+
+def validation_error_payload(exc: Exception) -> dict[str, Any]:
+    """Controlled JSON payload for invalid web state."""
+    details: list[dict[str, str]] = []
+    if isinstance(exc, ValidationError):
+        for err in exc.errors():
+            loc = ".".join(str(part) for part in err.get("loc", ())) or "state"
+            details.append(
+                {
+                    "field": loc,
+                    "message": str(err.get("msg", "invalid value")),
+                    "type": str(err.get("type", "value_error")),
+                }
+            )
+    else:
+        details.append(
+            {
+                "field": "state",
+                "message": "invalid hull state",
+                "type": type(exc).__name__,
+            }
+        )
+    return {"error": "invalid_hull_state", "details": details}
+
+
+def metrics_from_state(state: dict[str, Any], stations: int = 60) -> dict[str, Any]:
     """Single-shot read model: hydrostatics + at-speed resistance."""
-    hull = hull_from_state_dict(state)
+    hull = hull_from_web_state(state)
     h = evaluate_hydrostatics(hull, stations=stations)
     target_kt = float(state.get("target_speed_kt", 3.5))
     V_ms = target_kt * KNOTS_TO_MS
     r = evaluate_resistance(
         hull, V_ms, Sw=h.wetted_surface_m2, n_stations=400, n_depths=20, n_theta=30
     )
+    advisory = design_advisory(hull, cp=h.Cp_actual, displaced_mass_kg=h.displaced_mass_kg)
     return {
         "displaced_mass_kg": h.displaced_mass_kg,
         "wetted_surface_m2": h.wetted_surface_m2,
         "waterplane_area_m2": h.waterplane_area_m2,
         "Cp_actual": h.Cp_actual,
         "Cm_actual": h.Cm_actual,
+        "l_over_bwl": advisory.l_over_bwl,
         "Fn": r["Fn"],
         "Rv_N": r["Rv_N"],
         "Rw_N": r["Rw_N"],
         "Rt_N": r["Rt_N"],
+        "advisory_warnings": advisory.warnings,
     }
 
 
 def stl_bytes_for_part(state: dict[str, Any], part: str) -> bytes:
     """Generate a binary STL of ``part`` and return its bytes."""
-    hull = hull_from_state_dict(state)
+    hull = hull_from_web_state(state)
     geom = hull.to_geometry()
     vertices, faces = geom.mesh(part)
     data = np.zeros(len(faces), dtype=numpy_stl_mesh.Mesh.dtype)
@@ -60,7 +109,7 @@ def stl_bytes_for_part(state: dict[str, Any], part: str) -> bytes:
 
 def evaluation_for_state(state: dict[str, Any]) -> EvaluationResult:
     """Run all evaluators on the state — used by the REST `/api/evaluate` route."""
-    hull = hull_from_state_dict(state)
+    hull = hull_from_web_state(state)
     h = evaluate_hydrostatics(hull)
     from kayakgen.eval.resistance import resistance_curve
 
@@ -94,7 +143,7 @@ def evaluation_payload(state: dict[str, Any]) -> dict[str, Any]:
 
 def store_hull_payload(state: dict[str, Any], store: HullStore) -> dict[str, str]:
     """Store a hull and return its stable ID payload."""
-    return {"id": store.put(hull_from_state_dict(state))}
+    return {"id": store.put(hull_from_web_state(state))}
 
 
 def load_hull_payload(hull_id: str, store: HullStore) -> dict[str, Any] | None:
@@ -115,15 +164,27 @@ def register_rest_routes(aiohttp_app: Any, store: HullStore | None = None) -> Hu
     store = store or HullStore()
 
     async def post_evaluate(request: Any) -> Any:
-        return web.json_response(evaluation_payload(await request.json()))
+        try:
+            return web.json_response(evaluation_payload(await request.json()))
+        except Exception as exc:
+            return web.json_response(validation_error_payload(exc), status=400)
 
     async def post_stl(request: Any) -> Any:
         state = await request.json()
         part = request.query.get("part", "hull")
-        return web.Response(body=stl_bytes_for_part(state, part), content_type="application/sla")
+        try:
+            return web.Response(
+                body=stl_bytes_for_part(state, part),
+                content_type="application/sla",
+            )
+        except Exception as exc:
+            return web.json_response(validation_error_payload(exc), status=400)
 
     async def post_hulls(request: Any) -> Any:
-        return web.json_response(store_hull_payload(await request.json(), store))
+        try:
+            return web.json_response(store_hull_payload(await request.json(), store))
+        except Exception as exc:
+            return web.json_response(validation_error_payload(exc), status=400)
 
     async def get_hull(request: Any) -> Any:
         payload = load_hull_payload(request.match_info["id"], store)

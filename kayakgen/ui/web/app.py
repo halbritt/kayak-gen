@@ -15,16 +15,20 @@ from trame.ui.vuetify3 import SinglePageWithDrawerLayout
 from trame.widgets import vtk as vtkw
 from trame.widgets import vuetify3 as v3
 
-from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
-from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance
 from kayakgen.model.hull import Hull
-from kayakgen.ui.web.controllers import HullStore, metrics_from_state, register_rest_routes
+from kayakgen.ui.web.controllers import (
+    HullStore,
+    clamp_beam_wl_state,
+    hull_from_web_state,
+    metrics_from_state,
+    register_rest_routes,
+    validation_error_payload,
+)
 from kayakgen.ui.web.state import (
     HULL_STATE_FIELDS,
     decode_hull_query,
     encode_hull_query,
     hull_from_query_string,
-    hull_from_state_dict,
     state_dict_from_hull,
 )
 
@@ -146,29 +150,42 @@ class KayakgenApp:
     # ----- handlers -----
 
     def _current_hull(self) -> Hull:
-        return hull_from_state_dict(dict(self.state.to_dict()))
+        return hull_from_web_state(dict(self.state.to_dict()))
 
     def _refresh_metrics(self) -> None:
         try:
             m = metrics_from_state(dict(self.state.to_dict()))
         except Exception as exc:  # validation errors from Pydantic
-            self.state.metrics_lines = [f"Error: {exc}"]
+            payload = validation_error_payload(exc)
+            details = payload.get("details", [])
+            messages = [f"{d['field']}: {d['message']}" for d in details]
+            self.state.metrics_lines = ["Invalid hull state", *messages]
             return
         self.state.metrics_lines = [
             f"Displacement {m['displaced_mass_kg']:7.1f} kg",
             f"Wetted surf  {m['wetted_surface_m2']:7.3f} m²",
             f"Waterplane   {m['waterplane_area_m2']:7.3f} m²",
             f"Cp / Cm      {m['Cp_actual']:.3f} / {m['Cm_actual']:.3f}",
+            f"L/B_wl       {m['l_over_bwl']:7.2f}",
             f"At {self.state.target_speed_kt:.1f} kt (Fn {m['Fn']:.2f})",
             f"  Viscous   {m['Rv_N']:6.1f} N",
             f"  Wave      {m['Rw_N']:6.1f} N",
             f"  Total     {m['Rt_N']:6.1f} N",
         ]
+        if m["advisory_warnings"]:
+            self.state.metrics_lines.extend(
+                ["Advisory", *[f"  {w}" for w in m["advisory_warnings"]]]
+            )
 
     def _on_param_change(self, **_kwargs: Any) -> None:
+        normalized = clamp_beam_wl_state(dict(self.state.to_dict()))
+        if normalized.get("beam_wl_m") != self.state.beam_wl_m:
+            self.state.beam_wl_m = normalized["beam_wl_m"]
+            return
         try:
             hull = self._current_hull()
         except Exception:
+            self._refresh_metrics()
             return
         self._rebuild_scene(hull)
         self._refresh_metrics()

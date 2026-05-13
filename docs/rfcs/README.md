@@ -17,9 +17,9 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0001](0001-template.md) | template | RFC template — copy for new RFCs |
 | [0002](0002-gui-usability.md) | landed | GUI usability improvements |
 | [0003](0003-layout-and-station-view.md) | landed | Window layout and station-view slider |
-| [0004](0004-plumb-bow.md) | partial | Plumb bow support (`bow_rake` parameter) |
+| [0004](0004-plumb-bow.md) | partial safe-slice | Plumb bow support (`bow_rake` parameter) |
 | [0005](0005-cfd-resistance.md) | landed raw-filter | Resistance estimation (Michell + ITTC) |
-| [0006](0006-design-constraints.md) | partial | Hull design constraints — canonical parameter space and class presets |
+| [0006](0006-design-constraints.md) | partial safe-slice | Hull design constraints — canonical parameter space and class presets |
 | [0007](0007-architectural-revisit.md) | landed | Architectural revisit — extract `kayakgen` package before more parameters land |
 | [0008](0008-web-frontend.md) | partial verified-headless | Portable web frontend via Trame |
 | [0009](0009-sweep-run-records.md) | proposed | Sweep and candidate run records |
@@ -34,15 +34,20 @@ RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
 comparative resistance filter; calibrated final-prediction claims,
 validity envelopes, Pareto-default scoring, and 200 ms full-curve
-interactive latency remain deferred. RFCs 0004, 0006, and 0008 remain
-partial as of workflow 0010: they have useful implementation, but their
-acceptance criteria are not fully satisfied.
+interactive latency remain deferred. RFCs 0004 and 0006 remain partial
+after workflow 0019, with safe package/core slices landed and explicit
+deferrals recorded in the RFCs: exact plumb end caps, watertight
+hull-plus-deck solid readiness, asymmetric rake, future shape parameters,
+desktop yellow-banner/manual closure, and browser/Lighthouse acceptance are not
+fully satisfied.
+RFC 0008 also remains partial, with headless verification landed but
+browser/Lighthouse and hosted-demo acceptance still open.
 
 RFCs 0009-0015 are roadmap RFCs for the pivot from single-hull generation to a
 reproducible generative pipeline. RFC 0010's mesh package/profile slice, RFC
 0011's load-case plus equilibrium-sinkage slice, and RFC 0013's report/CLI
 slice have landed. Browser/Lighthouse web acceptance, hosted demo deployment,
-web comparison UI, legacy RFC partial closure, generalized trim/high-angle
+web comparison UI, remaining legacy RFC deferrals, generalized trim/high-angle
 stability, resistance calibration, watertight solid readiness, and CFD solver
 dispatch are queued in `docs/workflows/0018-deferred-backlog/QUEUE.md`.
 

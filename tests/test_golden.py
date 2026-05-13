@@ -141,6 +141,27 @@ def test_hull_surface_area(kg: KayakGenerator) -> None:
     np.testing.assert_allclose(area, HULL_SURFACE_AREA_M2, rtol=1e-9)
 
 
+def test_legacy_optional_parameters_preserve_default_geometry() -> None:
+    default = KayakGenerator(**DEFAULT_PARAMS)
+    explicit = KayakGenerator(**DEFAULT_PARAMS, beam_wl=None, bow_rake=1.0)
+
+    for part in ("hull", "deck"):
+        default_vertices, default_faces = default.get_mesh_arrays(part)
+        explicit_vertices, explicit_faces = explicit.get_mesh_arrays(part)
+        np.testing.assert_array_equal(default_faces, explicit_faces)
+        np.testing.assert_allclose(
+            explicit_vertices, default_vertices, rtol=0, atol=0
+        )
+
+
+def test_legacy_beam_wl_and_bow_rake_feed_hull_model() -> None:
+    kg = KayakGenerator(**DEFAULT_PARAMS, beam_wl=0.50, bow_rake=0.0)
+
+    assert kg.hull.beam_wl_m == 0.50
+    assert kg.hull.bow_rake == 0.0
+    assert kg.B_wl == 0.50
+
+
 def test_deck_surface_area(kg: KayakGenerator) -> None:
     vertices, faces = kg.get_mesh_arrays("deck")
     area = _surface_area(vertices, faces)

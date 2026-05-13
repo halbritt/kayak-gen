@@ -128,6 +128,14 @@ class LoftedHullGeometry(HullGeometry):
 
     PLUMB_TRANSITION_FRAC = 0.05  # RFC 0004 §"Modified decay function"
 
+    def _plumb_transition_decay(self, x: float) -> float:
+        """Full-size until the final plumb transition near either end."""
+        x_norm = abs((2 * x) / self.L)
+        if x_norm <= 1.0 - self.PLUMB_TRANSITION_FRAC:
+            return 1.0
+        phase = (1.0 - x_norm) / self.PLUMB_TRANSITION_FRAC
+        return float(max(0.0, min(1.0, phase)))
+
     def _end_decay(self, x: float) -> float:
         """Blended decay between fully raked (sqrt area) and fully plumb.
 
@@ -140,21 +148,20 @@ class LoftedHullGeometry(HullGeometry):
         if frac <= 0.0:
             return 0.0
         raked = np.sqrt(frac)
-        x_norm = abs((2 * x) / self.L)
-        if x_norm <= 1.0 - self.PLUMB_TRANSITION_FRAC:
-            plumb = 1.0
-        else:
-            phase = (1.0 - x_norm) / self.PLUMB_TRANSITION_FRAC
-            plumb = max(0.0, min(1.0, phase))
+        plumb = self._plumb_transition_decay(x)
         rake = self.hull.bow_rake
         return float(rake * raked + (1.0 - rake) * plumb)
 
     def _get_deck_height_scaling(self, x: float) -> float:
         x_norm = abs((2 * x) / self.L)
         if x_norm <= self.center_ratio:
-            return 1.0
-        decay_phase = (x_norm - self.center_ratio) / (1.0 - self.center_ratio)
-        return 1 - decay_phase**2
+            raked = 1.0
+        else:
+            decay_phase = (x_norm - self.center_ratio) / (1.0 - self.center_ratio)
+            raked = 1 - decay_phase**2
+        plumb = self._plumb_transition_decay(x)
+        rake = self.hull.bow_rake
+        return float(rake * raked + (1.0 - rake) * plumb)
 
     def _get_slice_points(self, x: float, part_type: PartType) -> np.ndarray:
         # _end_decay blends raked (sqrt-of-area-fraction, the legacy form)

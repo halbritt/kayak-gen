@@ -10,6 +10,20 @@ watertight-STL acceptance wording remains unresolved because the current hull
 and deck meshes are separate open surfaces. Treat exact plumb-stem/end-cap
 semantics as a follow-up design decision.
 
+Status note (workflow 0019, 2026-05-13): still partial. The safe slice is
+landed in the package model/geometry path: `Hull.bow_rake` exists, default
+`bow_rake = 1.0` preserves legacy golden geometry, and non-default rake
+drives near-plumb inboard fullness through `LoftedHullGeometry._end_decay`.
+Tests cover the near-stem positive-section behavior inside the plumb
+transition zone, monotonic displaced-volume changes, waterplane shape, and
+STL generation. The legacy `generator.KayakGenerator` shim accepts `bow_rake`
+and `beam_wl`, and the deck centerline now uses the same raked/plumb blend for
+non-default rake. Focused tests cover `Cp` and `center_box_ratio` interactions
+with non-default rake. Exact non-zero area at `x = -L/2`, explicit end-cap
+polygons, closed/watertight hull-plus-deck solid readiness, asymmetric bow/stern
+rake, and manual visual confirmation of the sheer-plan annotation remain
+deferred.
+
 ## Problem
 
 The current hull generator always produces a raked bow and stern: both keel
@@ -40,8 +54,9 @@ to model:
   controls both (symmetric). A future RFC may split them.
 - The 3D mesh, STL export, cross-section view, and sheer plan all update
   correctly for any `bow_rake` value.
-- The station slider at x = −L/2 shows a non-zero cross-section area when
-  `bow_rake < 0.5`.
+- Stations near `x = -L/2` inside the plumb transition zone show non-zero
+  cross-section area when `bow_rake < 0.5`. Exact endpoint non-zero area is
+  deferred until explicit end-cap semantics are designed.
 
 ## Non-Goals
 
@@ -92,6 +107,9 @@ as a parameter (`bow_entry_length_frac`, default 0.05).
 `_get_deck_height_scaling` currently mirrors `_end_decay`. Apply the same
 blend there, so plumb bow has visible bow freeboard in the sheer plan.
 
+Workflow 0019 status: this is landed for the package geometry. Exact end-cap
+freeboard at `x = +/-L/2` remains deferred with end-cap semantics.
+
 ### 2. GUI changes (`gui.py`)
 
 Add `bow_rake` to `SLIDERS`:
@@ -115,16 +133,20 @@ This is a one-liner in `update_plots` after the sheer plan is drawn.
 
 ## Acceptance Criteria
 
-- With `bow_rake = 1.0` (default) the hull is identical to the current
-  output.
-- With `bow_rake = 0.0` the station at x = −L/2 has non-zero area (visible
-  sliver in cross-section view).
-- With `bow_rake = 0.0` the sheer plan shows the keel running nearly flat to
-  the bow, then dropping sharply to the waterline in the last 5% of length.
-- STL export produces a watertight mesh at all `bow_rake` values (no
-  degenerate zero-area end caps).
-- The `center_box_ratio` and `Cp` sliders interact correctly with `bow_rake`:
-  prismatic coefficient is still honoured at midship.
+- **Landed:** with `bow_rake = 1.0` (default), the package geometry preserves
+  the legacy output.
+- **Landed:** with `bow_rake = 0.0`, stations near `x = -L/2` inside the
+  5% transition zone retain positive section area. The exact endpoint
+  `x = -L/2` remains a zero-area closure point until a future end-cap design
+  lands.
+- **Landed hull/deck slice:** with `bow_rake = 0.0`, the hull waterplane, keel,
+  and deck centerline remain full close to the stem, then drop through the final
+  transition zone.
+- **Deferred:** STL export currently produces open hull and deck surfaces that
+  can be generated at all `bow_rake` values. It does not produce a closed
+  watertight hull-plus-deck solid or explicit non-degenerate end-cap polygons.
+- **Landed:** `Cp` and `center_box_ratio` interaction tests cover non-default
+  `bow_rake` without changing default golden geometry.
 
 ## Open Questions
 
@@ -141,6 +163,7 @@ This is a one-liner in `update_plots` after the sheer plan is drawn.
 2. Replace `np.sqrt(frac)` calls with `self._end_decay(x)` everywhere in
    generator (~4 substitutions).
 3. Add `bow_rake` slider to GUI (~3 lines).
-4. Verify STL mesh is watertight at bow_rake=0, 0.5, 1.0.
+4. Verify STL mesh generation at bow_rake=0, 0.5, 1.0, and keep closed-volume
+   watertightness as a separate end-cap/solid-readiness decision.
 
 Total: ~20 lines changed/added across two files.

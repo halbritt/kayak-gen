@@ -81,6 +81,42 @@ def test_mesh_check_writes_diagnostics(tmp_path) -> None:
     assert "stl_surface" in out.read_text()
 
 
+def test_generate_accepts_non_default_bow_rake_and_beam_wl(tmp_path) -> None:
+    hull = tmp_path / "non_default.json"
+    hull_model = Hull(beam_oa_m=0.58, beam_wl_m=0.50, bow_rake=0.0)
+    hull.write_text(hull_model.model_dump_json())
+    out = tmp_path / "non_default"
+
+    result = CliRunner().invoke(app, ["generate", str(hull), "--stl-out", str(out)])
+
+    assert result.exit_code == 0
+    assert (tmp_path / "non_default_hull.stl").stat().st_size > 0
+    assert (tmp_path / "non_default_deck.stl").stat().st_size > 0
+
+
+def test_evaluate_accepts_non_default_bow_rake_and_beam_wl(tmp_path) -> None:
+    hull_model = Hull(beam_oa_m=0.58, beam_wl_m=0.50, bow_rake=0.0)
+    hull = tmp_path / "non_default.json"
+    out = tmp_path / "non_default.eval.json"
+    hull.write_text(hull_model.model_dump_json())
+
+    result = CliRunner().invoke(
+        app,
+        ["evaluate", str(hull), "--skip-resistance", "--out", str(out)],
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(out.read_text())
+    expected = evaluate_hydrostatics(hull_model)
+    assert data["resistance"] is None
+    assert data["hydrostatics"]["displaced_volume_m3"] == pytest.approx(
+        expected.displaced_volume_m3
+    )
+    assert data["hydrostatics"]["waterplane_area_m2"] == pytest.approx(
+        expected.waterplane_area_m2
+    )
+
+
 def test_mesh_package_writes_manifest_and_artifacts(tmp_path) -> None:
     hull = tmp_path / "hull.json"
     hull.write_text(Hull().model_dump_json())

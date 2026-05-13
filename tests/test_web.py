@@ -20,11 +20,14 @@ pytest.importorskip("trame", reason="kayakgen[web] not installed")
 from kayakgen.ui.web.controllers import metrics_from_state, stl_bytes_for_part  # noqa: E402
 from kayakgen.ui.web.controllers import (  # noqa: E402
     HullStore,
+    clamp_beam_wl_state,
     evaluation_payload,
+    hull_from_web_state,
     job_stub_payload,
     load_hull_payload,
     register_rest_routes,
     store_hull_payload,
+    validation_error_payload,
 )
 from kayakgen.ui.web.state import (  # noqa: E402
     HULL_STATE_FIELDS,
@@ -67,7 +70,31 @@ def test_metrics_match_evaluate_hydrostatics() -> None:
     h = evaluate_hydrostatics(hull, stations=60)
     assert abs(m["displaced_mass_kg"] - h.displaced_mass_kg) < 1e-6
     assert abs(m["wetted_surface_m2"] - h.wetted_surface_m2) < 1e-6
+    assert abs(m["l_over_bwl"] - hull.length_m / hull.beam_oa_m) < 1e-6
+    assert m["advisory_warnings"] == ()
     assert m["Rt_N"] == m["Rv_N"] + m["Rw_N"]
+
+
+def test_web_state_clamps_beam_wl_before_metrics_and_validation() -> None:
+    state = state_dict_from_hull(Hull(beam_oa_m=0.55, beam_wl_m=0.50)) | {
+        "beam_wl_m": 0.80,
+        "target_speed_kt": 3.5,
+    }
+    normalized = clamp_beam_wl_state(state)
+    assert normalized["beam_wl_m"] == 0.55
+    assert hull_from_web_state(state).beam_wl_m == 0.55
+    metrics = metrics_from_state(state, stations=40)
+    assert abs(metrics["l_over_bwl"] - Hull().length_m / 0.55) < 1e-6
+
+
+def test_validation_error_payload_is_stable_and_controlled() -> None:
+    with pytest.raises(Exception) as exc_info:
+        hull_from_web_state(state_dict_from_hull(Hull()) | {"length_m": -1.0})
+    payload = validation_error_payload(exc_info.value)
+    assert payload["error"] == "invalid_hull_state"
+    assert payload["details"][0]["field"] == "length_m"
+    assert payload["details"][0]["type"] == "greater_than"
+    assert "validation error" not in payload["details"][0]["message"].lower()
 
 
 def test_export_stl_yields_binary() -> None:

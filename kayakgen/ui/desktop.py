@@ -29,10 +29,11 @@ from PyQt6.QtCore import QTimer
 
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance
-from kayakgen.ui.gui_params import GUI_TO_HULL as _GUI_TO_HULL
-from kayakgen.ui.gui_params import hull_from_gui_params as _hull_from_gui_params
+from kayakgen.model.advisory import design_advisory
 from kayakgen.model.classes import KayakClass, get_class, list_classes
 from kayakgen.model.hull import Hull
+from kayakgen.ui.gui_params import GUI_TO_HULL as _GUI_TO_HULL
+from kayakgen.ui.gui_params import hull_from_gui_params as _hull_from_gui_params
 
 
 class KayakGUI:
@@ -321,7 +322,11 @@ class KayakGUI:
         # default 150 to 60 here so the per-slider call stays under ~30 ms.
         hull = _hull_from_gui_params(self.params)
         h = evaluate_hydrostatics(hull, stations=60)
-        lob = hull.length_m / hull.beam_oa_m
+        advisory = design_advisory(
+            hull,
+            cp=h.Cp_actual,
+            displaced_mass_kg=h.displaced_mass_kg,
+        )
         klass = self._classify(hull)
         if self._active_class_name != "custom":
             klass = f"{klass} preset"
@@ -329,19 +334,28 @@ class KayakGUI:
         # Coarser station/depth/theta grids on the live path so the call
         # stays under ~30 ms per slider tick. RFC 0005 budgets <100 ms for
         # the full curve; this is a single-speed evaluation.
-        r = evaluate_resistance(hull, V_ms, Sw=h.wetted_surface_m2, n_stations=40, n_depths=12, n_theta=20)
+        r = evaluate_resistance(
+            hull,
+            V_ms,
+            Sw=h.wetted_surface_m2,
+            n_stations=40,
+            n_depths=12,
+            n_theta=20,
+        )
         txt = (
             f"Class        {klass}\n"
             f"Displacement {h.displaced_mass_kg:6.1f} kg\n"
             f"Wetted surf  {h.wetted_surface_m2:6.3f} m²\n"
             f"Waterplane   {h.waterplane_area_m2:6.3f} m²\n"
             f"Cp / Cm      {h.Cp_actual:.3f} / {h.Cm_actual:.3f}\n"
-            f"LOA/B ratio  {lob:6.2f}\n"
+            f"L/B_wl       {advisory.l_over_bwl:6.2f}\n"
             f"At {self.params['target_speed_kt']:.1f} kt (Fn {r['Fn']:.2f}):\n"
             f"  Viscous   {r['Rv_N']:6.1f} N\n"
             f"  Wave      {r['Rw_N']:6.1f} N\n"
             f"  Total     {r['Rt_N']:6.1f} N"
         )
+        if advisory.warnings:
+            txt += "\nAdvisory    " + "\n            ".join(advisory.warnings)
         self.metrics_text.set_text(txt)
 
     def _track_slider(self, key: str) -> None:

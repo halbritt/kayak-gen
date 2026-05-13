@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from kayakgen.eval.hydrostatics import evaluate
+from kayakgen.model.advisory import design_advisory
 from kayakgen.model.classes import CLASSES, get_class, list_classes
 from kayakgen.model.hull import Hull
 
@@ -68,6 +69,29 @@ def test_preset_volumes_in_paddler_envelope() -> None:
         h = evaluate(kc.default_hull())
         v_litres = h.displaced_volume_m3 * 1000
         assert 60 < v_litres < 200, f"{kc.name}: {v_litres:.1f} L"
+
+
+def test_design_advisory_reports_shared_warning_bands() -> None:
+    broad = design_advisory(Hull(length_m=4.0, beam_oa_m=0.70, beam_wl_m=0.65))
+    assert broad.l_over_bwl < 8
+    assert "L/B_wl below touring guidance" in broad.warnings
+
+    full_ends = design_advisory(Hull(Cp=0.66))
+    assert "Cp above recommended kayak range" in full_ends.warnings
+
+    overloaded = design_advisory(Hull(), displaced_mass_kg=190.0)
+    assert "displacement above typical single-paddler load" in overloaded.warnings
+
+
+def test_design_advisory_keeps_class_defaults_quiet() -> None:
+    for kc in list_classes():
+        hull = kc.default_hull()
+        hydro = evaluate(hull)
+        assert design_advisory(
+            hull,
+            cp=hydro.Cp_actual,
+            displaced_mass_kg=hydro.displaced_mass_kg,
+        ).warnings == ()
 
 
 def test_class_lookup() -> None:
