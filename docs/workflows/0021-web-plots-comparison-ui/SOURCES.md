@@ -1,0 +1,25 @@
+# Sources - 0021 web plots and comparison UI
+
+- `AGENTS.md`
+- `docs/rfcs/0008-web-frontend.md`
+- `docs/rfcs/0013-pareto-frontier-comparison-ui.md`
+- `docs/workflows/0018-deferred-backlog/QUEUE.md`
+- `docs/workflows/0021-web-plots-comparison-ui/SOURCES.md`
+- `docs/rfcs/README.md`
+- `docs/WEB_VERIFICATION.md`
+- `docs/PRD.md`
+- `Dockerfile`
+- `.dockerignore`
+- `pyproject.toml`
+- `kayakgen/cli/main.py`
+- `kayakgen/ui/web/app.py`
+- `kayakgen/ui/web/controllers.py`
+- `kayakgen/ui/web/state.py`
+- `kayakgen/search/compare.py`
+- `kayakgen/search/pareto.py`
+- `kayakgen/search/sweep.py`
+- `tests/test_web.py`
+- `tests/test_web_browser.py`
+- `tests/test_cli.py`
+- `tests/test_compare.py`
+- `tests/test_sweep.py`

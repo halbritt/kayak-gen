@@ -1,0 +1,249 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0021-web-plots-comparison-ui",
+  "workflow_version": "2026-05-13",
+  "name": "0021 - Web plots and comparison UI",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0021-web-plots-comparison-ui",
+    "allow_dirty": false
+  },
+  "coordinator": {"role_id": "coordinator", "lane_id": "claude"},
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["claude", "--model", "opus", "-p"],
+      "capabilities": ["review", "synthesis"]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["codex", "exec", "--model", "gpt-5.5", "-"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["gemini", "--model", "gemini-3.1-pro-preview"],
+      "capabilities": ["review"]
+    }
+  },
+  "roles": {
+    "coordinator": {"definition_path": "roles/coordinator.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_domain": {"definition_path": "roles/reviewer_domain.md"},
+    "reviewer_ops": {"definition_path": "roles/reviewer_ops.md"},
+    "ledger": {"definition_path": "roles/ledger.md"},
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/rfcs/0008-web-frontend.md", "required": true},
+    {"path": "docs/rfcs/0013-pareto-frontier-comparison-ui.md", "required": true},
+    {"path": "docs/workflows/0018-deferred-backlog/QUEUE.md", "required": true},
+    {"path": "docs/workflows/0021-web-plots-comparison-ui/SOURCES.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/WEB_VERIFICATION.md", "required": true},
+    {"path": "docs/PRD.md", "required": true},
+    {"path": "Dockerfile", "required": true},
+    {"path": ".dockerignore", "required": true},
+    {"path": "pyproject.toml", "required": true},
+    {"path": "kayakgen/cli/main.py", "required": true},
+    {"path": "kayakgen/ui/web/app.py", "required": true},
+    {"path": "kayakgen/ui/web/controllers.py", "required": true},
+    {"path": "kayakgen/ui/web/state.py", "required": true},
+    {"path": "kayakgen/search/compare.py", "required": true},
+    {"path": "kayakgen/search/pareto.py", "required": true},
+    {"path": "kayakgen/search/sweep.py", "required": true},
+    {"path": "tests/test_web.py", "required": true},
+    {"path": "tests/test_web_browser.py", "required": true},
+    {"path": "tests/test_cli.py", "required": true},
+    {"path": "tests/test_compare.py", "required": true},
+    {"path": "tests/test_sweep.py", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review web plots and comparison UI traceability",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review RFC 0008/0013 plot and comparison UI traceability.",
+      "task_prompt": {"path": "prompts/review_traceability.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0021-web-plots-comparison-ui/traceability/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0021-web-plots-comparison-ui/traceability/REVIEW_TRACEABILITY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_domain",
+      "type": "review",
+      "title": "Review web plots and comparison domain semantics",
+      "role_id": "reviewer_domain",
+      "lane_id": "gemini",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review plotted metrics, Pareto axes, report semantics, and candidate wording.",
+      "task_prompt": {"path": "prompts/review_domain.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0021-web-plots-comparison-ui/domain/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0021-web-plots-comparison-ui/domain/REVIEW_DOMAIN.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_ops",
+      "type": "review",
+      "title": "Review web ops and packaging",
+      "role_id": "reviewer_ops",
+      "lane_id": "codex",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review web state/API, comparison fixtures, browser/headless tests, and performance risk.",
+      "task_prompt": {"path": "prompts/review_ops.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0021-web-plots-comparison-ui/ops/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0021-web-plots-comparison-ui/ops/REVIEW_OPS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "ledger",
+      "title": "Consolidate web plots and comparison UI findings",
+      "role_id": "ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate web plots and comparison UI findings and define the safe patch.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/0021-web-plots-comparison-ui/ledger/",
+          "docs/workflows/0021-web-plots-comparison-ui/OPERATOR_REPORT.md"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "ledger",
+          "kind": "findings_ledger",
+          "path": "striatum/0021-web-plots-comparison-ui/ledger/FINDINGS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "implement_findings",
+      "type": "build",
+      "title": "Implement web plots and comparison UI",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Implement safe web plots and comparison UI tests/docs/hardening from the ledger.",
+      "task_prompt": {"path": "prompts/implement_findings.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/",
+          "docs/workflows/0021-web-plots-comparison-ui/",
+          "kayakgen/cli/",
+          "kayakgen/search/",
+          "kayakgen/ui/web/",
+          "tests/",
+          "Dockerfile",
+          ".dockerignore",
+          "pyproject.toml",
+          "striatum/0021-web-plots-comparison-ui/implementation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "striatum/0021-web-plots-comparison-ui/implementation/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final gate for web plots and comparison UI",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify web plots and comparison UI truthfulness, reproducibility, and tests.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0021-web-plots-comparison-ui/final/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "final_review",
+          "kind": "finding",
+          "path": "striatum/0021-web-plots-comparison-ui/final/FINAL_REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_domain", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops", "to": "findings_ledger", "on": "completed"},
+    {"from": "findings_ledger", "to": "implement_findings", "on": "completed"},
+    {"from": "implement_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {
+      "from": "final_review",
+      "to": "implement_findings",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1
+    }
+  ]
+}
