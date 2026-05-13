@@ -41,6 +41,11 @@ Updated: 2026-05-13
   lanes are being retried in parallel with a direct repo working directory and
   sandbox bypass. The Gemini 0040 domain lane from the second pass is still
   running; downstream ledger/build/final jobs remain untouched.
+- 2026-05-13T17:29:01Z checkpoint: the second-pass Claude/Gemini batch and the
+  Codex ops retry batch finished. The Codex retry cleared the repository-read
+  failure artifacts. Three traceability artifacts repeated `Verdict intent:`
+  more than once, so those traceability lanes are being retried with a strict
+  format override before any review artifact is submitted.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is
