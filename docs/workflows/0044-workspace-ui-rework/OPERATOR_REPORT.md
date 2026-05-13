@@ -68,8 +68,17 @@ Updated: 2026-05-13
   -> 1 passed. The summary records explicit deferrals for PyVista docking/full
   desktop parity and includes a proposed root changelog entry for operator
   metadata handling.
+- 2026-05-13T22:35:58Z: final review published as
+  `art_7c61bfc9fa494d2f95e28bdae5a86acc` with verdict
+  `accept_with_findings`; Striatum marks run
+  `run_4966ab190f8840d9b2f9c82b4044edad` complete. Follow-up findings:
+  dynamic web class preset reseeding/range narrowing, dynamic validity badge,
+  wiring resistance sweep table/target row, wiring mesh diagnostics/package
+  read models, completing the Export menu entries, broadening forbidden-string
+  grep tests, reconciling stale changelog wording in the patch summary, and
+  treating full desktop region/test-id parity as a deferred successor scope.
 
 ## Next action
 
-- Claim and launch the final review lane before committing, pushing, or
-  fast-forwarding `main`.
+- Commit/push the final-review artifact and reports, then fast-forward `main`
+  if branch checks remain clean.

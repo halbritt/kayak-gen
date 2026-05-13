@@ -64,6 +64,17 @@ Updated: 2026-05-13
   `.venv/bin/python -m pytest tests/test_web_browser.py -m browser_acceptance --browser-acceptance -q`
   -> 1 passed. Next step is the Striatum final review lane before commit,
   trunk fast-forward, or backlog resumption.
+- 2026-05-13T22:35:58Z checkpoint: workflow 0044 final review published as
+  `art_7c61bfc9fa494d2f95e28bdae5a86acc`; verdict
+  `accept_with_findings`. Striatum marks run
+  `run_4966ab190f8840d9b2f9c82b4044edad` complete. Follow-up findings to
+  carry into backlog/successor RFCs: web class presets do not reseed/narrow
+  sliders, validity badge is static, resistance table/read model is not wired
+  into the card, mesh diagnostics/package read models are not wired into the
+  tab, toolbar export menu lacks Hydro JSON/Stability JSON/Mesh package items,
+  forbidden-string grep tests should cover all RFC 0033 no-go strings, patch
+  summary changelog wording is cosmetic-stale after the operator changelog
+  entry, and full desktop region/test-id parity remains an explicit deferral.
 - Next maximum-parallel batch queued from the ready backlog: workflows 0033,
   0037, 0038, 0039, 0040, and 0041. Workflows 0034 and 0035 remain queued until
   0033 lands because they depend on generated closed-body evidence.
