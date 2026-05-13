@@ -142,6 +142,11 @@ Updated: 2026-05-13
   is pushed at `378798c`. Unblocked workflows 0033, 0037, 0038, and 0039 are
   landed. Remaining active Striatum blockers are the 0040 domain review and
   0041 browser review human checkpoints.
+- 2026-05-13T18:40:01Z checkpoint: completed workflow branches 0033, 0037,
+  0038, and 0039 were pruned locally and remotely after landing. Current `main`
+  is pushed at `950b4a1`. Verification on trunk: `git diff --check` passed,
+  `striatum doctor` reported 0 problems using the SQLite compatibility env, and
+  `.venv/bin/python -m pytest -q` passed with 251 tests.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is
