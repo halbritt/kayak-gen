@@ -31,6 +31,7 @@ from kayakgen.io.json import load_hull, save_evaluation, save_hull
 from kayakgen.io.stl import write_stl
 from kayakgen.model.geometry import PartType
 from kayakgen.model.hull import Hull
+from kayakgen.model.validity import evaluate_design_validity
 from kayakgen.search.compare import parse_objective, write_comparison_report
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="kayakgen pipeline CLI")
@@ -73,10 +74,17 @@ def evaluate(
     hull = load_hull(hull_path)
     hydrostatics = evaluate_hydrostatics(hull)
     resistance = None if skip_resistance else resistance_curve(hull)
+    design_validity = evaluate_design_validity(
+        hull,
+        cp=hydrostatics.Cp_actual,
+        displaced_mass_kg=hydrostatics.displaced_mass_kg,
+        surface=("cli",),
+    )
     result = EvaluationResult(
         hull_hash=hull.hash(),
         hydrostatics=hydrostatics,
         resistance=resistance,
+        design_validity=design_validity,
     )
     out_path = out if out is not None else hull_path.with_suffix(".eval.json")
     save_evaluation(result, out_path)

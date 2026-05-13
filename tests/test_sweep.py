@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from kayakgen.model.validity import CODE_L_BWL_LOW
 from kayakgen.search.sweep import CandidateRecord, SweepSpec, expand_candidates, run_sweep
 
 
@@ -64,10 +65,32 @@ def test_invalid_candidate_is_recorded_as_failed(tmp_path: Path) -> None:
     assert record.status == "failed"
     assert record.hull_hash is None
     assert record.error
+    assert record.design_validity.findings == []
+    assert record.design_warning_count == 0
     loaded = CandidateRecord.model_validate_json(
         (tmp_path / "candidates" / f"{record.candidate_key}.record.json").read_text()
     )
     assert loaded.attempted_hull["beam_wl_m"] == 0.60
+
+
+def test_completed_candidate_records_design_validity_without_failure(tmp_path: Path) -> None:
+    spec = SweepSpec(
+        name="advisory",
+        base_hull={"length_m": 4.0, "beam_oa_m": 0.70},
+        variables={"beam_wl_m": {"kind": "values", "values": [0.65]}},
+    )
+
+    run = run_sweep(spec, tmp_path)
+    record = run.candidates[0]
+    evaluation = json.loads((tmp_path / record.artifacts["evaluation"]).read_text())
+
+    assert run.completed_count == 1
+    assert run.failed_count == 0
+    assert record.status == "complete"
+    assert record.design_warning_count == 1
+    assert record.design_validity.findings[0].code == CODE_L_BWL_LOW
+    assert "design_warning_count" not in record.summary
+    assert evaluation["design_validity"]["findings"][0]["code"] == CODE_L_BWL_LOW
 
 
 def test_mesh_diagnostics_are_optional_candidate_artifacts(tmp_path: Path) -> None:

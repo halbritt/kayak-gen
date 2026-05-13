@@ -1,10 +1,19 @@
 # RFC 0032: Web Hosted Browser Acceptance Revision
 
-Status: proposed
+Status: landed local-browser-docs
 Date: 2026-05-13
 Context: revises RFC 0030 into a conservative implementation slice after the
 blocked workflow 0041 run. Builds on RFC 0008 web frontend status, RFC 0018
 local web CFD routes, `docs/USER_GUIDE.md`, and `docs/WEB_VERIFICATION.md`.
+
+Status note (workflow 0043, 2026-05-13): landed as local browser-acceptance
+coverage and hosted-demo documentation only. The slice adds a required
+Playwright/Chromium acceptance profile, browser-visible analysis/3D/share/STL
+checks, exact local handling for the historical `/paraview/` request, hosted
+demo runbook wording, and `/api/cfd/*` fixture-success route coverage while
+preserving raw/unvalidated CFD semantics. Public hosted operation, production
+hosting, full dashboard parity, real solver execution, validated CFD,
+calibrated resistance, and final design-fitness claims remain deferred.
 
 ## Problem
 

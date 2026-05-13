@@ -172,13 +172,7 @@ class KayakgenApp:
         self.ctrl.run_cfd_job = lambda: self._run_cfd_job()
         self.ctrl.load_cfd_logs = lambda: self._load_cfd_logs()
         self.ctrl.load_cfd_raw_result = lambda: self._load_cfd_raw_result()
-        self.ctrl.on_server_bind.add(
-            lambda ws_server: register_rest_routes(
-                ws_server.app,
-                self._hull_store,
-                cfd_store=self._cfd_store,
-            )
-        )
+        self.ctrl.on_server_bind.add(self._on_server_bind)
 
         self._wire_state_listeners()
         self._build_layout()
@@ -265,6 +259,41 @@ class KayakgenApp:
     def _wire_state_listeners(self) -> None:
         watched = list(HULL_STATE_FIELDS) + ["target_speed_kt"]
         self.state.change(*watched)(self._on_param_change)
+
+    def _on_server_bind(self, ws_server: Any) -> None:
+        register_rest_routes(
+            ws_server.app,
+            self._hull_store,
+            cfd_store=self._cfd_store,
+        )
+        self._install_browser_request_middleware(ws_server.app)
+
+    def _install_browser_request_middleware(self, aiohttp_app: Any) -> None:
+        if aiohttp_app.get("kayakgen_browser_request_middleware_installed"):
+            return
+
+        from aiohttp import web
+
+        @web.middleware
+        async def browser_request_middleware(request: Any, handler: Any) -> Any:
+            if request.method == "GET" and request.path in {"/", "/index.html"}:
+                query_hull = request.query.get("hull")
+                if query_hull:
+                    self.load_from_query(query_hull)
+            if request.method == "POST" and request.path == "/paraview/":
+                websocket_scheme = "wss" if request.scheme == "https" else "ws"
+                return web.json_response(
+                    {
+                        "sessionURL": f"{websocket_scheme}://{request.host}/ws",
+                        "secret": "wslink-secret",
+                    }
+                )
+            if request.method == "GET" and request.path == "/favicon.ico":
+                return web.Response(status=204)
+            return await handler(request)
+
+        aiohttp_app.middlewares.append(browser_request_middleware)
+        aiohttp_app["kayakgen_browser_request_middleware_installed"] = True
 
     def _share_url(self) -> None:
         self.state.share_url = f"?hull={encode_hull_query(self._current_hull())}"
@@ -486,7 +515,7 @@ class KayakgenApp:
                                     v3.VSelect(
                                         v_model=("cfd_solver_profile",),
                                         items=("cfd_profile_options",),
-                                        label="Solver profile",
+                                        label="Local solver/test profile",
                                         density="compact",
                                     )
                                     v3.VTextField(

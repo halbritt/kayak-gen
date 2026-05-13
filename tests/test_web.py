@@ -13,9 +13,12 @@ import json
 
 import pytest
 
+from kayakgen.eval.cfd.jobs import CFD_FIXTURE_RESULTS_WARNING
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.mesh_package import watertight_solid_profile, write_mesh_package
+from kayakgen.model.advisory import design_advisory
 from kayakgen.model.hull import Hull
+from kayakgen.model.validity import CODE_L_BWL_LOW
 
 
 pytest.importorskip("trame", reason="kayakgen[web] not installed")
@@ -27,12 +30,14 @@ from kayakgen.ui.web.controllers import (  # noqa: E402
     CfdWebError,
     CfdWebStore,
     HullStore,
+    analysis_view_model,
     analysis_lines_from_state,
     candidate_state_from_report_json,
     clamp_beam_wl_state,
     comparison_view_model_from_json,
     cfd_error_lines_from_payload,
     cfd_job_status_payload,
+    cfd_raw_result_lines_from_payload,
     cfd_status_lines_from_payload,
     evaluation_payload,
     hull_from_web_state,
@@ -117,6 +122,16 @@ def test_analysis_lines_include_units_and_resistance_warnings() -> None:
     assert "  comparative_filter_only" in lines
 
 
+def test_analysis_model_keeps_design_and_resistance_warnings_separate() -> None:
+    state = state_dict_from_hull(Hull(length_m=4.0, beam_oa_m=0.70, beam_wl_m=0.65))
+
+    model = analysis_view_model(state)
+
+    assert model["design_warnings"] == ["L/B_wl below touring guidance"]
+    assert "not_final_performance_prediction" in model["resistance_warnings"]
+    assert model["design_validity"]["findings"][0]["code"] == CODE_L_BWL_LOW
+
+
 def test_web_state_clamps_beam_wl_before_metrics_and_validation() -> None:
     state = state_dict_from_hull(Hull(beam_oa_m=0.55, beam_wl_m=0.50)) | {
         "beam_wl_m": 0.80,
@@ -127,6 +142,18 @@ def test_web_state_clamps_beam_wl_before_metrics_and_validation() -> None:
     assert hull_from_web_state(state).beam_wl_m == 0.55
     metrics = metrics_from_state(state, stations=40)
     assert abs(metrics["l_over_bwl"] - Hull().length_m / 0.55) < 1e-6
+
+
+def test_web_metrics_design_warnings_use_shared_validity_report() -> None:
+    hull = Hull(length_m=4.0, beam_oa_m=0.70, beam_wl_m=0.65)
+    state = state_dict_from_hull(hull) | {"target_speed_kt": 3.5}
+
+    metrics = metrics_from_state(state, stations=40)
+    advisory = design_advisory(hull)
+
+    assert metrics["advisory_warnings"] == advisory.warnings
+    assert metrics["design_warning_codes"] == advisory.design_validity.codes()
+    assert metrics["design_validity"]["findings"][0]["code"] == CODE_L_BWL_LOW
 
 
 def test_validation_error_payload_is_stable_and_controlled() -> None:
@@ -298,10 +325,14 @@ def test_rest_payload_helpers() -> None:
     state = state_dict_from_hull(Hull()) | {"target_speed_kt": 3.5}
     evaluation = evaluation_payload(state)
     assert evaluation["hull_hash"] == Hull().hash()
+    assert evaluation["design_validity"]["findings"] == []
     store = HullStore()
     stored = store_hull_payload(state, store)
     assert load_hull_payload(stored["id"], store)["schema_version"] == "1"
-    assert job_stub_payload()["error"].startswith("heavy CFD")
+    stub = job_stub_payload()
+    assert stub["error"].startswith("heavy CFD")
+    assert stub["result_semantics"] == "raw_unvalidated"
+    assert stub["warning"] == CFD_RAW_RESULTS_WARNING
 
 
 def test_register_rest_routes_on_router_like_app() -> None:
@@ -545,6 +576,87 @@ def test_cfd_routes_failed_command_logs_and_artifact_bounds(tmp_path) -> None:
             assert malformed["error"] == "malformed_raw_result"
             assert malformed["artifact_ref"] == "raw-result.json"
             assert job_dir.endswith(job_id)
+        finally:
+            await client.close()
+
+    asyncio.run(scenario())
+
+
+def test_cfd_routes_fixture_command_success_remains_raw_unvalidated(tmp_path) -> None:
+    mesh_dir = tmp_path / "mesh"
+    write_mesh_package(Hull(), mesh_dir, stations=8)
+
+    async def scenario() -> None:
+        from aiohttp import web
+        from aiohttp.test_utils import TestClient, TestServer
+
+        app = web.Application()
+        register_rest_routes(app, cfd_store=CfdWebStore(tmp_path / "jobs"))
+        client = TestClient(TestServer(app))
+        await client.start_server()
+        try:
+            profiles_response = await client.get("/api/cfd/profiles")
+            profiles = await profiles_response.json()
+            fixture_profile = next(
+                profile for profile in profiles["profiles"]
+                if profile["name"] == "fixture-local-command"
+            )
+            assert fixture_profile["adapter_name"] == "fixture_local_command"
+            assert fixture_profile["result_semantics"] == "raw_unvalidated"
+            assert fixture_profile["claim_state"] == "raw_unvalidated"
+            assert fixture_profile["accepted_uses"] == []
+
+            create_response = await client.post(
+                "/api/cfd/jobs",
+                json={
+                    "mesh_package_ref": str(mesh_dir),
+                    "solver_profile": "fixture-local-command",
+                    "speed_mps": 2.4,
+                },
+            )
+            created = await create_response.json()
+            assert create_response.status == 201
+            assert created["result_semantics"] == "raw_unvalidated"
+            assert created["warning"] == CFD_RAW_RESULTS_WARNING
+            assert created["run"]["status"] == "queued"
+            assert created["run"]["claim_state"] == "raw_unvalidated"
+
+            job_id = created["job_id"]
+            run_response = await client.post(f"/api/cfd/jobs/{job_id}/run")
+            run = await run_response.json()
+            assert run_response.status == 200
+            assert run["result_semantics"] == "raw_unvalidated"
+            assert run["warning"] == CFD_RAW_RESULTS_WARNING
+            assert run["run"]["status"] == "succeeded"
+            assert run["run"]["result_semantics"] == "raw_unvalidated"
+            assert run["run"]["claim_state"] == "raw_unvalidated"
+            assert run["run"]["accepted_uses"] == []
+            assert CFD_FIXTURE_RESULTS_WARNING in run["run"]["warnings"]
+
+            logs_response = await client.get(f"/api/cfd/jobs/{job_id}/logs")
+            logs = await logs_response.json()
+            assert logs_response.status == 200
+            assert logs["result_semantics"] == "raw_unvalidated"
+            assert logs["warning"] == CFD_RAW_RESULTS_WARNING
+            assert "stdout" in logs["logs"]
+
+            raw_response = await client.get(f"/api/cfd/jobs/{job_id}/raw-result")
+            raw = await raw_response.json()
+            assert raw_response.status == 200
+            assert raw["result_semantics"] == "raw_unvalidated"
+            assert raw["warning"] == CFD_RAW_RESULTS_WARNING
+            raw_result = raw["artifact"]["raw_result"]
+            assert raw_result["claim_state"] == "raw_unvalidated"
+            assert raw_result["accepted_uses"] == []
+            assert raw_result["validation_fixture_ids"] == []
+            assert raw_result["calibration_fixture_ids"] == []
+            assert raw_result["drag_force_n"] > 0.0
+            assert CFD_FIXTURE_RESULTS_WARNING in raw_result["warnings"]
+
+            status_lines = cfd_status_lines_from_payload(run)
+            assert any("still raw solver output" in line for line in status_lines)
+            raw_lines = cfd_raw_result_lines_from_payload(raw)
+            assert any("not calibrated or validated" in line for line in raw_lines)
         finally:
             await client.close()
 

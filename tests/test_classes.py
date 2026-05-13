@@ -6,6 +6,7 @@ from kayakgen.eval.hydrostatics import evaluate
 from kayakgen.model.advisory import design_advisory
 from kayakgen.model.classes import CLASSES, get_class, list_classes
 from kayakgen.model.hull import Hull
+from kayakgen.model.validity import CODE_CP_HIGH, CODE_L_BWL_LOW
 
 
 def test_canonical_classes_present() -> None:
@@ -75,12 +76,19 @@ def test_design_advisory_reports_shared_warning_bands() -> None:
     broad = design_advisory(Hull(length_m=4.0, beam_oa_m=0.70, beam_wl_m=0.65))
     assert broad.l_over_bwl < 8
     assert "L/B_wl below touring guidance" in broad.warnings
+    assert CODE_L_BWL_LOW in broad.design_validity.codes()
 
     full_ends = design_advisory(Hull(Cp=0.66))
     assert "Cp above recommended kayak range" in full_ends.warnings
+    assert CODE_CP_HIGH in full_ends.design_validity.codes()
 
     overloaded = design_advisory(Hull(), displaced_mass_kg=190.0)
     assert "displacement above typical single-paddler load" in overloaded.warnings
+    assert overloaded.warnings == tuple(
+        finding.message
+        for finding in overloaded.design_validity.findings
+        if finding.level == "advisory" and finding.severity == "warning"
+    )
 
 
 def test_design_advisory_keeps_class_defaults_quiet() -> None:

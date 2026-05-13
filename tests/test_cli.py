@@ -11,6 +11,7 @@ from kayakgen.cli.main import app
 from kayakgen.eval.contract import LoadCase, LongitudinalLoadComponent
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.model.hull import Hull
+from kayakgen.model.validity import CODE_L_BWL_LOW
 
 FIXTURE_PROFILE_NAME = "fixture-local-command"
 FIXTURE_WARNING_FRAGMENT = "not calibrated, validated, or final design fitness"
@@ -140,6 +141,40 @@ def test_evaluate_accepts_non_default_bow_rake_and_beam_wl(tmp_path) -> None:
     assert data["hydrostatics"]["waterplane_area_m2"] == pytest.approx(
         expected.waterplane_area_m2
     )
+    assert data["design_validity"]["schema_version"] == "1"
+    assert isinstance(data["design_validity"]["findings"], list)
+
+
+def test_evaluate_json_includes_design_validity_for_valid_hulls(tmp_path) -> None:
+    hull_model = Hull(length_m=4.0, beam_oa_m=0.70, beam_wl_m=0.65)
+    hull = tmp_path / "advisory.json"
+    out = tmp_path / "advisory.eval.json"
+    hull.write_text(hull_model.model_dump_json())
+
+    result = CliRunner().invoke(
+        app,
+        ["evaluate", str(hull), "--skip-resistance", "--out", str(out)],
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(out.read_text())
+    assert data["design_validity"]["warning_count"] == 1
+    assert data["design_validity"]["findings"][0]["code"] == CODE_L_BWL_LOW
+    assert data["design_validity"]["findings"][0]["surface"] == ["cli"]
+
+
+def test_evaluate_still_rejects_invalid_beam_wl(tmp_path) -> None:
+    hull = tmp_path / "invalid.json"
+    out = tmp_path / "invalid.eval.json"
+    hull.write_text(json.dumps({"beam_oa_m": 0.55, "beam_wl_m": 0.60}))
+
+    result = CliRunner().invoke(
+        app,
+        ["evaluate", str(hull), "--skip-resistance", "--out", str(out)],
+    )
+
+    assert result.exit_code != 0
+    assert not out.exists()
 
 
 def test_evaluate_with_resistance_prints_claim_warning(tmp_path) -> None:
