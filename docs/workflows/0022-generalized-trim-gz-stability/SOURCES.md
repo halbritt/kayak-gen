@@ -1,0 +1,21 @@
+# Sources - 0022 generalized trim and GZ stability
+
+- `AGENTS.md`
+- `docs/rfcs/0011-hydrostatic-stability-load-cases.md`
+- `docs/rfcs/0014-generalized-trim-and-gz-stability.md`
+- `docs/workflows/0018-deferred-backlog/QUEUE.md`
+- `docs/workflows/0022-generalized-trim-gz-stability/SOURCES.md`
+- `docs/rfcs/README.md`
+- `docs/design/kayak_hull_design_constraints.md`
+- `docs/PRD.md`
+- `kayakgen/eval/contract.py`
+- `kayakgen/eval/hydrostatics.py`
+- `kayakgen/eval/stability.py`
+- `kayakgen/model/hull.py`
+- `kayakgen/cli/main.py`
+- `kayakgen/search/sweep.py`
+- `kayakgen/search/compare.py`
+- `tests/test_stability.py`
+- `tests/test_cli.py`
+- `tests/test_sweep.py`
+- `tests/test_compare.py`
