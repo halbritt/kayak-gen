@@ -13,7 +13,8 @@ Produce
 On the first attempt, prepare the review packet: confirm the RFC/workflow
 scope, named deferrals (no hosted CFD, no calibrated drag, no high-angle GZ
 visualisation, no multi-variant overlay, no web-side mesh-package authoring
-API), expected review lanes, and no-product-code boundary are clear. On a
+API), expected review lanes including ergonomics/design, and no-product-code
+boundary are clear. On a
 revision attempt caused by a first-pass `needs_revision` verdict, read the
 blocking review notes and repair only RFC/workflow scaffold issues needed
 before that review can run again.

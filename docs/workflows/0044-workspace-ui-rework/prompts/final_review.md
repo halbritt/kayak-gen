@@ -13,6 +13,9 @@ Verdict must be `accept` or `needs_revision`. Verify that:
 
 - The three-region workspace shell renders with the expected region test
   ids on web, and that the desktop GUI uses the same regions.
+- Ergonomics/design ledger findings are resolved or explicitly deferred:
+  first-viewport scan path, parameter editing, warning triage, responsive
+  collapse, focus/keyboard behavior, and desktop/web conceptual parity.
 - Every chip, persistent banner, and status-bar segment renders the exact
   copy from RFC 0033 §4–§6 and the original Claude Design handoff.
 - The forbidden-claim regression tests cover every no-go string in RFC 0033

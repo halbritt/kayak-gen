@@ -14,6 +14,7 @@
 - `docs/rfcs/0025-cfd-calibration-claim-gates.md`
 - `docs/rfcs/0031-design-constraint-surfacing-revision.md`
 - `docs/rfcs/0033-workspace-ui-rework.md`
+- `CLAUDE_DESIGN_UI_REWORK_PROMPT.md`
 - `docs/workflows/0042-design-constraint-surfacing-revision/workflow.json`
 - `kayakgen/eval/claims.py`
 - `kayakgen/eval/mesh_diagnostics.py`
@@ -44,3 +45,9 @@ shipped with the bundle is illustrative only. Recreate the visual
 output via the target codebase (Trame/Vuetify for web, PyQt6 +
 matplotlib + PyVista for desktop); do not copy the prototype's React
 component structure.
+
+The scaffold includes a dedicated ergonomics/design review lane. That
+review must evaluate workflow usability, first-viewport scan path,
+control affordances, responsive collapse behavior, accessibility, and
+desktop/web conceptual parity before the findings ledger narrows the
+implementation slice.

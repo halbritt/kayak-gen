@@ -14,7 +14,9 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   literals, structured advisory records additive to `DesignAdvisory.warnings`,
   a four-segment status bar, and forbidden-claim regression coverage for the
   Claude Design handoff's no-go strings. No backend capabilities are
-  introduced; every existing REST route keeps its JSON shape.
+  introduced; every existing REST route keeps its JSON shape. Workflow 0044
+  now includes a dedicated ergonomics/design review lane before findings are
+  ledgered.
 - Added workflow 0039's RFC 0028 plumb-stem closure safe slice: independent
   `stern_rake`, explicit bow/stern coordinate convention, and exact-plumb
   endpoint/cap semantics for generated closed-body diagnostics while keeping

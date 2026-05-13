@@ -8,13 +8,15 @@ Updated: 2026-05-13
 - Scope targets RFC 0033, which translates the Claude Design "UI Rework
   Handoff" bundle (chat transcript dated 2026-05-13 and
   `UI Rework Handoff.md`) into the project's RFC conventions.
-- The workflow uses a `review_remediation` synthesis job before the three
+- The workflow uses a `review_remediation` synthesis job before the four
   review lanes so first-pass `needs_revision` verdicts have a declared
   Striatum cycle, mirroring workflow 0042.
-- The workflow preserves the three review lanes: traceability, domain, and
-  ops/test. The review_remediation job is permitted to touch only the RFC,
-  RFC index, this workflow scaffold, the changelog, and its own striatum
-  artifact directory.
+- The workflow preserves traceability, domain, and ops/test review, and adds
+  a dedicated ergonomics/design review lane for scan path, control
+  affordances, responsive behavior, accessibility, and desktop/web parity.
+  The review_remediation job is permitted to touch only the RFC, RFC index,
+  this workflow scaffold, the changelog, and its own striatum artifact
+  directory.
 - The implementation slice is intentionally narrow: one new theme module,
   one structured advisory record, three read-model helpers in
   `controllers.py`, a refactored web shell, desktop touch-ups (Cm slider,

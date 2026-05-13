@@ -19,6 +19,7 @@
     "review_remediator": {"definition_path": "roles/review_remediator.md"},
     "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
     "reviewer_domain": {"definition_path": "roles/reviewer_domain.md"},
+    "reviewer_ergonomics_design": {"definition_path": "roles/reviewer_ergonomics_design.md"},
     "reviewer_ops": {"definition_path": "roles/reviewer_ops.md"},
     "ledger": {"definition_path": "roles/ledger.md"},
     "implementer": {"definition_path": "roles/implementer.md"},
@@ -37,6 +38,7 @@
     {"path": "docs/rfcs/0025-cfd-calibration-claim-gates.md", "required": true},
     {"path": "docs/rfcs/0031-design-constraint-surfacing-revision.md", "required": true},
     {"path": "docs/rfcs/0033-workspace-ui-rework.md", "required": true},
+    {"path": "CLAUDE_DESIGN_UI_REWORK_PROMPT.md", "required": true},
     {"path": "docs/workflows/0044-workspace-ui-rework/SOURCES.md", "required": true},
     {"path": "docs/workflows/0042-design-constraint-surfacing-revision/workflow.json", "required": true},
     {"path": "kayakgen/model/advisory.py", "required": false},
@@ -54,7 +56,7 @@
     {"path": "kayakgen/ui/pv_window.py", "required": false},
     {"path": "tests", "required": true}
   ],
-  "parallelism": {"mode": "declared", "max_active_jobs": 3, "require_disjoint_write_scopes": true},
+  "parallelism": {"mode": "declared", "max_active_jobs": 4, "require_disjoint_write_scopes": true},
   "review_revision_policy": {
     "root_review_needs_revision": "declared_cycle",
     "description": "First-pass review needs_revision verdicts cycle to review_remediation before re-review."
@@ -108,6 +110,19 @@
       "task_prompt": {"path": "prompts/review_domain.md"},
       "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0044-workspace-ui-rework/domain/"], "forbidden_paths": [".striatum/"]},
       "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0044-workspace-ui-rework/domain/REVIEW_DOMAIN.md", "required": true}]
+    },
+    {
+      "id": "review_ergonomics_design",
+      "type": "review",
+      "title": "Review ergonomics and interaction design",
+      "role_id": "reviewer_ergonomics_design",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review whether RFC 0033 creates a usable expert workspace across desktop and web: scan path, control ergonomics, information density, interaction states, accessibility expectations, and design-system fit without inventing new backend capabilities.",
+      "task_prompt": {"path": "prompts/review_ergonomics_design.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0044-workspace-ui-rework/ergonomics/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0044-workspace-ui-rework/ergonomics/REVIEW_ERGONOMICS_DESIGN.md", "required": true}]
     },
     {
       "id": "review_ops",
@@ -180,9 +195,11 @@
   "edges": [
     {"from": "review_remediation", "to": "review_traceability", "on": "completed"},
     {"from": "review_remediation", "to": "review_domain", "on": "completed"},
+    {"from": "review_remediation", "to": "review_ergonomics_design", "on": "completed"},
     {"from": "review_remediation", "to": "review_ops", "on": "completed"},
     {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
     {"from": "review_domain", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ergonomics_design", "to": "findings_ledger", "on": "completed"},
     {"from": "review_ops", "to": "findings_ledger", "on": "completed"},
     {"from": "findings_ledger", "to": "implement_findings", "on": "completed"},
     {"from": "implement_findings", "to": "final_review", "on": "completed"}
@@ -190,6 +207,7 @@
   "cycles": [
     {"from": "review_traceability", "to": "review_remediation", "on_verdict": "needs_revision", "max_iterations": 1},
     {"from": "review_domain", "to": "review_remediation", "on_verdict": "needs_revision", "max_iterations": 1},
+    {"from": "review_ergonomics_design", "to": "review_remediation", "on_verdict": "needs_revision", "max_iterations": 1},
     {"from": "review_ops", "to": "review_remediation", "on_verdict": "needs_revision", "max_iterations": 1, "allow_same_lane": true},
     {"from": "final_review", "to": "implement_findings", "on_verdict": "needs_revision", "max_iterations": 1}
   ]

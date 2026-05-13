@@ -17,7 +17,7 @@ first review packet. If any first-pass review returns
 `needs_revision`, Striatum cycles that review back through
 `review_remediation` once before re-running the review.
 
-After all three review lanes accept or accept with findings, the run
+After all four review lanes accept or accept with findings, the run
 proceeds through `findings_ledger`, `implement_findings`, and
 `final_review`. A final review `needs_revision` cycles once back to
 `implement_findings`.

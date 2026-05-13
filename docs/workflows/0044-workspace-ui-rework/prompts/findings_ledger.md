@@ -7,6 +7,7 @@ Read all accepted first-pass review artifacts:
 
 - `striatum/0044-workspace-ui-rework/traceability/REVIEW_TRACEABILITY.md`
 - `striatum/0044-workspace-ui-rework/domain/REVIEW_DOMAIN.md`
+- `striatum/0044-workspace-ui-rework/ergonomics/REVIEW_ERGONOMICS_DESIGN.md`
 - `striatum/0044-workspace-ui-rework/ops/REVIEW_OPS.md`
 
 Produce
@@ -16,6 +17,10 @@ Deduplicate findings into a conservative implementation ledger. Separate
 safe-now workspace shell, theme module, structured advisory, and chip work
 from future hosted CFD, calibrated drag, high-angle GZ visualisation,
 multi-variant overlay, and web-side mesh-package authoring API.
+Keep ergonomics/design findings distinct enough that implementation can
+trace first-viewport layout, parameter editing, warning triage, responsive
+collapse, focus/keyboard behavior, and desktop/web parity decisions back to
+their source review.
 
 Include gate result, stats, findings, required implementation guidance, and
 explicit deferrals. Do not update the root `OPERATOR_REPORT.md`. Do not

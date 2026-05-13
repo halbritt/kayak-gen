@@ -8,6 +8,9 @@ Updated: 2026-05-13
   must be performed by Striatum-assigned agents, with this session limited to
   orchestration, artifact handling, report updates, trunk hygiene, and branch
   cleanup.
+- 2026-05-13T20:56:04Z checkpoint: workflow 0044 scaffold was amended to add
+  a dedicated ergonomics/design first-pass review lane before findings ledger
+  and implementation. The workflow validates with the repo venv Striatum CLI.
 - Next maximum-parallel batch queued from the ready backlog: workflows 0033,
   0037, 0038, 0039, 0040, and 0041. Workflows 0034 and 0035 remain queued until
   0033 lands because they depend on generated closed-body evidence.
