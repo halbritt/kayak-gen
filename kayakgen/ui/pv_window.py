@@ -4,10 +4,25 @@ from __future__ import annotations
 
 import numpy as np
 import pyvista as pv
-from PyQt6.QtWidgets import QHBoxLayout, QMainWindow, QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import (
+    QHBoxLayout,
+    QMainWindow,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 from pyvistaqt import QtInteractor
 
+from kayakgen.ui import theme
 from kayakgen.ui.gui_params import hull_from_gui_params as _hull_from_gui_params
+
+
+PV_COLORS = {
+    "viewport_bg": theme.vtk_background_rgb(dark=False),
+    "hull": theme.PLOT_PALETTE["hull"],
+    "deck": theme.PLOT_PALETTE["deck"],
+    "waterline": theme.PLOT_PALETTE["waterline"],
+}
 
 
 def _build_pv_mesh(vertices: np.ndarray, faces: np.ndarray) -> pv.PolyData:
@@ -45,7 +60,7 @@ class PyVistaWindow(QMainWindow):
         self._plotter = QtInteractor(central)
         layout.addWidget(self._plotter.interactor)
 
-        self._plotter.set_background("#1a1a2e")
+        self._plotter.set_background(PV_COLORS["viewport_bg"])
         self._hull_actor = None
         self._deck_actor = None
         self._build_scene(params)
@@ -64,7 +79,7 @@ class PyVistaWindow(QMainWindow):
 
         self._hull_actor = self._plotter.add_mesh(
             hull_pv,
-            color="#3a7ebf",
+            color=PV_COLORS["hull"],
             smooth_shading=True,
             split_sharp_edges=True,
             show_edges=False,
@@ -72,7 +87,7 @@ class PyVistaWindow(QMainWindow):
         )
         self._deck_actor = self._plotter.add_mesh(
             deck_pv,
-            color="#4caf6e",
+            color=PV_COLORS["deck"],
             smooth_shading=True,
             split_sharp_edges=True,
             opacity=0.85,
@@ -86,7 +101,11 @@ class PyVistaWindow(QMainWindow):
             j_size=geom.B * 2.0,
         )
         self._plotter.add_mesh(
-            wl, color="#aaddff", opacity=0.2, show_edges=False, name="waterline"
+            wl,
+            color=PV_COLORS["waterline"],
+            opacity=0.2,
+            show_edges=False,
+            name="waterline",
         )
 
     def update_mesh(self, params: dict) -> None:

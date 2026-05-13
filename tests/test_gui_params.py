@@ -14,6 +14,7 @@ def test_gui_params_preserve_new_hull_fields() -> None:
             "draft": 0.12,
             "deck_height": 0.23,
             "Cp": 0.54,
+            "Cm": 0.81,
             "deck_flatness": 8.0,
             "center_box_ratio": 0.33,
             "bow_rake": 0.0,
@@ -21,5 +22,6 @@ def test_gui_params_preserve_new_hull_fields() -> None:
         }
     )
     assert hull.beam_wl_m == 0.53
+    assert hull.Cm == 0.81
     assert hull.bow_rake == 0.0
     assert hull.stern_rake == 1.0

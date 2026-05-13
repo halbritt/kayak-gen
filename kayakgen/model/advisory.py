@@ -18,6 +18,18 @@ from kayakgen.model.validity import (
 
 
 @dataclass(frozen=True)
+class Advisory:
+    """Structured warning guidance for UI field highlighting."""
+
+    code: str
+    message: str
+    field_refs: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "field_refs", tuple(self.field_refs))
+
+
+@dataclass(frozen=True)
 class DesignAdvisory:
     """Derived advisory metrics and warning strings for a hull."""
 
@@ -25,6 +37,7 @@ class DesignAdvisory:
     cp: float
     displaced_mass_kg: float | None
     warnings: tuple[str, ...]
+    advisories: tuple[Advisory, ...]
     design_validity: DesignValidityReport
 
 
@@ -60,5 +73,20 @@ def design_advisory(
         cp=cp_value,
         displaced_mass_kg=displaced_mass_kg,
         warnings=design_warning_messages(report),
+        advisories=_advisories_from_design_validity(report),
         design_validity=report,
+    )
+
+
+def _advisories_from_design_validity(
+    report: DesignValidityReport,
+) -> tuple[Advisory, ...]:
+    return tuple(
+        Advisory(
+            code=finding.code,
+            message=finding.message,
+            field_refs=finding.parameters,
+        )
+        for finding in report.findings
+        if finding.level == "advisory" and finding.severity == "warning"
     )

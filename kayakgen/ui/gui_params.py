@@ -13,6 +13,7 @@ GUI_TO_HULL = {
     "draft": "draft_m",
     "deck_height": "deck_height_m",
     "Cp": "Cp",
+    "Cm": "Cm",
     "deck_flatness": "deck_flatness",
     "center_box_ratio": "center_box_ratio",
     "bow_rake": "bow_rake",

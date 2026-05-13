@@ -16,7 +16,9 @@ from trame.widgets import vtk as vtkw
 from trame.widgets import vuetify3 as v3
 
 from kayakgen.model.hull import Hull
+from kayakgen.ui import theme
 from kayakgen.ui.web.controllers import (
+    CFD_LOCAL_FILESYSTEM_NOTICE,
     CFD_RAW_RESULTS_WARNING,
     CfdWebError,
     CfdWebStore,
@@ -65,6 +67,120 @@ SLIDER_DEFS: list[tuple[str, str, float, float, float]] = [
     ("stern_rake", "Stern Rake (1=raked)", 0.0, 1.0, 0.05),
     ("target_speed_kt", "Target Speed (kt)", 1.0, 6.0, 0.1),
 ]
+
+PARAMETER_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "Principal dimensions",
+        ("length_m", "beam_oa_m", "beam_wl_m", "draft_m", "deck_height_m"),
+    ),
+    (
+        "Shape coefficients",
+        ("Cp", "Cm", "deck_flatness", "center_box_ratio"),
+    ),
+    ("Ends and view", ("bow_rake", "stern_rake", "target_speed_kt")),
+)
+
+CLASS_PRESETS: tuple[str, ...] = (
+    "touring",
+    "performance",
+    "surfski_int",
+    "surfski_elite",
+    "custom",
+)
+
+REVIEW_TABS: tuple[dict[str, str], ...] = (
+    {"label": "Hydro", "value": "analysis", "test_id": "tab-hydro"},
+    {"label": "Mesh", "value": "mesh", "test_id": "tab-mesh"},
+    {"label": "Comparison", "value": "comparison", "test_id": "tab-comparison"},
+    {"label": "CFD", "value": "cfd", "test_id": "tab-cfd"},
+    {"label": "Advisories", "value": "advisories", "test_id": "tab-advisories"},
+)
+
+STATUS_SEGMENTS: tuple[dict[str, str], ...] = (
+    {
+        "key": "package",
+        "state_key": "status_package",
+        "target_tab": "mesh",
+        "aria_label": "package profile status",
+    },
+    {
+        "key": "readiness",
+        "state_key": "status_readiness",
+        "target_tab": "mesh",
+        "aria_label": "mesh readiness level",
+    },
+    {
+        "key": "resistance",
+        "state_key": "status_resistance",
+        "target_tab": "analysis",
+        "aria_label": "resistance claim state",
+    },
+    {
+        "key": "cfd",
+        "state_key": "status_cfd",
+        "target_tab": "cfd",
+        "aria_label": "local CFD job status",
+    },
+)
+
+LAYOUT_TEST_IDS: dict[str, str] = {
+    "params": "region-params",
+    "geometry": "region-geometry",
+    "review": "region-review",
+}
+
+REGION_CLASSES: dict[str, str] = {
+    "params": "kg-region kg-region-params kg-parameter-rail kg-collapse-under-960",
+    "geometry": (
+        "kg-region kg-region-geometry kg-geometry-pane "
+        "kg-geometry-accordion-under-960"
+    ),
+    "review": "kg-region kg-region-review kg-review-pane kg-review-body-under-960",
+}
+
+RESPONSIVE_CLASS_HOOKS: tuple[str, ...] = (
+    "kg-workspace-shell",
+    "kg-workspace-grid",
+    "kg-collapse-under-960",
+    "kg-geometry-accordion-under-960",
+    "kg-review-body-under-960",
+    "kg-export-menu-under-1200",
+    "kg-metrics-strip-scroll",
+    "kg-status-wrap-under-960",
+)
+
+RAW_COMPARATIVE_CAPTION = "Raw comparative filter; not final prediction."
+RESISTANCE_DETAIL_COPY = (
+    "Uncalibrated; no accepted final-prediction validity envelope. "
+    "Compare nearby candidates, do not report as drag."
+)
+HIGH_ANGLE_GZ_HEADING = "High-angle GZ unavailable"
+HIGH_ANGLE_GZ_COPY = (
+    "High-angle GZ visualisation is deferred; see RFC 0020 / RFC 0024."
+)
+MESH_PACKAGE_READINESS_HEADING = "Mesh package readiness"
+MESH_PROFILE_LABEL = "open-wetted-surface"
+MESH_PROFILE_ID = "open_wetted_surface_resistance_v1"
+MESH_READINESS_LEVEL = "cfd_surface_candidate"
+MESH_PACKAGE_READINESS_COPY = "Open wetted-surface profile; not watertight cfd_ready."
+WATERTIGHT_DISABLED_COPY = (
+    "Current generated packages do not satisfy watertight-solid readiness."
+)
+CFD_ARTIFACT_STRAPLINE = "Raw solver artifact only; not calibrated or validated."
+SHARE_TOAST_COPY = "Shareable URL copied"
+
+PERSISTENT_COPY: dict[str, str] = {
+    "raw_comparative_filter": RAW_COMPARATIVE_CAPTION,
+    "resistance_detail": RESISTANCE_DETAIL_COPY,
+    "high_angle_gz_heading": HIGH_ANGLE_GZ_HEADING,
+    "mesh_package_readiness_heading": MESH_PACKAGE_READINESS_HEADING,
+    "mesh_package_readiness": MESH_PACKAGE_READINESS_COPY,
+    "cfd_local_banner": CFD_LOCAL_FILESYSTEM_NOTICE,
+    "cfd_artifact_strapline": CFD_ARTIFACT_STRAPLINE,
+    "share_toast": SHARE_TOAST_COPY,
+}
+
+_SLIDER_BY_KEY = {key: (label, vmin, vmax, step) for key, label, vmin, vmax, step in SLIDER_DEFS}
 
 
 def _build_polydata(vertices: np.ndarray, faces: np.ndarray) -> vtk.vtkPolyData:
@@ -123,9 +239,19 @@ class KayakgenApp:
         self.state.update(state_dict_from_hull(hull))
         self.state.target_speed_kt = 3.5
         self.state.share_url = ""
+        self.state.share_status = ""
+        self.state.share_toast = False
         self.state.metrics_lines = []
         self.state.analysis_tab = "analysis"
         self.state.analysis_lines = []
+        self.state.class_preset = "custom"
+        self.state.mesh_profile_label = MESH_PROFILE_LABEL
+        self.state.mesh_profile_id = MESH_PROFILE_ID
+        self.state.mesh_profile_options = [MESH_PROFILE_LABEL, "watertight-solid"]
+        self.state.mesh_readiness_level = MESH_READINESS_LEVEL
+        self.state.mesh_package_readiness_copy = MESH_PACKAGE_READINESS_COPY
+        self.state.advisory_count = 0
+        self.state.advisory_lines = ["No design advisories for current hull."]
         self.state.comparison_json = ""
         self.state.comparison_status = "Paste a comparison report JSON to inspect candidates."
         self.state.comparison_lines = []
@@ -141,13 +267,20 @@ class KayakgenApp:
         self.state.cfd_speed_mps = 2.5
         self.state.cfd_job_id = ""
         self.state.cfd_warning = CFD_RAW_RESULTS_WARNING
+        self.state.cfd_local_banner = CFD_LOCAL_FILESYSTEM_NOTICE
+        self.state.cfd_artifact_strapline = CFD_ARTIFACT_STRAPLINE
         self.state.cfd_jobs_root = ""
         self.state.cfd_status_lines = cfd_status_lines_from_payload(None)
         self.state.cfd_logs_lines = []
         self.state.cfd_raw_result_lines = []
+        self.state.status_package = MESH_PROFILE_LABEL
+        self.state.status_readiness = MESH_READINESS_LEVEL
+        self.state.status_resistance = "uncalibrated_comparative"
+        self.state.status_cfd = "unavailable"
+        self.state.status_segments = []
 
         self._renderer = vtk.vtkRenderer()
-        self._renderer.SetBackground(0.10, 0.10, 0.18)
+        self._renderer.SetBackground(*theme.vtk_background_rgb(dark=False))
         self._render_window = vtk.vtkRenderWindow()
         self._render_window.AddRenderer(self._renderer)
         self._render_window.SetOffScreenRendering(1)
@@ -172,12 +305,14 @@ class KayakgenApp:
         self.ctrl.run_cfd_job = lambda: self._run_cfd_job()
         self.ctrl.load_cfd_logs = lambda: self._load_cfd_logs()
         self.ctrl.load_cfd_raw_result = lambda: self._load_cfd_raw_result()
+        self.ctrl.focus_review_tab = lambda tab: self._focus_review_tab(tab)
         self.ctrl.on_server_bind.add(self._on_server_bind)
 
         self._wire_state_listeners()
         self._build_layout()
         self._refresh_metrics()
         self._refresh_analysis()
+        self._refresh_status_segments()
 
     # ----- 3D scene -----
 
@@ -191,8 +326,16 @@ class KayakgenApp:
         v_hull, f_hull = geom.mesh("hull", stations=80)
         v_deck, f_deck = geom.mesh("deck", stations=80)
 
-        self._hull_actor = _make_actor(_build_polydata(v_hull, f_hull), (0.227, 0.494, 0.749), 1.0)
-        self._deck_actor = _make_actor(_build_polydata(v_deck, f_deck), (0.298, 0.686, 0.431), 0.85)
+        self._hull_actor = _make_actor(
+            _build_polydata(v_hull, f_hull),
+            theme.rgb_float("data-hull"),
+            1.0,
+        )
+        self._deck_actor = _make_actor(
+            _build_polydata(v_deck, f_deck),
+            theme.rgb_float("data-deck"),
+            0.85,
+        )
         self._renderer.AddActor(self._hull_actor)
         self._renderer.AddActor(self._deck_actor)
         self._renderer.ResetCamera()
@@ -211,6 +354,9 @@ class KayakgenApp:
             details = payload.get("details", [])
             messages = [f"{d['field']}: {d['message']}" for d in details]
             self.state.metrics_lines = ["Invalid hull state", *messages]
+            self.state.advisory_count = 0
+            self.state.advisory_lines = ["Advisories unavailable for invalid hull state."]
+            self._refresh_status_segments()
             return
         self.state.metrics_lines = [
             f"Displacement {m['displaced_mass_kg']:7.1f} kg",
@@ -229,6 +375,12 @@ class KayakgenApp:
             self.state.metrics_lines.extend(
                 ["Advisory", *[f"  {w}" for w in m["advisory_warnings"]]]
             )
+            self.state.advisory_lines = list(m["advisory_warnings"])
+        else:
+            self.state.advisory_lines = ["No design advisories for current hull."]
+        self.state.advisory_count = len(m["advisory_warnings"])
+        self.state.status_resistance = m["resistance_claim_state"]
+        self._refresh_status_segments()
 
     def _refresh_analysis(self) -> None:
         try:
@@ -238,6 +390,28 @@ class KayakgenApp:
             details = payload.get("details", [])
             messages = [f"{d['field']}: {d['message']}" for d in details]
             self.state.analysis_lines = ["Analysis unavailable", *messages]
+
+    def _refresh_status_segments(self) -> None:
+        self.state.status_package = MESH_PROFILE_LABEL
+        self.state.status_readiness = MESH_READINESS_LEVEL
+        self.state.status_segments = [
+            f"package: {self.state.status_package}",
+            f"readiness: {self.state.status_readiness}",
+            f"resistance: {self.state.status_resistance}",
+            f"cfd: {self.state.status_cfd}",
+        ]
+
+    def _set_cfd_status_segment(self, payload: dict[str, Any] | None = None) -> None:
+        status = "unavailable"
+        if payload:
+            run = payload.get("run", {})
+            status = str(run.get("status") or status)
+        self.state.status_cfd = status
+        self._refresh_status_segments()
+
+    def _focus_review_tab(self, tab: str) -> None:
+        if tab in {entry["value"] for entry in REVIEW_TABS}:
+            self.state.analysis_tab = tab
 
     def _on_param_change(self, **_kwargs: Any) -> None:
         normalized = clamp_beam_wl_state(dict(self.state.to_dict()))
@@ -297,6 +471,8 @@ class KayakgenApp:
 
     def _share_url(self) -> None:
         self.state.share_url = f"?hull={encode_hull_query(self._current_hull())}"
+        self.state.share_status = SHARE_TOAST_COPY
+        self.state.share_toast = True
 
     def _export_stl(self, part: str) -> None:
         from kayakgen.ui.web.controllers import stl_bytes_for_part
@@ -308,7 +484,10 @@ class KayakgenApp:
     def _reset(self) -> None:
         self.state.update(state_dict_from_hull(Hull()))
         self.state.target_speed_kt = 3.5
+        self.state.class_preset = "custom"
+        self.state.analysis_tab = "analysis"
         self._refresh_analysis()
+        self._refresh_metrics()
 
     def _load_comparison(self) -> None:
         model = comparison_view_model_from_json(str(self.state.comparison_json or ""))
@@ -349,6 +528,8 @@ class KayakgenApp:
 
     def _set_cfd_error(self, exc: CfdWebError, title: str) -> None:
         self.state.cfd_status_lines = cfd_error_lines_from_payload(exc.payload, title=title)
+        self.state.status_cfd = "failed"
+        self._refresh_status_segments()
 
     def _prepare_cfd_job(self) -> None:
         try:
@@ -360,6 +541,7 @@ class KayakgenApp:
         self.state.cfd_status_lines = cfd_status_lines_from_payload(payload)
         self.state.cfd_logs_lines = []
         self.state.cfd_raw_result_lines = []
+        self._set_cfd_status_segment(payload)
 
     def _refresh_cfd_job(self) -> None:
         try:
@@ -368,6 +550,7 @@ class KayakgenApp:
             self._set_cfd_error(exc, "CFD status unavailable")
             return
         self.state.cfd_status_lines = cfd_status_lines_from_payload(payload)
+        self._set_cfd_status_segment(payload)
 
     def _run_cfd_job(self) -> None:
         try:
@@ -376,6 +559,7 @@ class KayakgenApp:
             self._set_cfd_error(exc, "CFD run failed")
             return
         self.state.cfd_status_lines = cfd_status_lines_from_payload(payload)
+        self._set_cfd_status_segment(payload)
 
     def _load_cfd_logs(self) -> None:
         try:
@@ -411,179 +595,382 @@ class KayakgenApp:
 
     # ----- layout -----
 
+    def _region_attrs(self, region: str) -> dict[str, str]:
+        return {
+            "id": LAYOUT_TEST_IDS[region],
+            "data-testid": LAYOUT_TEST_IDS[region],
+            "aria-label": f"{region} region",
+            "classes": REGION_CLASSES[region],
+        }
+
     def _build_layout(self) -> None:
         with SinglePageWithDrawerLayout(self.server) as layout:
             layout.title.set_text("kayakgen")
 
             with layout.toolbar:
+                v3.VToolbarTitle("kayakgen ▸ {{ name }}", classes="kg-toolbar-breadcrumb")
                 v3.VSpacer()
-                v3.VBtn("Reset", click=self.ctrl.reset)
-                v3.VBtn("Share", click=self.ctrl.share_url)
-                v3.VBtn("Export Hull STL", click=lambda: self.ctrl.export_stl("hull"))
-                v3.VBtn("Export Deck STL", click=lambda: self.ctrl.export_stl("deck"))
+                v3.VSelect(
+                    v_model=("class_preset",),
+                    items=list(CLASS_PRESETS),
+                    label="Class",
+                    density="compact",
+                    hide_details=True,
+                    classes="kg-class-preset-select",
+                )
+                v3.VBtn("Reset", click=self.ctrl.reset, classes="kg-toolbar-action")
+                v3.VBtn("Share", click=self.ctrl.share_url, classes="kg-toolbar-action")
+                v3.VBtn(
+                    "Export Hull STL",
+                    click=lambda: self.ctrl.export_stl("hull"),
+                    classes="kg-toolbar-action kg-export-menu-under-1200",
+                )
+                v3.VBtn(
+                    "Export Deck STL",
+                    click=lambda: self.ctrl.export_stl("deck"),
+                    classes="kg-toolbar-action kg-export-menu-under-1200",
+                )
+                v3.VSnackbar(
+                    "{{ share_status }}",
+                    v_model=("share_toast",),
+                    timeout=3000,
+                    location="top right",
+                    classes="kg-share-toast",
+                )
+                v3.VTextField(
+                    v_model=("share_url",),
+                    label="Share state",
+                    readonly=True,
+                    hide_details=True,
+                    classes="kg-share-state-probe",
+                    style=(
+                        "position: absolute; left: -10000px; top: auto; "
+                        "width: 1px; height: 1px; overflow: hidden;"
+                    ),
+                    **{
+                        "data-testid": "share-url-state",
+                        "aria-hidden": "true",
+                        "tabindex": "-1",
+                    },
+                )
 
             with layout.drawer as drawer:
                 drawer.width = 360
-                with v3.VContainer():
-                    for key, label, vmin, vmax, step in SLIDER_DEFS:
-                        v3.VSlider(
-                            v_model=(key,),
-                            label=label,
-                            min=vmin,
-                            max=vmax,
-                            step=step,
-                            thumb_label="always",
-                            density="compact",
-                            classes="mt-2",
-                        )
-                    v3.VDivider()
-                    v3.VTextField(
-                        v_model=("share_url",),
-                        label="Shareable URL",
-                        readonly=True,
+                with v3.VContainer(**self._region_attrs("params")):
+                    v3.VCardTitle("Parameters", classes="kg-region-title")
+                    with v3.VRadioGroup(
+                        v_model=("class_preset",),
+                        inline=True,
+                        density="compact",
+                        hide_details=True,
+                        classes="kg-class-preset-radio",
+                    ):
+                        for preset in CLASS_PRESETS:
+                            v3.VRadio(label=preset, value=preset)
+                    for group_label, keys in PARAMETER_GROUPS:
+                        v3.VDivider(classes="mt-3")
+                        v3.VCardSubtitle(group_label, classes="kg-rail-group-label")
+                        for key in keys:
+                            label, vmin, vmax, step = _SLIDER_BY_KEY[key]
+                            v3.VSlider(
+                                v_model=(key,),
+                                label=label,
+                                min=vmin,
+                                max=vmax,
+                                step=step,
+                                thumb_label="always",
+                                density="compact",
+                                classes=f"kg-param-slider kg-param-{key} mt-2",
+                                **{
+                                    "data-param-key": key,
+                                    "data-testid": f"param-{key}",
+                                    "aria-label": label,
+                                },
+                            )
+                    v3.VDivider(classes="mt-3")
+                    v3.VChip(
+                        "Custom (L/B_wl from current hull)",
+                        classes="kg-validity-badge",
+                        size="small",
+                    )
+
+            with layout.content:
+                with v3.VContainer(
+                    fluid=True,
+                    classes="fill-height pa-0 kg-workspace-shell kg-workspace-grid",
+                    **{"data-testid": "workspace-shell"},
+                ):
+                    with v3.VRow(classes="ma-0 fill-height kg-workspace-main"):
+                        with v3.VCol(cols=12, md=7, classes="pa-2"):
+                            with v3.VContainer(fluid=True, **self._region_attrs("geometry")):
+                                v3.VCardTitle("Geometry", classes="kg-region-title")
+                                with v3.VSheet(
+                                    classes="kg-vtk-frame",
+                                    style=(
+                                        "height: 520px; min-height: 480px; "
+                                        "width: 100%;"
+                                    ),
+                                ):
+                                    self.view = vtkw.VtkRemoteView(
+                                        self._render_window,
+                                        ref="view",
+                                        classes="kg-vtk-viewport",
+                                        style=(
+                                            "height: 100%; min-height: 480px; "
+                                            "width: 100%; display: block;"
+                                        ),
+                                        **{"data-testid": "geometry-vtk-view"},
+                                    )
+                                with v3.VCard(classes="kg-metrics-strip kg-metrics-strip-scroll"):
+                                    v3.VCardTitle("Metrics")
+                                    v3.VCardText(
+                                        "<pre>{{ metrics_lines.join('\\n') }}</pre>",
+                                        classes="font-mono text-caption",
+                                        html=True,
+                                    )
+                        with v3.VCol(cols=12, md=5, classes="pa-2"):
+                            with v3.VContainer(fluid=True, **self._region_attrs("review")):
+                                with v3.VTabs(
+                                    v_model=("analysis_tab",),
+                                    classes="kg-review-tabs",
+                                    **{"data-testid": "review-tabs"},
+                                ):
+                                    for tab in REVIEW_TABS:
+                                        v3.VTab(
+                                            tab["label"],
+                                            value=tab["value"],
+                                            **{"data-testid": tab["test_id"]},
+                                        )
+                                with v3.VWindow(v_model=("analysis_tab",)):
+                                    self._render_hydro_tab()
+                                    self._render_mesh_tab()
+                                    self._render_comparison_tab()
+                                    self._render_cfd_tab()
+                                    self._render_advisories_tab()
+                    self._render_status_bar()
+
+    def _render_hydro_tab(self) -> None:
+        with v3.VWindowItem(value="analysis"):
+            with v3.VCard(classes="kg-review-card kg-hydro-card"):
+                v3.VCardTitle("Hydrostatics")
+                with v3.VCardText():
+                    v3.VBtn(
+                        "Refresh Analysis",
+                        click=self.ctrl.refresh_analysis,
+                        density="compact",
+                        classes="kg-review-action",
+                    )
+                    v3.VCardText(
+                        "<pre>{{ analysis_lines.join('\\n') }}</pre>",
+                        classes="font-mono text-caption mt-2",
+                        html=True,
+                    )
+                    v3.VChip(
+                        "Computed from integrated geometry (60 stations)",
+                        size="small",
+                        classes="kg-claim-chip",
+                    )
+            with v3.VCard(classes="kg-review-card kg-stability-card mt-2"):
+                v3.VCardTitle("Stability")
+                v3.VCardText("Primary stability (analytic from waterplane)")
+                v3.VCardTitle(HIGH_ANGLE_GZ_HEADING, classes="kg-unavailable-heading")
+                v3.VCardText(HIGH_ANGLE_GZ_COPY)
+            with v3.VCard(classes="kg-review-card kg-resistance-card mt-2"):
+                v3.VCardTitle("Resistance - raw comparative filter")
+                v3.VCardText(RAW_COMPARATIVE_CAPTION)
+                v3.VCardText(RESISTANCE_DETAIL_COPY)
+                v3.VChip(
+                    "uncalibrated_comparative",
+                    size="small",
+                    classes="kg-claim-chip kg-claim-uncalibrated",
+                )
+
+    def _render_mesh_tab(self) -> None:
+        with v3.VWindowItem(value="mesh"):
+            with v3.VCard(classes="kg-review-card kg-mesh-card"):
+                v3.VCardTitle("Hull diagnostics")
+                v3.VCardText(
+                    "Welded boundary edges, welded non-manifold edges, and "
+                    "degenerate faces are used for readiness interpretation."
+                )
+            with v3.VCard(classes="kg-review-card kg-mesh-card mt-2"):
+                v3.VCardTitle("Deck diagnostics")
+                v3.VCardText(
+                    "Welded boundary edges, welded non-manifold edges, and "
+                    "degenerate faces are used for readiness interpretation."
+                )
+            with v3.VCard(classes="kg-review-card kg-mesh-readiness-card mt-2"):
+                v3.VCardTitle(MESH_PACKAGE_READINESS_HEADING)
+                v3.VSelect(
+                    v_model=("mesh_profile_label",),
+                    items=("mesh_profile_options",),
+                    label="Profile",
+                    density="compact",
+                    readonly=True,
+                    classes="kg-mesh-profile-select",
+                )
+                v3.VCardText("Manifest profile: {{ mesh_profile_id }}")
+                v3.VChip(
+                    "{{ mesh_readiness_level }}",
+                    size="small",
+                    classes="kg-readiness-chip",
+                )
+                v3.VCardText("{{ mesh_package_readiness_copy }}")
+                v3.VCardText(WATERTIGHT_DISABLED_COPY)
+
+    def _render_comparison_tab(self) -> None:
+        with v3.VWindowItem(value="comparison"):
+            with v3.VCard(classes="kg-review-card kg-comparison-card"):
+                v3.VCardTitle("Comparison")
+                with v3.VCardText():
+                    v3.VTextarea(
+                        v_model=("comparison_json",),
+                        label="Comparison report JSON",
+                        rows=5,
+                        auto_grow=True,
+                        density="compact",
+                    )
+                    v3.VBtn(
+                        "Load Report",
+                        click=self.ctrl.load_comparison,
+                        density="compact",
+                        classes="mr-2",
+                    )
+                    v3.VSelect(
+                        v_model=("selected_candidate_index",),
+                        items=("comparison_candidate_options",),
+                        label="Candidate index",
                         density="compact",
                         classes="mt-2",
                     )
-                    with v3.VCard(classes="mt-3"):
-                        v3.VCardTitle("Metrics")
-                        v3.VCardText(
-                            "<pre>{{ metrics_lines.join('\\n') }}</pre>",
-                            classes="font-mono text-caption",
-                            html=True,
-                        )
+                    v3.VBtn(
+                        "Apply Candidate Parameters",
+                        click=self.ctrl.load_candidate,
+                        density="compact",
+                    )
+                    v3.VCardText("Pinned candidates: none", classes="kg-pinned-empty")
+                    v3.VCardText(
+                        "<pre>{{ comparison_status }}</pre>",
+                        classes="font-mono text-caption mt-2",
+                        html=True,
+                    )
+                    v3.VCardText(
+                        "<pre>{{ comparison_lines.join('\\n') }}</pre>",
+                        classes="font-mono text-caption",
+                        html=True,
+                    )
 
-            with layout.content:
-                with v3.VContainer(fluid=True, classes="fill-height pa-0"):
-                    self.view = vtkw.VtkRemoteView(self._render_window, ref="view")
-                    with v3.VCard(classes="ma-2"):
-                        with v3.VTabs(v_model=("analysis_tab",)):
-                            v3.VTab("Analysis", value="analysis")
-                            v3.VTab("Comparison", value="comparison")
-                            v3.VTab("CFD Jobs", value="cfd")
-                        with v3.VWindow(v_model=("analysis_tab",)):
-                            with v3.VWindowItem(value="analysis"):
-                                with v3.VCardText():
-                                    v3.VBtn(
-                                        "Refresh Analysis",
-                                        click=self.ctrl.refresh_analysis,
-                                        density="compact",
-                                    )
-                                    v3.VCardText(
-                                        "<pre>{{ analysis_lines.join('\\n') }}</pre>",
-                                        classes="font-mono text-caption mt-2",
-                                        html=True,
-                                    )
-                            with v3.VWindowItem(value="comparison"):
-                                with v3.VCardText():
-                                    v3.VTextarea(
-                                        v_model=("comparison_json",),
-                                        label="Comparison report JSON",
-                                        rows=5,
-                                        auto_grow=True,
-                                        density="compact",
-                                    )
-                                    v3.VBtn(
-                                        "Load Report",
-                                        click=self.ctrl.load_comparison,
-                                        density="compact",
-                                        classes="mr-2",
-                                    )
-                                    v3.VSelect(
-                                        v_model=("selected_candidate_index",),
-                                        items=("comparison_candidate_options",),
-                                        label="Candidate index",
-                                        density="compact",
-                                        classes="mt-2",
-                                    )
-                                    v3.VBtn(
-                                        "Apply Candidate Parameters",
-                                        click=self.ctrl.load_candidate,
-                                        density="compact",
-                                    )
-                                    v3.VCardText(
-                                        "<pre>{{ comparison_status }}</pre>",
-                                        classes="font-mono text-caption mt-2",
-                                        html=True,
-                                    )
-                                    v3.VCardText(
-                                        "<pre>{{ comparison_lines.join('\\n') }}</pre>",
-                                        classes="font-mono text-caption",
-                                        html=True,
-                                    )
-                            with v3.VWindowItem(value="cfd"):
-                                with v3.VCardText():
-                                    v3.VSelect(
-                                        v_model=("cfd_solver_profile",),
-                                        items=("cfd_profile_options",),
-                                        label="Local solver/test profile",
-                                        density="compact",
-                                    )
-                                    v3.VTextField(
-                                        v_model=("cfd_mesh_package_ref",),
-                                        label="Server-local mesh package path",
-                                        density="compact",
-                                    )
-                                    v3.VTextField(
-                                        v_model=("cfd_speed_mps",),
-                                        label="Speed (m/s)",
-                                        type="number",
-                                        density="compact",
-                                    )
-                                    v3.VTextField(
-                                        v_model=("cfd_job_id",),
-                                        label="Job ID",
-                                        density="compact",
-                                    )
-                                    v3.VTextField(
-                                        v_model=("cfd_jobs_root",),
-                                        label="Local CFD jobs root",
-                                        readonly=True,
-                                        density="compact",
-                                    )
-                                    v3.VBtn(
-                                        "Prepare",
-                                        click=self.ctrl.prepare_cfd_job,
-                                        density="compact",
-                                        classes="mr-2",
-                                    )
-                                    v3.VBtn(
-                                        "Run",
-                                        click=self.ctrl.run_cfd_job,
-                                        density="compact",
-                                        classes="mr-2",
-                                    )
-                                    v3.VBtn(
-                                        "Refresh",
-                                        click=self.ctrl.refresh_cfd_job,
-                                        density="compact",
-                                        classes="mr-2",
-                                    )
-                                    v3.VBtn(
-                                        "Logs",
-                                        click=self.ctrl.load_cfd_logs,
-                                        density="compact",
-                                        classes="mr-2",
-                                    )
-                                    v3.VBtn(
-                                        "Raw Result",
-                                        click=self.ctrl.load_cfd_raw_result,
-                                        density="compact",
-                                    )
-                                    v3.VCardText(
-                                        "<pre>{{ cfd_status_lines.join('\\n') }}</pre>",
-                                        classes="font-mono text-caption mt-2",
-                                        html=True,
-                                    )
-                                    v3.VCardText(
-                                        "<pre>{{ cfd_logs_lines.join('\\n') }}</pre>",
-                                        classes="font-mono text-caption",
-                                        html=True,
-                                    )
-                                    v3.VCardText(
-                                        "<pre>{{ cfd_raw_result_lines.join('\\n') }}</pre>",
-                                        classes="font-mono text-caption",
-                                        html=True,
-                                    )
+    def _render_cfd_tab(self) -> None:
+        with v3.VWindowItem(value="cfd"):
+            with v3.VCard(classes="kg-review-card kg-cfd-card"):
+                v3.VCardTitle("CFD")
+                v3.VCardText("{{ cfd_local_banner }}", classes="kg-cfd-banner")
+                v3.VCardText("{{ cfd_artifact_strapline }}", classes="kg-cfd-banner")
+                with v3.VCardText():
+                    v3.VSelect(
+                        v_model=("cfd_solver_profile",),
+                        items=("cfd_profile_options",),
+                        label="Local solver/test profile",
+                        density="compact",
+                    )
+                    v3.VTextField(
+                        v_model=("cfd_mesh_package_ref",),
+                        label="Server-local mesh package path",
+                        density="compact",
+                    )
+                    v3.VTextField(
+                        v_model=("cfd_speed_mps",),
+                        label="Speed (m/s)",
+                        type="number",
+                        density="compact",
+                    )
+                    v3.VTextField(
+                        v_model=("cfd_job_id",),
+                        label="Job ID",
+                        density="compact",
+                    )
+                    v3.VTextField(
+                        v_model=("cfd_jobs_root",),
+                        label="Local CFD jobs root",
+                        readonly=True,
+                        density="compact",
+                    )
+                    v3.VBtn(
+                        "Prepare",
+                        click=self.ctrl.prepare_cfd_job,
+                        density="compact",
+                        classes="mr-2",
+                    )
+                    v3.VBtn(
+                        "Run",
+                        click=self.ctrl.run_cfd_job,
+                        density="compact",
+                        classes="mr-2",
+                    )
+                    v3.VBtn(
+                        "Refresh",
+                        click=self.ctrl.refresh_cfd_job,
+                        density="compact",
+                        classes="mr-2",
+                    )
+                    v3.VBtn(
+                        "Logs",
+                        click=self.ctrl.load_cfd_logs,
+                        density="compact",
+                        classes="mr-2",
+                    )
+                    v3.VBtn(
+                        "Raw Result",
+                        click=self.ctrl.load_cfd_raw_result,
+                        density="compact",
+                    )
+                    v3.VCardText(
+                        "<pre>{{ cfd_status_lines.join('\\n') }}</pre>",
+                        classes="font-mono text-caption mt-2",
+                        html=True,
+                    )
+                    v3.VCardText(
+                        "<pre>{{ cfd_logs_lines.join('\\n') }}</pre>",
+                        classes="font-mono text-caption",
+                        html=True,
+                    )
+                    v3.VCardText(
+                        "<pre>{{ cfd_raw_result_lines.join('\\n') }}</pre>",
+                        classes="font-mono text-caption",
+                        html=True,
+                    )
+
+    def _render_advisories_tab(self) -> None:
+        with v3.VWindowItem(value="advisories"):
+            with v3.VCard(classes="kg-review-card kg-advisories-card"):
+                v3.VCardTitle("Advisories")
+                v3.VChip("{{ advisory_count }} advisories", size="small")
+                v3.VCardText(
+                    "<pre>{{ advisory_lines.join('\\n') }}</pre>",
+                    classes="font-mono text-caption",
+                    html=True,
+                )
+
+    def _render_status_bar(self) -> None:
+        with v3.VSheet(
+            classes="kg-status-bar kg-status-wrap-under-960",
+            **{"data-testid": "workspace-status-bar"},
+        ):
+            for segment in STATUS_SEGMENTS:
+                state_key = segment["state_key"]
+                label = segment["key"]
+                target_tab = segment["target_tab"]
+                v3.VBtn(
+                    f"{label}: {{{{ {state_key} }}}}",
+                    click=lambda tab=target_tab: self._focus_review_tab(tab),
+                    density="compact",
+                    variant="text",
+                    classes=f"kg-status-segment kg-status-{label}",
+                    **{
+                        "data-testid": f"status-{label}",
+                        "aria-label": segment["aria_label"],
+                    },
+                )
 
 
 def create_app(

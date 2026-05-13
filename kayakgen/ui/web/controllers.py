@@ -30,6 +30,7 @@ from kayakgen.eval.cfd.jobs import (
 )
 from kayakgen.eval.contract import EvaluationResult, ResistanceCurve, ResistanceMetadata
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
+from kayakgen.eval.mesh_diagnostics import MeshDiagnostics, diagnose_mesh
 from kayakgen.eval.mesh_package import MeshPackageManifest
 from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance, resistance_curve
 from kayakgen.model.advisory import design_advisory
@@ -44,6 +45,16 @@ CFD_JOBS_ROOT_ENV = "KAYAKGEN_WEB_CFD_JOBS_ROOT"
 CFD_ARTIFACT_MAX_BYTES = 64 * 1024
 CFD_LOCAL_FILESYSTEM_NOTICE = (
     "Local filesystem CFD jobs on this server only; no hosted worker is running."
+)
+MESH_PROFILE_LABEL_TO_ID: dict[str, str] = {
+    "open-wetted-surface": "open_wetted_surface_resistance_v1",
+    "watertight-solid": "watertight_solid_resistance_v1",
+}
+MESH_PROFILE_ID_TO_LABEL: dict[str, str] = {
+    profile_id: label for label, profile_id in MESH_PROFILE_LABEL_TO_ID.items()
+}
+WATERTIGHT_SOLID_DISABLED_TOOLTIP = (
+    "Current generated packages do not satisfy watertight-solid readiness."
 )
 _CFD_JOB_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
@@ -183,6 +194,220 @@ def analysis_view_model(state: dict[str, Any]) -> dict[str, Any]:
         "resistance_warnings": list(resistance.metadata.warnings),
         "warnings": [*advisory.warnings, *resistance.metadata.warnings],
         "resistance_metadata": resistance.metadata.model_dump(mode="json"),
+    }
+
+
+def resistance_table_view_model(
+    state: dict[str, Any],
+    *,
+    target_tolerance_kt: float = 0.05,
+) -> dict[str, Any]:
+    """Resistance table rows with a focused target-speed row.
+
+    The fixed sweep stays at ``DISPLAY_CURVE_SPEEDS_KT``. A continuous
+    ``target_speed_kt`` is inserted as a sorted extra row only when it is
+    outside the configured tolerance from every fixed sweep speed.
+    """
+    hull = hull_from_web_state(state)
+    target_speed_kt = float(state.get("target_speed_kt", 3.5))
+    nearest_fixed = min(DISPLAY_CURVE_SPEEDS_KT, key=lambda speed: abs(speed - target_speed_kt))
+    matches_fixed = abs(nearest_fixed - target_speed_kt) <= target_tolerance_kt + 1e-9
+    focus_speed = nearest_fixed if matches_fixed else target_speed_kt
+    speeds = list(DISPLAY_CURVE_SPEEDS_KT)
+    if not matches_fixed:
+        speeds.append(target_speed_kt)
+    speeds = sorted(speeds)
+
+    resistance = resistance_curve(
+        hull,
+        V_knots=np.array(speeds, dtype=float),
+        n_stations=400,
+        n_depths=20,
+        n_theta=30,
+    )
+    rows = []
+    for speed, fn, rv, rw, rt in zip(
+        resistance.V_knots,
+        resistance.Fn,
+        resistance.Rv_N,
+        resistance.Rw_N,
+        resistance.Rt_N,
+        strict=True,
+    ):
+        is_target = abs(float(speed) - focus_speed) <= 1e-9
+        rows.append(
+            {
+                "speed_kt": float(speed),
+                "Fn": float(fn),
+                "Rv_N": float(rv),
+                "Rw_N": float(rw),
+                "Rt_N": float(rt),
+                "is_target": is_target,
+                "source": "target" if is_target and not matches_fixed else "sweep",
+            }
+        )
+
+    return {
+        "target_speed_kt": target_speed_kt,
+        "target_tolerance_kt": target_tolerance_kt,
+        "rows": rows,
+        "metadata": resistance.metadata.model_dump(mode="json"),
+        "caption": (
+            "Uncalibrated; no accepted final-prediction validity envelope. "
+            "Compare nearby candidates, do not report as drag."
+        ),
+    }
+
+
+def evaluation_summary(state: dict[str, Any]) -> dict[str, Any]:
+    """Status-bar read model for package, readiness, resistance, CFD, advisories."""
+    hull = hull_from_web_state(state)
+    hydro = evaluate_hydrostatics(hull, stations=60)
+    advisory = design_advisory(
+        hull,
+        cp=hydro.Cp_actual,
+        displaced_mass_kg=hydro.displaced_mass_kg,
+    )
+    resistance_claim = ResistanceMetadata()
+
+    package_ref = str(state.get("mesh_package_ref") or state.get("cfd_mesh_package_ref") or "")
+    package_model = mesh_package_view_model(package_ref) if package_ref else None
+    if package_model:
+        package = package_model["profile"]
+        readiness = package_model["readiness"]
+    else:
+        package = _profile_view(MESH_PROFILE_LABEL_TO_ID["open-wetted-surface"])
+        readiness = {
+            "level": None,
+            "display": "unavailable",
+            "reasons": ["No mesh package selected."],
+        }
+
+    advisories = [
+        {
+            "code": finding.code,
+            "message": finding.message,
+            "field_refs": list(finding.parameters),
+        }
+        for finding in advisory.design_validity.findings
+        if finding.level == "advisory" and finding.severity == "warning"
+    ]
+
+    return {
+        "package": package,
+        "readiness": readiness,
+        "resistance_claim": {
+            "claim_state": resistance_claim.claim_state,
+            "accepted_uses": list(resistance_claim.accepted_uses),
+            "warnings": list(resistance_claim.warnings),
+        },
+        "cfd_status": _cfd_status_from_state(state),
+        "advisories": advisories,
+    }
+
+
+def mesh_diagnostics_lines_from_state(
+    state: dict[str, Any],
+    part: str = "hull",
+) -> list[str]:
+    """Text diagnostics for a generated mesh, with welded topology primary."""
+    hull = hull_from_web_state(state)
+    diagnostics = diagnose_mesh(hull, part=part)
+    counts = _mesh_diagnostics_counts(diagnostics)
+    boundary = counts["boundary_edges"]
+    nonmanifold = counts["nonmanifold_edges"]
+    lines = [
+        f"{str(part).title()} diagnostics",
+        f"Readiness: {diagnostics.readiness.level}",
+        f"Boundary edges: {boundary['primary']} (welded primary)",
+        f"Non-manifold edges: {nonmanifold['primary']} (welded primary)",
+        f"Degenerate faces: {diagnostics.degenerate_faces}",
+        (
+            "Raw detail: "
+            f"boundary edges {boundary['raw']}; "
+            f"non-manifold edges {nonmanifold['raw']}; "
+            f"vertices {diagnostics.profile.vertex_count}; "
+            f"welded vertices {diagnostics.profile.welded_vertex_count}"
+        ),
+    ]
+    if diagnostics.warnings:
+        lines.extend(["Warnings", *[f"  {warning}" for warning in diagnostics.warnings]])
+    return lines
+
+
+def mesh_package_view_model(path: str | Path) -> dict[str, Any]:
+    """Read a mesh package manifest and quality reports for UI display."""
+    package_path = Path(path).expanduser()
+    manifest_path = package_path / "manifest.json"
+    base = {
+        "path": str(package_path),
+        "profile_options": _mesh_profile_options(),
+        "parts": [],
+        "diagnostics": {},
+    }
+    if not manifest_path.is_file():
+        return {
+            **base,
+            "status": "missing",
+            "error": "mesh_package_not_found",
+            "profile": _profile_view(MESH_PROFILE_LABEL_TO_ID["open-wetted-surface"]),
+            "readiness": {
+                "level": None,
+                "display": "unavailable",
+                "reasons": ["Mesh package manifest not found."],
+            },
+            "warnings": ["Mesh package manifest not found."],
+        }
+
+    try:
+        manifest = MeshPackageManifest.model_validate_json(manifest_path.read_text())
+    except Exception as exc:
+        return {
+            **base,
+            "status": "error",
+            "error": "malformed_mesh_package",
+            "message": str(exc),
+            "profile": _profile_view(MESH_PROFILE_LABEL_TO_ID["open-wetted-surface"]),
+            "readiness": {
+                "level": None,
+                "display": "unavailable",
+                "reasons": ["Malformed mesh package manifest."],
+            },
+            "warnings": ["Malformed mesh package manifest."],
+        }
+
+    diagnostics: dict[str, Any] = {}
+    warnings = list(manifest.warnings)
+    for part, report_ref in sorted(manifest.quality_reports.items()):
+        report_path = package_path / report_ref
+        try:
+            report = MeshDiagnostics.model_validate_json(report_path.read_text())
+        except Exception:
+            diagnostics[part] = {
+                "status": "error",
+                "error": "malformed_mesh_quality_report",
+                "path": report_ref,
+            }
+            warnings.append(f"{part}: mesh quality report unavailable")
+            continue
+        diagnostics[part] = {
+            "status": "ready",
+            "path": report_ref,
+            "readiness": report.readiness.model_dump(mode="json"),
+            "counts": _mesh_diagnostics_counts(report),
+            "warnings": list(report.warnings),
+        }
+
+    return {
+        **base,
+        "status": "ready",
+        "manifest_path": str(manifest_path),
+        "hull_hash": manifest.hull_hash,
+        "profile": _profile_view(manifest.solver_profile.profile_name),
+        "readiness": manifest.readiness.model_dump(mode="json"),
+        "warnings": warnings,
+        "parts": list(manifest.parts),
+        "diagnostics": diagnostics,
     }
 
 
@@ -676,6 +901,75 @@ def cfd_raw_result_lines_from_payload(payload: dict[str, Any]) -> list[str]:
     lines.append("Raw solver artifact only; not calibrated or validated.")
     lines.append(json.dumps(artifact.get("raw_result"), indent=2, sort_keys=True))
     return lines
+
+
+def _mesh_profile_options() -> list[dict[str, Any]]:
+    return [
+        {
+            "label": "open-wetted-surface",
+            "profile_id": MESH_PROFILE_LABEL_TO_ID["open-wetted-surface"],
+            "disabled": False,
+            "tooltip": "",
+        },
+        {
+            "label": "watertight-solid",
+            "profile_id": MESH_PROFILE_LABEL_TO_ID["watertight-solid"],
+            "disabled": True,
+            "tooltip": WATERTIGHT_SOLID_DISABLED_TOOLTIP,
+        },
+    ]
+
+
+def _profile_view(profile_id: str) -> dict[str, str]:
+    return {
+        "label": MESH_PROFILE_ID_TO_LABEL.get(profile_id, profile_id),
+        "profile_id": profile_id,
+    }
+
+
+def _mesh_diagnostics_counts(diagnostics: MeshDiagnostics) -> dict[str, dict[str, Any]]:
+    return {
+        "boundary_edges": {
+            "primary": diagnostics.welded_boundary_edges,
+            "primary_basis": "welded",
+            "raw": diagnostics.raw_boundary_edges,
+        },
+        "nonmanifold_edges": {
+            "primary": diagnostics.welded_nonmanifold_edges,
+            "primary_basis": "welded",
+            "raw": diagnostics.raw_nonmanifold_edges,
+        },
+        "degenerate_faces": {
+            "primary": diagnostics.degenerate_faces,
+            "primary_basis": "raw",
+            "raw": diagnostics.degenerate_faces,
+        },
+    }
+
+
+def _cfd_status_from_state(state: dict[str, Any]) -> str:
+    for key in ("cfd_status", "status"):
+        status = state.get(key)
+        if status:
+            return str(status)
+
+    for key in ("cfd_payload", "cfd_job_payload", "cfd_last_payload"):
+        payload = state.get(key)
+        if not isinstance(payload, dict):
+            continue
+        run = payload.get("run")
+        if isinstance(run, dict) and run.get("status"):
+            return str(run["status"])
+        if payload.get("status"):
+            return str(payload["status"])
+
+    lines = state.get("cfd_status_lines")
+    if isinstance(lines, list):
+        for line in lines:
+            text = str(line)
+            if text.startswith("Status:"):
+                return text.split(":", 1)[1].strip() or "unavailable"
+    return "unavailable"
 
 
 def _default_cfd_jobs_root() -> Path:

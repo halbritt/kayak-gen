@@ -17,6 +17,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   introduced; every existing REST route keeps its JSON shape. Workflow 0044
   now includes a dedicated ergonomics/design review lane before findings are
   ledgered.
+- Added workflow 0044's RFC 0033 workspace UI implementation slice: shared UI
+  theme tokens, structured advisory records, web workspace regions/status
+  copy, mesh/readiness read models, desktop `Cm`/Export STLs touch-ups, user
+  guide updates, and regression tests. Current resistance, mesh, and CFD
+  outputs remain raw/open-surface/local plumbing, not final prediction,
+  watertight-solid, hosted-worker, or calibrated claims.
 - Added workflow 0039's RFC 0028 plumb-stem closure safe slice: independent
   `stern_rake`, explicit bow/stern coordinate convention, and exact-plumb
   endpoint/cap semantics for generated closed-body diagnostics while keeping

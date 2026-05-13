@@ -330,6 +330,22 @@ kayakgen view hull.json
 Install `kayakgen[desktop]` first. The legacy `python gui.py` entry point is
 still present, but `kayakgen view` is the package CLI path.
 
+The desktop GUI exposes sliders for the implemented hull fields, including
+`Cp`, `Cm`, beam-at-waterline, deck flatness, parallel mid-body, bow rake, and
+stern rake. The target-speed slider only changes the live resistance readout;
+it is not written into the `Hull` JSON model.
+
+Use **Export STLs** to write the current open inspection surfaces. The button
+label changed from the older "Generate STLs" wording, but the filenames are
+unchanged: choosing a stem such as `kayak` writes `kayak_hull.stl` and
+`kayak_deck.stl`.
+
+The desktop review text now keeps the same four status categories used by the
+workspace RFC: package, readiness, resistance, and CFD. In the current desktop
+slice these are status labels only; the GUI does not prepare mesh packages,
+start CFD jobs, or promote raw resistance output to a final prediction. The
+3D preview still opens as a separate PyVista window.
+
 ### `serve`
 
 Run the local Trame web frontend:

@@ -15,8 +15,6 @@ Refactor of the legacy ``gui.py`` onto the new package boundary
 
 from __future__ import annotations
 
-import os
-
 import matplotlib
 
 matplotlib.use("qtagg")
@@ -30,10 +28,35 @@ from PyQt6.QtCore import QTimer
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance
 from kayakgen.model.advisory import design_advisory
-from kayakgen.model.classes import KayakClass, get_class, list_classes
+from kayakgen.model.classes import KayakClass, list_classes
 from kayakgen.model.hull import Hull
+from kayakgen.ui import theme
 from kayakgen.ui.gui_params import GUI_TO_HULL as _GUI_TO_HULL
 from kayakgen.ui.gui_params import hull_from_gui_params as _hull_from_gui_params
+
+matplotlib.rcParams.update(theme.matplotlib_rc_params())
+
+
+PLOT_COLORS = {
+    "hull": theme.PLOT_PALETTE["hull"],
+    "deck": theme.PLOT_PALETTE["deck"],
+    "focus": theme.PLOT_PALETTE["station"],
+    "waterline": theme.COLORS_LIGHT["surface-viewport-grid"],
+    "primary_button": theme.COLORS_LIGHT["brand-primary"],
+    "primary_button_hover": theme.COLORS_LIGHT["brand-primary-hover"],
+    "neutral_button": theme.COLORS_LIGHT["button-neutral"],
+    "neutral_button_hover": theme.COLORS_LIGHT["button-neutral-hover"],
+    "dark_button": theme.COLORS_LIGHT["button-strong"],
+    "dark_button_hover": theme.COLORS_LIGHT["button-strong-hover"],
+    "button_text": theme.COLORS_LIGHT["text-inverse"],
+}
+
+STATUS_SEGMENTS = (
+    "package: open-wetted-surface",
+    "readiness: cfd_surface_candidate",
+    "resistance: uncalibrated_comparative",
+    "cfd: not_prepared",
+)
 
 
 class KayakGUI:
@@ -44,6 +67,7 @@ class KayakGUI:
         ("draft", "Draft (m)", 0.05, 0.25),
         ("deck_height", "Deck Height (m)", 0.15, 0.40),
         ("Cp", "Prismatic Coeff", 0.45, 0.70),
+        ("Cm", "Midship Cm", 0.65, 0.95),
         ("deck_flatness", "Deck Flatness", 2.0, 16.0),
         ("center_box_ratio", "Parallel Mid-Body", 0.10, 0.60),
         ("bow_rake", "Bow Rake (1=raked)", 0.0, 1.0),
@@ -58,6 +82,7 @@ class KayakGUI:
         draft=0.12,
         deck_height=0.23,
         Cp=0.55,
+        Cm=0.85,
         deck_flatness=8.0,
         center_box_ratio=0.33,
         bow_rake=1.0,
@@ -66,15 +91,20 @@ class KayakGUI:
     )
 
     GLOBAL_RANGES = {key: (vmin, vmax) for key, _label, vmin, vmax in SLIDERS}
+    SLIDER_STEPS = {"Cm": 0.005}
 
     # target_speed_kt is a viewing parameter, not a Hull field.
     _NON_HULL_GUI_KEYS = ("target_speed_kt",)
 
     def __init__(self, hull: Hull | None = None) -> None:
+        self.params = dict(self.DEFAULTS)
         if hull is not None:
-            self.params = {gui_key: getattr(hull, hull_key) for gui_key, hull_key in _GUI_TO_HULL.items()}
-        else:
-            self.params = dict(self.DEFAULTS)
+            self.params.update(
+                {
+                    gui_key: getattr(hull, hull_key)
+                    for gui_key, hull_key in _GUI_TO_HULL.items()
+                }
+            )
 
         self.fig = plt.figure(figsize=(16, 9))
         self.fig.suptitle("Kayak Generator", fontsize=14, fontweight="bold")
@@ -178,15 +208,20 @@ class KayakGUI:
 
     def _build_sliders(self) -> None:
         n = len(self.SLIDERS)
-        top_start, bot_end = 0.93, 0.18
+        top_start, bot_end = 0.93, 0.46
         step = (top_start - bot_end) / n
 
         self.sliders: dict[str, widgets.Slider] = {}
         for i, (key, label, vmin, vmax) in enumerate(self.SLIDERS):
             y = top_start - (i + 0.5) * step - 0.015
-            ax = self.fig.add_axes([0.07, y, 0.26, 0.025])
-            s = widgets.Slider(ax, label, vmin, vmax, valinit=self.params[key])
-            s.label.set_fontsize(7)
+            ax = self.fig.add_axes([0.07, y, 0.26, 0.018])
+            kwargs = {}
+            if key in self.SLIDER_STEPS:
+                kwargs["valstep"] = self.SLIDER_STEPS[key]
+            s = widgets.Slider(
+                ax, label, vmin, vmax, valinit=self.params[key], **kwargs
+            )
+            s.label.set_fontsize(6.5)
             s.label.set_position((0.5, -1.8))
             s.label.set_horizontalalignment("center")
             s.on_changed(self._on_change)
@@ -194,29 +229,45 @@ class KayakGUI:
 
     def _build_button(self) -> None:
         ax_btn = self.fig.add_axes([0.05, 0.205, 0.12, 0.045])
-        self.btn = widgets.Button(ax_btn, "Generate STLs", color="steelblue", hovercolor="royalblue")
-        self.btn.label.set_color("white")
+        self.btn = widgets.Button(
+            ax_btn,
+            "Export STLs",
+            color=PLOT_COLORS["primary_button"],
+            hovercolor=PLOT_COLORS["primary_button_hover"],
+        )
+        self.btn.label.set_color(PLOT_COLORS["button_text"])
         self.btn.on_clicked(self._on_generate)
 
         ax_rst = self.fig.add_axes([0.19, 0.205, 0.12, 0.045])
-        self.btn_reset = widgets.Button(ax_rst, "Reset", color="0.75", hovercolor="0.85")
+        self.btn_reset = widgets.Button(
+            ax_rst,
+            "Reset",
+            color=PLOT_COLORS["neutral_button"],
+            hovercolor=PLOT_COLORS["neutral_button_hover"],
+        )
         self.btn_reset.on_clicked(self._on_reset)
 
         ax_3d = self.fig.add_axes([0.05, 0.255, 0.26, 0.045])
-        self.btn_3d = widgets.Button(ax_3d, "3D View", color="0.25", hovercolor="0.35")
-        self.btn_3d.label.set_color("white")
+        self.btn_3d = widgets.Button(
+            ax_3d,
+            "3D View",
+            color=PLOT_COLORS["dark_button"],
+            hovercolor=PLOT_COLORS["dark_button_hover"],
+        )
+        self.btn_3d.label.set_color(PLOT_COLORS["button_text"])
         self.btn_3d.on_clicked(self._on_open_3d)
 
-        self.ax_status = self.fig.add_axes([0.05, 0.160, 0.26, 0.040])
+        self.ax_status = self.fig.add_axes([0.05, 0.130, 0.26, 0.070])
         self.ax_status.axis("off")
         self.status = self.ax_status.text(
-            0.5,
-            0.5,
-            "",
-            ha="center",
-            va="center",
+            0.0,
+            1.0,
+            self._status_segments_block(),
+            ha="left",
+            va="top",
             transform=self.ax_status.transAxes,
-            fontsize=8,
+            fontsize=6.2,
+            fontfamily="monospace",
         )
 
         self.ax_metrics = self.fig.add_axes([0.05, 0.020, 0.26, 0.100])
@@ -250,7 +301,7 @@ class KayakGUI:
             self.params["beam_wl"] = self.params["beam"]
             self.sliders["beam_wl"].set_val(self.params["beam"])
             return  # the set_val above re-enters _on_change
-        self.status.set_text("")
+        self.status.set_text(self._status_segments_block())
         self.update_plots()
         if self._pv_window is not None and self._pv_window.isVisible():
             self._3d_timer.start()
@@ -270,6 +321,12 @@ class KayakGUI:
         for key, s in self.sliders.items():
             s.set_val(self.DEFAULTS[key])
 
+    def _status_segments_text(self) -> str:
+        return " · ".join(STATUS_SEGMENTS)
+
+    def _status_segments_block(self) -> str:
+        return "\n".join(STATUS_SEGMENTS)
+
     def _on_generate(self, _event) -> None:
         from PyQt6.QtWidgets import QFileDialog
 
@@ -279,12 +336,12 @@ class KayakGUI:
         if not path:
             return
         stem = path.removesuffix("_hull.stl").removesuffix(".stl")
-        self.status.set_text("Generating…")
+        self.status.set_text("Exporting STLs…")
         self.fig.canvas.draw()
         geom = _hull_from_gui_params(self.params).to_geometry()
         geom.generate_stl("hull", f"{stem}_hull.stl")
         geom.generate_stl("deck", f"{stem}_deck.stl")
-        self.status.set_text(f"Saved {os.path.basename(stem)}_hull/deck.stl")
+        self.status.set_text(self._status_segments_block())
         self.fig.canvas.draw()
 
     def _on_open_3d(self, _event) -> None:
@@ -394,11 +451,29 @@ class KayakGUI:
 
         ax = self.ax_section
         ax.cla()
-        ax.fill(hull_pts[:, 0], hull_pts[:, 1], alpha=0.15, color="steelblue")
-        ax.fill(deck_pts[:, 0], deck_pts[:, 1], alpha=0.15, color="seagreen")
-        ax.plot(hull_pts[:, 0], hull_pts[:, 1], color="steelblue", linewidth=2, label="Hull")
-        ax.plot(deck_pts[:, 0], deck_pts[:, 1], color="seagreen", linewidth=2, label="Deck")
-        ax.axhline(0, color="k", linewidth=0.8, linestyle="--", alpha=0.5)
+        ax.fill(hull_pts[:, 0], hull_pts[:, 1], alpha=0.15, color=PLOT_COLORS["hull"])
+        ax.fill(deck_pts[:, 0], deck_pts[:, 1], alpha=0.15, color=PLOT_COLORS["deck"])
+        ax.plot(
+            hull_pts[:, 0],
+            hull_pts[:, 1],
+            color=PLOT_COLORS["hull"],
+            linewidth=2,
+            label="Hull",
+        )
+        ax.plot(
+            deck_pts[:, 0],
+            deck_pts[:, 1],
+            color=PLOT_COLORS["deck"],
+            linewidth=2,
+            label="Deck",
+        )
+        ax.axhline(
+            0,
+            color=PLOT_COLORS["waterline"],
+            linewidth=0.8,
+            linestyle="--",
+            alpha=0.5,
+        )
         ax.set_aspect("equal")
         half_L = geom.L / 2
         pct = (self.station_x / half_L * 100) if half_L > 0 else 0
@@ -414,28 +489,28 @@ class KayakGUI:
 
         ax = self.ax_profile
         ax.cla()
-        ax.fill_between(xs, keel_z, 0, alpha=0.15, color="steelblue")
-        ax.fill_between(xs, 0, deck_cl_z, alpha=0.15, color="seagreen")
-        ax.plot(xs, keel_z, color="steelblue", linewidth=2, label="Keel line")
-        ax.axhline(0, color="k", lw=0.8, ls="--", alpha=0.5, label="Waterline")
-        ax.plot(xs, deck_cl_z, color="seagreen", linewidth=2, label="Deck centreline")
+        ax.fill_between(xs, keel_z, 0, alpha=0.15, color=PLOT_COLORS["hull"])
+        ax.fill_between(xs, 0, deck_cl_z, alpha=0.15, color=PLOT_COLORS["deck"])
+        ax.plot(xs, keel_z, color=PLOT_COLORS["hull"], linewidth=2, label="Keel line")
+        ax.axhline(0, color=PLOT_COLORS["waterline"], lw=0.8, ls="--", alpha=0.5, label="Waterline")
+        ax.plot(xs, deck_cl_z, color=PLOT_COLORS["deck"], linewidth=2, label="Deck centreline")
         ax.set_title("Sheer Plan", fontsize=10)
         ax.set_ylabel("Z (m)")
         ax.legend(fontsize=8)
         ax.grid(True, alpha=0.25)
-        ax.axvline(self.station_x, color="crimson", lw=1.2, ls="--", alpha=0.85)
+        ax.axvline(self.station_x, color=PLOT_COLORS["focus"], lw=1.2, ls="--", alpha=0.85)
 
         ax = self.ax_plan
         ax.cla()
-        ax.fill_between(xs, -half_beam, half_beam, alpha=0.20, color="steelblue")
-        ax.plot(xs, half_beam, color="steelblue", linewidth=2)
-        ax.plot(xs, -half_beam, color="steelblue", linewidth=2)
-        ax.axhline(0, color="k", linewidth=0.5, linestyle="--", alpha=0.4)
+        ax.fill_between(xs, -half_beam, half_beam, alpha=0.20, color=PLOT_COLORS["hull"])
+        ax.plot(xs, half_beam, color=PLOT_COLORS["hull"], linewidth=2)
+        ax.plot(xs, -half_beam, color=PLOT_COLORS["hull"], linewidth=2)
+        ax.axhline(0, color=PLOT_COLORS["waterline"], linewidth=0.5, linestyle="--", alpha=0.4)
         ax.set_title("Plan View", fontsize=10)
         ax.set_xlabel("X (m)")
         ax.set_ylabel("Y (m)")
         ax.grid(True, alpha=0.25)
-        ax.axvline(self.station_x, color="crimson", lw=1.2, ls="--", alpha=0.85)
+        ax.axvline(self.station_x, color=PLOT_COLORS["focus"], lw=1.2, ls="--", alpha=0.85)
 
         self.fig.canvas.draw_idle()
 

@@ -164,11 +164,8 @@ def _metrics_text(page) -> str:
 
 
 def _share_url_value(page) -> str:
-    share = page.get_by_label("Shareable URL")
-    try:
-        return share.input_value(timeout=5_000)
-    except Exception:
-        return page.locator("input[readonly]").first.input_value(timeout=5_000)
+    values = page.locator("input").evaluate_all("(els) => els.map((el) => el.value)")
+    return next(value for value in values if value.startswith("?hull="))
 
 
 def _wait_for_render_candidate(page) -> int:
@@ -353,6 +350,7 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                     """,
                     timeout=10_000,
                 )
+                page.get_by_text("Shareable URL copied").first.wait_for(timeout=10_000)
                 share_path = _share_url_value(page)
                 assert share_path.startswith("?hull=")
                 shared_hull = hull_from_query_string(share_path)
