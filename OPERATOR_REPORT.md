@@ -73,6 +73,11 @@ Updated: 2026-05-13
   those review verdicts. Ledger/implementation can proceed for 0033, 0037,
   0038, and 0039; 0040 and 0041 remain blocked pending an owner/workflow
   decision.
+- 2026-05-13T17:38:13Z checkpoint: the 0033, 0037, 0038, and 0039 ledger jobs
+  were registered, claimed, acknowledged, and launched as four parallel Codex
+  GPT-5.5 agents in isolated branch worktrees under `/tmp`. Prompts require
+  maximal useful sub-agent use, forbid `author:` bylines, and keep publishing
+  and completion with the operator.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is
