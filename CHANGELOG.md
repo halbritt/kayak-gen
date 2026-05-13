@@ -8,6 +8,13 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Added RFC 0033 and workflow 0044 as the workspace UI rework: a single
+  three-region desktop/web shell (parameters, geometry, review), a shared
+  semantic theme module, claim/readiness/CFD status chips wired to existing
+  literals, structured advisory records additive to `DesignAdvisory.warnings`,
+  a four-segment status bar, and forbidden-claim regression coverage for the
+  Claude Design handoff's no-go strings. No backend capabilities are
+  introduced; every existing REST route keeps its JSON shape.
 - Added workflow 0039's RFC 0028 plumb-stem closure safe slice: independent
   `stern_rake`, explicit bow/stern coordinate convention, and exact-plumb
   endpoint/cap semantics for generated closed-body diagnostics while keeping

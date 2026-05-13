@@ -46,6 +46,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0030](0030-web-hosted-browser-acceptance.md) | proposed | Web hosted and browser acceptance |
 | [0031](0031-design-constraint-surfacing-revision.md) | accepted implementation target | Design constraint surfacing revision |
 | [0032](0032-web-hosted-browser-acceptance-revision.md) | landed local-browser-docs | Web hosted browser acceptance revision |
+| [0033](0033-workspace-ui-rework.md) | proposed | Workspace UI rework — three-region desktop/web shell, semantic theme, claim/readiness/status chips |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
@@ -89,13 +90,13 @@ solver success, normalized solver outputs, watertight geometry, or
 calibrated/validated CFD claims; all CFD dispatch output remains raw and
 unvalidated.
 
-RFCs 0016-0032 are mostly proposed, not accepted implementation commitments
+RFCs 0016-0033 are mostly proposed, not accepted implementation commitments
 except for the explicitly marked landed, partial safe-slice, or accepted
 implementation-target entries. RFCs 0016-0020
 split the major remaining deferrals into broad design documents:
 closed-volume geometry, first real CFD adapter, web CFD job routes, resistance
 calibration fixtures, and high-angle `GZ` / secondary stability. RFCs
-0021-0032 narrow the next implementation slices and may revise or supersede
+0021-0033 narrow the next implementation slices and may revise or supersede
 parts of the broader RFCs where that improves progress.
 
 RFC 0021 has landed only for explicit synthetic closed-volume diagnostics: the
