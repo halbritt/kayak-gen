@@ -1,16 +1,22 @@
 # RFC 0008: Portable Web Frontend (Trame)
 
-Status: partial verified-headless
+Status: partial browser-smoke
 Date: 2026-05-09
 Context: builds on RFC 0007 (architectural revisit). Touches the
 `kayakgen.ui` and `kayakgen.cli` boundaries; does not change
 `kayakgen.model` or `kayakgen.eval`.
 
-Status note (workflow 0017, 2026-05-13): partially landed and headless-verified.
-The Trame shell, sliders, VTK view, metrics helpers, share-query encoding, REST
-route scaffolding, Docker build path, and offscreen VTK visual smoke test exist.
-Plot tabs, Playwright/browser smoke, Lighthouse verification, hosted demo
-deployment, and web comparison views remain follow-up work.
+Status note (workflows 0017/0020, 2026-05-13): partially landed with default
+headless verification and an optional Playwright browser-smoke test that passed
+in the workflow environment after installing Playwright and Chromium. The Trame
+shell, sliders, VTK view, metrics helpers, share-query encoding, REST route
+scaffolding, Docker build path, offscreen VTK visual smoke test, and
+`tests/test_web_browser.py` browser smoke exist. The browser smoke self-skips
+when Playwright or Chromium is unavailable. Lighthouse Best Practices scored 92
+in workflow 0020, but the console-errors audit still reported a Trame
+`/paraview/` 405 network log. Plot tabs, hosted demo deployment, auto-opening a
+browser by default, console-clean Lighthouse acceptance, and web comparison
+views remain follow-up work.
 
 ## Problem
 
@@ -44,8 +50,8 @@ that layer.
 - Keep the hull aggregate, geometry, and evaluators **untouched** —
   the web frontend imports `kayakgen.model` and `kayakgen.eval` and
   consumes their public APIs.
-- One command runs it locally: `kayakgen serve [--port 8080]` opens a
-  browser tab and renders the app.
+- One command runs it locally: `kayakgen serve [--port 8080]` starts a
+  scriptable local server. The user opens the shown URL in a browser.
 - One Dockerfile deploys it remotely. A user with a URL and no Python
   installed can design a hull.
 - Hulls are shareable as URLs: `?hull=<base64-or-id>` reconstitutes
@@ -196,9 +202,10 @@ against them.
 
 ### 7. Deployment
 
-- **Local:** `kayakgen serve` launches the server on `127.0.0.1:8080`
-  and opens the user's default browser. No login, no auth, no shared
-  state — equivalent to running the desktop GUI.
+- **Local:** `kayakgen serve` launches the server on `127.0.0.1:8080`.
+  No login, no auth, no shared state — equivalent to running the desktop GUI.
+  The command does not auto-open a browser by default so it remains suitable for
+  Docker and CI smoke checks.
 - **Hosted:** a Dockerfile (~20 lines) installs `kayakgen[web]` and
   runs `kayakgen serve --host 0.0.0.0 --port 8080`. Behind any reverse
   proxy. The hull-id store is a mounted volume.
@@ -218,13 +225,15 @@ deploys; configuration is environment variables only.
 - **3D mesh:** the `VtkRemoteView`'s underlying mesh has the same
   vertex count as the desktop GUI's `pv_window` for the same hull.
 - **Smoke test:** headless tests construct the app and verify offscreen VTK
-  rendering. A future Playwright / pytest-playwright test should launch the app,
-  drag the length slider, and assert that the metrics panel changes.
+  rendering. The optional Playwright test launches the app, opens it in
+  Chromium when available, checks UI text, changes a slider, and asserts that the
+  metrics panel changes.
 
 ## Acceptance Criteria
 
-- `kayakgen serve` opens a browser tab showing a hull within 2 s on a
-  modern laptop.
+- `kayakgen serve` starts a local server that shows a hull within 2 s on a
+  modern laptop when opened in a browser. Browser auto-open remains deferred
+  unless added as an explicit opt-in.
 - Every slider on the desktop GUI has a corresponding control in the
   web UI; their value ranges are identical.
 - The 3D view shows the hull and updates within 200 ms of a slider
@@ -241,8 +250,11 @@ deploys; configuration is environment variables only.
   console errors, no mixed-content warnings).
 
 Current verification status: headless Trame/controller/VTK checks are
-implemented in `tests/test_web.py`. Playwright, Lighthouse, hosted demo, plot
-tabs, and web comparison views are not yet landed.
+implemented in `tests/test_web.py`. Optional Playwright browser smoke exists in
+`tests/test_web_browser.py`, passed in workflow 0020, and self-skips when
+Playwright or Chromium is unavailable. Lighthouse score-threshold verification
+ran at 92, but console-clean Lighthouse acceptance, hosted demo, plot tabs, and
+web comparison views are not yet landed.
 
 ## Open Questions
 
