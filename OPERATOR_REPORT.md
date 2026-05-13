@@ -135,6 +135,13 @@ Updated: 2026-05-13
   closed-body tests. A separate Codex integration agent is resolving the rebase
   conflict in `/tmp/kayak-gen-ledger-worktrees/0033`; the operator is not
   resolving implementation content directly.
+- 2026-05-13T18:38:13Z checkpoint: the separate Codex integration agent
+  resolved the 0033 rebase conflict, preserved 0039 generated-body behavior and
+  0033 generated closed-volume behavior, and reported `pytest -q` as 226 passed
+  and 2 skipped. The rebased 0033 branch was fast-forwarded into `main`; `main`
+  is pushed at `378798c`. Unblocked workflows 0033, 0037, 0038, and 0039 are
+  landed. Remaining active Striatum blockers are the 0040 domain review and
+  0041 browser review human checkpoints.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is
