@@ -39,7 +39,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0023](0023-watertight-volume-mesh-handoff.md) | proposed | Watertight volume mesh and `cfd_ready` handoff |
 | [0024](0024-high-angle-gz-generated-body-handoff.md) | proposed | High-angle GZ generated-body handoff |
 | [0025](0025-cfd-calibration-claim-gates.md) | proposed | CFD and calibration claim gates |
-| [0026](0026-first-real-cfd-fixture-adapter.md) | proposed | First real CFD fixture adapter |
+| [0026](0026-first-real-cfd-fixture-adapter.md) | landed fixture-local-command | First real CFD fixture adapter |
 | [0027](0027-resistance-calibration-acceptance.md) | proposed | Resistance calibration acceptance |
 | [0028](0028-plumb-stem-closure-semantics.md) | proposed | Plumb-stem closure semantics |
 | [0029](0029-design-constraint-surfacing.md) | proposed | Design constraint surfacing and validity metadata |
@@ -108,9 +108,14 @@ upstream evidence exists.
 
 The evaluation/claims side can advance in parallel through RFC 0025 claim gates
 and then feed RFC 0026 fixture-first CFD adapter work and RFC 0027 resistance
-calibration acceptance. The older partials are split into RFC 0028 plumb-stem
-closure semantics, RFC 0029 design-constraint surfacing, and RFC 0030 hosted
-browser acceptance.
+calibration acceptance. Workflow 0037 pins the RFC 0026 fixture choices: a
+checked-in `python -m kayakgen.eval.cfd.fixture_command` command,
+`raw-result.json` as the normalized output location, and
+`open_wetted_surface_resistance_v1` as the only accepted mesh profile. Those
+fixture records remain raw/unvalidated; RFC 0017's OpenFOAM/SU2 selection
+remains deferred. The older partials are split into RFC 0028 plumb-stem closure
+semantics, RFC 0029 design-constraint surfacing, and RFC 0030 hosted browser
+acceptance.
 
 Hosted demo deployment, full plot/dashboard parity, remaining legacy RFC
 deferrals, high-angle `GZ` stability, resistance calibration, watertight solid

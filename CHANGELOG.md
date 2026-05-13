@@ -38,6 +38,15 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   fixture-first CFD adapter work, resistance calibration acceptance,
   plumb-stem closure semantics, design-constraint surfacing, and hosted browser
   acceptance.
+- Documented workflow 0037's RFC 0026 fixture-adapter choices: a checked-in
+  `python -m` module command, `raw-result.json` normalized output,
+  `open_wetted_surface_resistance_v1` as the only fixture profile target, and
+  continued raw/unvalidated wording while RFC 0017 OpenFOAM/SU2 selection
+  remains deferred.
+- Added workflow 0037's deterministic `fixture-local-command` CFD profile,
+  fixture case files, local command execution, schema-validated raw-result
+  parsing, persisted failure records, and CLI warning visibility, all kept
+  raw/unvalidated with no solver validation or calibration claim.
 - Scaffolded workflows 0032-0041 for those RFCs using the three-lane
   Striatum review pattern and implementer prompts requesting maximal useful
   sub-agent fanout with disjoint write scopes.

@@ -18,8 +18,10 @@ from kayakgen.eval.mesh_package import (
     write_mesh_package,
 )
 from kayakgen.eval.cfd.jobs import (
+    CFD_FIXTURE_RESULTS_WARNING,
     CFD_RAW_RESULTS_WARNING,
     CfdDispatchError,
+    CfdRunRecord,
     load_cfd_run_record,
     prepare_cfd_job,
     run_cfd_job,
@@ -204,7 +206,7 @@ def cfd_status(
         typer.echo(f"error_kind: {run.error_kind}")
     if run.error_message:
         typer.echo(f"error_message: {run.error_message}")
-    typer.echo(CFD_RAW_RESULTS_WARNING)
+    _echo_cfd_warnings(run)
 
 
 @cfd_app.command("run")
@@ -227,7 +229,7 @@ def cfd_run(
         typer.echo(f"error_kind: {run.error_kind}")
     if run.error_message:
         typer.echo(f"error_message: {run.error_message}")
-    typer.echo(CFD_RAW_RESULTS_WARNING)
+    _echo_cfd_warnings(run)
 
 
 @cfd_app.command("profiles")
@@ -235,6 +237,12 @@ def cfd_profiles() -> None:
     """List local CFD solver profiles."""
     for name in solver_profile_names():
         typer.echo(name)
+
+
+def _echo_cfd_warnings(run: CfdRunRecord) -> None:
+    typer.echo(CFD_RAW_RESULTS_WARNING)
+    if CFD_FIXTURE_RESULTS_WARNING in run.warnings:
+        typer.echo(CFD_FIXTURE_RESULTS_WARNING)
 
 
 @app.command()

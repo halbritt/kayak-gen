@@ -17,13 +17,18 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from kayakgen.eval.claims import RawUnvalidatedClaimFields
+from kayakgen.eval.claims import RawUnvalidatedClaimFields, WARNING_RAW_CFD_UNVALIDATED
 from kayakgen.eval.mesh_diagnostics import ReadinessLevel
 from kayakgen.eval.mesh_package import MeshPackageManifest
 
 CfdRunStatus = Literal["queued", "running", "succeeded", "failed", "unavailable"]
-CfdAdapterName = Literal["unavailable", "mock_local_command"]
+CfdAdapterName = Literal["unavailable", "mock_local_command", "fixture_local_command"]
 CFD_RAW_RESULTS_WARNING = "CFD results are raw and unvalidated."
+CFD_FIXTURE_RESULTS_WARNING = (
+    "Fixture CFD output is not calibrated, validated, or final design fitness."
+)
+FIXTURE_CASE_TEMPLATE_VERSION = "fixture-local-command-v1"
+FIXTURE_RAW_OUTPUT = "raw-result.json"
 
 READINESS_ORDER: dict[ReadinessLevel, int] = {
     "invalid": 0,
@@ -142,6 +147,98 @@ class SolverRawResult(RawUnvalidatedClaimFields):
     result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
 
 
+class CfdFixtureMeshSummary(BaseModel):
+    """Stable mesh metadata written into deterministic fixture cases."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    manifest_ref: str
+    mesh_package_ref: str
+    hull_hash: str
+    units: str
+    readiness: ReadinessLevel
+    solver_profile: str
+    parts: list[str]
+    quality_reports: dict[str, str]
+    surfaces: dict[str, str]
+    warnings: list[str] = Field(default_factory=list)
+
+
+class CfdFixtureCaseInput(BaseModel):
+    """Deterministic input record consumed by the checked-in fixture command."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    case_template_version: Literal["fixture-local-command-v1"] = (
+        FIXTURE_CASE_TEMPLATE_VERSION
+    )
+    job_id: str
+    solver_profile: str
+    speed_mps: float = Field(gt=0)
+    seawater_density_kg_m3: float = Field(gt=0)
+    kinematic_viscosity_m2_s: float = Field(gt=0)
+    raw_output: str = FIXTURE_RAW_OUTPUT
+    mesh: CfdFixtureMeshSummary
+    result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
+
+
+class CfdFixtureMeshSummaryFile(BaseModel):
+    """Compact standalone mesh summary for deterministic fixture cases."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    hull_hash: str
+    mesh_readiness: ReadinessLevel
+    mesh_solver_profile: str
+    parts: list[str]
+    quality_reports: dict[str, str]
+    surfaces: dict[str, str]
+    warnings: list[str] = Field(default_factory=list)
+
+
+class CfdFixtureCommandSpec(BaseModel):
+    """Deterministic command metadata written next to fixture case inputs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    command: list[str]
+    case_input: str
+    raw_output: str
+    result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
+
+
+class CfdFixtureCommandOutput(BaseModel):
+    """Schema emitted by the checked-in fixture command before normalization."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    job_id: str
+    speed_mps: float = Field(gt=0)
+    drag_force_n: float = Field(ge=0)
+    residual_summary: dict[str, float] = Field(default_factory=dict)
+    fixture_version: str
+
+
+class CfdFixtureRawResult(RawUnvalidatedClaimFields):
+    """Normalized raw fixture result persisted for CLI/web/sweep callers."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    job_id: str
+    speed_mps: float = Field(gt=0)
+    drag_force_n: float = Field(ge=0)
+    residual_summary: dict[str, float] = Field(default_factory=dict)
+    fixture_version: str
+    command: list[str]
+    returncode: int
+    result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
+
+
 class SolverAdapter(Protocol):
     """Narrow boundary for local solver adapters."""
 
@@ -190,6 +287,25 @@ def mock_failing_local_command_profile() -> SolverProfile:
                 "sys.stderr.write('mock CFD command failed intentionally\\n'); "
                 "sys.exit(7)"
             ),
+        ],
+        required_mesh_profile="open_wetted_surface_resistance_v1",
+    )
+
+
+def fixture_local_command_profile() -> SolverProfile:
+    """Return the deterministic fixture profile for local command dispatch."""
+    return SolverProfile(
+        name="fixture-local-command",
+        required_mesh_readiness="cfd_surface_candidate",
+        adapter_name="fixture_local_command",
+        command_template=[
+            sys.executable,
+            "-m",
+            "kayakgen.eval.cfd.fixture_command",
+            "--case",
+            "case/fixture-case.json",
+            "--out",
+            FIXTURE_RAW_OUTPUT,
         ],
         required_mesh_profile="open_wetted_surface_resistance_v1",
     )
@@ -302,6 +418,15 @@ def prepare_local_job(
     _write_json(job_dir / "profile.json", solver_profile)
     _write_json(job_dir / "job.json", job_spec)
     _write_json(job_dir / "run.json", run_record)
+
+    if solver_profile.adapter_name == "fixture_local_command":
+        prepared_case = PreparedSolverCase(
+            job_dir=job_dir,
+            job_spec=job_spec,
+            solver_profile=solver_profile,
+            mesh_manifest=manifest,
+        )
+        _adapter_for(solver_profile).prepare(prepared_case)
 
     return LocalCfdJob(
         job_dir=job_dir,
@@ -416,6 +541,171 @@ class MockFailingLocalCommandAdapter:
             output_manifest=output_path.name,
             logs=logs,
             raw_records=raw_records,
+        )
+
+    def collect(self, case: PreparedSolverCase, result: SolverRawResult) -> CfdRunRecord:
+        return _run_record_from_result(
+            case.job_spec,
+            result,
+            started_at=_utc_now(),
+            finished_at=_utc_now(),
+        )
+
+
+class FixtureLocalCommandAdapter:
+    """Adapter that exercises successful local-command fixture plumbing."""
+
+    def prepare(self, case: PreparedSolverCase) -> PreparedSolverCase:
+        case_dir = case.job_dir / "case"
+        logs_dir = case.job_dir / "logs"
+        case_dir.mkdir(exist_ok=True)
+        logs_dir.mkdir(exist_ok=True)
+
+        fixture_case = CfdFixtureCaseInput(
+            job_id=case.job_spec.job_id,
+            solver_profile=case.job_spec.solver_profile,
+            speed_mps=case.job_spec.speed_mps,
+            seawater_density_kg_m3=case.job_spec.seawater_density_kg_m3,
+            kinematic_viscosity_m2_s=case.job_spec.kinematic_viscosity_m2_s,
+            mesh=CfdFixtureMeshSummary(
+                manifest_ref=case.job_spec.input_manifest,
+                mesh_package_ref=case.job_spec.mesh_package_ref,
+                hull_hash=case.mesh_manifest.hull_hash,
+                units=case.mesh_manifest.units,
+                readiness=case.mesh_manifest.readiness.level,
+                solver_profile=case.mesh_manifest.solver_profile.profile_name,
+                parts=list(case.mesh_manifest.parts),
+                quality_reports={
+                    key: value for key, value in sorted(case.mesh_manifest.quality_reports.items())
+                },
+                surfaces={
+                    key: value for key, value in sorted(case.mesh_manifest.surfaces.items())
+                },
+                warnings=list(case.mesh_manifest.warnings),
+            ),
+        )
+        command_spec = CfdFixtureCommandSpec(
+            command=list(case.solver_profile.command_template),
+            case_input="case/fixture-case.json",
+            raw_output=FIXTURE_RAW_OUTPUT,
+        )
+        mesh_summary = CfdFixtureMeshSummaryFile(
+            hull_hash=case.mesh_manifest.hull_hash,
+            mesh_readiness=case.mesh_manifest.readiness.level,
+            mesh_solver_profile=case.mesh_manifest.solver_profile.profile_name,
+            parts=list(case.mesh_manifest.parts),
+            quality_reports={
+                key: value for key, value in sorted(case.mesh_manifest.quality_reports.items())
+            },
+            surfaces={
+                key: value for key, value in sorted(case.mesh_manifest.surfaces.items())
+            },
+            warnings=list(case.mesh_manifest.warnings),
+        )
+        _write_json(case_dir / "fixture-case.json", fixture_case)
+        _write_json(case_dir / "mesh-summary.json", mesh_summary)
+        _write_json(case_dir / "command.json", command_spec)
+        return case
+
+    def run(self, case: PreparedSolverCase) -> SolverRawResult:
+        try:
+            completed = subprocess.run(
+                case.solver_profile.command_template,
+                cwd=case.job_dir,
+                capture_output=True,
+                check=False,
+                text=True,
+                env=_fixture_command_env(),
+            )
+        except (FileNotFoundError, PermissionError) as exc:
+            completed = subprocess.CompletedProcess(
+                args=case.solver_profile.command_template,
+                returncode=127,
+                stdout="",
+                stderr=str(exc),
+            )
+            logs = _write_command_logs(case.job_dir, completed)
+            return SolverRawResult(
+                status="unavailable",
+                error_kind="solver_unavailable",
+                error_message=f"solver command unavailable: {exc}",
+                logs=logs,
+                raw_records={"command": list(case.solver_profile.command_template)},
+                warnings=_fixture_warnings(),
+            )
+
+        logs = _write_command_logs(case.job_dir, completed)
+        if completed.returncode != 0:
+            message = (
+                f"fixture command exited with code {completed.returncode}; "
+                "raw fixture output is unvalidated"
+            )
+            if completed.stderr.strip():
+                message = f"{message}: {completed.stderr.strip()}"
+            return SolverRawResult(
+                status="failed",
+                error_kind="command_failed",
+                error_message=message,
+                logs=logs,
+                raw_records={"returncode": completed.returncode},
+                warnings=_fixture_warnings(),
+            )
+
+        output_path = case.job_dir / FIXTURE_RAW_OUTPUT
+        if not output_path.is_file():
+            return SolverRawResult(
+                status="failed",
+                error_kind="missing_output",
+                error_message=f"fixture command did not write required {FIXTURE_RAW_OUTPUT}",
+                logs=logs,
+                raw_records={"returncode": completed.returncode},
+                warnings=_fixture_warnings(),
+            )
+
+        try:
+            command_output = CfdFixtureCommandOutput.model_validate_json(
+                output_path.read_text()
+            )
+        except ValidationError as exc:
+            return SolverRawResult(
+                status="failed",
+                error_kind="malformed_output",
+                error_message=f"{FIXTURE_RAW_OUTPUT} is malformed fixture raw output: {exc}",
+                logs=logs,
+                raw_records={"returncode": completed.returncode},
+                warnings=_fixture_warnings(),
+            )
+
+        if command_output.job_id != case.job_spec.job_id:
+            return SolverRawResult(
+                status="failed",
+                error_kind="malformed_output",
+                error_message=(
+                    "fixture raw output job_id mismatch: "
+                    f"expected {case.job_spec.job_id!r}, got {command_output.job_id!r}"
+                ),
+                logs=logs,
+                raw_records={"returncode": completed.returncode},
+                warnings=_fixture_warnings(),
+            )
+
+        normalized = CfdFixtureRawResult(
+            job_id=case.job_spec.job_id,
+            speed_mps=command_output.speed_mps,
+            drag_force_n=command_output.drag_force_n,
+            residual_summary=dict(command_output.residual_summary),
+            fixture_version=command_output.fixture_version,
+            command=list(case.solver_profile.command_template),
+            returncode=completed.returncode,
+            warnings=_fixture_warnings(),
+        )
+        _write_json(output_path, normalized)
+        return SolverRawResult(
+            status="succeeded",
+            output_manifest=FIXTURE_RAW_OUTPUT,
+            logs=logs,
+            raw_records=normalized.model_dump(mode="python"),
+            warnings=list(normalized.warnings),
         )
 
     def collect(self, case: PreparedSolverCase, result: SolverRawResult) -> CfdRunRecord:
@@ -637,6 +927,8 @@ def _adapter_for(solver_profile: SolverProfile) -> SolverAdapter:
         return UnavailableSolverAdapter()
     if solver_profile.adapter_name == "mock_local_command":
         return MockFailingLocalCommandAdapter()
+    if solver_profile.adapter_name == "fixture_local_command":
+        return FixtureLocalCommandAdapter()
     raise CfdDispatchError(f"unsupported solver adapter: {solver_profile.adapter_name}")
 
 
@@ -645,6 +937,7 @@ def _solver_profiles() -> dict[str, SolverProfile]:
         unavailable_open_surface_profile(),
         unavailable_watertight_solid_profile(),
         mock_failing_local_command_profile(),
+        fixture_local_command_profile(),
     )
     return {profile.name: profile for profile in profiles}
 
@@ -655,6 +948,7 @@ def _solver_profile_by_name(name: str) -> SolverProfile:
         "unavailable_open_wetted_surface_v1": "unavailable-open-wetted-surface",
         "unavailable_watertight_solid_v1": "unavailable-watertight-solid",
         "mock_failing_local_command_v1": "mock-failing-local-command",
+        "fixture_local_command_v1": "fixture-local-command",
     }
     name = aliases.get(name, name)
     try:
@@ -716,7 +1010,22 @@ def _run_record_from_result(
         logs=result.logs,
         mesh_warnings=list(job_spec.mesh_warnings),
         raw_records=result.raw_records,
+        warnings=list(result.warnings),
     )
+
+
+def _fixture_warnings() -> list[str]:
+    return [WARNING_RAW_CFD_UNVALIDATED, CFD_FIXTURE_RESULTS_WARNING]
+
+
+def _fixture_command_env() -> dict[str, str]:
+    env = os.environ.copy()
+    repo_root = Path(__file__).resolve().parents[3]
+    existing = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = (
+        str(repo_root) if not existing else os.pathsep.join([str(repo_root), existing])
+    )
+    return env
 
 
 def _write_command_logs(

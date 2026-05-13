@@ -12,6 +12,9 @@ from kayakgen.eval.contract import LoadCase, LongitudinalLoadComponent
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.model.hull import Hull
 
+FIXTURE_PROFILE_NAME = "fixture-local-command"
+FIXTURE_WARNING_FRAGMENT = "not calibrated, validated, or final design fitness"
+
 
 def test_sweep_runs_json_spec(tmp_path) -> None:
     sweep = tmp_path / "sweep.json"
@@ -211,6 +214,60 @@ def test_cfd_prepare_status_and_unavailable_run(tmp_path) -> None:
     assert "error_kind: solver_unavailable" in run_result.stdout
     run_record = json.loads((job_dir / "run.json").read_text())
     assert run_record["status"] == "unavailable"
+
+
+def test_cfd_profiles_lists_fixture_local_command() -> None:
+    result = CliRunner().invoke(app, ["cfd", "profiles"])
+
+    assert result.exit_code == 0
+    assert FIXTURE_PROFILE_NAME in result.stdout.splitlines()
+
+
+def test_cfd_fixture_run_and_status_keep_raw_warning_visible(tmp_path) -> None:
+    hull = tmp_path / "hull.json"
+    hull.write_text(Hull().model_dump_json())
+    mesh_package = tmp_path / "mesh-package"
+    jobs = tmp_path / "jobs"
+    runner = CliRunner()
+    mesh_result = runner.invoke(app, ["mesh-package", str(hull), "--out", str(mesh_package)])
+    assert mesh_result.exit_code == 0
+
+    prepare_result = runner.invoke(
+        app,
+        [
+            "cfd",
+            "prepare",
+            "--mesh-package",
+            str(mesh_package),
+            "--solver-profile",
+            FIXTURE_PROFILE_NAME,
+            "--out",
+            str(jobs),
+            "--speed-mps",
+            "2.5",
+        ],
+    )
+    assert prepare_result.exit_code == 0
+    assert "raw and unvalidated" in prepare_result.stdout
+    job_dir = next(path for path in jobs.iterdir() if path.is_dir())
+
+    run_result = runner.invoke(app, ["cfd", "run", str(job_dir)])
+    assert run_result.exit_code == 0
+    assert "status: succeeded" in run_result.stdout
+    assert "raw and unvalidated" in run_result.stdout
+    assert FIXTURE_WARNING_FRAGMENT in run_result.stdout
+
+    status_result = runner.invoke(app, ["cfd", "status", str(job_dir)])
+    assert status_result.exit_code == 0
+    assert "status: succeeded" in status_result.stdout
+    assert f"solver_profile: {FIXTURE_PROFILE_NAME}" in status_result.stdout
+    assert "raw and unvalidated" in status_result.stdout
+    assert FIXTURE_WARNING_FRAGMENT in status_result.stdout
+
+    run_record = json.loads((job_dir / "run.json").read_text())
+    assert run_record["status"] == "succeeded"
+    assert run_record["result_semantics"] == "raw_unvalidated"
+    assert FIXTURE_WARNING_FRAGMENT in " ".join(run_record["raw_records"]["warnings"])
 
 
 def test_cfd_prepare_rejects_watertight_solver_for_current_package(tmp_path) -> None:

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from kayakgen.eval.cfd.jobs import (
+    CFD_FIXTURE_RESULTS_WARNING,
     CFD_RAW_RESULTS_WARNING,
     CfdDispatchError,
+    CfdFixtureRawResult,
     CfdJobPaths,
     CfdJobSpec,
     CfdRunRecord,
@@ -12,6 +14,7 @@ from kayakgen.eval.cfd.jobs import (
     PreparedSolverCase,
     SolverProfile,
     SolverRawResult,
+    fixture_local_command_profile,
     load_cfd_run_record,
     load_run_record,
     mock_failing_local_command_profile,
@@ -38,8 +41,10 @@ def evaluate_cfd(*_args: object, **_kwargs: object) -> None:
 
 
 __all__ = [
+    "CFD_FIXTURE_RESULTS_WARNING",
     "CFD_RAW_RESULTS_WARNING",
     "CfdDispatchError",
+    "CfdFixtureRawResult",
     "CfdJobPaths",
     "CfdJobSpec",
     "CfdNotImplementedError",
@@ -49,6 +54,7 @@ __all__ = [
     "SolverProfile",
     "SolverRawResult",
     "evaluate_cfd",
+    "fixture_local_command_profile",
     "load_cfd_run_record",
     "load_run_record",
     "mock_failing_local_command_profile",

@@ -1,6 +1,6 @@
 # RFC 0026: First Real CFD Fixture Adapter
 
-Status: proposed
+Status: landed fixture-local-command
 Date: 2026-05-13
 Context: revises RFC 0017 by selecting a deterministic fixture/local-command
 adapter slice before any OpenFOAM, SU2, hosted, or validated solver dependency.
@@ -47,8 +47,8 @@ SolverProfile(
 ```
 
 The adapter writes a deterministic case directory, invokes a checked-in Python
-fixture command or equivalent local executable, and collects a normalized raw
-record such as:
+module with `python -m kayakgen.eval.cfd.fixture_command`, and collects a
+normalized raw record from `raw-result.json` at the prepared job directory root:
 
 ```python
 CfdFixtureRawResult(
@@ -71,8 +71,10 @@ missing-output failure, malformed-output failure, and normalized raw result
 collection.
 
 The existing unavailable and failing-command profiles remain. The new fixture
-profile adds a deterministic success profile that CI can run without a real CFD
-installation.
+profile adds a deterministic success profile that CI can run without an
+external CFD installation. Workflow 0037 pins this fixture slice to
+`open_wetted_surface_resistance_v1`; no watertight fixture profile is part of
+this RFC.
 
 ## Acceptance Criteria
 
@@ -90,15 +92,16 @@ installation.
 - RFC 0017 is treated as revised: OpenFOAM/SU2 selection remains deferred until
   this adapter boundary is accepted and a mesh profile can support it.
 
-## Open Questions
+## Workflow 0037 Pinned Choices
 
-- Should the fixture command be a small module invoked with `python -m`, or a
-  generated script written into each job directory?
-- Should normalized raw output live in `raw-result.json` or in a named
-  `outputs/` manifest for parity with future solver adapters?
-- Should the fixture profile accept only `open_wetted_surface_resistance_v1`, or
-  should a second watertight fixture profile be added after closed-volume work
-  lands?
+- The fixture command is a checked-in Python module invoked with
+  `python -m kayakgen.eval.cfd.fixture_command`, not a generated per-job script.
+- Normalized fixture output lives at `raw-result.json` in the prepared job
+  directory.
+- The fixture profile accepts only `open_wetted_surface_resistance_v1` and
+  remains `raw_unvalidated`.
+- OpenFOAM/SU2 selection from RFC 0017 remains deferred until a later RFC slice
+  has the mesh profile and maintenance plan to support it.
 
 ## Implementation Path
 
@@ -108,4 +111,3 @@ installation.
 4. Extend CLI profile/run/status tests for deterministic success and failure
    modes.
 5. Keep all output metadata wired to RFC 0025 claim gates.
-

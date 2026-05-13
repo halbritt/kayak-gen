@@ -5,6 +5,14 @@ Date: 2026-05-13
 Context: builds on RFC 0010 mesh packages, RFC 0015 local CFD job dispatch,
 and RFC 0012 resistance provenance boundaries.
 
+## Workflow 0037 Revision Note
+
+RFC 0026 revises the first implementation slice for this RFC: the near-term
+adapter is a deterministic `fixture-local-command` profile that produces
+raw/unvalidated fixture records only. OpenFOAM/SU2 target selection, installer
+requirements, and external solver case templates remain deferred until a later
+RFC slice.
+
 ## Problem
 
 RFC 0015 defines deterministic local CFD job records and adapter boundaries,
