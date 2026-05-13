@@ -4,8 +4,15 @@ Updated: 2026-05-13
 
 ## Current State
 
-- `main` is clean and even with `origin/main` at `6ebf35f`.
-- Active roadmap drafting branch: `striatum/residual-roadmap-rfcs`.
+- `main` is clean and even with `origin/main` at `83b9b56`.
+- Active implementation batch:
+  `striatum/0032-closed-volume-self-intersection-diagnostics`,
+  `striatum/0036-cfd-calibration-claim-gates`, and
+  `striatum/0029-web-cfd-job-routes`.
+- Active run IDs:
+  `run_04735e0767704843a93cb507c202231f` (0032),
+  `run_38b1b70956eb48eabbf39449375579ed` (0036), and
+  `run_9126a2d7dd7a4fa3b9cbf6815a8e0c98` (0029).
 - Workflows 0021, 0022, 0023, 0024, and 0025 have landed and were pushed to
   `origin/main`.
 - Striatum skill/plugin bundle refresh landed on `main` after workflow 0025.
@@ -13,13 +20,16 @@ Updated: 2026-05-13
   `origin/main`.
 - Workflow roadmap scaffolding for queued items 0027-0031 has landed on
   `main`.
+- Residual roadmap RFC/workflow scaffolding for RFCs 0021-0030 and workflows
+  0032-0041 landed on `main` as `83b9b56`.
 - `CHANGELOG.md` has landed from git/RFC/workflow history, and `AGENTS.md`
   tells future agents to update it for RFC/workflow/user-facing changes.
 - After workflow 0027 landed, the target repo Striatum Claude/Codex skill
   bundles were refreshed to match the running 1.36.0 install; `striatum doctor`
   is clean.
-- Old merged local and remote topic branches were pruned; only `main` remains
-  locally and remotely.
+- Old merged local and remote topic branches were pruned before the current
+  implementation batch; the only local topic branches now are the three active
+  Striatum run branches listed above.
 - Root report was created after compaction because only per-workflow reports
   were present in `docs/workflows/*/OPERATOR_REPORT.md`.
 
@@ -88,13 +98,30 @@ Updated: 2026-05-13
   volume-mesh evidence.
 - Branch hygiene rule for this phase: land scaffold batches to `main`
   frequently, push `main`, then delete merged local and remote topic branches.
-- Next local gate: validate all 10 new workflow definitions, commit and push
-  `striatum/residual-roadmap-rfcs`, fast-forward `main`, push `main`, and prune
-  the merged scaffold branch before starting implementation runs.
+- Scaffold batch landed on `main` as `83b9b56`; the
+  `striatum/residual-roadmap-rfcs` branch was pushed, fast-forwarded into
+  `main`, pushed to `origin/main`, then deleted locally and remotely.
 - Verification completed for the scaffold batch: JSON syntax valid for
   workflows 0032-0041, Striatum workflow validation passed for all 10,
   `git diff --check` is clean, ASCII check is clean, and
   `striatum --repo . doctor` is clean.
+
+## Active Batch 0032 / 0036 / 0029
+
+- Dependency-safe first batch started with workflows 0032, 0036, and existing
+  0029 because they do not depend on generated closed-body construction.
+- All nine first-pass review jobs are registered, claimed, and acknowledged.
+  Artifact work is isolated by branch worktree: the root checkout remains on
+  0029, `/home/halbritt/git/kayak-gen.worktrees/0032` is on 0032, and
+  `/home/halbritt/git/kayak-gen.worktrees/0036` is on 0036.
+- Review artifact sessions:
+  `operator-0032-traceability`, `operator-0032-domain`, `operator-0032-ops`,
+  `operator-0036-traceability`, `operator-0036-domain-source`,
+  `operator-0036-ops`, `operator-0029-traceability`,
+  `operator-0029-browser-domain`, and `operator-0029-ops`.
+- Next local gate: produce the nine review artifacts, publish them through
+  Striatum, consolidate findings per workflow, then run Codex implementation
+  jobs with maximal useful sub-agent fanout.
 
 ## Completed Workflow 0027
 
