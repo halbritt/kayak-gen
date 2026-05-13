@@ -11,6 +11,14 @@ Updated: 2026-05-13
 - 2026-05-13T20:56:04Z checkpoint: workflow 0044 scaffold was amended to add
   a dedicated ergonomics/design first-pass review lane before findings ledger
   and implementation. The workflow validates with the repo venv Striatum CLI.
+- 2026-05-13T21:33:24Z checkpoint: starting workflow 0044 execution. The
+  workflow plan exposes review_remediation first, then four parallel review
+  lanes (traceability, domain, ergonomics/design, ops), then ledger,
+  implementation, and final review. `run prepare` exposed an interrupted
+  local Striatum SQLite v16 migration (`runs_new` temp table present with
+  schema version 15); a backup was written to
+  `.striatum/scratch/operator-db-repair-20260513T/state.sqlite3.before-v16-repair`
+  before local state repair. No Striatum source changes are being made.
 - Next maximum-parallel batch queued from the ready backlog: workflows 0033,
   0037, 0038, 0039, 0040, and 0041. Workflows 0034 and 0035 remain queued until
   0033 lands because they depend on generated closed-body evidence.
