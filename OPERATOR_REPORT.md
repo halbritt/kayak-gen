@@ -11,6 +11,13 @@ Updated: 2026-05-13
 - Next maximum-parallel batch queued from the ready backlog: workflows 0033,
   0037, 0038, 0039, 0040, and 0041. Workflows 0034 and 0035 remain queued until
   0033 lands because they depend on generated closed-body evidence.
+- Active maximum-parallel batch run IDs:
+  `run_f33e467413ba4ca2a4e5e794338d9580` (0033),
+  `run_f0ce0eddffee4622a10d02a842cd84ea` (0037),
+  `run_7d439091034943ec90848192c9f49136` (0038),
+  `run_53f17f26285941c3a3992705772ce07d` (0039),
+  `run_48d834656e604d66aa430eb5f60ea643` (0040), and
+  `run_4c920dd1311f42a5b0bbac4126af0cbd` (0041).
 - `main` includes the completed 0032, 0036, and 0029 workflow landings; the
   workflow code landed through `d13d0ad` before this final report update.
 - All temporary workflow branches and worktrees from the 0032/0036/0029 batch
