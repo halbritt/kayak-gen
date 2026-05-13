@@ -96,6 +96,12 @@ Updated: 2026-05-13
   `art_6534da9ce1be4854920ee2073361c160` (browser), and
   `art_aa0b01556a34496bb4a010c9961f36c1` (ops). Both successor runs now have
   `findings_ledger` queued.
+- 2026-05-13T19:47:20Z checkpoint: both successor findings ledgers were
+  published and completed. 0042 ledger `art_bb02949c3574467ab24cbdc35ee264f4`
+  defines the safe RFC 0031 implementation slice; 0043 ledger
+  `art_0a3aa38ff90840a49db6c3eb48bcdd43` defines the safe RFC 0032
+  implementation slice. Both successor runs now have `implement_findings`
+  queued.
 - 2026-05-13T17:46:07Z checkpoint: the four unblocked ledger jobs completed
   and were published without `author:` bylines: 0033
   `art_b263fcf6154e4503b62f8ad2a142813a`, 0037
