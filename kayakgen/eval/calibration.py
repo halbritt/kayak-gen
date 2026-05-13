@@ -6,11 +6,17 @@ resistance output is calibrated.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-SourceUse = Literal["citation_only", "validation_candidate", "calibration_fixture"]
+SourceUse = Literal[
+    "citation_only",
+    "validation_candidate",
+    "validation_fixture",
+    "calibration_fixture_candidate",
+    "calibration_fixture",
+]
 
 
 class ResistanceSourceRecord(BaseModel):
@@ -29,6 +35,36 @@ class ResistanceSourceRecord(BaseModel):
     extraction_status: str
     notes: str
     warnings: list[str] = Field(default_factory=list)
+    fixture_id: str | None = None
+    measured_quantity: str | None = None
+    measurement_units: str | None = None
+    hull_envelope: dict[str, Any] | None = None
+    uncertainty_notes: str | None = None
+    validity_ranges: dict[str, Any] | None = None
+    fixture_review_status: Literal["accepted", "candidate", "not_reviewed"] | None = None
+
+    @model_validator(mode="after")
+    def _calibration_fixture_requires_review(self) -> "ResistanceSourceRecord":
+        if self.intended_use != "calibration_fixture":
+            return self
+        required_values = {
+            "fixture_id": self.fixture_id,
+            "measured_quantity": self.measured_quantity,
+            "measurement_units": self.measurement_units,
+            "hull_envelope": self.hull_envelope,
+            "uncertainty_notes": self.uncertainty_notes,
+            "validity_ranges": self.validity_ranges,
+            "fixture_review_status": self.fixture_review_status,
+        }
+        missing = sorted(name for name, value in required_values.items() if not value)
+        if self.fixture_review_status != "accepted":
+            missing.append("fixture_review_status=accepted")
+        if missing:
+            raise ValueError(
+                "calibration_fixture requires fixture review metadata: "
+                + ", ".join(dict.fromkeys(missing))
+            )
+        return self
 
 
 def default_resistance_source_registry() -> tuple[ResistanceSourceRecord, ...]:

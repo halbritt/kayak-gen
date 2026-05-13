@@ -12,6 +12,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   self-intersection diagnostics: serialized `not_checked`, `passed`,
   `failed`, and `inconclusive` status, assembled-body triangle-pair evidence,
   bounded examples, and a new profile that still keeps `cfd_ready` false.
+- Added RFC 0025 claim-state metadata to resistance and raw local-CFD records,
+  with forbidden-promotion tests for raw CFD, validation-only fixtures,
+  uncalibrated resistance, calibrated prediction evidence, and final
+  design-fitness claims.
 - Documented workflow 0027's closed-volume safe slice: serializable explicit
   synthetic diagnostics and evidence-based watertight dispatch rejection may
   land, while generated hull-plus-deck closure and `cfd_ready` handoff remain
@@ -36,6 +40,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Changed
 
+- Hardened comparison-report accepted-use provenance so raw comparative
+  resistance and forged legacy final-prediction strings cannot become accepted
+  calibrated prediction without fixture IDs, model version, fit evidence, and a
+  validity envelope.
+- `kayakgen evaluate` and compact web metrics now show visible warnings when
+  resistance values are the current uncalibrated comparative filter.
 - Refreshed project Striatum Claude/Codex skill bundles to the running 1.36.0
   install so `striatum doctor` is clean again.
 - Recorded the dependency plan for the next implementation batch:

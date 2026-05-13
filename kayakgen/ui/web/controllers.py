@@ -13,7 +13,7 @@ import numpy as np
 from pydantic import ValidationError
 from stl import mesh as numpy_stl_mesh
 
-from kayakgen.eval.contract import EvaluationResult, ResistanceCurve
+from kayakgen.eval.contract import EvaluationResult, ResistanceCurve, ResistanceMetadata
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance, resistance_curve
 from kayakgen.model.advisory import design_advisory
@@ -80,6 +80,7 @@ def metrics_from_state(state: dict[str, Any], stations: int = 60) -> dict[str, A
     r = evaluate_resistance(
         hull, V_ms, Sw=h.wetted_surface_m2, n_stations=400, n_depths=20, n_theta=30
     )
+    resistance_claim = ResistanceMetadata()
     advisory = design_advisory(hull, cp=h.Cp_actual, displaced_mass_kg=h.displaced_mass_kg)
     return {
         "displaced_mass_kg": h.displaced_mass_kg,
@@ -92,6 +93,9 @@ def metrics_from_state(state: dict[str, Any], stations: int = 60) -> dict[str, A
         "Rv_N": r["Rv_N"],
         "Rw_N": r["Rw_N"],
         "Rt_N": r["Rt_N"],
+        "resistance_claim_state": resistance_claim.claim_state,
+        "resistance_accepted_uses": resistance_claim.accepted_uses,
+        "resistance_warnings": resistance_claim.warnings,
         "advisory_warnings": advisory.warnings,
     }
 

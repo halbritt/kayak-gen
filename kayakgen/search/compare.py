@@ -9,6 +9,11 @@ from typing import Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from kayakgen.eval.claims import (
+    claim_allows_calibrated_prediction,
+    claim_allows_final_design_fitness,
+    claim_metadata_from_fields,
+)
 from kayakgen.eval.contract import EvaluationResult
 from kayakgen.search.pareto import CandidatePoint, Direction, Objective, pareto_front
 from kayakgen.search.sweep import CandidateRecord, SweepRunRecord
@@ -87,7 +92,7 @@ def build_comparison_report(
     )
     report_kind: ReportKind = (
         "exploratory_frontier"
-        if any(_is_resistance_metric(objective.metric) for objective in selected_objectives)
+        if any(_is_claim_gated_metric(objective.metric) for objective in selected_objectives)
         else "pareto_frontier"
     )
 
@@ -136,8 +141,10 @@ def build_comparison_report(
             for summary in summaries
         ):
             report_warnings.append(f"unsupported objective: {objective.metric}")
-    if report_kind == "exploratory_frontier":
+    if any(_is_resistance_metric(objective.metric) for objective in selected_objectives):
         report_warnings.append("exploratory frontier includes resistance objective")
+    if any(_is_design_fitness_metric(objective.metric) for objective in selected_objectives):
+        report_warnings.append("exploratory frontier includes final design-fitness objective")
 
     return ComparisonReport(
         run_name=run.name,
@@ -174,15 +181,22 @@ def _candidate_summary(root: Path, record: CandidateRecord) -> CandidateSummary:
         _append_once(warnings, "candidate error recorded")
 
     evaluation = _load_evaluation(root, record)
+    resistance_claim = None
     if evaluation is not None and evaluation.resistance is not None:
         resistance = evaluation.resistance
-        accepted = (
-            resistance.metadata.calibration_status != "uncalibrated"
-            and "final_prediction" in resistance.metadata.accepted_use
-        )
+        resistance_claim = claim_metadata_from_fields(resistance.metadata)
+        accepted = claim_allows_calibrated_prediction(resistance_claim)
         provenance["Rt_N_last"] = {
             "accepted_use": accepted,
-            "accepted_use_values": resistance.metadata.accepted_use,
+            "accepted_use_values": resistance.metadata.accepted_uses,
+            "claim_state": resistance_claim.claim_state,
+            "accepted_uses": resistance_claim.accepted_uses,
+            "calibration_fixture_ids": resistance_claim.calibration_fixture_ids,
+            "validation_fixture_ids": resistance_claim.validation_fixture_ids,
+            "model_version": resistance_claim.model_version,
+            "fit_status": resistance_claim.fit_status,
+            "fit_metrics": resistance_claim.fit_metrics,
+            "validity_envelope": resistance_claim.validity_envelope,
             "calibration_status": resistance.metadata.calibration_status,
             "model_family": resistance.metadata.model_family,
         }
@@ -192,7 +206,17 @@ def _candidate_summary(root: Path, record: CandidateRecord) -> CandidateSummary:
         provenance["Rt_N_last"] = {
             "accepted_use": False,
             "accepted_use_values": str(record.summary.get("resistance_use", "")).split(","),
+            "claim_state": record.summary.get("resistance_claim_state", "unknown"),
             "calibration_status": "unknown",
+        }
+    if "design_fitness" in record.summary:
+        provenance["design_fitness"] = {
+            "accepted_use": claim_allows_final_design_fitness(resistance_claim),
+            "claim_state": (
+                resistance_claim.claim_state
+                if resistance_claim is not None
+                else "not_implemented"
+            ),
         }
 
     if "mesh_diagnostics" in record.artifacts:
@@ -255,7 +279,7 @@ def _default_objectives(summaries: list[CandidateSummary]) -> list[Objective]:
 def _normalize_objectives(objectives: list[Objective]) -> list[Objective]:
     normalized: list[Objective] = []
     for objective in objectives:
-        if _is_resistance_metric(objective.metric) and not objective.accepted_use_required:
+        if _is_claim_gated_metric(objective.metric) and not objective.accepted_use_required:
             normalized.append(objective.model_copy(update={"accepted_use_required": True}))
         else:
             normalized.append(objective)
@@ -285,6 +309,14 @@ def _has_accepted_use(provenance: dict[str, Any], metric: str) -> bool:
 def _is_resistance_metric(metric: str) -> bool:
     normalized = metric.lower()
     return normalized.startswith("rt_") or "resistance" in normalized
+
+
+def _is_design_fitness_metric(metric: str) -> bool:
+    return "fitness" in metric.lower()
+
+
+def _is_claim_gated_metric(metric: str) -> bool:
+    return _is_resistance_metric(metric) or _is_design_fitness_metric(metric)
 
 
 def _append_once(warnings: list[str], warning: str) -> None:

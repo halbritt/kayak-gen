@@ -182,6 +182,8 @@ class KayakgenApp:
             f"Cp / Cm      {m['Cp_actual']:.3f} / {m['Cm_actual']:.3f}",
             f"L/B_wl       {m['l_over_bwl']:7.2f}",
             f"At {self.state.target_speed_kt:.1f} kt (Fn {m['Fn']:.2f})",
+            f"  Claim     {m['resistance_claim_state']}",
+            "  Warning   raw comparative filter; not final prediction",
             f"  Viscous   {m['Rv_N']:6.1f} N",
             f"  Wave      {m['Rw_N']:6.1f} N",
             f"  Total     {m['Rt_N']:6.1f} N",

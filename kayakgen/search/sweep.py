@@ -270,6 +270,8 @@ def _evaluate_candidate(
     }
     if resistance is not None:
         summary["resistance_use"] = ",".join(resistance.metadata.accepted_use)
+        summary["resistance_claim_state"] = resistance.metadata.claim_state
+        summary["resistance_accepted_uses"] = ",".join(resistance.metadata.accepted_uses)
         summary["resistance_warnings"] = ",".join(resistance.metadata.warnings)
         summary["Rt_N_last"] = resistance.Rt_N[-1] if resistance.Rt_N else None
     if stability is not None:

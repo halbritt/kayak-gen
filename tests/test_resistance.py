@@ -16,8 +16,17 @@ import math
 import time
 
 import numpy as np
+import pytest
+from pydantic import ValidationError
 
-from kayakgen.eval.calibration import default_resistance_source_registry
+from kayakgen.eval.calibration import (
+    ResistanceSourceRecord,
+    default_resistance_source_registry,
+)
+from kayakgen.eval.claims import (
+    claim_allows_calibrated_prediction,
+    claim_allows_final_design_fitness,
+)
 from kayakgen.eval.resistance import (
     KNOTS_TO_MS,
     SEAWATER_DENSITY_KG_M3,
@@ -118,6 +127,13 @@ def test_resistance_curve_shape_and_units() -> None:
     assert all(v >= 0 for v in curve.Rv_N)
     assert all(v >= 0 for v in curve.Rw_N)
     assert all(rt == rv + rw for rt, rv, rw in zip(curve.Rt_N, curve.Rv_N, curve.Rw_N))
+    assert curve.metadata.claim_state == "uncalibrated_comparative"
+    assert curve.metadata.accepted_uses == ["comparative_filter"]
+    assert curve.metadata.calibration_fixture_ids == []
+    assert curve.metadata.validation_fixture_ids == []
+    assert curve.metadata.model_version is None
+    assert curve.metadata.fit_status is None
+    assert curve.metadata.validity_envelope is None
     assert curve.metadata.model_family == "raw_ittc_michell"
     assert curve.metadata.calibration_status == "uncalibrated"
     assert curve.metadata.calibration_name is None
@@ -157,12 +173,29 @@ def test_resistance_metadata_records_quadrature_settings() -> None:
 def test_resistance_metadata_round_trips_optional_provenance_fields() -> None:
     curve = resistance_curve(Hull())
     loaded = type(curve).model_validate_json(curve.model_dump_json())
+    assert loaded.metadata.claim_state == "uncalibrated_comparative"
+    assert loaded.metadata.accepted_uses == ["comparative_filter"]
+    assert loaded.metadata.calibration_fixture_ids == []
+    assert loaded.metadata.validation_fixture_ids == []
+    assert loaded.metadata.model_version is None
+    assert loaded.metadata.fit_status is None
+    assert loaded.metadata.validity_envelope is None
     assert loaded.metadata.calibration_name is None
     assert loaded.metadata.calibration_version is None
     assert loaded.metadata.valid_fn_range is None
     assert loaded.metadata.valid_l_b_range is None
     assert loaded.metadata.source_citation is None
     assert loaded.metadata.extraction_method is None
+
+
+def test_resistance_claim_state_is_serialized_and_not_promoted() -> None:
+    curve = resistance_curve(Hull(), V_knots=np.array([3.5]))
+    payload = curve.model_dump(mode="json")
+
+    assert payload["metadata"]["claim_state"] == "uncalibrated_comparative"
+    assert "claim_state" in payload["metadata"]
+    assert claim_allows_calibrated_prediction(curve.metadata) is False
+    assert claim_allows_final_design_fitness(curve.metadata) is False
 
 
 def test_default_resistance_source_registry_has_no_calibration_fixtures() -> None:
@@ -187,3 +220,36 @@ def test_default_resistance_source_registry_has_no_calibration_fixtures() -> Non
     assert edinburgh.measured_data is True
     assert "cc_by_4_0" in edinburgh.rights_status
     assert "validation_not_calibration" in edinburgh.warnings
+
+
+def test_validation_fixture_does_not_promote_resistance_claim() -> None:
+    fixture = ResistanceSourceRecord(
+        source_id="synthetic_validation_fixture",
+        title="Synthetic validation fixture",
+        url="https://example.invalid/fixture",
+        source_type="test_fixture",
+        intended_use="validation_fixture",
+        measured_data=True,
+        hull_class="sprint_k1",
+        rights_status="test_only",
+        extraction_status="checked_for_parser_validation",
+        notes="Validation fixtures do not calibrate the resistance model.",
+        warnings=["validation_not_calibration"],
+        fixture_id="validation-only-001",
+        measured_quantity="total_resistance",
+        measurement_units="N",
+    )
+    curve = resistance_curve(Hull(), V_knots=np.array([3.5]))
+
+    assert fixture.intended_use == "validation_fixture"
+    assert curve.metadata.claim_state == "uncalibrated_comparative"
+    assert curve.metadata.calibration_fixture_ids == []
+    assert "uncalibrated_no_validity_envelope" in curve.metadata.warnings
+
+
+def test_calibration_fixture_requires_review_metadata() -> None:
+    candidate = default_resistance_source_registry()[0].model_dump(mode="python")
+    candidate["intended_use"] = "calibration_fixture"
+
+    with pytest.raises(ValidationError, match="fixture review metadata"):
+        ResistanceSourceRecord.model_validate(candidate)

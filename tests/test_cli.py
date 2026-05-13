@@ -106,6 +106,7 @@ def test_evaluate_accepts_non_default_bow_rake_and_beam_wl(tmp_path) -> None:
     )
 
     assert result.exit_code == 0
+    assert "uncalibrated/comparative" not in result.stdout
     data = json.loads(out.read_text())
     expected = evaluate_hydrostatics(hull_model)
     assert data["resistance"] is None
@@ -115,6 +116,20 @@ def test_evaluate_accepts_non_default_bow_rake_and_beam_wl(tmp_path) -> None:
     assert data["hydrostatics"]["waterplane_area_m2"] == pytest.approx(
         expected.waterplane_area_m2
     )
+
+
+def test_evaluate_with_resistance_prints_claim_warning(tmp_path) -> None:
+    hull = tmp_path / "hull.json"
+    out = tmp_path / "hull.eval.json"
+    hull.write_text(Hull().model_dump_json())
+
+    result = CliRunner().invoke(app, ["evaluate", str(hull), "--out", str(out)])
+
+    assert result.exit_code == 0
+    assert "Resistance is uncalibrated/comparative only; see metadata." in result.stdout
+    data = json.loads(out.read_text())
+    assert data["resistance"]["metadata"]["claim_state"] == "uncalibrated_comparative"
+    assert "not_final_performance_prediction" in data["resistance"]["metadata"]["warnings"]
 
 
 def test_mesh_package_writes_manifest_and_artifacts(tmp_path) -> None:

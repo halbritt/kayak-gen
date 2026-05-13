@@ -6,11 +6,13 @@ import json
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from kayakgen.eval.cfd.jobs import (
     CfdDispatchError,
     CfdJobSpec,
     CfdRunRecord,
+    SolverRawResult,
     load_cfd_run_record,
     load_run_record,
     mock_failing_local_command_profile,
@@ -28,6 +30,7 @@ from kayakgen.eval.closed_volume import (
     explicit_synthetic_body,
     explicit_synthetic_self_intersection_policy,
 )
+from kayakgen.eval.contract import CfdResult
 from kayakgen.eval.mesh_diagnostics import MeshReadiness
 from kayakgen.eval.mesh_package import watertight_solid_profile, write_mesh_package
 from kayakgen.model.hull import Hull
@@ -57,7 +60,37 @@ def test_job_spec_and_run_record_round_trip() -> None:
 
     assert CfdJobSpec.model_validate_json(job.model_dump_json()) == job
     assert CfdRunRecord.model_validate_json(run.model_dump_json()) == run
+    assert job.claim_state == "raw_unvalidated"
+    assert run.claim_state == "raw_unvalidated"
+    assert job.accepted_uses == []
+    assert run.accepted_uses == []
+    assert json.loads(job.model_dump_json())["claim_state"] == "raw_unvalidated"
+    assert json.loads(run.model_dump_json())["claim_state"] == "raw_unvalidated"
     assert run.result_semantics == "raw_unvalidated"
+
+
+def test_cfd_records_reject_validated_or_calibrated_promotion() -> None:
+    with pytest.raises(ValidationError, match="raw_unvalidated"):
+        CfdRunRecord(
+            job_id="cfd-test",
+            status="succeeded",
+            solver_profile="unavailable-open-wetted-surface",
+            input_manifest="../mesh/manifest.json",
+            claim_state="calibrated_model",
+        )
+
+    with pytest.raises(ValidationError, match="accepted uses"):
+        SolverRawResult(status="succeeded", accepted_uses=["final_prediction"])
+
+
+def test_reserved_cfd_drag_result_serializes_raw_claim_state() -> None:
+    result = CfdResult(solver="reserved", drag_N=12.0)
+
+    assert result.claim_state == "raw_unvalidated"
+    assert result.accepted_uses == []
+    assert json.loads(result.model_dump_json())["claim_state"] == "raw_unvalidated"
+    with pytest.raises(ValidationError, match="raw_unvalidated"):
+        CfdResult(solver="reserved", drag_N=12.0, claim_state="calibrated_model")
 
 
 def test_prepare_local_job_writes_deterministic_job_directory(tmp_path: Path) -> None:

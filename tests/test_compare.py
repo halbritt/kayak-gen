@@ -4,13 +4,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+from kayakgen.eval.contract import EvaluationResult, ResistanceCurve, ResistanceMetadata
+from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
+from kayakgen.model.hull import Hull
 from kayakgen.search.compare import (
     ComparisonReport,
     build_comparison_report,
     write_comparison_report,
 )
 from kayakgen.search.pareto import Objective
-from kayakgen.search.sweep import SweepSpec, run_sweep
+from kayakgen.search.sweep import CandidateRecord, SweepRunRecord, SweepSpec, run_sweep
 
 
 def _spec() -> SweepSpec:
@@ -19,6 +24,57 @@ def _spec() -> SweepSpec:
         base_hull={"beam_oa_m": 0.60},
         variables={"beam_wl_m": {"kind": "values", "values": [0.50, 0.55]}},
     )
+
+
+def _write_run_with_resistance_metadata(
+    root: Path,
+    metadata: ResistanceMetadata,
+    *,
+    summary_extra: dict[str, float] | None = None,
+) -> None:
+    candidates = root / "candidates"
+    candidates.mkdir(parents=True)
+    hull = Hull()
+    hydro = evaluate_hydrostatics(hull)
+    evaluation = EvaluationResult(
+        hull_hash=hull.hash(),
+        hydrostatics=hydro,
+        resistance=ResistanceCurve(
+            V_knots=[3.5],
+            Fn=[0.27],
+            Rv_N=[6.0],
+            Rw_N=[3.0],
+            Rt_N=[9.0],
+            metadata=metadata,
+        ),
+    )
+    eval_path = candidates / "candidate-a.eval.json"
+    eval_path.write_text(evaluation.model_dump_json(indent=2))
+    summary = {
+        "GM0_m": hydro.GM0_m,
+        "Rt_N_last": 9.0,
+    }
+    summary.update(summary_extra or {})
+    record = CandidateRecord(
+        candidate_index=0,
+        candidate_key="candidate-a",
+        parameters={},
+        attempted_hull=hull.model_dump(mode="json"),
+        status="complete",
+        hull_hash=hull.hash(),
+        artifacts={"evaluation": str(eval_path.relative_to(root))},
+        summary=summary,
+    )
+    run = SweepRunRecord(
+        name="claim-gate",
+        spec_hash="claim-gate",
+        candidate_count=1,
+        completed_count=1,
+        failed_count=0,
+        skipped_count=0,
+        candidates=[record],
+    )
+    (root / "run.json").write_text(run.model_dump_json(indent=2))
 
 
 def test_default_comparison_report_is_deterministic(tmp_path: Path) -> None:
@@ -183,6 +239,95 @@ def test_raw_resistance_objective_is_exploratory_and_requires_provenance(tmp_pat
         "metric requires accepted-use provenance: Rt_N_last" in summary.warnings
         for summary in report.candidate_summaries
     )
+
+
+def test_forged_legacy_final_prediction_metadata_is_not_accepted(tmp_path: Path) -> None:
+    _write_run_with_resistance_metadata(
+        tmp_path,
+        ResistanceMetadata(
+            calibration_status="calibrated",
+            accepted_use=["final_prediction"],
+        ),
+    )
+
+    report = build_comparison_report(
+        tmp_path,
+        objectives=[Objective(metric="Rt_N_last", direction="min")],
+    )
+    summary = report.candidate_summaries[0]
+
+    assert summary.provenance["Rt_N_last"]["accepted_use"] is False
+    assert summary.provenance["Rt_N_last"]["claim_state"] == "uncalibrated_comparative"
+    assert "metric requires accepted-use provenance: Rt_N_last" in summary.warnings
+
+
+@pytest.mark.parametrize(
+    ("metadata_update", "expected_missing"),
+    [
+        ({"calibration_fixture_ids": []}, "calibration_fixture_ids"),
+        ({"model_version": None}, "model_version"),
+        ({"fit_status": None, "fit_metrics": {}}, "fit_status"),
+        ({"validity_envelope": None}, "validity_envelope"),
+    ],
+)
+def test_calibrated_prediction_requires_full_claim_contract(
+    tmp_path: Path,
+    metadata_update: dict[str, object],
+    expected_missing: str,
+) -> None:
+    metadata_values = {
+        "claim_state": "calibrated_model",
+        "calibration_status": "calibrated",
+        "accepted_uses": ["final_prediction"],
+        "calibration_fixture_ids": ["accepted-fixture-001"],
+        "model_version": "resistance-test-v1",
+        "fit_status": "passed",
+        "validity_envelope": {"Fn": [0.25, 0.50]},
+        "warnings": [],
+    } | metadata_update
+    _write_run_with_resistance_metadata(
+        tmp_path,
+        ResistanceMetadata.model_validate(metadata_values),
+    )
+
+    report = build_comparison_report(
+        tmp_path,
+        objectives=[Objective(metric="Rt_N_last", direction="min")],
+    )
+    summary = report.candidate_summaries[0]
+
+    assert summary.provenance["Rt_N_last"]["accepted_use"] is False
+    assert summary.provenance["Rt_N_last"][expected_missing] in (None, [], {})
+    assert "metric requires accepted-use provenance: Rt_N_last" in summary.warnings
+
+
+def test_calibrated_resistance_is_not_final_design_fitness(tmp_path: Path) -> None:
+    _write_run_with_resistance_metadata(
+        tmp_path,
+        ResistanceMetadata(
+            claim_state="calibrated_model",
+            calibration_status="calibrated",
+            accepted_uses=["final_prediction"],
+            calibration_fixture_ids=["accepted-fixture-001"],
+            model_version="resistance-test-v1",
+            fit_status="passed",
+            validity_envelope={"Fn": [0.25, 0.50]},
+            warnings=[],
+        ),
+        summary_extra={"design_fitness": 0.75},
+    )
+
+    report = build_comparison_report(
+        tmp_path,
+        objectives=[Objective(metric="design_fitness", direction="max")],
+    )
+    summary = report.candidate_summaries[0]
+
+    assert report.objectives[0].accepted_use_required is True
+    assert summary.provenance["design_fitness"]["accepted_use"] is False
+    assert summary.provenance["design_fitness"]["claim_state"] == "calibrated_model"
+    assert "metric requires accepted-use provenance: design_fitness" in summary.warnings
+    assert "exploratory frontier includes final design-fitness objective" in report.warnings
 
 
 def test_write_comparison_report_round_trips(tmp_path: Path) -> None:

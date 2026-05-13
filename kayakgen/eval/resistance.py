@@ -42,6 +42,11 @@ from time import perf_counter
 
 import numpy as np
 
+from kayakgen.eval.claims import (
+    ACCEPTED_USE_COMPARATIVE_FILTER,
+    UNCALIBRATED_COMPARATIVE,
+    uncalibrated_resistance_warnings,
+)
 from kayakgen.eval.contract import ResistanceCurve, ResistanceMetadata
 from kayakgen.model.hull import Hull
 
@@ -49,14 +54,6 @@ GRAVITY_M_S2 = 9.80665
 SEAWATER_DENSITY_KG_M3 = 1025.0
 SEAWATER_KINEMATIC_VISCOSITY_M2_S = 1.19e-6  # 15 °C
 KNOTS_TO_MS = 0.514444
-
-
-def _raw_resistance_warnings() -> list[str]:
-    return [
-        "comparative_filter_only",
-        "not_final_performance_prediction",
-        "uncalibrated_no_validity_envelope",
-    ]
 
 
 def _half_breadth_grid(hull: Hull, n_stations: int, n_depths: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -166,9 +163,17 @@ def resistance_curve(
     Rt = Rv + Rw
 
     metadata = ResistanceMetadata(
+        claim_state=UNCALIBRATED_COMPARATIVE,
+        accepted_uses=[ACCEPTED_USE_COMPARATIVE_FILTER],
+        calibration_fixture_ids=[],
+        validation_fixture_ids=[],
+        model_version=None,
+        fit_status=None,
+        fit_metrics={},
+        validity_envelope=None,
         model_family="raw_ittc_michell",
         calibration_status="uncalibrated",
-        accepted_use=["comparative_filter"],
+        accepted_use=[ACCEPTED_USE_COMPARATIVE_FILTER],
         verification_fixtures=["wigley_parabolic_hull"],
         constants={
             "gravity_m_s2": GRAVITY_M_S2,
@@ -180,7 +185,7 @@ def resistance_curve(
             "n_depths": n_depths,
             "n_theta": n_theta,
         },
-        warnings=_raw_resistance_warnings(),
+        warnings=uncalibrated_resistance_warnings(),
     )
 
     return ResistanceCurve(

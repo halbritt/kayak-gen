@@ -76,6 +76,22 @@ def test_metrics_match_evaluate_hydrostatics() -> None:
     assert abs(m["l_over_bwl"] - hull.length_m / hull.beam_oa_m) < 1e-6
     assert m["advisory_warnings"] == ()
     assert m["Rt_N"] == m["Rv_N"] + m["Rw_N"]
+    assert m["resistance_claim_state"] == "uncalibrated_comparative"
+    assert "comparative_filter" in m["resistance_accepted_uses"]
+    assert "not_final_performance_prediction" in m["resistance_warnings"]
+
+
+def test_compact_metrics_lines_include_resistance_claim_warning() -> None:
+    from kayakgen.ui.web.app import create_app
+
+    web = create_app(initial_hull=Hull())
+
+    assert any("Total" in line and "N" in line for line in web.state.metrics_lines)
+    assert any("uncalibrated_comparative" in line for line in web.state.metrics_lines)
+    assert any(
+        "raw comparative filter" in line and "not final prediction" in line
+        for line in web.state.metrics_lines
+    )
 
 
 def test_analysis_lines_include_units_and_resistance_warnings() -> None:

@@ -17,6 +17,7 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from kayakgen.eval.claims import RawUnvalidatedClaimFields
 from kayakgen.eval.mesh_diagnostics import ReadinessLevel
 from kayakgen.eval.mesh_package import MeshPackageManifest
 
@@ -37,7 +38,7 @@ class CfdDispatchError(ValueError):
     """Raised when a local CFD job cannot be prepared or read."""
 
 
-class SolverProfile(BaseModel):
+class SolverProfile(RawUnvalidatedClaimFields):
     """Solver dispatch profile used to gate mesh readiness and choose an adapter."""
 
     model_config = ConfigDict(extra="forbid")
@@ -51,7 +52,7 @@ class SolverProfile(BaseModel):
     result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
 
 
-class CfdJobSpec(BaseModel):
+class CfdJobSpec(RawUnvalidatedClaimFields):
     """Serializable CFD job specification."""
 
     model_config = ConfigDict(extra="forbid")
@@ -71,7 +72,7 @@ class CfdJobSpec(BaseModel):
     result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
 
 
-class CfdRunRecord(BaseModel):
+class CfdRunRecord(RawUnvalidatedClaimFields):
     """Serializable run-status record for raw external solver output."""
 
     model_config = ConfigDict(extra="forbid")
@@ -127,7 +128,7 @@ class PreparedSolverCase(BaseModel):
     mesh_manifest: MeshPackageManifest
 
 
-class SolverRawResult(BaseModel):
+class SolverRawResult(RawUnvalidatedClaimFields):
     """Adapter result wrapper for raw, unvalidated solver records."""
 
     model_config = ConfigDict(extra="forbid")

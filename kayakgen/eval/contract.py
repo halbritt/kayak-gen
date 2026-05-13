@@ -5,8 +5,15 @@ from __future__ import annotations
 import math
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from kayakgen.eval.claims import (
+    ACCEPTED_USE_COMPARATIVE_FILTER,
+    ClaimState,
+    RawUnvalidatedClaimFields,
+    UNCALIBRATED_COMPARATIVE,
+    uncalibrated_resistance_warnings,
+)
 from kayakgen.eval.hydrostatics import Hydrostatics
 
 
@@ -15,6 +22,16 @@ class ResistanceMetadata(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    claim_state: ClaimState = UNCALIBRATED_COMPARATIVE
+    accepted_uses: list[str] = Field(
+        default_factory=lambda: [ACCEPTED_USE_COMPARATIVE_FILTER]
+    )
+    calibration_fixture_ids: list[str] = Field(default_factory=list)
+    validation_fixture_ids: list[str] = Field(default_factory=list)
+    model_version: str | None = None
+    fit_status: str | None = None
+    fit_metrics: dict[str, float] = Field(default_factory=dict)
+    validity_envelope: dict[str, Any] | None = None
     model_family: str = "raw_ittc_michell"
     calibration_status: str = "uncalibrated"
     calibration_name: str | None = None
@@ -24,11 +41,37 @@ class ResistanceMetadata(BaseModel):
     source_citation: str | None = None
     source_license: str | None = None
     extraction_method: str | None = None
-    accepted_use: list[str] = Field(default_factory=lambda: ["comparative_filter"])
+    accepted_use: list[str] = Field(
+        default_factory=lambda: [ACCEPTED_USE_COMPARATIVE_FILTER]
+    )
     verification_fixtures: list[str] = Field(default_factory=list)
     constants: dict[str, float] = Field(default_factory=dict)
     quadrature: dict[str, int] = Field(default_factory=dict)
-    warnings: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=uncalibrated_resistance_warnings)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _sync_legacy_claim_aliases(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        normalized = dict(data)
+        if "accepted_uses" not in normalized and "accepted_use" in normalized:
+            normalized["accepted_uses"] = normalized["accepted_use"]
+        if "accepted_use" not in normalized and "accepted_uses" in normalized:
+            normalized["accepted_use"] = normalized["accepted_uses"]
+        if "model_version" not in normalized and "calibration_version" in normalized:
+            normalized["model_version"] = normalized["calibration_version"]
+        if "calibration_version" not in normalized and "model_version" in normalized:
+            normalized["calibration_version"] = normalized["model_version"]
+        return normalized
+
+    @model_validator(mode="after")
+    def _aliases_must_match(self) -> "ResistanceMetadata":
+        if self.accepted_use != self.accepted_uses:
+            raise ValueError("accepted_use and accepted_uses must match")
+        if self.calibration_version != self.model_version:
+            raise ValueError("calibration_version and model_version must match")
+        return self
 
 
 class ResistanceCurve(BaseModel):
@@ -207,7 +250,7 @@ class StabilityResult(BaseModel):
     gz_curve: GZCurve | None = None
 
 
-class CfdResult(BaseModel):
+class CfdResult(RawUnvalidatedClaimFields):
     """Reserved for the heavy-CFD tier (RFC 0008 §6 job stub)."""
 
     model_config = ConfigDict(extra="forbid")

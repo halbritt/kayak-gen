@@ -79,6 +79,8 @@ def evaluate(
     out_path = out if out is not None else hull_path.with_suffix(".eval.json")
     save_evaluation(result, out_path)
     typer.echo(f"wrote {out_path}")
+    if resistance is not None:
+        typer.echo("Resistance is uncalibrated/comparative only; see metadata.")
 
 
 @app.command("mesh-check")
