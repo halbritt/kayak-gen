@@ -1,0 +1,268 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0012-resistance-calibration-source-review",
+  "workflow_version": "2026-05-13",
+  "name": "0012 - Resistance calibration source review",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0012-resistance-calibration-source-review",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "coordinator",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["claude", "--model", "opus", "-p"],
+      "capabilities": ["review", "synthesis", "write"]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["codex", "exec", "--model", "gpt-5.5", "-"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["gemini", "--model", "gemini-3.1-pro-preview"],
+      "capabilities": ["review"]
+    }
+  },
+  "roles": {
+    "coordinator": {"definition_path": "roles/coordinator.md"},
+    "source_researcher": {"definition_path": "roles/source_researcher.md"},
+    "reviewer_provenance": {"definition_path": "roles/reviewer_provenance.md"},
+    "reviewer_domain": {"definition_path": "roles/reviewer_domain.md"},
+    "reviewer_implementation": {"definition_path": "roles/reviewer_implementation.md"},
+    "ledger": {"definition_path": "roles/ledger.md"},
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/PRD.md", "required": true},
+    {"path": "docs/design/kayak_hull_design_constraints.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/rfcs/0005-cfd-resistance.md", "required": true},
+    {"path": "docs/rfcs/0012-resistance-model-calibration.md", "required": true},
+    {"path": "docs/rfcs/0013-pareto-frontier-comparison-ui.md", "required": true},
+    {"path": "docs/workflows/0012-resistance-calibration-source-review/SOURCES.md", "required": true},
+    {"path": "docs/workflows/0012-resistance-calibration-source-review/QUEUE.md", "required": true},
+    {"path": "kayakgen/eval/resistance.py", "required": true},
+    {"path": "kayakgen/eval/contract.py", "required": true},
+    {"path": "tests/test_resistance.py", "required": true},
+    {"path": "pyproject.toml", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "source_inventory",
+      "type": "build",
+      "title": "Build resistance calibration source inventory",
+      "role_id": "source_researcher",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Research candidate published kayak/canoe resistance datasets and produce a provenance-aware source inventory.",
+      "task_prompt": {"path": "prompts/source_inventory.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/0012-resistance-calibration-source-review/research/",
+          "docs/workflows/0012-resistance-calibration-source-review/OPERATOR_REPORT.md"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "source_inventory",
+          "kind": "support_ledger",
+          "path": "striatum/0012-resistance-calibration-source-review/research/SOURCE_INVENTORY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_provenance",
+      "type": "review",
+      "title": "Review source provenance and licensing",
+      "role_id": "reviewer_provenance",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review source ownership, access, licensing, extraction quality, and whether fixture data can be checked in.",
+      "task_prompt": {"path": "prompts/review_provenance.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0012-resistance-calibration-source-review/provenance/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0012-resistance-calibration-source-review/provenance/REVIEW_PROVENANCE.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_domain",
+      "type": "review",
+      "title": "Review domain suitability",
+      "role_id": "reviewer_domain",
+      "lane_id": "gemini",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review whether candidate data can calibrate, verify, or only contextualize the current kayak resistance model.",
+      "task_prompt": {"path": "prompts/review_domain.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0012-resistance-calibration-source-review/domain/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0012-resistance-calibration-source-review/domain/REVIEW_DOMAIN.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_implementation",
+      "type": "review",
+      "title": "Review implementation and test path",
+      "role_id": "reviewer_implementation",
+      "lane_id": "codex",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review the smallest safe implementation path for accepted or rejected calibration source outcomes.",
+      "task_prompt": {"path": "prompts/review_implementation.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0012-resistance-calibration-source-review/implementation_review/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0012-resistance-calibration-source-review/implementation_review/REVIEW_IMPLEMENTATION.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "ledger",
+      "title": "Consolidate calibration source findings",
+      "role_id": "ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate reviews and decide the calibration source gate result.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/0012-resistance-calibration-source-review/ledger/",
+          "docs/workflows/0012-resistance-calibration-source-review/OPERATOR_REPORT.md"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "ledger",
+          "kind": "findings_ledger",
+          "path": "striatum/0012-resistance-calibration-source-review/ledger/FINDINGS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "implement_findings",
+      "type": "build",
+      "title": "Implement calibration source gate result",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Implement the safe source-gate result and update RFC/queue state without overstating calibration.",
+      "task_prompt": {"path": "prompts/implement_findings.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/rfcs/",
+          "docs/workflows/0012-resistance-calibration-source-review/",
+          "kayakgen/",
+          "tests/",
+          "striatum/0012-resistance-calibration-source-review/implementation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "striatum/0012-resistance-calibration-source-review/implementation/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final gate for calibration source review",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify the calibration source gate and determine whether the next queued workflow may start.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0012-resistance-calibration-source-review/final/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "final_review",
+          "kind": "finding",
+          "path": "striatum/0012-resistance-calibration-source-review/final/FINAL_REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "source_inventory", "to": "review_provenance", "on": "completed"},
+    {"from": "source_inventory", "to": "review_domain", "on": "completed"},
+    {"from": "source_inventory", "to": "review_implementation", "on": "completed"},
+    {"from": "review_provenance", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_domain", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_implementation", "to": "findings_ledger", "on": "completed"},
+    {"from": "findings_ledger", "to": "implement_findings", "on": "completed"},
+    {"from": "implement_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {
+      "from": "final_review",
+      "to": "implement_findings",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1
+    }
+  ]
+}
