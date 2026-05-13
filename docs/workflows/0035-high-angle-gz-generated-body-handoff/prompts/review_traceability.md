@@ -1,0 +1,6 @@
+Read `SOURCES.md`. Produce
+`striatum/0035-high-angle-gz-generated-body-handoff/traceability/REVIEW_TRACEABILITY.md`.
+
+Map RFC 0014, RFC 0016, RFC 0020, and RFC 0024 acceptance requirements to
+current code, tests, docs, and deferrals. Identify any current surface that
+could display synthetic GZ as real kayak stability.

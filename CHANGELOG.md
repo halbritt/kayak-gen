@@ -20,11 +20,24 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   - 0031 high-angle `GZ` and secondary stability.
 - Added the project convention that future RFC/workflow/user-facing changes
   update this changelog.
+- Added proposed RFCs 0021-0030 for the remaining roadmap blockers:
+  self-intersection diagnostics, generated closed-body construction,
+  watertight handoff, high-angle `GZ` handoff, CFD/calibration claim gates,
+  fixture-first CFD adapter work, resistance calibration acceptance,
+  plumb-stem closure semantics, design-constraint surfacing, and hosted browser
+  acceptance.
+- Scaffolded workflows 0032-0041 for those RFCs using the three-lane
+  Striatum review pattern and implementer prompts requesting maximal useful
+  sub-agent fanout with disjoint write scopes.
 
 ### Changed
 
 - Refreshed project Striatum Claude/Codex skill bundles to the running 1.36.0
   install so `striatum doctor` is clean again.
+- Recorded the dependency plan for the next implementation batch:
+  start self-intersection diagnostics, claim gates, and local-dispatch web CFD
+  routes first; block generated bodies, watertight handoff, and real GZ output
+  until their upstream evidence lands.
 
 ## 2026-05-13
 

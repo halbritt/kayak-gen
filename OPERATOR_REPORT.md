@@ -4,9 +4,8 @@ Updated: 2026-05-13
 
 ## Current State
 
-- `main` and `origin/main` were even at `76c33e6` before workflow 0027 landing;
-  the current accepted landing branch is
-  `striatum/0027-closed-volume-geometry-contract`.
+- `main` is clean and even with `origin/main` at `6ebf35f`.
+- Active roadmap drafting branch: `striatum/residual-roadmap-rfcs`.
 - Workflows 0021, 0022, 0023, 0024, and 0025 have landed and were pushed to
   `origin/main`.
 - Striatum skill/plugin bundle refresh landed on `main` after workflow 0025.
@@ -19,6 +18,8 @@ Updated: 2026-05-13
 - After workflow 0027 landed, the target repo Striatum Claude/Codex skill
   bundles were refreshed to match the running 1.36.0 install; `striatum doctor`
   is clean.
+- Old merged local and remote topic branches were pruned; only `main` remains
+  locally and remotely.
 - Root report was created after compaction because only per-workflow reports
   were present in `docs/workflows/*/OPERATOR_REPORT.md`.
 
@@ -57,21 +58,48 @@ Updated: 2026-05-13
 - Workflow 0026 landed as `f2a3bb9` and `main` is fast-forwarded to
   `origin/main`.
 
-## Roadmap Execution Queue
+## Residual Roadmap Drafting
 
-- 0027 closed-volume geometry contract: scaffold complete via parallel worker.
-- 0028 real CFD solver adapter: scaffold complete via parallel worker.
-- 0029 web CFD job routes: scaffold complete via parallel worker.
-- 0030 resistance calibration fixture: scaffold complete locally after the
-  agent thread limit was reached.
-- 0031 high-angle GZ and secondary stability: scaffold complete locally after
-  the agent thread limit was reached.
-- Next queued implementation workflows after 0027 are 0028-0031.
+- Requested scope: RFC gaps, major implementation deferrals, and older partial
+  RFC cleanup. RFCs may revise or supersede earlier RFCs where that improves
+  progress.
+- Scaffold fanout:
+  - Worker A completed RFCs 0021-0022 and workflows 0032-0033 for
+    closed-volume self-intersection diagnostics and generated closed-body
+    construction. Both workflow definitions validated.
+  - Worker B completed RFCs 0023-0024 and workflows 0034-0035 for watertight
+    volume-mesh handoff and high-angle `GZ` generated-body handoff. Both
+    workflow definitions validated.
+  - Worker C completed RFCs 0025-0027 and workflows 0036-0038 for
+    CFD/calibration claim gates, fixture-first CFD adapter, and resistance
+    calibration acceptance. All three workflow definitions validated.
+  - Worker D completed RFCs 0028-0030 and workflows 0039-0041 for older
+    partials: plumb-stem closure semantics, design constraint surfacing, and
+    web hosted browser acceptance. All three workflow definitions validated.
+  - Worker E completed read-only dependency analysis.
+- Proposed first simultaneous implementation batch after scaffolds land:
+  workflows 0032, 0036, and existing workflow 0029. Scope limits:
+  self-intersection diagnostics; CFD/calibration claim gates; and web CFD job
+  routes limited to existing local-dispatch/unavailable states, not real solver
+  success.
+- Blocked dependency chain: 0033 waits on 0032; 0034 and 0035 wait on 0033;
+  0037 and 0038 wait on 0036; real 0031 output waits on generated closed-body
+  evidence; watertight real-solver work waits on generated body plus
+  volume-mesh evidence.
+- Branch hygiene rule for this phase: land scaffold batches to `main`
+  frequently, push `main`, then delete merged local and remote topic branches.
+- Next local gate: validate all 10 new workflow definitions, commit and push
+  `striatum/residual-roadmap-rfcs`, fast-forward `main`, push `main`, and prune
+  the merged scaffold branch before starting implementation runs.
+- Verification completed for the scaffold batch: JSON syntax valid for
+  workflows 0032-0041, Striatum workflow validation passed for all 10,
+  `git diff --check` is clean, ASCII check is clean, and
+  `striatum --repo . doctor` is clean.
 
-## Active Workflow 0027
+## Completed Workflow 0027
 
 - Roadmap scaffold/changelog batch landed on `main` as `76c33e6`.
-- Workflow 0027 run `run_6a701b70b294436ba529dce7bb705b9b` is active on
+- Workflow 0027 run `run_6a701b70b294436ba529dce7bb705b9b` ran on
   branch `striatum/0027-closed-volume-geometry-contract`.
 - Three review artifacts and the findings ledger are published. The ledger
   allows only a safe slice: explicit synthetic closed-volume diagnostics and
@@ -85,7 +113,7 @@ Updated: 2026-05-13
   `git diff --check` -> clean.
 - Final review accepted with findings as `art_3d03d49d6c814726aa9c59e7e99bde8f`;
   Striatum run `run_6a701b70b294436ba529dce7bb705b9b` is complete.
-- Next gate: commit, push branch, fast-forward `main`, and push `main`.
+- Workflow 0027 landed on `main` as `97efa00`.
 
 ## Verification Baseline
 

@@ -1,0 +1,119 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0037-first-real-cfd-fixture-adapter",
+  "workflow_version": "2026-05-13",
+  "name": "0037 - First real CFD fixture adapter",
+  "branch": {"mode": "confirm", "suggested_name": "striatum/0037-first-real-cfd-fixture-adapter", "allow_dirty": false},
+  "coordinator": {"role_id": "coordinator", "lane_id": "claude"},
+  "lanes": {
+    "claude": {"adapter": "process", "display_model": "Claude Opus 4.7", "command": ["claude", "--model", "opus", "-p"], "capabilities": ["review", "synthesis"]},
+    "codex": {"adapter": "process", "display_model": "Codex GPT-5.5", "command": ["codex", "exec", "--model", "gpt-5.5", "-"], "capabilities": ["write", "review", "synthesis"]},
+    "gemini": {"adapter": "process", "display_model": "Gemini Pro 3.1", "command": ["gemini", "--model", "gemini-3.1-pro-preview"], "capabilities": ["review"]}
+  },
+  "roles": {
+    "coordinator": {"definition_path": "roles/coordinator.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_domain_source": {"definition_path": "roles/reviewer_domain_source.md"},
+    "reviewer_ops": {"definition_path": "roles/reviewer_ops.md"},
+    "ledger": {"definition_path": "roles/ledger.md"},
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/rfcs/0010-cfd-ready-mesh-contract.md", "required": true},
+    {"path": "docs/rfcs/0015-cfd-solver-dispatch-and-jobs.md", "required": true},
+    {"path": "docs/rfcs/0017-first-real-cfd-adapter.md", "required": true},
+    {"path": "docs/rfcs/0025-cfd-calibration-claim-gates.md", "required": true},
+    {"path": "docs/rfcs/0026-first-real-cfd-fixture-adapter.md", "required": true},
+    {"path": "kayakgen/eval/cfd/jobs.py", "required": true},
+    {"path": "kayakgen/cli/main.py", "required": true},
+    {"path": "tests/test_cfd_jobs.py", "required": true}
+  ],
+  "parallelism": {"mode": "declared", "max_active_jobs": 3, "require_disjoint_write_scopes": true},
+  "jobs": [
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review fixture adapter traceability",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Map RFC 0026 to RFC 0015 dispatch contracts, RFC 0017 revisions, RFC 0025 claim gates, and required tests.",
+      "task_prompt": {"path": "prompts/review_traceability.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0037-first-real-cfd-fixture-adapter/traceability/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0037-first-real-cfd-fixture-adapter/traceability/REVIEW_TRACEABILITY.md", "required": true}]
+    },
+    {
+      "id": "review_domain_source",
+      "type": "review",
+      "title": "Review fixture adapter domain/source truthfulness",
+      "role_id": "reviewer_domain_source",
+      "lane_id": "gemini",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Verify fixture output remains raw/unvalidated and cannot be mistaken for real solver validation, calibration data, or final design fitness.",
+      "task_prompt": {"path": "prompts/review_domain_source.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0037-first-real-cfd-fixture-adapter/domain_source/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0037-first-real-cfd-fixture-adapter/domain_source/REVIEW_DOMAIN_SOURCE.md", "required": true}]
+    },
+    {
+      "id": "review_ops",
+      "type": "review",
+      "title": "Review fixture adapter ops and tests",
+      "role_id": "reviewer_ops",
+      "lane_id": "codex",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review deterministic case generation, command execution, raw-output parsing, failure modes, CI behavior, and tests with no solver dependency.",
+      "task_prompt": {"path": "prompts/review_ops.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0037-first-real-cfd-fixture-adapter/ops/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0037-first-real-cfd-fixture-adapter/ops/REVIEW_OPS.md", "required": true}]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "ledger",
+      "title": "Consolidate fixture adapter findings",
+      "role_id": "ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate findings and define the safe local-command fixture adapter slice.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {"mode": "repo_write", "repo_write": true, "allowed_paths": ["striatum/0037-first-real-cfd-fixture-adapter/ledger/", "docs/workflows/0037-first-real-cfd-fixture-adapter/OPERATOR_REPORT.md"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "ledger", "kind": "findings_ledger", "path": "striatum/0037-first-real-cfd-fixture-adapter/ledger/FINDINGS.md", "required": true}]
+    },
+    {
+      "id": "implement_findings",
+      "type": "build",
+      "title": "Implement fixture adapter",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Implement accepted deterministic fixture/local-command adapter behavior over existing CFD job contracts.",
+      "task_prompt": {"path": "prompts/implement_findings.md"},
+      "write_scope": {"mode": "repo_write", "repo_write": true, "allowed_paths": ["docs/", "kayakgen/eval/cfd/", "kayakgen/cli/", "tests/", "striatum/0037-first-real-cfd-fixture-adapter/implementation/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0037-first-real-cfd-fixture-adapter/implementation/PATCH_SUMMARY.md", "required": true}]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final gate for fixture adapter",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify deterministic success/failure behavior, no external solver dependency, and raw/unvalidated result semantics.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0037-first-real-cfd-fixture-adapter/final/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "final_review", "kind": "finding", "path": "striatum/0037-first-real-cfd-fixture-adapter/final/FINAL_REVIEW.md", "required": true}]
+    }
+  ],
+  "edges": [
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_domain_source", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops", "to": "findings_ledger", "on": "completed"},
+    {"from": "findings_ledger", "to": "implement_findings", "on": "completed"},
+    {"from": "implement_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [{"from": "final_review", "to": "implement_findings", "on_verdict": "needs_revision", "max_iterations": 1}]
+}

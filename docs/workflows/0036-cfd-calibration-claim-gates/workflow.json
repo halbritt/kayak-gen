@@ -1,0 +1,126 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0036-cfd-calibration-claim-gates",
+  "workflow_version": "2026-05-13",
+  "name": "0036 - CFD calibration claim gates",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0036-cfd-calibration-claim-gates",
+    "allow_dirty": false
+  },
+  "coordinator": {"role_id": "coordinator", "lane_id": "claude"},
+  "lanes": {
+    "claude": {"adapter": "process", "display_model": "Claude Opus 4.7", "command": ["claude", "--model", "opus", "-p"], "capabilities": ["review", "synthesis"]},
+    "codex": {"adapter": "process", "display_model": "Codex GPT-5.5", "command": ["codex", "exec", "--model", "gpt-5.5", "-"], "capabilities": ["write", "review", "synthesis"]},
+    "gemini": {"adapter": "process", "display_model": "Gemini Pro 3.1", "command": ["gemini", "--model", "gemini-3.1-pro-preview"], "capabilities": ["review"]}
+  },
+  "roles": {
+    "coordinator": {"definition_path": "roles/coordinator.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_domain_source": {"definition_path": "roles/reviewer_domain_source.md"},
+    "reviewer_ops": {"definition_path": "roles/reviewer_ops.md"},
+    "ledger": {"definition_path": "roles/ledger.md"},
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/rfcs/0005-cfd-resistance.md", "required": true},
+    {"path": "docs/rfcs/0012-resistance-model-calibration.md", "required": true},
+    {"path": "docs/rfcs/0015-cfd-solver-dispatch-and-jobs.md", "required": true},
+    {"path": "docs/rfcs/0017-first-real-cfd-adapter.md", "required": true},
+    {"path": "docs/rfcs/0019-resistance-calibration-fixtures.md", "required": true},
+    {"path": "docs/rfcs/0025-cfd-calibration-claim-gates.md", "required": true},
+    {"path": "kayakgen/eval/cfd/jobs.py", "required": true},
+    {"path": "kayakgen/eval/resistance.py", "required": true},
+    {"path": "kayakgen/eval/calibration.py", "required": false},
+    {"path": "tests/test_cfd_jobs.py", "required": true},
+    {"path": "tests/test_resistance.py", "required": true}
+  ],
+  "parallelism": {"mode": "declared", "max_active_jobs": 3, "require_disjoint_write_scopes": true},
+  "jobs": [
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review claim-gate traceability",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Map RFC 0025 claim states to prior resistance, calibration, CFD dispatch, fixture, CLI, web, and test obligations.",
+      "task_prompt": {"path": "prompts/review_traceability.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0036-cfd-calibration-claim-gates/traceability/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0036-cfd-calibration-claim-gates/traceability/REVIEW_TRACEABILITY.md", "required": true}]
+    },
+    {
+      "id": "review_domain_source",
+      "type": "review",
+      "title": "Review claim domain and source semantics",
+      "role_id": "reviewer_domain_source",
+      "lane_id": "gemini",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review whether claim gates correctly separate raw CFD, uncalibrated resistance, validation fixtures, calibration fixtures, fitted models, and final design fitness.",
+      "task_prompt": {"path": "prompts/review_domain_source.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0036-cfd-calibration-claim-gates/domain_source/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0036-cfd-calibration-claim-gates/domain_source/REVIEW_DOMAIN_SOURCE.md", "required": true}]
+    },
+    {
+      "id": "review_ops",
+      "type": "review",
+      "title": "Review claim-gate ops and tests",
+      "role_id": "reviewer_ops",
+      "lane_id": "codex",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review metadata surfaces, serialization compatibility, CLI/web wording, and tests that prevent forbidden calibration or validation overclaims.",
+      "task_prompt": {"path": "prompts/review_ops.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0036-cfd-calibration-claim-gates/ops/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0036-cfd-calibration-claim-gates/ops/REVIEW_OPS.md", "required": true}]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "ledger",
+      "title": "Consolidate claim-gate findings",
+      "role_id": "ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate claim-gate findings and define the safe implementation slice.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {"mode": "repo_write", "repo_write": true, "allowed_paths": ["striatum/0036-cfd-calibration-claim-gates/ledger/", "docs/workflows/0036-cfd-calibration-claim-gates/OPERATOR_REPORT.md"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "ledger", "kind": "findings_ledger", "path": "striatum/0036-cfd-calibration-claim-gates/ledger/FINDINGS.md", "required": true}]
+    },
+    {
+      "id": "implement_findings",
+      "type": "build",
+      "title": "Implement claim gates",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Implement accepted claim-gate metadata, wording, and tests while preserving existing raw behavior.",
+      "task_prompt": {"path": "prompts/implement_findings.md"},
+      "write_scope": {"mode": "repo_write", "repo_write": true, "allowed_paths": ["docs/", "kayakgen/eval/", "kayakgen/cli/", "kayakgen/ui/web/", "tests/", "striatum/0036-cfd-calibration-claim-gates/implementation/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0036-cfd-calibration-claim-gates/implementation/PATCH_SUMMARY.md", "required": true}]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final gate for claim gates",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify that raw CFD, validation fixtures, uncalibrated resistance, calibrated resistance, and final design fitness cannot be mislabeled.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0036-cfd-calibration-claim-gates/final/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "final_review", "kind": "finding", "path": "striatum/0036-cfd-calibration-claim-gates/final/FINAL_REVIEW.md", "required": true}]
+    }
+  ],
+  "edges": [
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_domain_source", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops", "to": "findings_ledger", "on": "completed"},
+    {"from": "findings_ledger", "to": "implement_findings", "on": "completed"},
+    {"from": "implement_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [{"from": "final_review", "to": "implement_findings", "on_verdict": "needs_revision", "max_iterations": 1}]
+}
