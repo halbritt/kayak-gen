@@ -50,6 +50,12 @@ class HullGeometry(ABC):
     def section_area(self, x: float) -> float:
         """Return the cross-sectional submerged area at station ``x``."""
 
+    @abstractmethod
+    def half_breadth_grid(
+        self, n_stations: int, n_depths: int
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return ``(xs, depths, half_breadths)`` for resistance integration."""
+
 
 class LoftedHullGeometry(HullGeometry):
     """Lofted, parametric hull geometry — the original kayak-gen math."""
@@ -252,6 +258,29 @@ class LoftedHullGeometry(HullGeometry):
         ys = pts[:, 0]
         zs = pts[:, 1]
         return float(0.5 * abs(np.sum(ys * np.roll(zs, -1) - np.roll(ys, -1) * zs)))
+
+    def half_breadth_grid(
+        self, n_stations: int, n_depths: int
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Sample submerged half-breadth on a regular ``x``/depth grid."""
+        xs = np.linspace(-self.L / 2, self.L / 2, n_stations)
+        depths = np.linspace(0.0, self.T, n_depths)
+        m = 2.0 + (self.Cm - 0.78) * 5
+        f_grid = np.zeros((n_stations, n_depths))
+
+        for i, x in enumerate(xs):
+            decay = self._end_decay(x)
+            local_T = self.T * decay
+            local_half_B = (self.B_wl / 2.0) * decay
+            if local_T <= 0 or local_half_B <= 0:
+                continue
+            for j, depth in enumerate(depths):
+                if depth >= local_T:
+                    continue
+                t_norm = 1.0 - depth / local_T
+                f_grid[i, j] = local_half_B * (t_norm ** (1.0 / m))
+
+        return xs, depths, f_grid
 
     # ----- legacy API kept for the GUI shim and tests -----
 

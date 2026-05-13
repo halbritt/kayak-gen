@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 if TYPE_CHECKING:
     from kayakgen.model.geometry import HullGeometry
@@ -46,6 +46,16 @@ class Hull(BaseModel):
     rocker_stern_m: float = Field(default=0.0, ge=0)
 
     geometry_kind: Literal["lofted"] = "lofted"
+
+    @model_validator(mode="after")
+    def _validate_beam_wl(self) -> "Hull":
+        if self.beam_wl_m is None:
+            return self
+        if self.beam_wl_m <= 0:
+            raise ValueError("beam_wl_m must be positive when provided")
+        if self.beam_wl_m > self.beam_oa_m:
+            raise ValueError("beam_wl_m must be less than or equal to beam_oa_m")
+        return self
 
     def hash(self) -> str:
         """Stable cache key for this hull's design parameters."""

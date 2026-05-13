@@ -16,6 +16,7 @@ import math
 import time
 
 import numpy as np
+import pytest
 
 from kayakgen.eval.resistance import (
     KNOTS_TO_MS,
@@ -117,6 +118,10 @@ def test_resistance_curve_shape_and_units() -> None:
     assert all(v >= 0 for v in curve.Rv_N)
     assert all(v >= 0 for v in curve.Rw_N)
     assert all(rt == rv + rw for rt, rv, rw in zip(curve.Rt_N, curve.Rv_N, curve.Rw_N))
+    assert curve.metadata.model_family == "raw_ittc_michell"
+    assert curve.metadata.calibration_status == "uncalibrated"
+    assert "comparative_filter" in curve.metadata.accepted_use
+    assert "not_final_performance_prediction" in curve.metadata.warnings
 
 
 def test_viscous_drag_scales_with_wetted_surface() -> None:
@@ -133,3 +138,32 @@ def test_resistance_curve_under_budget() -> None:
     resistance_curve(hull, V_knots=np.linspace(1.0, 6.0, 11), n_stations=400, n_depths=20, n_theta=30)
     elapsed_ms = (time.perf_counter() - t0) * 1000
     assert elapsed_ms < 5000, f"resistance_curve took {elapsed_ms:.0f} ms"
+
+
+def test_resistance_metadata_records_quadrature_settings() -> None:
+    curve = resistance_curve(Hull(), n_stations=123, n_depths=17, n_theta=19)
+    assert curve.metadata.quadrature == {
+        "n_stations": 123,
+        "n_depths": 17,
+        "n_theta": 19,
+    }
+    assert "wigley_parabolic_hull" in curve.metadata.verification_fixtures
+
+
+@pytest.mark.xfail(reason="RFC 0005 low-Fn wave/viscous acceptance is not landed.")
+def test_rfc0005_low_fn_wave_drag_acceptance() -> None:
+    hull = Hull()
+    V_ms = 0.1 * math.sqrt(9.80665 * hull.length_m)
+    Sw = wetted_surface(hull)
+    Rv = viscous_resistance(hull, V_ms, Sw=Sw)
+    Rw = wave_resistance_michell(hull, V_ms, n_stations=400, n_depths=20, n_theta=30)
+    assert Rw < 0.05 * Rv
+
+
+@pytest.mark.xfail(reason="RFC 0005 200 ms full-curve budget is not landed.")
+def test_rfc0005_curve_budget_acceptance() -> None:
+    hull = Hull()
+    t0 = time.perf_counter()
+    resistance_curve(hull)
+    elapsed_ms = (time.perf_counter() - t0) * 1000
+    assert elapsed_ms < 200

@@ -1,10 +1,16 @@
 # RFC 0006: Hull Design Constraints — Canonical Parameter Space and Class Presets
 
-Status: proposed
+Status: partial
 Date: 2026-05-09
 Context: generator.py, gui.py; informs RFC 0005 (resistance) and any
 future optimizer RFC. Source: `kayak_hull_design_constraints.md`
 (research synthesis on ocean kayak / surfski hull design).
+
+Status note (workflow 0010, 2026-05-12): partially landed. The constraints
+document, four class presets, waterline-beam modeling, and hydrostatic read
+model exist. GUI range mutation and advisory text were added during workflow
+0010, but visual/manual confirmation is still recommended before marking the
+desktop acceptance criteria fully landed.
 
 ## Problem
 

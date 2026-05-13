@@ -42,7 +42,7 @@ from time import perf_counter
 
 import numpy as np
 
-from kayakgen.eval.contract import ResistanceCurve
+from kayakgen.eval.contract import ResistanceCurve, ResistanceMetadata
 from kayakgen.model.hull import Hull
 
 GRAVITY_M_S2 = 9.80665
@@ -58,31 +58,7 @@ def _half_breadth_grid(hull: Hull, n_stations: int, n_depths: int) -> tuple[np.n
     ``zs`` runs from 0 (waterline) to ``draft`` (positive downward), and
     ``f[i, j]`` is the half-breadth at ``(xs[i], zs[j])``.
     """
-    geom = hull.to_geometry()
-    L = hull.length_m
-    T = hull.draft_m
-    half_B_wl = (hull.beam_wl_m if hull.beam_wl_m is not None else hull.beam_oa_m) / 2.0
-    Cm = hull.Cm
-    m = 2.0 + (Cm - 0.78) * 5
-
-    xs = np.linspace(-L / 2, L / 2, n_stations)
-    zs = np.linspace(0.0, T, n_depths)
-
-    f_grid = np.zeros((n_stations, n_depths))
-    for i, x in enumerate(xs):
-        decay = geom._end_decay(x)  # honours bow_rake (RFC 0004)
-        local_T = T * decay
-        local_half_B = half_B_wl * decay
-        if local_T <= 0 or local_half_B <= 0:
-            continue
-        for j, z in enumerate(zs):
-            if z >= local_T:
-                f_grid[i, j] = 0.0
-            else:
-                t_norm = 1.0 - z / local_T
-                f_grid[i, j] = local_half_B * (t_norm ** (1.0 / m))
-
-    return xs, zs, f_grid
+    return hull.to_geometry().half_breadth_grid(n_stations, n_depths)
 
 
 def wetted_surface(hull: Hull, stations: int = 60) -> float:
@@ -181,12 +157,35 @@ def resistance_curve(
     )
     Rt = Rv + Rw
 
+    metadata = ResistanceMetadata(
+        model_family="raw_ittc_michell",
+        calibration_status="uncalibrated",
+        accepted_use=["comparative_filter"],
+        verification_fixtures=["wigley_parabolic_hull"],
+        constants={
+            "gravity_m_s2": GRAVITY_M_S2,
+            "seawater_density_kg_m3": SEAWATER_DENSITY_KG_M3,
+            "seawater_kinematic_viscosity_m2_s": SEAWATER_KINEMATIC_VISCOSITY_M2_S,
+        },
+        quadrature={
+            "n_stations": n_stations,
+            "n_depths": n_depths,
+            "n_theta": n_theta,
+        },
+        warnings=[
+            "comparative_filter_only",
+            "not_final_performance_prediction",
+            "uncalibrated_no_validity_envelope",
+        ],
+    )
+
     return ResistanceCurve(
         V_knots=V_knots.tolist(),
         Fn=Fn.tolist(),
         Rv_N=Rv.tolist(),
         Rw_N=Rw.tolist(),
         Rt_N=Rt.tolist(),
+        metadata=metadata,
     )
 
 

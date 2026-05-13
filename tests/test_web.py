@@ -18,10 +18,19 @@ pytest.importorskip("trame", reason="kayakgen[web] not installed")
 
 
 from kayakgen.ui.web.controllers import metrics_from_state, stl_bytes_for_part  # noqa: E402
+from kayakgen.ui.web.controllers import (  # noqa: E402
+    HullStore,
+    evaluation_payload,
+    job_stub_payload,
+    load_hull_payload,
+    register_rest_routes,
+    store_hull_payload,
+)
 from kayakgen.ui.web.state import (  # noqa: E402
     HULL_STATE_FIELDS,
     decode_hull_query,
     encode_hull_query,
+    hull_from_query_string,
     hull_from_state_dict,
     state_dict_from_hull,
 )
@@ -95,3 +104,51 @@ def test_load_from_query_seeds_state() -> None:
     assert web.state.name == "touring"
     assert web.state.length_m == 5.0
     assert abs(web.state.beam_wl_m - 0.53) < 1e-9
+
+
+def test_create_app_accepts_initial_query() -> None:
+    from kayakgen.ui.web.app import create_app
+
+    custom = Hull(name="elite", length_m=6.1, beam_oa_m=0.43, beam_wl_m=0.40)
+    web = create_app(initial_query=f"?hull={encode_hull_query(custom)}")
+    assert web.state.name == "elite"
+    assert web.state.length_m == 6.1
+
+
+def test_query_string_decoder_handles_missing_hull() -> None:
+    assert hull_from_query_string("?x=1") is None
+
+
+def test_rest_payload_helpers() -> None:
+    state = state_dict_from_hull(Hull()) | {"target_speed_kt": 3.5}
+    evaluation = evaluation_payload(state)
+    assert evaluation["hull_hash"] == Hull().hash()
+    store = HullStore()
+    stored = store_hull_payload(state, store)
+    assert load_hull_payload(stored["id"], store)["schema_version"] == "1"
+    assert job_stub_payload()["error"].startswith("heavy CFD")
+
+
+def test_register_rest_routes_on_router_like_app() -> None:
+    class Router:
+        def __init__(self) -> None:
+            self.routes: list[tuple[str, str]] = []
+
+        def add_post(self, path, _handler) -> None:
+            self.routes.append(("POST", path))
+
+        def add_get(self, path, _handler) -> None:
+            self.routes.append(("GET", path))
+
+    class App:
+        def __init__(self) -> None:
+            self.router = Router()
+
+    app = App()
+    register_rest_routes(app)
+    assert ("POST", "/api/evaluate") in app.router.routes
+    assert ("POST", "/api/stl") in app.router.routes
+    assert ("POST", "/api/hulls") in app.router.routes
+    assert ("GET", "/api/hulls/{id}") in app.router.routes
+    assert ("POST", "/api/jobs") in app.router.routes
+    assert ("GET", "/api/jobs/{id}") in app.router.routes

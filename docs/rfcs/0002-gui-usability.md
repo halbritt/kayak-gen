@@ -1,6 +1,6 @@
 # RFC 0002: GUI Usability Improvements
 
-Status: proposed
+Status: landed
 Date: 2026-05-09
 Context: gui.py, pyvista_view.py; follows RFC 0001 (3D rendering panel)
 

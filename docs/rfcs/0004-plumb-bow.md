@@ -1,8 +1,14 @@
 # RFC 0004: Plumb Bow Support
 
-Status: proposed
+Status: partial
 Date: 2026-05-09
 Context: generator.py, gui.py; follows RFC 0003
+
+Status note (workflow 0010, 2026-05-12): partially landed. The `bow_rake`
+parameter and blended end decay exist, but the exact-stem non-zero-area and
+watertight-STL acceptance wording remains unresolved because the current hull
+and deck meshes are separate open surfaces. Treat exact plumb-stem/end-cap
+semantics as a follow-up design decision.
 
 ## Problem
 

@@ -29,25 +29,10 @@ from PyQt6.QtCore import QTimer
 
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance
+from kayakgen.ui.gui_params import GUI_TO_HULL as _GUI_TO_HULL
+from kayakgen.ui.gui_params import hull_from_gui_params as _hull_from_gui_params
 from kayakgen.model.classes import KayakClass, get_class, list_classes
 from kayakgen.model.hull import Hull
-
-
-_GUI_TO_HULL = {
-    "length": "length_m",
-    "beam": "beam_oa_m",
-    "beam_wl": "beam_wl_m",
-    "draft": "draft_m",
-    "deck_height": "deck_height_m",
-    "Cp": "Cp",
-    "deck_flatness": "deck_flatness",
-    "center_box_ratio": "center_box_ratio",
-    "bow_rake": "bow_rake",
-}
-
-
-def _hull_from_gui_params(params: dict) -> Hull:
-    return Hull(**{hull_key: params[gui_key] for gui_key, hull_key in _GUI_TO_HULL.items()})
 
 
 class KayakGUI:
@@ -77,6 +62,8 @@ class KayakGUI:
         target_speed_kt=3.5,
     )
 
+    GLOBAL_RANGES = {key: (vmin, vmax) for key, _label, vmin, vmax in SLIDERS}
+
     # target_speed_kt is a viewing parameter, not a Hull field.
     _NON_HULL_GUI_KEYS = ("target_speed_kt",)
 
@@ -104,6 +91,8 @@ class KayakGUI:
         self.ax_profile = self.fig.add_subplot(gs[1])
         self.ax_plan = self.fig.add_subplot(gs[2], sharex=self.ax_profile)
 
+        self._active_class_name = "custom"
+        self._applying_class = False
         self._build_sliders()
         self._last_slider_key = list(self.sliders.keys())[0]
         self.fig.canvas.mpl_connect("key_press_event", self._on_key)
@@ -140,8 +129,12 @@ class KayakGUI:
             None,
         )
         if idx is None:
-            return  # "Custom" — no-op; user is free to slide
+            self._active_class_name = "custom"
+            self._apply_slider_ranges(None)
+            self._refresh_metrics()
+            return
         kc = list_classes()[idx]
+        self._active_class_name = kc.name
         seeds = {
             "length": kc.length_m.default,
             "beam": kc.beam_oa_m.default,
@@ -149,12 +142,36 @@ class KayakGUI:
             "draft": kc.draft_m.default,
             "Cp": kc.Cp.default,
         }
+        self._applying_class = True
+        self._apply_slider_ranges(kc)
         # Setting slider values in turn fires _on_change, which rebuilds
         # plots and 3D once per call. Cheap because we set five values.
         for key, val in seeds.items():
             slider = self.sliders.get(key)
             if slider is not None:
                 slider.set_val(val)
+        self._applying_class = False
+        self._refresh_metrics()
+
+    def _apply_slider_ranges(self, kc: KayakClass | None) -> None:
+        ranges = dict(self.GLOBAL_RANGES)
+        if kc is not None:
+            ranges.update(
+                {
+                    "length": (kc.length_m.min, kc.length_m.max),
+                    "beam": (kc.beam_oa_m.min, kc.beam_oa_m.max),
+                    "beam_wl": (kc.beam_wl_m.min, kc.beam_wl_m.max),
+                    "draft": (kc.draft_m.min, kc.draft_m.max),
+                    "Cp": (kc.Cp.min, kc.Cp.max),
+                }
+            )
+        for key, (vmin, vmax) in ranges.items():
+            slider = self.sliders.get(key)
+            if slider is None:
+                continue
+            slider.valmin = vmin
+            slider.valmax = vmax
+            slider.ax.set_xlim(vmin, vmax)
 
     def _build_sliders(self) -> None:
         n = len(self.SLIDERS)
@@ -220,6 +237,9 @@ class KayakGUI:
         self.station_slider.on_changed(self._on_station_change)
 
     def _on_change(self, _val) -> None:
+        if not self._applying_class and self._active_class_name != "custom":
+            self._active_class_name = "custom"
+            self._apply_slider_ranges(None)
         for key, s in self.sliders.items():
             self.params[key] = s.val
         # beam_wl must not exceed beam_oa: clamp live, never the other way.
@@ -303,6 +323,8 @@ class KayakGUI:
         h = evaluate_hydrostatics(hull, stations=60)
         lob = hull.length_m / hull.beam_oa_m
         klass = self._classify(hull)
+        if self._active_class_name != "custom":
+            klass = f"{klass} preset"
         V_ms = self.params["target_speed_kt"] * KNOTS_TO_MS
         # Coarser station/depth/theta grids on the live path so the call
         # stays under ~30 ms per slider tick. RFC 0005 budgets <100 ms for

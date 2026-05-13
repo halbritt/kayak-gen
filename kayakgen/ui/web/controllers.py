@@ -70,3 +70,78 @@ def evaluation_for_state(state: dict[str, Any]) -> EvaluationResult:
     except Exception:
         rc = None
     return EvaluationResult(hull_hash=hull.hash(), hydrostatics=h, resistance=rc)
+
+
+class HullStore:
+    """Ephemeral in-memory store for RFC 0008 share/API hull IDs."""
+
+    def __init__(self) -> None:
+        self._hulls: dict[str, Hull] = {}
+
+    def put(self, hull: Hull) -> str:
+        hull_id = hull.hash()
+        self._hulls[hull_id] = hull
+        return hull_id
+
+    def get(self, hull_id: str) -> Hull | None:
+        return self._hulls.get(hull_id)
+
+
+def evaluation_payload(state: dict[str, Any]) -> dict[str, Any]:
+    """JSON-serializable payload for `POST /api/evaluate`."""
+    return evaluation_for_state(state).model_dump(mode="json")
+
+
+def store_hull_payload(state: dict[str, Any], store: HullStore) -> dict[str, str]:
+    """Store a hull and return its stable ID payload."""
+    return {"id": store.put(hull_from_state_dict(state))}
+
+
+def load_hull_payload(hull_id: str, store: HullStore) -> dict[str, Any] | None:
+    hull = store.get(hull_id)
+    if hull is None:
+        return None
+    return hull.model_dump(mode="json")
+
+
+def job_stub_payload() -> dict[str, str]:
+    return {"error": "heavy CFD jobs are reserved by RFC 0008 and not implemented"}
+
+
+def register_rest_routes(aiohttp_app: Any, store: HullStore | None = None) -> HullStore:
+    """Mount the RFC 0008 REST API on an aiohttp application."""
+    from aiohttp import web
+
+    store = store or HullStore()
+
+    async def post_evaluate(request: Any) -> Any:
+        return web.json_response(evaluation_payload(await request.json()))
+
+    async def post_stl(request: Any) -> Any:
+        state = await request.json()
+        part = request.query.get("part", "hull")
+        return web.Response(body=stl_bytes_for_part(state, part), content_type="application/sla")
+
+    async def post_hulls(request: Any) -> Any:
+        return web.json_response(store_hull_payload(await request.json(), store))
+
+    async def get_hull(request: Any) -> Any:
+        payload = load_hull_payload(request.match_info["id"], store)
+        if payload is None:
+            raise web.HTTPNotFound(text="unknown hull id")
+        return web.json_response(payload)
+
+    async def post_job(_request: Any) -> Any:
+        return web.json_response(job_stub_payload(), status=501)
+
+    async def get_job(_request: Any) -> Any:
+        return web.json_response(job_stub_payload(), status=501)
+
+    router = aiohttp_app.router
+    router.add_post("/api/evaluate", post_evaluate)
+    router.add_post("/api/stl", post_stl)
+    router.add_post("/api/hulls", post_hulls)
+    router.add_get("/api/hulls/{id}", get_hull)
+    router.add_post("/api/jobs", post_job)
+    router.add_get("/api/jobs/{id}", get_job)
+    return store

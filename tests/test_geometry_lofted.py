@@ -59,3 +59,12 @@ def test_section_returns_2d_yz_pairs() -> None:
     assert pts.ndim == 2
     assert pts.shape[1] == 2
     assert pts.shape[0] == 79  # mirrored 40-pt quarter-slice
+
+
+def test_half_breadth_grid_public_sampler_shape() -> None:
+    geom = LoftedHullGeometry(Hull(beam_wl_m=0.50))
+    xs, depths, grid = geom.half_breadth_grid(11, 7)
+    assert xs.shape == (11,)
+    assert depths.shape == (7,)
+    assert grid.shape == (11, 7)
+    assert grid[5, 0] > grid[5, -1]

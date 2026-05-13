@@ -9,6 +9,7 @@ and from a base64 URL fragment.
 from __future__ import annotations
 
 import base64
+from urllib.parse import parse_qs
 from typing import Any
 
 from kayakgen.model.hull import Hull
@@ -55,3 +56,12 @@ def decode_hull_query(query: str) -> Hull:
     """Inverse of :func:`encode_hull_query`."""
     blob = base64.urlsafe_b64decode(query.encode("ascii")).decode("utf-8")
     return Hull.model_validate_json(blob)
+
+
+def hull_from_query_string(query: str) -> Hull | None:
+    """Decode a `?hull=...` query string into a Hull, if present."""
+    raw = query[1:] if query.startswith("?") else query
+    values = parse_qs(raw).get("hull")
+    if not values:
+        return None
+    return decode_hull_query(values[0])

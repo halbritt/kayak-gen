@@ -15,17 +15,28 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | RFC | Status | Topic |
 | --- | --- | --- |
 | [0001](0001-template.md) | template | RFC template — copy for new RFCs |
-| [0002](0002-gui-usability.md) | proposed | GUI usability improvements |
-| [0003](0003-layout-and-station-view.md) | proposed | Window layout and station-view slider |
-| [0004](0004-plumb-bow.md) | proposed | Plumb bow support (`bow_rake` parameter) |
-| [0005](0005-cfd-resistance.md) | proposed | Resistance estimation (Michell + ITTC) |
-| [0006](0006-design-constraints.md) | proposed | Hull design constraints — canonical parameter space and class presets |
-| [0007](0007-architectural-revisit.md) | proposed | Architectural revisit — extract `kayakgen` package before more parameters land |
-| [0008](0008-web-frontend.md) | proposed | Portable web frontend via Trame |
+| [0002](0002-gui-usability.md) | landed | GUI usability improvements |
+| [0003](0003-layout-and-station-view.md) | landed | Window layout and station-view slider |
+| [0004](0004-plumb-bow.md) | partial | Plumb bow support (`bow_rake` parameter) |
+| [0005](0005-cfd-resistance.md) | partial | Resistance estimation (Michell + ITTC) |
+| [0006](0006-design-constraints.md) | partial | Hull design constraints — canonical parameter space and class presets |
+| [0007](0007-architectural-revisit.md) | landed | Architectural revisit — extract `kayakgen` package before more parameters land |
+| [0008](0008-web-frontend.md) | partial | Portable web frontend via Trame |
+| [0009](0009-sweep-run-records.md) | proposed | Sweep and candidate run records |
+| [0010](0010-cfd-ready-mesh-contract.md) | proposed | CFD-ready mesh contract |
+| [0011](0011-hydrostatic-stability-load-cases.md) | proposed | Hydrostatic stability and load cases |
+| [0012](0012-resistance-model-calibration.md) | proposed | Resistance model calibration |
+| [0013](0013-pareto-frontier-comparison-ui.md) | proposed | Pareto frontier and candidate comparison UI |
 
-RFCs 0007 and 0008 are the load-bearing ones for current direction.
-0005, 0006, and earlier RFCs target the new package layout 0007
-proposes; expect them to be retargeted as 0007 lands.
+RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
+shims, and golden regression tests. RFCs 0004, 0005, 0006, and 0008
+remain partial as of workflow 0010: they have useful implementation,
+but their acceptance criteria are not fully satisfied.
+
+RFCs 0009-0013 are proposed roadmap RFCs for the pivot from single-hull
+generation to a reproducible generative pipeline. They are intentionally
+sequenced from run records and mesh diagnostics toward stability, resistance
+calibration, and Pareto comparison.
 
 ## Template
 

@@ -75,10 +75,13 @@ subject:
 
 The project is mid-pivot from "single-paddler desktop hull
 generator" (the PRD scope) to "generative CFD pipeline with desktop
-and web frontends" (the RFC 0005–0008 scope). RFC 0007 is the
-architectural extraction that unblocks everything else; until it
-lands, expect the existing flat-file layout (`generator.py`,
-`gui.py`, `pyvista_view.py`) and expect new RFCs to keep adding
-parameters that will need re-plumbing afterward. If you are picking
-up open work, the highest-leverage place to spend time is RFC 0007's
-implementation path step 1 (golden tests against current code).
+and web frontends" (the RFC 0005-0008 scope). RFC 0007 has now
+mostly landed: `kayakgen/`, the CLI, compatibility shims, evaluators,
+and golden tests exist. Current cleanup is about closing the gap
+between RFC acceptance criteria and implementation reality: RFC 0004
+exact plumb-stem/watertight semantics need a design decision, RFC 0005
+resistance is an exploratory fast-filter tier rather than fully
+accepted physics, RFC 0006 class constraints are only partly surfaced
+in the GUI, and RFC 0008 has a Trame shell but incomplete REST/browser
+acceptance. If you are picking up open work, start with workflow 0010's
+findings ledger and patch summary.

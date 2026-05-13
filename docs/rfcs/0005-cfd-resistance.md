@@ -1,8 +1,15 @@
 # RFC 0005: Resistance Estimation (Michell Integral + ITTC Friction)
 
-Status: proposed
+Status: partial
 Date: 2026-05-09
 Context: generator.py, gui.py; follows RFC 0003
+
+Status note (workflow 0010, 2026-05-12): partially landed. The current ITTC
+viscous estimator is usable, and the Michell implementation is retained as an
+exploratory fast-filter signal. The low-Froude wave/viscous acceptance and
+200 ms budget are not met by the current implementation; tests mark those
+criteria explicitly as expected failures until the wave-resistance formulation
+is replaced or recalibrated.
 
 ## Problem
 

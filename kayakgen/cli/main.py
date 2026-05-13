@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import typer
 
 from kayakgen.eval.contract import EvaluationResult
+from kayakgen.eval.contract import LoadCase
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import resistance_curve
+from kayakgen.eval.stability import evaluate_initial_stability
 from kayakgen.io.json import load_hull, save_evaluation, save_hull
 from kayakgen.io.stl import write_stl
+from kayakgen.model.geometry import PartType
 from kayakgen.model.hull import Hull
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="kayakgen pipeline CLI")
@@ -61,6 +65,47 @@ def evaluate(
     typer.echo(f"wrote {out_path}")
 
 
+@app.command("mesh-check")
+def mesh_check(
+    hull_path: Path = typer.Argument(..., exists=True, dir_okay=False),
+    out: Path | None = typer.Option(
+        None,
+        "--out",
+        help="Where to write mesh diagnostics JSON.",
+    ),
+    part: str = typer.Option("hull", "--part", help="Mesh part to diagnose: hull or deck."),
+) -> None:
+    """Diagnose generated surface mesh quality without promoting CFD readiness."""
+    from kayakgen.eval.mesh_diagnostics import diagnose_mesh
+
+    if part not in ("hull", "deck"):
+        typer.echo("--part must be hull or deck", err=True)
+        raise typer.Exit(code=1)
+    diagnostics = diagnose_mesh(load_hull(hull_path), part=cast(PartType, part))
+    out_path = out if out is not None else hull_path.with_suffix(f".{part}.mesh.json")
+    out_path.write_text(diagnostics.model_dump_json(indent=2))
+    typer.echo(f"wrote {out_path}")
+
+
+@app.command()
+def stability(
+    hull_path: Path = typer.Argument(..., exists=True, dir_okay=False),
+    out: Path | None = typer.Option(None, "--out", help="Where to write stability JSON."),
+    load_case: Path | None = typer.Option(
+        None,
+        "--load-case",
+        exists=True,
+        dir_okay=False,
+    ),
+) -> None:
+    """Evaluate design-waterline initial stability for a load case."""
+    load = LoadCase.model_validate_json(load_case.read_text()) if load_case is not None else LoadCase()
+    result = evaluate_initial_stability(load_hull(hull_path), load)
+    out_path = out if out is not None else hull_path.with_suffix(".stability.json")
+    out_path.write_text(result.model_dump_json(indent=2))
+    typer.echo(f"wrote {out_path}")
+
+
 @app.command()
 def view(
     hull_path: Path | None = typer.Argument(
@@ -101,6 +146,30 @@ def serve(
     initial_hull = load_hull(hull_path) if hull_path is not None else None
     web = create_app(initial_hull=initial_hull)
     web.server.start(host=host, port=port)
+
+
+@app.command()
+def sweep(
+    sweep_path: Path = typer.Argument(..., exists=True, dir_okay=False),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Output directory for generated candidates.",
+    ),
+    resume: bool = typer.Option(False, "--resume", help="Skip completed candidate records."),
+) -> None:
+    """Run a deterministic JSON sweep and write candidate records."""
+    from kayakgen.search.sweep import load_sweep_spec, run_sweep
+
+    try:
+        run = run_sweep(load_sweep_spec(sweep_path), out, resume=resume)
+    except Exception as exc:
+        typer.echo(f"sweep failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(
+        f"wrote {out} ({run.completed_count} complete, {run.failed_count} failed, "
+        f"{run.skipped_count} skipped)"
+    )
 
 
 if __name__ == "__main__":

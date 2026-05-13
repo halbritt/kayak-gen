@@ -1,6 +1,6 @@
 # RFC 0003: Layout Fix, Sheer Plan Rename, and Interactive Station View
 
-Status: proposed
+Status: landed
 Date: 2026-05-09
 Context: gui.py; follows RFC 0002 (GUI usability improvements)
 

@@ -65,6 +65,21 @@ def _waterplane_area(vertices: np.ndarray) -> float:
     return float(np.trapezoid(2.0 * half_breadths, xs_unique))
 
 
+def _waterplane_second_moment(vertices: np.ndarray) -> float:
+    """Transverse waterplane second moment about the centerline."""
+    z_top = vertices[:, 2].max()
+    on_top = np.isclose(vertices[:, 2], z_top, atol=1e-9)
+    pts = vertices[on_top]
+    pts = pts[np.argsort(pts[:, 0])]
+
+    xs_unique, idx = np.unique(pts[:, 0], return_inverse=True)
+    half_breadths = np.zeros_like(xs_unique)
+    for i, _x in enumerate(xs_unique):
+        ys = pts[idx == i, 1]
+        half_breadths[i] = abs(ys).max()
+    return float(np.trapezoid((2.0 / 3.0) * half_breadths**3, xs_unique))
+
+
 def evaluate(hull: Hull, stations: int | None = None) -> Hydrostatics:
     """Compute hydrostatics from the integrated mesh of ``hull``."""
     geom = hull.to_geometry()
@@ -74,6 +89,7 @@ def evaluate(hull: Hull, stations: int | None = None) -> Hydrostatics:
     mass = volume * SEAWATER_DENSITY_KG_M3
     wetted = _surface_area(vertices, faces)
     waterplane = _waterplane_area(vertices)
+    waterplane_i_t = _waterplane_second_moment(vertices)
 
     # LCB: x-coordinate of centroid of unit-volume tetrahedra, normalized.
     a = vertices[faces[:, 0]]
@@ -82,15 +98,21 @@ def evaluate(hull: Hull, stations: int | None = None) -> Hydrostatics:
     cross = np.cross(b, c)
     tet_v = np.einsum("ij,ij->i", a, cross) / 6.0
     centroids_x = (a[:, 0] + b[:, 0] + c[:, 0]) / 4.0
+    centroids_z = (a[:, 2] + b[:, 2] + c[:, 2]) / 4.0
     if abs(tet_v.sum()) > 0:
         lcb_m = float((tet_v * centroids_x).sum() / tet_v.sum())
+        cb_z_m = float((tet_v * centroids_z).sum() / tet_v.sum())
     else:
         lcb_m = 0.0
+        cb_z_m = -hull.draft_m / 2.0
     lcb_frac = (lcb_m + hull.length_m / 2.0) / hull.length_m
 
     midship_area = geom.section_area(0.0)
     cp_actual = volume / (midship_area * hull.length_m) if midship_area > 0 else 0.0
-    cm_actual = midship_area / (hull.beam_oa_m * hull.draft_m) if hull.beam_oa_m * hull.draft_m > 0 else 0.0
+    beam_ref = hull.beam_wl_m if hull.beam_wl_m is not None else hull.beam_oa_m
+    cm_actual = midship_area / (beam_ref * hull.draft_m) if beam_ref * hull.draft_m > 0 else 0.0
+    kb_m = hull.draft_m + cb_z_m
+    gm0_m = (waterplane_i_t / volume + kb_m - 0.25) if volume > 0 else None
 
     return Hydrostatics(
         displaced_volume_m3=volume,
@@ -100,4 +122,5 @@ def evaluate(hull: Hull, stations: int | None = None) -> Hydrostatics:
         LCB_frac=lcb_frac,
         Cp_actual=cp_actual,
         Cm_actual=cm_actual,
+        GM0_m=gm0_m,
     )

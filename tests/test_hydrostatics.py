@@ -36,3 +36,18 @@ def test_cp_actual_in_reasonable_range() -> None:
     h = evaluate(Hull())
     assert 0.4 < h.Cp_actual < 0.7
     assert 0.6 < h.Cm_actual < 0.95
+
+
+def test_cm_actual_uses_waterline_beam_when_present() -> None:
+    hull = Hull(beam_oa_m=0.60, beam_wl_m=0.50)
+    h = evaluate(hull)
+    midship_area = hull.to_geometry().section_area(0.0)
+    np.testing.assert_allclose(h.Cm_actual, midship_area / (0.50 * hull.draft_m))
+
+
+def test_gm0_is_populated_and_grows_with_waterline_beam() -> None:
+    narrow = evaluate(Hull(beam_oa_m=0.60, beam_wl_m=0.45))
+    wide = evaluate(Hull(beam_oa_m=0.60, beam_wl_m=0.60))
+    assert narrow.GM0_m is not None
+    assert wide.GM0_m is not None
+    assert wide.GM0_m > narrow.GM0_m

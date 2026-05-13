@@ -1,10 +1,15 @@
 # RFC 0008: Portable Web Frontend (Trame)
 
-Status: proposed
+Status: partial
 Date: 2026-05-09
 Context: builds on RFC 0007 (architectural revisit). Touches the
 `kayakgen.ui` and `kayakgen.cli` boundaries; does not change
 `kayakgen.model` or `kayakgen.eval`.
+
+Status note (workflow 0010, 2026-05-12): partially landed. The Trame shell,
+sliders, VTK view, metrics helpers, share-query encoding, REST route
+scaffolding, and Docker build path exist. Plot tabs, full browser smoke,
+Lighthouse verification, and hosted demo deployment remain follow-up work.
 
 ## Problem
 

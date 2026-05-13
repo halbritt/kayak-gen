@@ -18,11 +18,12 @@ from trame.widgets import vuetify3 as v3
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance
 from kayakgen.model.hull import Hull
-from kayakgen.ui.web.controllers import metrics_from_state
+from kayakgen.ui.web.controllers import HullStore, metrics_from_state, register_rest_routes
 from kayakgen.ui.web.state import (
     HULL_STATE_FIELDS,
     decode_hull_query,
     encode_hull_query,
+    hull_from_query_string,
     hull_from_state_dict,
     state_dict_from_hull,
 )
@@ -81,11 +82,18 @@ def _make_actor(poly: vtk.vtkPolyData, rgb: tuple[float, float, float], opacity:
 class KayakgenApp:
     """Trame app driving the kayakgen web UI."""
 
-    def __init__(self, server: Any | None = None, initial_hull: Hull | None = None) -> None:
+    def __init__(
+        self,
+        server: Any | None = None,
+        initial_hull: Hull | None = None,
+        initial_query: str | None = None,
+    ) -> None:
         self.server = server if server is not None else get_server(client_type="vue3")
         self.state = self.server.state
         self.ctrl = self.server.controller
 
+        if initial_hull is None and initial_query:
+            initial_hull = hull_from_query_string(initial_query)
         hull = initial_hull or Hull()
         self.state.update(state_dict_from_hull(hull))
         self.state.target_speed_kt = 3.5
@@ -100,11 +108,15 @@ class KayakgenApp:
 
         self._hull_actor: vtk.vtkActor | None = None
         self._deck_actor: vtk.vtkActor | None = None
+        self._hull_store = HullStore()
         self._rebuild_scene(hull)
 
         self.ctrl.export_stl = lambda part: self._export_stl(part)
         self.ctrl.share_url = lambda: self._share_url()
         self.ctrl.reset = lambda: self._reset()
+        self.ctrl.on_server_bind.add(
+            lambda ws_server: register_rest_routes(ws_server.app, self._hull_store)
+        )
 
         self._wire_state_listeners()
         self._build_layout()
@@ -236,6 +248,10 @@ class KayakgenApp:
                     self.view = vtkw.VtkRemoteView(self._render_window, ref="view")
 
 
-def create_app(initial_hull: Hull | None = None, server: Any | None = None) -> KayakgenApp:
+def create_app(
+    initial_hull: Hull | None = None,
+    server: Any | None = None,
+    initial_query: str | None = None,
+) -> KayakgenApp:
     """Factory: build and return a configured :class:`KayakgenApp`."""
-    return KayakgenApp(server=server, initial_hull=initial_hull)
+    return KayakgenApp(server=server, initial_hull=initial_hull, initial_query=initial_query)

@@ -1,6 +1,6 @@
 # RFC 0007: Architectural Revisit — From Prototype Script to Generative Pipeline
 
-Status: proposed
+Status: landed
 Date: 2026-05-09
 Context: generator.py, gui.py, pyvista_view.py; informs and partially
 re-frames RFCs 0002–0006. Source motivation: the parameter space and

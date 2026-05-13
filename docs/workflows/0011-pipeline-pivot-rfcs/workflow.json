@@ -1,0 +1,279 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0011-pipeline-pivot-rfcs",
+  "workflow_version": "2026-05-13",
+  "name": "0011 - Pipeline pivot RFCs and safe implementation",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0011-pipeline-pivot-rfcs",
+    "allow_dirty": true
+  },
+  "coordinator": {
+    "role_id": "coordinator",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["claude", "--model", "opus", "-p"],
+      "capabilities": ["review", "synthesis", "write"]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["codex", "exec", "--model", "gpt-5.5", "-"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["gemini", "--model", "gemini-3.1-pro-preview"],
+      "capabilities": ["review"]
+    }
+  },
+  "roles": {
+    "coordinator": {"definition_path": "roles/coordinator.md"},
+    "drafter": {"definition_path": "roles/drafter.md"},
+    "reviewer_roadmap": {"definition_path": "roles/reviewer_roadmap.md"},
+    "reviewer_domain": {"definition_path": "roles/reviewer_domain.md"},
+    "reviewer_ops": {"definition_path": "roles/reviewer_ops.md"},
+    "ledger": {"definition_path": "roles/ledger.md"},
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/PRD.md", "required": true},
+    {"path": "docs/design/kayak_hull_design_constraints.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/rfcs/0004-plumb-bow.md", "required": true},
+    {"path": "docs/rfcs/0005-cfd-resistance.md", "required": true},
+    {"path": "docs/rfcs/0006-design-constraints.md", "required": true},
+    {"path": "docs/rfcs/0007-architectural-revisit.md", "required": true},
+    {"path": "docs/rfcs/0008-web-frontend.md", "required": true},
+    {"path": "docs/rfcs/0009-sweep-run-records.md", "required": false},
+    {"path": "docs/rfcs/0010-cfd-ready-mesh-contract.md", "required": false},
+    {"path": "docs/rfcs/0011-hydrostatic-stability-load-cases.md", "required": false},
+    {"path": "docs/rfcs/0012-resistance-model-calibration.md", "required": false},
+    {"path": "docs/rfcs/0013-pareto-frontier-comparison-ui.md", "required": false},
+    {"path": "docs/workflows/0011-pipeline-pivot-rfcs/SOURCES.md", "required": true},
+    {"path": "docs/workflows/0010-rfc-completion-review-remediation/OPERATOR_REPORT.md", "required": true},
+    {"path": "striatum/0010-rfc-completion-review-remediation/ledger/FINDINGS.md", "required": true},
+    {"path": "striatum/0010-rfc-completion-review-remediation/implementation/PATCH_SUMMARY.md", "required": true},
+    {"path": "striatum/0010-rfc-completion-review-remediation/final/FINAL_REVIEW.md", "required": true},
+    {"path": "pyproject.toml", "required": true},
+    {"path": "kayakgen/cli/main.py", "required": true},
+    {"path": "kayakgen/model/hull.py", "required": true},
+    {"path": "kayakgen/model/geometry.py", "required": true},
+    {"path": "kayakgen/eval/hydrostatics.py", "required": true},
+    {"path": "kayakgen/eval/resistance.py", "required": true},
+    {"path": "kayakgen/search/__init__.py", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "draft_rfcs",
+      "type": "build",
+      "title": "Draft pivot RFCs 0009-0013",
+      "role_id": "drafter",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Draft the five next pivot RFCs and update the RFC index. Keep statuses truthful and separate safe implementation from human-decision work.",
+      "task_prompt": {"path": "prompts/draft_rfcs.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/rfcs/",
+          "striatum/0011-pipeline-pivot-rfcs/drafts/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "rfc_draft_summary",
+          "kind": "patch_summary",
+          "path": "striatum/0011-pipeline-pivot-rfcs/drafts/RFC_DRAFT_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_roadmap",
+      "type": "review",
+      "title": "Review roadmap and RFC traceability",
+      "role_id": "reviewer_roadmap",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review RFCs 0009-0013 as a roadmap for the project pivot, including dependency order, status truthfulness, and acceptance criteria.",
+      "task_prompt": {"path": "prompts/review_roadmap.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0011-pipeline-pivot-rfcs/claude/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0011-pipeline-pivot-rfcs/claude/REVIEW_ROADMAP.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_domain",
+      "type": "review",
+      "title": "Review domain, mesh, stability, and resistance claims",
+      "role_id": "reviewer_domain",
+      "lane_id": "gemini",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review RFCs 0009-0013 for domain/math/mesh correctness and human-decision boundaries.",
+      "task_prompt": {"path": "prompts/review_domain.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0011-pipeline-pivot-rfcs/gemini/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0011-pipeline-pivot-rfcs/gemini/REVIEW_DOMAIN.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_ops",
+      "type": "review",
+      "title": "Review implementation and ops path",
+      "role_id": "reviewer_ops",
+      "lane_id": "codex",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review RFCs 0009-0013 for safe implementation slices, CLI/API/test impact, and package/ops risk.",
+      "task_prompt": {"path": "prompts/review_ops.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0011-pipeline-pivot-rfcs/codex-review/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0011-pipeline-pivot-rfcs/codex-review/REVIEW_OPS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "ledger",
+      "title": "Consolidate pivot RFC review findings",
+      "role_id": "ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate review findings and identify safe implementation work versus human-decision boundaries.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": ["striatum/0011-pipeline-pivot-rfcs/ledger/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "ledger",
+          "kind": "findings_ledger",
+          "path": "striatum/0011-pipeline-pivot-rfcs/ledger/FINDINGS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "implement_findings",
+      "type": "build",
+      "title": "Implement safe pivot RFC slice",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Implement safe actionable findings from the ledger. Use sub-agents maximally where useful, keep write scopes coordinated, and document deferred human-decision work.",
+      "task_prompt": {"path": "prompts/implement_findings.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/rfcs/",
+          "docs/workflows/0011-pipeline-pivot-rfcs/",
+          "kayakgen/",
+          "tests/",
+          "pyproject.toml",
+          "striatum/0011-pipeline-pivot-rfcs/implementation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "striatum/0011-pipeline-pivot-rfcs/implementation/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final gate for pivot RFC implementation",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify implementation against the ledger and patch summary. Accept only if safe findings are fixed and residual risks are explicit.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0011-pipeline-pivot-rfcs/final/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "final_review",
+          "kind": "finding",
+          "path": "striatum/0011-pipeline-pivot-rfcs/final/FINAL_REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "draft_rfcs", "to": "review_roadmap", "on": "completed"},
+    {"from": "draft_rfcs", "to": "review_domain", "on": "completed"},
+    {"from": "draft_rfcs", "to": "review_ops", "on": "completed"},
+    {"from": "review_roadmap", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_domain", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops", "to": "findings_ledger", "on": "completed"},
+    {"from": "findings_ledger", "to": "implement_findings", "on": "completed"},
+    {"from": "implement_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {
+      "from": "final_review",
+      "to": "implement_findings",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1
+    }
+  ]
+}

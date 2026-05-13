@@ -53,6 +53,15 @@ def test_beam_wl_default_falls_back_to_beam_oa() -> None:
     assert abs(legacy_like.displaced_volume_m3 - explicit.displaced_volume_m3) < 1e-12
 
 
+def test_explicit_beam_wl_must_be_positive_and_not_exceed_overall() -> None:
+    import pytest
+
+    with pytest.raises(ValueError):
+        Hull(beam_wl_m=-0.1)
+    with pytest.raises(ValueError):
+        Hull(beam_oa_m=0.55, beam_wl_m=0.60)
+
+
 def test_preset_volumes_in_paddler_envelope() -> None:
     # Constraints doc §6 places paddler-only displacement at ~75-180 L.
     for kc in list_classes():

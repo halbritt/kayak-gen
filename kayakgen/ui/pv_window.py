@@ -7,22 +7,7 @@ import pyvista as pv
 from PyQt6.QtWidgets import QHBoxLayout, QMainWindow, QPushButton, QVBoxLayout, QWidget
 from pyvistaqt import QtInteractor
 
-from kayakgen.model.hull import Hull
-
-
-_GUI_TO_HULL = {
-    "length": "length_m",
-    "beam": "beam_oa_m",
-    "draft": "draft_m",
-    "deck_height": "deck_height_m",
-    "Cp": "Cp",
-    "deck_flatness": "deck_flatness",
-    "center_box_ratio": "center_box_ratio",
-}
-
-
-def _hull_from_gui_params(params: dict) -> Hull:
-    return Hull(**{hull_key: params[gui_key] for gui_key, hull_key in _GUI_TO_HULL.items()})
+from kayakgen.ui.gui_params import hull_from_gui_params as _hull_from_gui_params
 
 
 def _build_pv_mesh(vertices: np.ndarray, faces: np.ndarray) -> pv.PolyData:
