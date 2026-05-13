@@ -6,6 +6,11 @@ Context: RFC 0008 reserves heavy CFD jobs behind web stubs, RFC 0010 defines
 mesh package/readiness metadata, and RFC 0012 keeps resistance calibration
 claims separate from unvalidated solver output.
 
+Status note (workflow 0024, 2026-05-13): mesh packages now expose a named
+watertight-required profile, `watertight_solid_resistance_v1`, that dispatch can
+use as a readiness gate. The current generated package is still rejected below
+`cfd_ready` by that profile.
+
 ## Problem
 
 The project can write mesh packages and analytical resistance reports, but it
@@ -117,8 +122,9 @@ dispatch can later implement the same `CfdJobSpec` and `CfdRunRecord` contract.
 
 - Which external solver adapter should be first: OpenFOAM, SU2, or a local
   mock adapter that only validates the dispatch contract?
-- Should the first real profile target open wetted-surface resistance or wait
-  for watertight solid/volume readiness?
+- Should the first real solver adapter target the existing open wetted-surface
+  profile, or wait for a future geometry workflow that satisfies
+  `watertight_solid_resistance_v1`?
 - What minimum residual/force outputs must be normalized into comparison
   records?
 - Should solver jobs live under sweep run records, or remain separate artifacts

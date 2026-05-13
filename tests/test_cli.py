@@ -133,6 +133,31 @@ def test_mesh_package_writes_manifest_and_artifacts(tmp_path) -> None:
     assert (out / "deck.stl").exists()
 
 
+def test_mesh_package_can_select_watertight_profile_without_cfd_ready(tmp_path) -> None:
+    hull = tmp_path / "hull.json"
+    hull.write_text(Hull().model_dump_json())
+    out = tmp_path / "mesh-package"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "mesh-package",
+            str(hull),
+            "--out",
+            str(out),
+            "--solver-profile",
+            "watertight-solid",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "stl_surface" in result.stdout
+    manifest = json.loads((out / "manifest.json").read_text())
+    assert manifest["solver_profile"]["profile_name"] == "watertight_solid_resistance_v1"
+    assert manifest["readiness"]["level"] == "stl_surface"
+    assert any("separate open surfaces" in warning for warning in manifest["warnings"])
+
+
 def test_stability_writes_initial_result(tmp_path) -> None:
     hull = tmp_path / "hull.json"
     hull.write_text(Hull().model_dump_json())

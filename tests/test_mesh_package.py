@@ -7,6 +7,7 @@ from pathlib import Path
 from kayakgen.eval.mesh_package import (
     MeshPackageManifest,
     open_wetted_surface_profile,
+    watertight_solid_profile,
     write_mesh_package,
 )
 from kayakgen.model.hull import Hull
@@ -18,6 +19,15 @@ def test_open_wetted_surface_profile_is_not_watertight() -> None:
     assert profile.profile_name == "open_wetted_surface_resistance_v1"
     assert profile.requires_watertight is False
     assert profile.waterline_boundary_policy == "open_waterline_allowed"
+
+
+def test_watertight_solid_profile_is_blocked_for_current_open_surfaces() -> None:
+    profile = watertight_solid_profile()
+
+    assert profile.profile_name == "watertight_solid_resistance_v1"
+    assert profile.requires_watertight is True
+    assert profile.waterline_boundary_policy == "closed_volume_required"
+    assert profile.normal_orientation == "outward"
 
 
 def test_write_mesh_package_creates_manifest_and_artifacts(tmp_path: Path) -> None:
@@ -48,6 +58,23 @@ def test_write_mesh_package_creates_manifest_and_artifacts(tmp_path: Path) -> No
     }
     assert manifest.readiness.level == "cfd_surface_candidate"
     assert "cfd_ready" in " ".join(manifest.warnings)
+
+
+def test_watertight_profile_package_stays_below_cfd_ready(tmp_path: Path) -> None:
+    manifest = write_mesh_package(
+        Hull(),
+        tmp_path,
+        stations=12,
+        solver_profile=watertight_solid_profile(),
+    )
+
+    assert manifest.solver_profile.profile_name == "watertight_solid_resistance_v1"
+    assert manifest.solver_profile.requires_watertight is True
+    assert manifest.readiness.level == "stl_surface"
+    warning_text = " ".join(manifest.warnings)
+    assert "requires zero boundary edges" in warning_text
+    assert "closed combined hull/deck volume" in warning_text
+    assert "separate open surfaces" in warning_text
 
 
 def test_mesh_package_manifest_round_trips_from_json(tmp_path: Path) -> None:

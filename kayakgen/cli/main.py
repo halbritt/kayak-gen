@@ -12,7 +12,11 @@ from kayakgen.eval.contract import LoadCase
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import resistance_curve
 from kayakgen.eval.stability import evaluate_equilibrium_stability, evaluate_initial_stability
-from kayakgen.eval.mesh_package import write_mesh_package
+from kayakgen.eval.mesh_package import (
+    open_wetted_surface_profile,
+    watertight_solid_profile,
+    write_mesh_package,
+)
 from kayakgen.io.json import load_hull, save_evaluation, save_hull
 from kayakgen.io.stl import write_stl
 from kayakgen.model.geometry import PartType
@@ -97,14 +101,28 @@ def mesh_package(
         "--out",
         help="Output directory for the mesh package.",
     ),
+    solver_profile: str = typer.Option(
+        "open-wetted-surface",
+        "--solver-profile",
+        help="Mesh solver profile: open-wetted-surface or watertight-solid.",
+    ),
 ) -> None:
     """Write manifest, quality reports, and STL surfaces for a Hull."""
     try:
-        manifest = write_mesh_package(load_hull(hull_path), out)
+        profile = _mesh_solver_profile(solver_profile)
+        manifest = write_mesh_package(load_hull(hull_path), out, solver_profile=profile)
     except Exception as exc:
         typer.echo(f"mesh-package failed: {exc}", err=True)
         raise typer.Exit(code=1)
     typer.echo(f"wrote {out / 'manifest.json'} ({manifest.readiness.level})")
+
+
+def _mesh_solver_profile(name: str):
+    if name == "open-wetted-surface":
+        return open_wetted_surface_profile()
+    if name == "watertight-solid":
+        return watertight_solid_profile()
+    raise ValueError("--solver-profile must be open-wetted-surface or watertight-solid")
 
 
 @app.command()

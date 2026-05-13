@@ -11,6 +11,12 @@ Current packages are open-surface CFD candidates, not watertight `cfd_ready`
 solids. Solver dispatch, volume meshing, and watertight solid readiness remain
 future work.
 
+Status note (workflow 0024, 2026-05-13): a named watertight-required profile
+boundary, `watertight_solid_resistance_v1`, has landed for mesh packages and
+future dispatch gating. Current generated packages remain below `cfd_ready`
+under that profile because the package writer emits separate open hull/deck
+surfaces and no closed combined hull/deck volume.
+
 ## Problem
 
 The project can export STL surfaces, but "CFD-ready" is not defined. RFC 0008
@@ -133,7 +139,8 @@ kayakgen mesh-package hull.json --out mesh-package/
 ## Open Questions
 
 - Which external solver profile lands first?
-- What additional checks are needed for a future watertight solid profile?
+- What geometry contract should produce a future closed combined hull/deck
+  solid that can satisfy `watertight_solid_resistance_v1`?
 
 ## Implementation Path
 

@@ -64,6 +64,22 @@ def open_wetted_surface_profile() -> MeshSolverProfile:
     )
 
 
+def watertight_solid_profile() -> MeshSolverProfile:
+    """Return the future watertight-solid solver profile boundary.
+
+    Current generated packages do not satisfy this profile; it exists so
+    dispatch code can depend on a stable profile name and readiness gate.
+    """
+    return MeshSolverProfile(
+        profile_name="watertight_solid_resistance_v1",
+        requires_watertight=True,
+        accepted_parts=("hull", "deck"),
+        normal_orientation="outward",
+        waterline_boundary_policy="closed_volume_required",
+        max_nonmanifold_edges=0,
+    )
+
+
 def write_mesh_package(
     hull: Hull,
     out_dir: str | Path,
@@ -136,7 +152,17 @@ def _package_readiness(
         return MeshReadiness(level="stl_surface", reasons=reasons)
 
     if profile.requires_watertight:
-        _append_once(reasons, "watertight solid profile is not implemented")
+        for part, diagnostics in diagnostics_by_part.items():
+            if diagnostics.raw_boundary_edges or diagnostics.welded_boundary_edges:
+                _append_once(
+                    reasons,
+                    f"{part}: watertight profile requires zero boundary edges",
+                )
+        _append_once(
+            reasons,
+            "watertight solid profile requires a closed combined hull/deck volume",
+        )
+        _append_once(reasons, "current package writer emits separate open surfaces")
         return MeshReadiness(level="stl_surface", reasons=reasons)
 
     _append_once(reasons, "open wetted-surface profile; not watertight cfd_ready")

@@ -53,9 +53,11 @@ The RFC 0014 slice includes compatible longitudinal load components, bounded
 fixed-body upright trim equilibrium for explicit component load cases, additive
 trim result fields, and CLI/sweep summaries. RFC 0012 has an open measured
 Pacific-canoe validation source in the registry, but no kayak calibration
-fixture. Hosted demo deployment, full plot/dashboard parity, remaining legacy
-RFC deferrals, high-angle `GZ` stability, resistance calibration, watertight
-solid readiness, and CFD solver dispatch are queued in
+fixture. RFC 0010 also has a named watertight-required profile boundary for
+future dispatch, while current generated packages remain open-surface and not
+`cfd_ready`. Hosted demo deployment, full plot/dashboard parity, remaining
+legacy RFC deferrals, high-angle `GZ` stability, resistance calibration,
+watertight solid geometry, and CFD solver dispatch are queued in
 `docs/workflows/0018-deferred-backlog/QUEUE.md`.
 High-angle `GZ` remains unavailable because a closed-volume body for heeled
 integration is not defined.
