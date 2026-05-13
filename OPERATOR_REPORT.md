@@ -107,6 +107,14 @@ Updated: 2026-05-13
   branch worktrees to preserve parallelism while avoiding shared-worktree
   conflicts: `/tmp/kayak-gen-successor-worktrees/0042` and
   `/tmp/kayak-gen-successor-worktrees/0043`.
+- 2026-05-13T20:11:43Z checkpoint: both successor implementation jobs landed
+  on `main`. 0042 landed as `78f14d0` with patch-summary artifact
+  `art_f1d914a34a6d4f0e86e5499f8dc553a5`; 0043 rebased cleanly over 0042 and
+  landed as `2798591` with patch-summary artifact
+  `art_78d4e0a284c440558b439edfeaaed57c`. 0042 reported `.venv/bin/python -m
+  pytest` -> 263 passed; 0043 reported `pytest -q` -> 252 passed plus
+  browser-acceptance and focused web/CFD suites. Final-review jobs for 0042 and
+  0043 are now running in parallel on the Claude lane.
 - 2026-05-13T17:46:07Z checkpoint: the four unblocked ledger jobs completed
   and were published without `author:` bylines: 0033
   `art_b263fcf6154e4503b62f8ad2a142813a`, 0037
