@@ -1,6 +1,6 @@
 # RFC 0011: Hydrostatic Stability and Load Cases
 
-Status: proposed
+Status: landed-equilibrium-sinkage
 Date: 2026-05-13
 Context: `kayakgen.eval.hydrostatics` computes integrated hydrostatics and
 `GM0_m`; `kayakgen.eval.contract.GZCurve` is reserved for stability.
@@ -75,14 +75,21 @@ seat_height_above_keel_m: float | None = None
 seawater_density_kg_m3: float = 1025.0
 ```
 
-The initial implementation should allow `Hydrostatics.GM0_m` to remain
-available and make its baseline/keel-referenced `KG` source explicit. Full
-`GZ` and equilibrium sinkage/trim solving remain separate implementation steps.
+The initial implementation allows `Hydrostatics.GM0_m` to remain available and
+makes its baseline/keel-referenced `KG` source explicit. The current landed
+equilibrium slice solves load-case sinkage by matching displaced mass to load
+mass with a bounded tolerance. Generalized trim remains explicit future work:
+the current `LoadCase` has no longitudinal center-of-gravity input or load
+positions, so equilibrium mode reports zero trim only under the centered,
+symmetric-load assumption and emits a warning.
+
+Full high-angle `GZ` remains reserved until the heeled-volume decision is made.
 
 CLI:
 
 ```text
 kayakgen stability hull.json --load-case load-case.json --out stability.json
+kayakgen stability hull.json --load-case load-case.json --equilibrium --out stability.json
 ```
 
 ## Acceptance Criteria
@@ -96,6 +103,11 @@ kayakgen stability hull.json --load-case load-case.json --out stability.json
 - `StabilityResult` includes `load_mass_kg`, `displaced_mass_kg`,
   `displacement_error_kg`, method/status fields, and warnings when the result
   is design-waterline-only rather than equilibrium-solved.
+- Equilibrium mode reports solved draft, sinkage, trim assumption, convergence
+  tolerance, iteration count, and converged/not-converged status.
+- Waterline-relative KG references are normalized against the equilibrium draft
+  in equilibrium mode.
+- Load-case seawater density is used for equilibrium displacement matching.
 - `EvaluationResult.stability` is `StabilityResult | None`, with `GZCurve`
   nested as an optional value.
 - Full `GZ` curve calls are explicit about not being implemented, not silently
@@ -106,8 +118,10 @@ kayakgen stability hull.json --load-case load-case.json --out stability.json
 - Should high-angle stability use hull-body-only volume, hull-plus-deck volume,
   or a new evaluation-only closed volume?
 - What default paddler/hull/cargo masses should be canonical?
-- What numerical tolerance should define equilibrium convergence for sinkage and
-  trim?
+- What load-case fields should define generalized trim (longitudinal CG,
+  paddler station, cargo positions, or another compact moment model)?
+- What closed or trimmed-volume geometry should be used for generalized trim and
+  future high-angle stability?
 
 ## Implementation Path
 
@@ -117,7 +131,8 @@ kayakgen stability hull.json --load-case load-case.json --out stability.json
 - Step 3 - Add CLI and JSON helpers.
 - Step 4 - Keep full `GZ` curve reserved with tests proving it does not claim
   computed output.
-- Step 5 - Add equilibrium sinkage/trim solving.
+- Step 5 - Add equilibrium sinkage solving with explicit centered/symmetric trim
+  assumption.
 - Step 6 - Revisit full `GZ` after RFC 0010 mesh/volume decisions.
 
 ## Domain Modeling

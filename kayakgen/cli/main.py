@@ -11,7 +11,7 @@ from kayakgen.eval.contract import EvaluationResult
 from kayakgen.eval.contract import LoadCase
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import resistance_curve
-from kayakgen.eval.stability import evaluate_initial_stability
+from kayakgen.eval.stability import evaluate_equilibrium_stability, evaluate_initial_stability
 from kayakgen.eval.mesh_package import write_mesh_package
 from kayakgen.io.json import load_hull, save_evaluation, save_hull
 from kayakgen.io.stl import write_stl
@@ -117,10 +117,38 @@ def stability(
         exists=True,
         dir_okay=False,
     ),
+    equilibrium: bool = typer.Option(
+        False,
+        "--equilibrium",
+        help="Solve load-case sinkage equilibrium before reporting initial stability.",
+    ),
+    tolerance_kg: float = typer.Option(
+        1.0,
+        "--tolerance-kg",
+        help="Mass tolerance for equilibrium convergence.",
+    ),
+    max_iterations: int = typer.Option(
+        60,
+        "--max-iterations",
+        help="Maximum equilibrium bisection iterations.",
+    ),
 ) -> None:
-    """Evaluate design-waterline initial stability for a load case."""
-    load = LoadCase.model_validate_json(load_case.read_text()) if load_case is not None else LoadCase()
-    result = evaluate_initial_stability(load_hull(hull_path), load)
+    """Evaluate initial stability for a load case."""
+    load = (
+        LoadCase.model_validate_json(load_case.read_text())
+        if load_case is not None
+        else LoadCase()
+    )
+    hull = load_hull(hull_path)
+    if equilibrium:
+        result = evaluate_equilibrium_stability(
+            hull,
+            load,
+            tolerance_kg=tolerance_kg,
+            max_iterations=max_iterations,
+        )
+    else:
+        result = evaluate_initial_stability(hull, load)
     out_path = out if out is not None else hull_path.with_suffix(".stability.json")
     out_path.write_text(result.model_dump_json(indent=2))
     typer.echo(f"wrote {out_path}")

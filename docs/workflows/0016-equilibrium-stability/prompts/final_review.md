@@ -13,6 +13,7 @@ Accept only if:
 
 - tests pass and `git diff --check` is clean;
 - design-waterline diagnostics remain available;
-- equilibrium mode reports convergence tolerance and load-displacement error;
+- equilibrium mode reports tolerance, iteration count, and load-displacement
+  error;
 - trim/high-angle behavior is truthful and not overclaimed;
 - RFC/readme/operator-report artifacts accurately reflect what landed.

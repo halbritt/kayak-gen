@@ -94,12 +94,18 @@ class StabilityResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     load_case: LoadCase = Field(default_factory=LoadCase)
-    method: Literal["design_waterline_initial"] = "design_waterline_initial"
-    status: Literal["computed", "not_implemented"] = "computed"
+    method: Literal["design_waterline_initial", "equilibrium_sinkage"] = "design_waterline_initial"
+    status: Literal["computed", "converged", "not_converged", "not_implemented"] = "computed"
     initial_GM0_m: float | None = None
     load_mass_kg: float
     displaced_mass_kg: float
     displacement_error_kg: float
+    equilibrium_draft_m: float | None = Field(default=None, gt=0)
+    sinkage_m: float | None = None
+    trim_angle_deg: float | None = None
+    equilibrium_tolerance_kg: float | None = Field(default=None, gt=0)
+    equilibrium_iterations: int | None = Field(default=None, ge=0)
+    equilibrium_max_iterations: int | None = Field(default=None, ge=1)
     warnings: list[str] = Field(default_factory=list)
     gz_curve: GZCurve | None = None
 

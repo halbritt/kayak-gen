@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import json
+
+import pytest
 from typer.testing import CliRunner
 
 from kayakgen.cli.main import app
+from kayakgen.eval.contract import LoadCase
+from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.model.hull import Hull
 
 
@@ -99,3 +104,43 @@ def test_stability_writes_initial_result(tmp_path) -> None:
     result = CliRunner().invoke(app, ["stability", str(hull), "--out", str(out)])
     assert result.exit_code == 0
     assert "design_waterline_initial" in out.read_text()
+
+
+def test_stability_equilibrium_flag_writes_equilibrium_result(tmp_path) -> None:
+    hull_model = Hull(draft_m=0.12)
+    target_draft_m = 0.135
+    hydro = evaluate_hydrostatics(hull_model.model_copy(update={"draft_m": target_draft_m}))
+    load_model = LoadCase(
+        paddler_mass_kg=hydro.displaced_volume_m3 * 1025.0 - 18.0,
+        hull_mass_kg=18.0,
+        cargo_mass_kg=0.0,
+    )
+    hull = tmp_path / "hull.json"
+    load = tmp_path / "load.json"
+    out = tmp_path / "stability.json"
+    hull.write_text(hull_model.model_dump_json())
+    load.write_text(load_model.model_dump_json())
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "stability",
+            str(hull),
+            "--load-case",
+            str(load),
+            "--equilibrium",
+            "--tolerance-kg",
+            "0.05",
+            "--max-iterations",
+            "80",
+            "--out",
+            str(out),
+        ],
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(out.read_text())
+    assert data["method"] == "equilibrium_sinkage"
+    assert data["status"] == "converged"
+    assert data["equilibrium_draft_m"] == pytest.approx(target_draft_m, abs=5e-4)
+    assert abs(data["displacement_error_kg"]) <= 0.05
