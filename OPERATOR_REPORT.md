@@ -102,6 +102,11 @@ Updated: 2026-05-13
   `art_0a3aa38ff90840a49db6c3eb48bcdd43` defines the safe RFC 0032
   implementation slice. Both successor runs now have `implement_findings`
   queued.
+- 2026-05-13T19:48:45Z checkpoint: both successor implementation jobs were
+  registered, claimed, and acknowledged. They are being launched in separate
+  branch worktrees to preserve parallelism while avoiding shared-worktree
+  conflicts: `/tmp/kayak-gen-successor-worktrees/0042` and
+  `/tmp/kayak-gen-successor-worktrees/0043`.
 - 2026-05-13T17:46:07Z checkpoint: the four unblocked ledger jobs completed
   and were published without `author:` bylines: 0033
   `art_b263fcf6154e4503b62f8ad2a142813a`, 0037
