@@ -44,7 +44,17 @@ Updated: 2026-05-13
   findings (`art_91ef98eb947d4004896205f1e511fded`). The domain lane used a
   Gemini Flash retry after the primary Gemini model returned quota exhaustion
   before producing an artifact.
+- 2026-05-13T22:00:29Z: findings ledger claimed as
+  `job_run_4966ab190f8840d9b2f9c82b4044edad_findings_ledger` under Codex
+  session `sess_1fae22524c5c4ca9a8cdff5ec37ee4b5` and launched with a prompt
+  requesting maximal useful sub-agent fanout for disjoint ledger extraction.
+- 2026-05-13T22:05:24Z: findings ledger artifact published as
+  `art_bc49d7fb6c40487d819e344324de6543` and job completed. The ledger gate is
+  `accept_with_findings`; it carries 12 safe-now implementation findings, 3
+  test/docs/scaffold findings, explicit deferrals, and a validation matrix.
+  Striatum has queued `implement_findings` for workflow 0044.
 
 ## Next action
 
-- Claim and run the queued findings ledger job.
+- Commit and push the ledger packet, then claim and launch the implementation
+  job.

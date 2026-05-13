@@ -39,6 +39,15 @@ Updated: 2026-05-13
   `accept_with_findings` (`art_2c2743081cd84ffeb5e82ea58cf77da5`), and ops
   `accept_with_findings` (`art_91ef98eb947d4004896205f1e511fded`). Striatum
   queued the findings ledger for workflow 0044.
+- 2026-05-13T22:00:29Z checkpoint: workflow 0044 findings ledger is claimed
+  and running under Codex session `sess_1fae22524c5c4ca9a8cdff5ec37ee4b5`.
+  The prompt asks for disjoint parallel/sub-agent ledger extraction and only
+  the workflow-local `FINDINGS.md` artifact.
+- 2026-05-13T22:05:24Z checkpoint: workflow 0044 findings ledger completed
+  and published as `art_bc49d7fb6c40487d819e344324de6543`. The ledger gates
+  implementation as `accept_with_findings`, with 12 safe-now implementation
+  findings, 3 test/docs/scaffold findings, explicit deferrals, and a required
+  validation matrix. Striatum queued workflow 0044 `implement_findings`.
 - Next maximum-parallel batch queued from the ready backlog: workflows 0033,
   0037, 0038, 0039, 0040, and 0041. Workflows 0034 and 0035 remain queued until
   0033 lands because they depend on generated closed-body evidence.
