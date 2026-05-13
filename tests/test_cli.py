@@ -76,6 +76,22 @@ def test_mesh_check_writes_diagnostics(tmp_path) -> None:
     assert "stl_surface" in out.read_text()
 
 
+def test_mesh_package_writes_manifest_and_artifacts(tmp_path) -> None:
+    hull = tmp_path / "hull.json"
+    hull.write_text(Hull().model_dump_json())
+    out = tmp_path / "mesh-package"
+
+    result = CliRunner().invoke(app, ["mesh-package", str(hull), "--out", str(out)])
+
+    assert result.exit_code == 0
+    assert "cfd_surface_candidate" in result.stdout
+    assert (out / "manifest.json").exists()
+    assert (out / "quality.hull.json").exists()
+    assert (out / "quality.deck.json").exists()
+    assert (out / "hull.stl").exists()
+    assert (out / "deck.stl").exists()
+
+
 def test_stability_writes_initial_result(tmp_path) -> None:
     hull = tmp_path / "hull.json"
     hull.write_text(Hull().model_dump_json())

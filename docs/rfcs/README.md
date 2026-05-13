@@ -23,7 +23,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0007](0007-architectural-revisit.md) | landed | Architectural revisit — extract `kayakgen` package before more parameters land |
 | [0008](0008-web-frontend.md) | partial | Portable web frontend via Trame |
 | [0009](0009-sweep-run-records.md) | proposed | Sweep and candidate run records |
-| [0010](0010-cfd-ready-mesh-contract.md) | proposed | CFD-ready mesh contract |
+| [0010](0010-cfd-ready-mesh-contract.md) | landed package/profile | CFD-ready mesh contract |
 | [0011](0011-hydrostatic-stability-load-cases.md) | proposed | Hydrostatic stability and load cases |
 | [0012](0012-resistance-model-calibration.md) | proposed | Resistance model calibration |
 | [0013](0013-pareto-frontier-comparison-ui.md) | landed report/CLI | Pareto frontier and candidate comparison UI |
@@ -37,10 +37,11 @@ partial as of workflow 0010: they have useful implementation, but their
 acceptance criteria are not fully satisfied.
 
 RFCs 0009-0013 are roadmap RFCs for the pivot from single-hull generation to a
-reproducible generative pipeline. RFC 0013's report/CLI slice has landed; web
-comparison UI remains deferred. The remaining proposed items are intentionally
-sequenced from run records and mesh diagnostics toward stability, resistance
-calibration, and Pareto comparison.
+reproducible generative pipeline. RFC 0010's mesh package/profile slice and RFC
+0013's report/CLI slice have landed; solver dispatch, watertight solid
+readiness, and web comparison UI remain deferred. The remaining proposed items
+are intentionally sequenced from run records and mesh diagnostics toward
+stability, resistance calibration, and Pareto comparison.
 
 ## Template
 

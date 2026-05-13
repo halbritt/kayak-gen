@@ -1,9 +1,15 @@
 # RFC 0010: CFD-Ready Mesh Contract
 
-Status: proposed
+Status: landed-package-profile
 Date: 2026-05-13
 Context: builds on RFC 0004 plumb-bow ambiguity, RFC 0007 `HullGeometry`, RFC
 0008 job stubs, and the reserved `kayakgen.eval.cfd` boundary.
+
+Status note (workflow 0015, 2026-05-13): mesh diagnostics, deterministic mesh
+package writing, and the first open wetted-surface solver profile have landed.
+Current packages are open-surface CFD candidates, not watertight `cfd_ready`
+solids. Solver dispatch, volume meshing, and watertight solid readiness remain
+future work.
 
 ## Problem
 
