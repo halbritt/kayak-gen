@@ -4,7 +4,7 @@ Updated: 2026-05-13
 
 ## Current State
 
-- `main` is clean and even with `origin/main` at `83b9b56`.
+- `main` is clean and even with `origin/main` at `2ae4037`.
 - Active implementation batch:
   `striatum/0032-closed-volume-self-intersection-diagnostics`,
   `striatum/0036-cfd-calibration-claim-gates`, and
@@ -110,7 +110,9 @@ Updated: 2026-05-13
 
 - Dependency-safe first batch started with workflows 0032, 0036, and existing
   0029 because they do not depend on generated closed-body construction.
-- All nine first-pass review jobs are registered, claimed, and acknowledged.
+- All nine first-pass review jobs are complete with
+  `accept_with_findings` verdicts. Review artifact branches were pushed:
+  0029 as `99e840d`, 0032 as `2fb822d`, and 0036 as `0285633`.
   Artifact work is isolated by branch worktree: the root checkout remains on
   0029, `/home/halbritt/git/kayak-gen.worktrees/0032` is on 0032, and
   `/home/halbritt/git/kayak-gen.worktrees/0036` is on 0036.
@@ -119,9 +121,16 @@ Updated: 2026-05-13
   `operator-0036-traceability`, `operator-0036-domain-source`,
   `operator-0036-ops`, `operator-0029-traceability`,
   `operator-0029-browser-domain`, and `operator-0029-ops`.
-- Next local gate: produce the nine review artifacts, publish them through
-  Striatum, consolidate findings per workflow, then run Codex implementation
-  jobs with maximal useful sub-agent fanout.
+- Current gate: three Codex ledger jobs are claimed and acknowledged:
+  `operator-0032-ledger`, `operator-0036-ledger`, and
+  `operator-0029-ledger`. Their outputs will define the accepted implementation
+  slices before any code changes.
+- Focused verification after review artifacts:
+  `.venv/bin/python -m pytest tests/test_closed_volume.py
+  tests/test_cfd_jobs.py tests/test_resistance.py tests/test_compare.py
+  tests/test_web.py -q` -> 56 passed.
+- Next local gate: publish the three findings ledgers through Striatum, then
+  run Codex implementation jobs with maximal useful sub-agent fanout.
 
 ## Completed Workflow 0027
 
