@@ -78,6 +78,13 @@ Updated: 2026-05-13
   GPT-5.5 agents in isolated branch worktrees under `/tmp`. Prompts require
   maximal useful sub-agent use, forbid `author:` bylines, and keep publishing
   and completion with the operator.
+- 2026-05-13T17:46:07Z checkpoint: the four unblocked ledger jobs completed
+  and were published without `author:` bylines: 0033
+  `art_b263fcf6154e4503b62f8ad2a142813a`, 0037
+  `art_d7b74a57a6984e678e34511eab735118`, 0038
+  `art_cc417ec1fc31408b978f6053f4a16e23`, and 0039
+  `art_4d5f25501f044275858079e7803403e0`. Ledger branch commits were pushed:
+  0033 `d5b43bd`, 0037 `7b94cbd`, 0038 `461a286`, and 0039 `6d487c8`.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is
