@@ -100,6 +100,13 @@ Updated: 2026-05-13
   hull geometry, mesh diagnostics/package, desktop UI parameter plumbing, and a
   generated closed-body helper. No implementation artifacts have been published
   yet.
+- 2026-05-13T18:03:34Z checkpoint: 0037 and 0038 implementation agents
+  finished. Their patch summaries were published as
+  `art_bb2eb3dd0b134244b3059be2d49b329b` and
+  `art_1c9954c1883945198156a5b318635865`, implementation jobs were completed,
+  and branch commits were pushed as 0037 `0b3cb9c` and 0038 `8bdd535`.
+  Final-review jobs for 0037 and 0038 are now running in parallel Claude Opus
+  lanes. 0033 and 0039 implementation agents remain active.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is
