@@ -1,0 +1,21 @@
+# Sources - 0027 closed-volume geometry contract
+
+- `AGENTS.md`
+- `docs/PRD.md`
+- `docs/design/kayak_hull_design_constraints.md`
+- `docs/rfcs/README.md`
+- `docs/rfcs/0004-plumb-bow.md`
+- `docs/rfcs/0006-design-constraints.md`
+- `docs/rfcs/0010-cfd-ready-mesh-contract.md`
+- `docs/rfcs/0015-cfd-solver-dispatch-and-jobs.md`
+- `docs/rfcs/0016-closed-volume-geometry.md`
+- `docs/workflows/0018-deferred-backlog/QUEUE.md`
+- `docs/workflows/0024-watertight-solid-mesh-profile/OPERATOR_REPORT.md`
+- `docs/workflows/0026-docs-roadmap-user-guide/OPERATOR_REPORT.md`
+- `kayakgen/model/geometry.py`
+- `kayakgen/eval/mesh_package.py`
+- `kayakgen/eval/cfd/jobs.py`
+- `kayakgen/cli/main.py`
+- `tests/test_mesh_package.py`
+- `tests/test_cfd_jobs.py`
+- `tests/test_cli.py`

@@ -1,0 +1,238 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0028-real-cfd-solver-adapter",
+  "workflow_version": "2026-05-13",
+  "name": "0028 - Real CFD solver adapter",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0028-real-cfd-solver-adapter",
+    "allow_dirty": false
+  },
+  "coordinator": {"role_id": "coordinator", "lane_id": "claude"},
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["claude", "--model", "opus", "-p"],
+      "capabilities": ["review", "synthesis"]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["codex", "exec", "--model", "gpt-5.5", "-"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["gemini", "--model", "gemini-3.1-pro-preview"],
+      "capabilities": ["review"]
+    }
+  },
+  "roles": {
+    "coordinator": {"definition_path": "roles/coordinator.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_domain_cfd": {"definition_path": "roles/reviewer_domain_cfd.md"},
+    "reviewer_ops_test": {"definition_path": "roles/reviewer_ops_test.md"},
+    "ledger": {"definition_path": "roles/ledger.md"},
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/PRD.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/rfcs/0010-cfd-ready-mesh-contract.md", "required": true},
+    {"path": "docs/rfcs/0012-resistance-model-calibration.md", "required": true},
+    {"path": "docs/rfcs/0015-cfd-solver-dispatch-and-jobs.md", "required": true},
+    {"path": "docs/rfcs/0016-closed-volume-geometry.md", "required": false},
+    {"path": "docs/rfcs/0017-first-real-cfd-adapter.md", "required": true},
+    {"path": "docs/workflows/0018-deferred-backlog/QUEUE.md", "required": true},
+    {"path": "docs/workflows/0025-cfd-solver-dispatch-and-jobs/OPERATOR_REPORT.md", "required": true},
+    {"path": "docs/workflows/0027-closed-volume-geometry-contract/OPERATOR_REPORT.md", "required": false},
+    {"path": "kayakgen/eval/cfd/jobs.py", "required": true},
+    {"path": "kayakgen/eval/cfd/__init__.py", "required": true},
+    {"path": "kayakgen/eval/mesh_package.py", "required": true},
+    {"path": "kayakgen/cli/main.py", "required": true},
+    {"path": "tests/test_cfd_jobs.py", "required": true},
+    {"path": "tests/test_cli.py", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review real CFD adapter traceability",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Map RFC 0015 deferrals, proposed RFC 0017 acceptance criteria, and any required workflow 0027 closed-volume dependency to safe implementation scope.",
+      "task_prompt": {"path": "prompts/review_traceability.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0028-real-cfd-solver-adapter/traceability/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0028-real-cfd-solver-adapter/traceability/REVIEW_TRACEABILITY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_domain_cfd",
+      "type": "review",
+      "title": "Review solver domain and CFD boundaries",
+      "role_id": "reviewer_domain_cfd",
+      "lane_id": "gemini",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review selected solver setup, boundary conditions, mesh readiness, raw/unvalidated result wording, speed/fluid inputs, and artifact provenance.",
+      "task_prompt": {"path": "prompts/review_domain_cfd.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0028-real-cfd-solver-adapter/domain_cfd/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0028-real-cfd-solver-adapter/domain_cfd/REVIEW_DOMAIN_CFD.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_ops_test",
+      "type": "review",
+      "title": "Review adapter ops and tests",
+      "role_id": "reviewer_ops_test",
+      "lane_id": "codex",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review dependency detection, local execution isolation, deterministic job directories, failure capture, and tests that do not require installed solver binaries.",
+      "task_prompt": {"path": "prompts/review_ops_test.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0028-real-cfd-solver-adapter/ops_test/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0028-real-cfd-solver-adapter/ops_test/REVIEW_OPS_TEST.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "ledger",
+      "title": "Consolidate real CFD adapter findings",
+      "role_id": "ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate real CFD adapter findings and define the safe implementation slice.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/0028-real-cfd-solver-adapter/ledger/",
+          "docs/workflows/0028-real-cfd-solver-adapter/OPERATOR_REPORT.md"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "ledger",
+          "kind": "findings_ledger",
+          "path": "striatum/0028-real-cfd-solver-adapter/ledger/FINDINGS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "implement_findings",
+      "type": "build",
+      "title": "Implement first real CFD adapter slice",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Implement the first accepted real CFD adapter slice from the ledger while preserving raw/unvalidated result semantics.",
+      "task_prompt": {"path": "prompts/implement_findings.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/",
+          "kayakgen/eval/cfd/",
+          "kayakgen/cli/",
+          "tests/",
+          "striatum/0028-real-cfd-solver-adapter/implementation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "striatum/0028-real-cfd-solver-adapter/implementation/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final gate for real CFD adapter",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify adapter truthfulness, dependency handling, reproducible artifacts, tests, and no calibrated CFD claims.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0028-real-cfd-solver-adapter/final/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "final_review",
+          "kind": "finding",
+          "path": "striatum/0028-real-cfd-solver-adapter/final/FINAL_REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_domain_cfd", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops_test", "to": "findings_ledger", "on": "completed"},
+    {"from": "findings_ledger", "to": "implement_findings", "on": "completed"},
+    {"from": "implement_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {
+      "from": "final_review",
+      "to": "implement_findings",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1
+    }
+  ]
+}

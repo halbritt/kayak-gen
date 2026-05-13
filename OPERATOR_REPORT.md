@@ -4,12 +4,17 @@ Updated: 2026-05-13
 
 ## Current State
 
-- Before workflow 0026 implementation edits, `main` was clean and tracking
-  `origin/main`.
+- `main` is clean and tracking `origin/main` at `f2a3bb9`.
 - Workflows 0021, 0022, 0023, 0024, and 0025 have landed and were pushed to
   `origin/main`.
 - Striatum skill/plugin bundle refresh landed on `main` after workflow 0025.
-- Workflow 0026, docs roadmap and user guide, is the active workflow.
+- Workflow 0026, docs roadmap and user guide, has landed and was pushed to
+  `origin/main`.
+- Workflow roadmap scaffolding for queued items 0027-0031 is complete locally
+  and awaiting validation/landing.
+- `CHANGELOG.md` has been created locally from git/RFC/workflow history, and
+  `AGENTS.md` now tells future agents to update it for RFC/workflow/user-facing
+  changes.
 - Root report was created after compaction because only per-workflow reports
   were present in `docs/workflows/*/OPERATOR_REPORT.md`.
 
@@ -64,8 +69,21 @@ Updated: 2026-05-13
   `art_b89cfa2056bc4766974dc7ecdbc995ac`; next active step is final review.
 - Workflow 0026 final review accepted as
   `art_e8356a0cabe24fd7b806c78a5091d7a0`; Striatum run
-  `run_b51d0f3bc0e3409b824f120a59676733` is complete. Next active step is
-  commit, push branch, and fast-forward `main`.
+  `run_b51d0f3bc0e3409b824f120a59676733` is complete.
+- Workflow 0026 landed as `f2a3bb9` and `main` is fast-forwarded to
+  `origin/main`.
+
+## Roadmap Execution Queue
+
+- 0027 closed-volume geometry contract: scaffold complete via parallel worker.
+- 0028 real CFD solver adapter: scaffold complete via parallel worker.
+- 0029 web CFD job routes: scaffold complete via parallel worker.
+- 0030 resistance calibration fixture: scaffold complete locally after the
+  agent thread limit was reached.
+- 0031 high-angle GZ and secondary stability: scaffold complete locally after
+  the agent thread limit was reached.
+- Current landing plan: validate all five workflow definitions, create a
+  Striatum branch, commit, push, fast-forward `main`, and push `main`.
 
 ## Verification Baseline
 

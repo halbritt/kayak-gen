@@ -70,6 +70,9 @@ subject:
   `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>`.
 - `main` is the trunk. RFC and feature work happens on
   `claude/<slug>` or `feature/<slug>` branches and merges back.
+- Update `CHANGELOG.md` whenever landing an RFC, workflow, user-facing
+  behavior change, or roadmap/status change. Keep entries factual about
+  what landed versus what remains deferred.
 
 ## Current direction (one paragraph)
 
