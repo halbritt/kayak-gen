@@ -46,6 +46,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0030](0030-web-hosted-browser-acceptance.md) | proposed | Web hosted and browser acceptance |
 | [0031](0031-design-constraint-surfacing-revision.md) | accepted implementation target | Design constraint surfacing revision |
 | [0032](0032-web-hosted-browser-acceptance-revision.md) | proposed | Web hosted browser acceptance revision |
+| [0033](0033-workspace-ui-rework.md) | proposed | Workspace UI rework — three-region desktop/web shell, semantic theme, claim/readiness/status chips |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw

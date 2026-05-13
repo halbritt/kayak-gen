@@ -1,0 +1,196 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0044-workspace-ui-rework",
+  "workflow_version": "2026-05-13",
+  "name": "0044 - Workspace UI rework",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0044-workspace-ui-rework",
+    "allow_dirty": false
+  },
+  "coordinator": {"role_id": "coordinator", "lane_id": "claude"},
+  "lanes": {
+    "claude": {"adapter": "process", "display_model": "Claude Opus 4.7", "command": ["claude", "--model", "opus", "-p"], "capabilities": ["review", "synthesis"]},
+    "codex": {"adapter": "process", "display_model": "Codex GPT-5.5", "command": ["codex", "exec", "--model", "gpt-5.5", "-"], "capabilities": ["write", "review", "synthesis"]},
+    "gemini": {"adapter": "process", "display_model": "Gemini Pro 3.1", "command": ["gemini", "--model", "gemini-3.1-pro-preview"], "capabilities": ["review"]}
+  },
+  "roles": {
+    "coordinator": {"definition_path": "roles/coordinator.md"},
+    "review_remediator": {"definition_path": "roles/review_remediator.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_domain": {"definition_path": "roles/reviewer_domain.md"},
+    "reviewer_ops": {"definition_path": "roles/reviewer_ops.md"},
+    "ledger": {"definition_path": "roles/ledger.md"},
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/PRD.md", "required": true},
+    {"path": "docs/USER_GUIDE.md", "required": true},
+    {"path": "docs/design/kayak_hull_design_constraints.md", "required": true},
+    {"path": "docs/rfcs/0008-web-frontend.md", "required": true},
+    {"path": "docs/rfcs/0010-cfd-ready-mesh-contract.md", "required": true},
+    {"path": "docs/rfcs/0013-pareto-frontier-comparison-ui.md", "required": true},
+    {"path": "docs/rfcs/0015-cfd-solver-dispatch-and-jobs.md", "required": true},
+    {"path": "docs/rfcs/0018-web-cfd-job-routes.md", "required": true},
+    {"path": "docs/rfcs/0025-cfd-calibration-claim-gates.md", "required": true},
+    {"path": "docs/rfcs/0031-design-constraint-surfacing-revision.md", "required": true},
+    {"path": "docs/rfcs/0033-workspace-ui-rework.md", "required": true},
+    {"path": "docs/workflows/0044-workspace-ui-rework/SOURCES.md", "required": true},
+    {"path": "docs/workflows/0042-design-constraint-surfacing-revision/workflow.json", "required": true},
+    {"path": "kayakgen/model/advisory.py", "required": false},
+    {"path": "kayakgen/model/classes.py", "required": false},
+    {"path": "kayakgen/model/hull.py", "required": false},
+    {"path": "kayakgen/eval/claims.py", "required": false},
+    {"path": "kayakgen/eval/mesh_diagnostics.py", "required": false},
+    {"path": "kayakgen/eval/mesh_package.py", "required": false},
+    {"path": "kayakgen/eval/cfd/jobs.py", "required": false},
+    {"path": "kayakgen/ui/web/app.py", "required": false},
+    {"path": "kayakgen/ui/web/controllers.py", "required": false},
+    {"path": "kayakgen/ui/web/state.py", "required": false},
+    {"path": "kayakgen/ui/desktop.py", "required": false},
+    {"path": "kayakgen/ui/gui_params.py", "required": false},
+    {"path": "kayakgen/ui/pv_window.py", "required": false},
+    {"path": "tests", "required": true}
+  ],
+  "parallelism": {"mode": "declared", "max_active_jobs": 3, "require_disjoint_write_scopes": true},
+  "review_revision_policy": {
+    "root_review_needs_revision": "declared_cycle",
+    "description": "First-pass review needs_revision verdicts cycle to review_remediation before re-review."
+  },
+  "jobs": [
+    {
+      "id": "review_remediation",
+      "type": "synthesis",
+      "title": "Prepare or remediate first-pass review packet",
+      "role_id": "review_remediator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Prepare initial review context for RFC 0033 and, on needs_revision cycles, remediate first-pass reviewer-blocking RFC/workflow issues before re-review.",
+      "task_prompt": {"path": "prompts/review_remediation.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/rfcs/0033-workspace-ui-rework.md",
+          "docs/rfcs/README.md",
+          "docs/workflows/0044-workspace-ui-rework/",
+          "CHANGELOG.md",
+          "striatum/0044-workspace-ui-rework/review_remediation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [{"logical_name": "review_remediation", "kind": "synthesis", "path": "striatum/0044-workspace-ui-rework/review_remediation/REMEDIATION.md", "required": true}]
+    },
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review workspace UI traceability",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Map RFC 0033 to RFC 0008, 0010, 0013, 0018, 0025, and 0031, the existing controllers/payloads, and the handoff acceptance checks.",
+      "task_prompt": {"path": "prompts/review_traceability.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0044-workspace-ui-rework/traceability/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0044-workspace-ui-rework/traceability/REVIEW_TRACEABILITY.md", "required": true}]
+    },
+    {
+      "id": "review_domain",
+      "type": "review",
+      "title": "Review claim, readiness, and status semantics",
+      "role_id": "reviewer_domain",
+      "lane_id": "gemini",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Verify that every chip and persistent banner in the workspace mirrors the existing ClaimState, ReadinessLevel, and CfdRunStatus literals and never introduces unsupported claims.",
+      "task_prompt": {"path": "prompts/review_domain.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0044-workspace-ui-rework/domain/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0044-workspace-ui-rework/domain/REVIEW_DOMAIN.md", "required": true}]
+    },
+    {
+      "id": "review_ops",
+      "type": "review",
+      "title": "Review ops, accessibility, and tests for the rework",
+      "role_id": "reviewer_ops",
+      "lane_id": "codex",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review the rework against existing REST routes, controller helpers, accessibility expectations, and the §9 acceptance checks from the handoff.",
+      "task_prompt": {"path": "prompts/review_ops.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0044-workspace-ui-rework/ops/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "review", "kind": "finding", "path": "striatum/0044-workspace-ui-rework/ops/REVIEW_OPS.md", "required": true}]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "ledger",
+      "title": "Consolidate workspace UI findings",
+      "role_id": "ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate review findings into a conservative implementation slice for RFC 0033.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/0044-workspace-ui-rework/ledger/",
+          "docs/workflows/0044-workspace-ui-rework/OPERATOR_REPORT.md"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [{"logical_name": "ledger", "kind": "findings_ledger", "path": "striatum/0044-workspace-ui-rework/ledger/FINDINGS.md", "required": true}]
+    },
+    {
+      "id": "implement_findings",
+      "type": "build",
+      "title": "Implement workspace UI rework slice",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Implement the accepted RFC 0033 slice: theme module, structured advisory, three-region web shell, claim/readiness/status chips, status bar, desktop alignment touches, and forbidden-claim regression tests.",
+      "task_prompt": {"path": "prompts/implement_findings.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/",
+          "kayakgen/",
+          "tests/",
+          "striatum/0044-workspace-ui-rework/implementation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [{"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0044-workspace-ui-rework/implementation/PATCH_SUMMARY.md", "required": true}]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final gate for workspace UI rework",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify the implementation against RFC 0033, the findings ledger, the patch summary, and the forbidden-claim regression suite.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0044-workspace-ui-rework/final/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "final_review", "kind": "finding", "path": "striatum/0044-workspace-ui-rework/final/FINAL_REVIEW.md", "required": true}]
+    }
+  ],
+  "edges": [
+    {"from": "review_remediation", "to": "review_traceability", "on": "completed"},
+    {"from": "review_remediation", "to": "review_domain", "on": "completed"},
+    {"from": "review_remediation", "to": "review_ops", "on": "completed"},
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_domain", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops", "to": "findings_ledger", "on": "completed"},
+    {"from": "findings_ledger", "to": "implement_findings", "on": "completed"},
+    {"from": "implement_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {"from": "review_traceability", "to": "review_remediation", "on_verdict": "needs_revision", "max_iterations": 1},
+    {"from": "review_domain", "to": "review_remediation", "on_verdict": "needs_revision", "max_iterations": 1},
+    {"from": "review_ops", "to": "review_remediation", "on_verdict": "needs_revision", "max_iterations": 1, "allow_same_lane": true},
+    {"from": "final_review", "to": "implement_findings", "on_verdict": "needs_revision", "max_iterations": 1}
+  ]
+}
