@@ -147,6 +147,15 @@ Updated: 2026-05-13
   is pushed at `950b4a1`. Verification on trunk: `git diff --check` passed,
   `striatum doctor` reported 0 problems using the SQLite compatibility env, and
   `.venv/bin/python -m pytest -q` passed with 251 tests.
+- 2026-05-13T18:52:48Z checkpoint: owner instruction received to create
+  successor workflows for the 0040 and 0041 human-checkpoint blockers and
+  proceed without further intervention. Two isolated scaffold worktrees were
+  created from current `main`: `/tmp/kayak-gen-successor-worktrees/0042` on
+  `striatum/0042-design-constraint-surfacing-revision` and
+  `/tmp/kayak-gen-successor-worktrees/0043` on
+  `striatum/0043-web-hosted-browser-acceptance-revision`. External agents will
+  draft RFC 0031/workflow 0042 and RFC 0032/workflow 0043; the operator will
+  not perform the design/scaffold content directly.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is
