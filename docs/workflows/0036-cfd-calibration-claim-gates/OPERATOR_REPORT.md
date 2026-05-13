@@ -4,15 +4,27 @@ Updated: 2026-05-13
 
 ## Current state
 
-- Workflow scaffold created for `0036-cfd-calibration-claim-gates`.
-- Scope targets RFC 0025 over existing resistance, calibration, CFD dispatch,
-  and fixture semantics.
-- The workflow uses three review lanes: traceability, domain/source, and
-  ops/test.
-- No runtime code or shared status documents were changed by this scaffold.
+- Three review lanes are complete: traceability, domain/source, and ops/test.
+- Findings are consolidated in
+  `striatum/0036-cfd-calibration-claim-gates/ledger/FINDINGS.md`.
+- Ledger gate result is `accept_with_findings`.
+- The accepted safe slice is limited to claim-state metadata, promotion gates,
+  visible CLI/web warnings, source/fixture state validation, and negative tests.
+- The boundary remains explicit: do not add real solver success, validated CFD,
+  accepted calibration fixtures, calibrated resistance models, or final
+  design-fitness scoring in this workflow slice.
 
 ## Next action
 
-- Validate `workflow.json`.
-- Start the Striatum run after RFC 0025 is accepted or amended.
+- Implement the accepted ledger findings in order: shared claim contract first,
+  then report/source gates, then CLI/web warning surfaces and
+  forbidden-promotion tests.
+- Preserve existing raw/unvalidated behavior while making the claim state
+  machine-readable and visible wherever resistance or CFD numbers are shown.
 
+## Checks
+
+- Passed with no output: `git diff --check -- docs/workflows/0036-cfd-calibration-claim-gates/OPERATOR_REPORT.md striatum/0036-cfd-calibration-claim-gates/ledger/FINDINGS.md`.
+- New ledger file also produced no whitespace output under
+  `git diff --check --no-index /dev/null striatum/0036-cfd-calibration-claim-gates/ledger/FINDINGS.md`;
+  that command exits nonzero because `--no-index` reports file differences.
