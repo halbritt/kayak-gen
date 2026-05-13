@@ -29,9 +29,40 @@ Updated: 2026-05-13
 ## Active Workflow
 
 - 0025 CFD solver dispatch and jobs has been scaffolded and validated.
+- Scaffold committed as `7039878` and pushed to `origin/main`.
+- Striatum run `run_ac6771c05d58422da72797fa47edf967` is running on branch
+  `striatum/0025-cfd-solver-dispatch-and-jobs`.
 - Gate rule: implement local dispatch contracts and unavailable/mock behavior
   before any real solver integration. No fake solver success and no calibrated
   CFD claims.
+- Three review lanes for workflow 0025 are complete with
+  `accept_with_findings`:
+  - traceability `art_40461f93bb8a4cf3a04fe94471a048b4`;
+  - domain `art_ee4f71da2bb24dd0931e76dd6f5dc2a5`;
+  - ops `art_1a7f17bbb7824ff9a94602e094732fee`.
+- Next active step is the workflow 0025 findings ledger.
+- The workflow 0025 findings ledger has been written at
+  `striatum/0025-cfd-solver-dispatch-and-jobs/ledger/FINDINGS.md`.
+  Gate result: proceed with the local dispatch slice only; defer real solvers,
+  normalized physical outputs, web job routes, and watertight geometry.
+- The ledger was published as `art_6f5c7d26bf5e4df98996d7bb37936282`; next
+  active step is implementation.
+- Workflow 0025 implementation is claimed as
+  `sess_253976cf21164e3fbd921063575922cf`.
+- Workflow 0025 implementation is complete locally:
+  `kayakgen.eval.cfd` now provides local dispatch job/run/profile records,
+  mesh readiness gating, unavailable and mock failed-command states, and
+  `kayakgen cfd prepare/status/run/profiles`.
+- Verification: focused CFD/CLI tests passed (21), full suite passed (160),
+  `git diff --check` is clean, and `striatum --repo . doctor` is clean after
+  refreshing Striatum skill/plugin bundles. Ruff remains unavailable in
+  `.venv`.
+- Workflow 0025 implementation artifact published as
+  `art_1cb4d53b1459438a92e77be868636e93`; next active step is final review.
+- Workflow 0025 final review accepted as
+  `art_1090063be141486aa89dca66630b1424`; Striatum run
+  `run_ac6771c05d58422da72797fa47edf967` is complete. Next active step is
+  commit, push branch, and fast-forward `main`.
 
 ## Verification Baseline
 

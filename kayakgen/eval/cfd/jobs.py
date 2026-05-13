@@ -1,0 +1,617 @@
+"""Local CFD job dispatch contracts.
+
+This module records solver-dispatch state only. It does not validate or
+calibrate solver physics, and every result record is marked raw/unvalidated.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import subprocess
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Literal, Protocol
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from kayakgen.eval.mesh_diagnostics import ReadinessLevel
+from kayakgen.eval.mesh_package import MeshPackageManifest
+
+CfdRunStatus = Literal["queued", "running", "succeeded", "failed", "unavailable"]
+CfdAdapterName = Literal["unavailable", "mock_local_command"]
+CFD_RAW_RESULTS_WARNING = "CFD results are raw and unvalidated."
+
+READINESS_ORDER: dict[ReadinessLevel, int] = {
+    "invalid": 0,
+    "display": 1,
+    "stl_surface": 2,
+    "cfd_surface_candidate": 3,
+    "cfd_ready": 4,
+}
+
+
+class CfdDispatchError(ValueError):
+    """Raised when a local CFD job cannot be prepared or read."""
+
+
+class SolverProfile(BaseModel):
+    """Solver dispatch profile used to gate mesh readiness and choose an adapter."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    required_mesh_readiness: ReadinessLevel
+    adapter_name: CfdAdapterName
+    container_image: str | None = None
+    command_template: list[str] = Field(default_factory=list)
+    required_mesh_profile: str | None = None
+    result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
+
+
+class CfdJobSpec(BaseModel):
+    """Serializable CFD job specification."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    job_id: str
+    hull_ref: str
+    mesh_package_ref: str
+    solver_profile: str
+    speed_mps: float = Field(gt=0)
+    seawater_density_kg_m3: float = Field(gt=0)
+    kinematic_viscosity_m2_s: float = Field(gt=0)
+    created_at: str
+    input_manifest: str
+    mesh_readiness: ReadinessLevel
+    mesh_warnings: list[str] = Field(default_factory=list)
+    result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
+
+
+class CfdRunRecord(BaseModel):
+    """Serializable run-status record for raw external solver output."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    job_id: str
+    status: CfdRunStatus
+    solver_profile: str
+    input_manifest: str
+    output_manifest: str | None = None
+    started_at: str | None = None
+    finished_at: str | None = None
+    error_kind: str | None = None
+    error_message: str | None = None
+    logs: dict[str, str] = Field(default_factory=dict)
+    mesh_warnings: list[str] = Field(default_factory=list)
+    raw_records: dict[str, Any] = Field(default_factory=dict)
+    result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
+
+
+class LocalCfdJob(BaseModel):
+    """Prepared local filesystem job."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
+
+    job_dir: Path
+    job_spec: CfdJobSpec
+    solver_profile: SolverProfile
+    mesh_manifest: MeshPackageManifest
+    run_record: CfdRunRecord
+
+
+class CfdJobPaths(BaseModel):
+    """Stable paths for a prepared local CFD job."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
+
+    job_dir: Path
+    job: CfdJobSpec
+    run: CfdRunRecord
+    job_path: Path
+    run_path: Path
+
+
+class PreparedSolverCase(BaseModel):
+    """Inputs passed to local solver adapters."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
+
+    job_dir: Path
+    job_spec: CfdJobSpec
+    solver_profile: SolverProfile
+    mesh_manifest: MeshPackageManifest
+
+
+class SolverRawResult(BaseModel):
+    """Adapter result wrapper for raw, unvalidated solver records."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: CfdRunStatus
+    output_manifest: str | None = None
+    error_kind: str | None = None
+    error_message: str | None = None
+    logs: dict[str, str] = Field(default_factory=dict)
+    raw_records: dict[str, Any] = Field(default_factory=dict)
+    result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
+
+
+class SolverAdapter(Protocol):
+    """Narrow boundary for local solver adapters."""
+
+    def prepare(self, case: PreparedSolverCase) -> PreparedSolverCase:
+        """Prepare solver-specific files."""
+
+    def run(self, case: PreparedSolverCase) -> SolverRawResult:
+        """Run solver-specific work and return raw status."""
+
+    def collect(self, case: PreparedSolverCase, result: SolverRawResult) -> CfdRunRecord:
+        """Collect a result into a run record."""
+
+
+def unavailable_open_surface_profile() -> SolverProfile:
+    """Return an unavailable profile that accepts current open-surface packages."""
+    return SolverProfile(
+        name="unavailable-open-wetted-surface",
+        required_mesh_readiness="cfd_surface_candidate",
+        adapter_name="unavailable",
+        required_mesh_profile="open_wetted_surface_resistance_v1",
+    )
+
+
+def unavailable_watertight_solid_profile() -> SolverProfile:
+    """Return an unavailable future profile requiring watertight CFD readiness."""
+    return SolverProfile(
+        name="unavailable-watertight-solid",
+        required_mesh_readiness="cfd_ready",
+        adapter_name="unavailable",
+        required_mesh_profile="watertight_solid_resistance_v1",
+    )
+
+
+def mock_failing_local_command_profile() -> SolverProfile:
+    """Return a local-command profile that deliberately fails for dispatch tests."""
+    return SolverProfile(
+        name="mock-failing-local-command",
+        required_mesh_readiness="cfd_surface_candidate",
+        adapter_name="mock_local_command",
+        command_template=[
+            sys.executable,
+            "-c",
+            (
+                "import sys; "
+                "sys.stdout.write('mock CFD command starting\\n'); "
+                "sys.stderr.write('mock CFD command failed intentionally\\n'); "
+                "sys.exit(7)"
+            ),
+        ],
+        required_mesh_profile="open_wetted_surface_resistance_v1",
+    )
+
+
+def solver_profile_names() -> tuple[str, ...]:
+    """Return the names of built-in local dispatch profiles."""
+    return tuple(sorted(_solver_profiles()))
+
+
+def prepare_cfd_job(
+    mesh_package: Path,
+    out_dir: Path,
+    *,
+    solver_profile_name: str,
+    speed_mps: float,
+    seawater_density_kg_m3: float = 1025.0,
+    kinematic_viscosity_m2_s: float = 1.19e-6,
+) -> CfdJobPaths:
+    """Prepare a local CFD job using a named built-in solver profile."""
+    profile = _solver_profile_by_name(solver_profile_name)
+    job = prepare_local_job(
+        mesh_package,
+        out_dir,
+        profile,
+        speed_mps=speed_mps,
+        seawater_density_kg_m3=seawater_density_kg_m3,
+        kinematic_viscosity_m2_s=kinematic_viscosity_m2_s,
+    )
+    return CfdJobPaths(
+        job_dir=job.job_dir,
+        job=job.job_spec,
+        run=job.run_record,
+        job_path=job.job_dir / "job.json",
+        run_path=job.job_dir / "run.json",
+    )
+
+
+def run_cfd_job(job_dir: Path) -> CfdRunRecord:
+    """Run a prepared local CFD job."""
+    return run_local_job(job_dir)
+
+
+def load_cfd_run_record(job_dir: Path) -> CfdRunRecord:
+    """Load the current run record for a prepared local CFD job directory."""
+    return load_run_record(job_dir / "run.json")
+
+
+def prepare_local_job(
+    mesh_package_dir: str | Path,
+    jobs_dir: str | Path,
+    solver_profile: SolverProfile,
+    *,
+    hull_ref: str | None = None,
+    speed_mps: float,
+    seawater_density_kg_m3: float = 1025.0,
+    kinematic_viscosity_m2_s: float = 1.19e-6,
+    created_at: str | None = None,
+) -> LocalCfdJob:
+    """Validate a mesh package and write deterministic local job records."""
+    _validate_positive_job_inputs(
+        speed_mps=speed_mps,
+        seawater_density_kg_m3=seawater_density_kg_m3,
+        kinematic_viscosity_m2_s=kinematic_viscosity_m2_s,
+    )
+    mesh_dir = Path(mesh_package_dir)
+    manifest = _load_mesh_manifest(mesh_dir)
+    _validate_mesh_package(mesh_dir, manifest, solver_profile)
+
+    job_id = _job_id(
+        manifest=manifest,
+        solver_profile=solver_profile,
+        speed_mps=speed_mps,
+        seawater_density_kg_m3=seawater_density_kg_m3,
+        kinematic_viscosity_m2_s=kinematic_viscosity_m2_s,
+    )
+    job_dir = Path(jobs_dir) / job_id
+    job_dir.mkdir(parents=True, exist_ok=True)
+
+    mesh_package_ref = _relative_ref(mesh_dir, job_dir)
+    input_manifest = _join_ref(mesh_package_ref, "manifest.json")
+    job_spec = CfdJobSpec(
+        job_id=job_id,
+        hull_ref=hull_ref or _join_ref(mesh_package_ref, manifest.hull_json),
+        mesh_package_ref=mesh_package_ref,
+        solver_profile=solver_profile.name,
+        speed_mps=speed_mps,
+        seawater_density_kg_m3=seawater_density_kg_m3,
+        kinematic_viscosity_m2_s=kinematic_viscosity_m2_s,
+        created_at=created_at or _utc_now(),
+        input_manifest=input_manifest,
+        mesh_readiness=manifest.readiness.level,
+        mesh_warnings=list(manifest.warnings),
+    )
+    run_record = _initial_run_record(job_spec)
+
+    _write_json(job_dir / "profile.json", solver_profile)
+    _write_json(job_dir / "job.json", job_spec)
+    _write_json(job_dir / "run.json", run_record)
+
+    return LocalCfdJob(
+        job_dir=job_dir,
+        job_spec=job_spec,
+        solver_profile=solver_profile,
+        mesh_manifest=manifest,
+        run_record=run_record,
+    )
+
+
+def run_local_job(job_dir: str | Path) -> CfdRunRecord:
+    """Run a prepared local job with its configured adapter."""
+    case = _load_prepared_case(Path(job_dir))
+    adapter = _adapter_for(case.solver_profile)
+    prepared = adapter.prepare(case)
+
+    running = _run_record_from_result(
+        prepared.job_spec,
+        SolverRawResult(status="running"),
+        started_at=_utc_now(),
+        finished_at=None,
+    )
+    _write_json(prepared.job_dir / "run.json", running)
+
+    result = adapter.run(prepared)
+    record = adapter.collect(prepared, result)
+    _write_json(prepared.job_dir / "run.json", record)
+    return record
+
+
+def read_local_status(job_dir: str | Path) -> CfdRunRecord:
+    """Read a prepared local job's current run record."""
+    return load_run_record(Path(job_dir) / "run.json")
+
+
+def load_run_record(path: str | Path) -> CfdRunRecord:
+    """Load and parse a CFD run record."""
+    try:
+        return CfdRunRecord.model_validate_json(Path(path).read_text())
+    except FileNotFoundError as exc:
+        raise CfdDispatchError(f"run record not found: {Path(path)}") from exc
+    except ValidationError as exc:
+        raise CfdDispatchError(f"malformed run record: {Path(path)}") from exc
+
+
+class UnavailableSolverAdapter:
+    """Adapter for solver profiles that are known to be unavailable."""
+
+    def prepare(self, case: PreparedSolverCase) -> PreparedSolverCase:
+        return case
+
+    def run(self, case: PreparedSolverCase) -> SolverRawResult:
+        return SolverRawResult(
+            status="unavailable",
+            error_kind="solver_unavailable",
+            error_message=(
+                f"solver profile {case.solver_profile.name!r} is unavailable; "
+                "results remain raw and unvalidated"
+            ),
+        )
+
+    def collect(self, case: PreparedSolverCase, result: SolverRawResult) -> CfdRunRecord:
+        return _run_record_from_result(
+            case.job_spec,
+            result,
+            started_at=_utc_now(),
+            finished_at=_utc_now(),
+        )
+
+
+class MockFailingLocalCommandAdapter:
+    """Adapter that runs a known local command and records command failure."""
+
+    def prepare(self, case: PreparedSolverCase) -> PreparedSolverCase:
+        logs_dir = case.job_dir / "logs"
+        logs_dir.mkdir(exist_ok=True)
+        return case
+
+    def run(self, case: PreparedSolverCase) -> SolverRawResult:
+        completed = subprocess.run(
+            case.solver_profile.command_template,
+            cwd=case.job_dir,
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+        logs = _write_command_logs(case.job_dir, completed)
+        if completed.returncode != 0:
+            message = (
+                f"solver command exited with code {completed.returncode}; "
+                "raw solver output is unvalidated"
+            )
+            if completed.stderr.strip():
+                message = f"{message}: {completed.stderr.strip()}"
+            return SolverRawResult(
+                status="failed",
+                error_kind="command_failed",
+                error_message=message,
+                logs=logs,
+                raw_records={"returncode": completed.returncode},
+            )
+
+        output_path = case.job_dir / "raw-result.json"
+        raw_records = {
+            "returncode": completed.returncode,
+            "stdout": completed.stdout,
+            "stderr": completed.stderr,
+        }
+        output_path.write_text(json.dumps(raw_records, indent=2, sort_keys=True) + "\n")
+        return SolverRawResult(
+            status="succeeded",
+            output_manifest=output_path.name,
+            logs=logs,
+            raw_records=raw_records,
+        )
+
+    def collect(self, case: PreparedSolverCase, result: SolverRawResult) -> CfdRunRecord:
+        return _run_record_from_result(
+            case.job_spec,
+            result,
+            started_at=_utc_now(),
+            finished_at=_utc_now(),
+        )
+
+
+def _load_mesh_manifest(mesh_dir: Path) -> MeshPackageManifest:
+    manifest_path = mesh_dir / "manifest.json"
+    try:
+        return MeshPackageManifest.model_validate_json(manifest_path.read_text())
+    except FileNotFoundError as exc:
+        raise CfdDispatchError(f"mesh package manifest not found: {manifest_path}") from exc
+    except ValidationError as exc:
+        raise CfdDispatchError(f"malformed mesh package manifest: {manifest_path}") from exc
+
+
+def _validate_mesh_package(
+    mesh_dir: Path,
+    manifest: MeshPackageManifest,
+    solver_profile: SolverProfile,
+) -> None:
+    if solver_profile.required_mesh_profile:
+        actual_profile = manifest.solver_profile.profile_name
+        if actual_profile != solver_profile.required_mesh_profile:
+            raise CfdDispatchError(
+                "mesh package solver profile mismatch: "
+                f"expected {solver_profile.required_mesh_profile!r}, got {actual_profile!r}"
+            )
+
+    actual = READINESS_ORDER[manifest.readiness.level]
+    required = READINESS_ORDER[solver_profile.required_mesh_readiness]
+    if actual < required:
+        raise CfdDispatchError(
+            "mesh package readiness below solver requirement: "
+            f"readiness {manifest.readiness.level} is below required "
+            f"{solver_profile.required_mesh_readiness}"
+        )
+
+    refs = [
+        manifest.hull_json,
+        *manifest.quality_reports.values(),
+        *manifest.surfaces.values(),
+    ]
+    missing = sorted(ref for ref in refs if not (mesh_dir / ref).is_file())
+    if missing:
+        raise CfdDispatchError(
+            "mesh package is missing referenced artifact(s): " + ", ".join(missing)
+        )
+
+
+def _validate_positive_job_inputs(
+    *,
+    speed_mps: float,
+    seawater_density_kg_m3: float,
+    kinematic_viscosity_m2_s: float,
+) -> None:
+    invalid = []
+    if speed_mps <= 0:
+        invalid.append("speed_mps")
+    if seawater_density_kg_m3 <= 0:
+        invalid.append("seawater_density_kg_m3")
+    if kinematic_viscosity_m2_s <= 0:
+        invalid.append("kinematic_viscosity_m2_s")
+    if invalid:
+        raise CfdDispatchError("CFD job inputs must be positive: " + ", ".join(invalid))
+
+
+def _load_prepared_case(job_dir: Path) -> PreparedSolverCase:
+    job_path = job_dir / "job.json"
+    profile_path = job_dir / "profile.json"
+    try:
+        job_spec = CfdJobSpec.model_validate_json(job_path.read_text())
+        solver_profile = SolverProfile.model_validate_json(profile_path.read_text())
+    except FileNotFoundError as exc:
+        raise CfdDispatchError(f"prepared CFD job record not found in {job_dir}") from exc
+    except ValidationError as exc:
+        raise CfdDispatchError(f"malformed CFD job record in {job_dir}") from exc
+
+    manifest_path = (job_dir / job_spec.input_manifest).resolve()
+    try:
+        manifest = MeshPackageManifest.model_validate_json(manifest_path.read_text())
+    except FileNotFoundError as exc:
+        raise CfdDispatchError(f"mesh package manifest not found: {manifest_path}") from exc
+    except ValidationError as exc:
+        raise CfdDispatchError(f"malformed mesh package manifest: {manifest_path}") from exc
+
+    return PreparedSolverCase(
+        job_dir=job_dir,
+        job_spec=job_spec,
+        solver_profile=solver_profile,
+        mesh_manifest=manifest,
+    )
+
+
+def _adapter_for(solver_profile: SolverProfile) -> SolverAdapter:
+    if solver_profile.adapter_name == "unavailable":
+        return UnavailableSolverAdapter()
+    if solver_profile.adapter_name == "mock_local_command":
+        return MockFailingLocalCommandAdapter()
+    raise CfdDispatchError(f"unsupported solver adapter: {solver_profile.adapter_name}")
+
+
+def _solver_profiles() -> dict[str, SolverProfile]:
+    profiles = (
+        unavailable_open_surface_profile(),
+        unavailable_watertight_solid_profile(),
+        mock_failing_local_command_profile(),
+    )
+    return {profile.name: profile for profile in profiles}
+
+
+def _solver_profile_by_name(name: str) -> SolverProfile:
+    profiles = _solver_profiles()
+    aliases = {
+        "unavailable_open_wetted_surface_v1": "unavailable-open-wetted-surface",
+        "unavailable_watertight_solid_v1": "unavailable-watertight-solid",
+        "mock_failing_local_command_v1": "mock-failing-local-command",
+    }
+    name = aliases.get(name, name)
+    try:
+        return profiles[name]
+    except KeyError as exc:
+        available = ", ".join(sorted(profiles))
+        raise CfdDispatchError(
+            f"unknown solver profile {name!r}; available profiles: {available}"
+        ) from exc
+
+
+def _job_id(
+    *,
+    manifest: MeshPackageManifest,
+    solver_profile: SolverProfile,
+    speed_mps: float,
+    seawater_density_kg_m3: float,
+    kinematic_viscosity_m2_s: float,
+) -> str:
+    identity = {
+        "hull_hash": manifest.hull_hash,
+        "mesh_profile": manifest.solver_profile.profile_name,
+        "solver_profile": solver_profile.name,
+        "speed_mps": speed_mps,
+        "seawater_density_kg_m3": seawater_density_kg_m3,
+        "kinematic_viscosity_m2_s": kinematic_viscosity_m2_s,
+    }
+    encoded = json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return "cfd-" + hashlib.sha256(encoded).hexdigest()[:16]
+
+
+def _initial_run_record(job_spec: CfdJobSpec) -> CfdRunRecord:
+    return CfdRunRecord(
+        job_id=job_spec.job_id,
+        status="queued",
+        solver_profile=job_spec.solver_profile,
+        input_manifest=job_spec.input_manifest,
+        mesh_warnings=list(job_spec.mesh_warnings),
+    )
+
+
+def _run_record_from_result(
+    job_spec: CfdJobSpec,
+    result: SolverRawResult,
+    *,
+    started_at: str | None,
+    finished_at: str | None,
+) -> CfdRunRecord:
+    return CfdRunRecord(
+        job_id=job_spec.job_id,
+        status=result.status,
+        solver_profile=job_spec.solver_profile,
+        input_manifest=job_spec.input_manifest,
+        output_manifest=result.output_manifest,
+        started_at=started_at,
+        finished_at=finished_at,
+        error_kind=result.error_kind,
+        error_message=result.error_message,
+        logs=result.logs,
+        mesh_warnings=list(job_spec.mesh_warnings),
+        raw_records=result.raw_records,
+    )
+
+
+def _write_command_logs(
+    job_dir: Path,
+    completed: subprocess.CompletedProcess[str],
+) -> dict[str, str]:
+    logs_dir = job_dir / "logs"
+    logs_dir.mkdir(exist_ok=True)
+    stdout = logs_dir / "stdout.log"
+    stderr = logs_dir / "stderr.log"
+    stdout.write_text(completed.stdout)
+    stderr.write_text(completed.stderr)
+    return {"stdout": _relative_ref(stdout, job_dir), "stderr": _relative_ref(stderr, job_dir)}
+
+
+def _write_json(path: Path, model: BaseModel) -> None:
+    path.write_text(model.model_dump_json(indent=2) + "\n")
+
+
+def _relative_ref(path: Path, start: Path) -> str:
+    return Path(os.path.relpath(path.resolve(), start.resolve())).as_posix()
+
+
+def _join_ref(base: str, name: str) -> str:
+    return (Path(base) / name).as_posix()
+
+
+def _utc_now() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")

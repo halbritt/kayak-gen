@@ -17,6 +17,14 @@ from kayakgen.eval.mesh_package import (
     watertight_solid_profile,
     write_mesh_package,
 )
+from kayakgen.eval.cfd.jobs import (
+    CFD_RAW_RESULTS_WARNING,
+    CfdDispatchError,
+    load_cfd_run_record,
+    prepare_cfd_job,
+    run_cfd_job,
+    solver_profile_names,
+)
 from kayakgen.io.json import load_hull, save_evaluation, save_hull
 from kayakgen.io.stl import write_stl
 from kayakgen.model.geometry import PartType
@@ -24,6 +32,8 @@ from kayakgen.model.hull import Hull
 from kayakgen.search.compare import parse_objective, write_comparison_report
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="kayakgen pipeline CLI")
+cfd_app = typer.Typer(no_args_is_help=True, help="Local CFD dispatch jobs")
+app.add_typer(cfd_app, name="cfd")
 
 
 @app.command()
@@ -123,6 +133,106 @@ def _mesh_solver_profile(name: str):
     if name == "watertight-solid":
         return watertight_solid_profile()
     raise ValueError("--solver-profile must be open-wetted-surface or watertight-solid")
+
+
+@cfd_app.command("prepare")
+def cfd_prepare(
+    mesh_package: Path = typer.Option(
+        ...,
+        "--mesh-package",
+        exists=True,
+        file_okay=False,
+        help="Mesh package directory containing manifest.json.",
+    ),
+    out: Path = typer.Option(..., "--out", help="Output directory for local CFD jobs."),
+    solver_profile: str = typer.Option(
+        "unavailable-open-wetted-surface",
+        "--solver-profile",
+        help="CFD solver profile name.",
+    ),
+    speed_mps: float = typer.Option(..., "--speed-mps", help="Flow speed in m/s."),
+    seawater_density_kg_m3: float = typer.Option(
+        1025.0,
+        "--seawater-density-kg-m3",
+        help="Seawater density used by the solver job.",
+    ),
+    kinematic_viscosity_m2_s: float = typer.Option(
+        1.19e-6,
+        "--kinematic-viscosity-m2-s",
+        help="Kinematic viscosity used by the solver job.",
+    ),
+) -> None:
+    """Prepare a deterministic local CFD job without running a real solver."""
+    try:
+        paths = prepare_cfd_job(
+            mesh_package,
+            out,
+            solver_profile_name=solver_profile,
+            speed_mps=speed_mps,
+            seawater_density_kg_m3=seawater_density_kg_m3,
+            kinematic_viscosity_m2_s=kinematic_viscosity_m2_s,
+        )
+    except CfdDispatchError as exc:
+        typer.echo(f"cfd prepare failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"wrote {paths.job_dir}")
+    typer.echo(f"status: {paths.run.status}")
+    typer.echo(CFD_RAW_RESULTS_WARNING)
+
+
+@cfd_app.command("status")
+def cfd_status(
+    job_dir: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=False,
+        help="Local CFD job directory.",
+    ),
+) -> None:
+    """Show the current local CFD job state."""
+    try:
+        run = load_cfd_run_record(job_dir)
+    except CfdDispatchError as exc:
+        typer.echo(f"cfd status failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"job_id: {run.job_id}")
+    typer.echo(f"status: {run.status}")
+    typer.echo(f"solver_profile: {run.solver_profile}")
+    if run.error_kind:
+        typer.echo(f"error_kind: {run.error_kind}")
+    if run.error_message:
+        typer.echo(f"error_message: {run.error_message}")
+    typer.echo(CFD_RAW_RESULTS_WARNING)
+
+
+@cfd_app.command("run")
+def cfd_run(
+    job_dir: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=False,
+        help="Local CFD job directory.",
+    ),
+) -> None:
+    """Run or mark the selected local CFD adapter state."""
+    try:
+        run = run_cfd_job(job_dir)
+    except CfdDispatchError as exc:
+        typer.echo(f"cfd run failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"status: {run.status}")
+    if run.error_kind:
+        typer.echo(f"error_kind: {run.error_kind}")
+    if run.error_message:
+        typer.echo(f"error_message: {run.error_message}")
+    typer.echo(CFD_RAW_RESULTS_WARNING)
+
+
+@cfd_app.command("profiles")
+def cfd_profiles() -> None:
+    """List local CFD solver profiles."""
+    for name in solver_profile_names():
+        typer.echo(name)
 
 
 @app.command()

@@ -28,7 +28,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0012](0012-resistance-model-calibration.md) | proposed | Resistance model calibration |
 | [0013](0013-pareto-frontier-comparison-ui.md) | landed report/web-slice | Pareto frontier and candidate comparison UI |
 | [0014](0014-generalized-trim-and-gz-stability.md) | partial trim-slice | Generalized trim and high-angle GZ stability |
-| [0015](0015-cfd-solver-dispatch-and-jobs.md) | proposed | CFD solver dispatch and job artifacts |
+| [0015](0015-cfd-solver-dispatch-and-jobs.md) | partial local-dispatch | CFD solver dispatch and job artifacts |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
@@ -55,10 +55,16 @@ trim result fields, and CLI/sweep summaries. RFC 0012 has an open measured
 Pacific-canoe validation source in the registry, but no kayak calibration
 fixture. RFC 0010 also has a named watertight-required profile boundary for
 future dispatch, while current generated packages remain open-surface and not
-`cfd_ready`. Hosted demo deployment, full plot/dashboard parity, remaining
-legacy RFC deferrals, high-angle `GZ` stability, resistance calibration,
-watertight solid geometry, and CFD solver dispatch are queued in
-`docs/workflows/0018-deferred-backlog/QUEUE.md`.
+`cfd_ready`. RFC 0015 has landed only as a deterministic local-dispatch slice:
+serializable job/run records, solver profiles, local job directories,
+profile/readiness gating, CLI prepare/status/run/profiles surfaces, unavailable
+solver state, and mock failed-command state. It does not include OpenFOAM, SU2,
+hosted workers, Docker/container execution, web job routes, normalized solver
+outputs, watertight geometry, or calibrated/validated CFD claims; all CFD
+dispatch output remains raw and unvalidated. Hosted demo deployment, full
+plot/dashboard parity, remaining legacy RFC deferrals, high-angle `GZ`
+stability, resistance calibration, watertight solid geometry, and real CFD
+solver dispatch are queued in `docs/workflows/0018-deferred-backlog/QUEUE.md`.
 High-angle `GZ` remains unavailable because a closed-volume body for heeled
 integration is not defined.
 

@@ -158,6 +158,85 @@ def test_mesh_package_can_select_watertight_profile_without_cfd_ready(tmp_path) 
     assert any("separate open surfaces" in warning for warning in manifest["warnings"])
 
 
+def test_cfd_prepare_status_and_unavailable_run(tmp_path) -> None:
+    hull = tmp_path / "hull.json"
+    hull.write_text(Hull().model_dump_json())
+    mesh_package = tmp_path / "mesh-package"
+    jobs = tmp_path / "jobs"
+    runner = CliRunner()
+    mesh_result = runner.invoke(app, ["mesh-package", str(hull), "--out", str(mesh_package)])
+    assert mesh_result.exit_code == 0
+
+    prepare_result = runner.invoke(
+        app,
+        [
+            "cfd",
+            "prepare",
+            "--mesh-package",
+            str(mesh_package),
+            "--out",
+            str(jobs),
+            "--speed-mps",
+            "2.5",
+        ],
+    )
+    assert prepare_result.exit_code == 0
+    assert "status: queued" in prepare_result.stdout
+    assert "raw and unvalidated" in prepare_result.stdout
+    job_dir = next(path for path in jobs.iterdir() if path.is_dir())
+
+    status_result = runner.invoke(app, ["cfd", "status", str(job_dir)])
+    assert status_result.exit_code == 0
+    assert "status: queued" in status_result.stdout
+    assert "unavailable-open-wetted-surface" in status_result.stdout
+
+    run_result = runner.invoke(app, ["cfd", "run", str(job_dir)])
+    assert run_result.exit_code == 0
+    assert "status: unavailable" in run_result.stdout
+    assert "error_kind: solver_unavailable" in run_result.stdout
+    run_record = json.loads((job_dir / "run.json").read_text())
+    assert run_record["status"] == "unavailable"
+
+
+def test_cfd_prepare_rejects_watertight_solver_for_current_package(tmp_path) -> None:
+    hull = tmp_path / "hull.json"
+    hull.write_text(Hull().model_dump_json())
+    mesh_package = tmp_path / "mesh-package"
+    jobs = tmp_path / "jobs"
+    runner = CliRunner()
+    mesh_result = runner.invoke(
+        app,
+        [
+            "mesh-package",
+            str(hull),
+            "--out",
+            str(mesh_package),
+            "--solver-profile",
+            "watertight-solid",
+        ],
+    )
+    assert mesh_result.exit_code == 0
+
+    result = runner.invoke(
+        app,
+        [
+            "cfd",
+            "prepare",
+            "--mesh-package",
+            str(mesh_package),
+            "--solver-profile",
+            "unavailable-watertight-solid",
+            "--out",
+            str(jobs),
+            "--speed-mps",
+            "2.5",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "readiness stl_surface is below required cfd_ready" in result.stderr
+
+
 def test_stability_writes_initial_result(tmp_path) -> None:
     hull = tmp_path / "hull.json"
     hull.write_text(Hull().model_dump_json())
