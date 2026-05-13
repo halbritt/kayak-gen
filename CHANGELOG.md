@@ -21,6 +21,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 - Added the project convention that future RFC/workflow/user-facing changes
   update this changelog.
 
+### Changed
+
+- Refreshed project Striatum Claude/Codex skill bundles to the running 1.36.0
+  install so `striatum doctor` is clean again.
+
 ## 2026-05-13
 
 ### Added

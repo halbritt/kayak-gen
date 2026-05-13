@@ -16,6 +16,9 @@ Updated: 2026-05-13
   `main`.
 - `CHANGELOG.md` has landed from git/RFC/workflow history, and `AGENTS.md`
   tells future agents to update it for RFC/workflow/user-facing changes.
+- After workflow 0027 landed, the target repo Striatum Claude/Codex skill
+  bundles were refreshed to match the running 1.36.0 install; `striatum doctor`
+  is clean.
 - Root report was created after compaction because only per-workflow reports
   were present in `docs/workflows/*/OPERATOR_REPORT.md`.
 
