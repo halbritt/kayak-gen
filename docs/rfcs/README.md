@@ -34,7 +34,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0018](0018-web-cfd-job-routes.md) | proposed | Web CFD job routes |
 | [0019](0019-resistance-calibration-fixtures.md) | proposed | Resistance calibration fixtures |
 | [0020](0020-high-angle-gz-secondary-stability.md) | proposed | High-angle GZ and secondary stability |
-| [0021](0021-closed-volume-self-intersection-diagnostics.md) | proposed | Closed-volume self-intersection diagnostics |
+| [0021](0021-closed-volume-self-intersection-diagnostics.md) | landed synthetic-diagnostic | Closed-volume self-intersection diagnostics |
 | [0022](0022-generated-closed-body-construction.md) | proposed | Generated hull-plus-deck closed-body construction |
 | [0023](0023-watertight-volume-mesh-handoff.md) | proposed | Watertight volume mesh and `cfd_ready` handoff |
 | [0024](0024-high-angle-gz-generated-body-handoff.md) | proposed | High-angle GZ generated-body handoff |
@@ -78,12 +78,19 @@ hosted workers, Docker/container execution, web job routes, normalized solver
 outputs, watertight geometry, or calibrated/validated CFD claims; all CFD
 dispatch output remains raw and unvalidated.
 
-RFCs 0016-0030 are proposed, not accepted implementation commitments. RFCs
-0016-0020 split the major remaining deferrals into broad design documents:
+RFCs 0016-0030 are mostly proposed, not accepted implementation commitments.
+RFCs 0016-0020 split the major remaining deferrals into broad design documents:
 closed-volume geometry, first real CFD adapter, web CFD job routes, resistance
 calibration fixtures, and high-angle `GZ` / secondary stability. RFCs
 0021-0030 narrow the next implementation slices and may revise or supersede
 parts of the broader RFCs where that improves progress.
+
+RFC 0021 has landed only for explicit synthetic closed-volume diagnostics: the
+RFC 0016 compatibility profile records `not_checked`, while
+`explicit_synthetic_closed_volume_self_intersection_v1` requires passed
+assembled-body self-intersection evidence. Generated hull-plus-deck closed
+bodies, repair, volume meshing, high-angle `GZ`, and `cfd_ready` promotion
+remain deferred.
 
 The dependency spine for the closed-volume side is: RFC 0021
 self-intersection diagnostics first, then RFC 0022 generated hull-plus-deck

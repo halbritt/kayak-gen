@@ -4,6 +4,12 @@ Status: proposed
 Date: 2026-05-13
 Context: follows RFC 0016 closed-volume geometry and workflow 0027 findings.
 
+Implementation note (workflow 0032, 2026-05-13): the explicit synthetic safe
+slice has landed as
+`explicit_synthetic_closed_volume_self_intersection_v1`. It remains
+diagnostic-only: no generated hull-plus-deck closed body, geometry repair,
+volume mesh, high-angle `GZ` handoff, or `cfd_ready` promotion landed.
+
 ## Problem
 
 RFC 0016 landed a conservative closed-volume safe slice for explicit synthetic
@@ -59,11 +65,20 @@ omitting the check. Explicit synthetic fixtures may keep existing behavior only
 if the diagnostic record says `not_checked` and the policy version remains the
 older RFC 0016 profile.
 
-The first algorithm may be conservative: it may use broad-phase bounding boxes
-and triangle-triangle intersection tests, skip adjacent triangles that share an
-edge or vertex, and classify numerically ambiguous cases as `inconclusive`.
-`failed` and `inconclusive` both block closed-volume readiness for any new
-profile that requires this RFC.
+The first algorithm is conservative: it uses deterministic broad-phase
+bounding boxes and triangle-pair checks. Adjacency exclusions come from the
+assembled body after the vertex-weld tolerance is applied. Shared-edge
+neighbors are skipped. Vertex-only pairs are skipped only when the welded
+assembled topology proves the faces belong to the same local vertex fan;
+disconnected vertex-only pinches are reported as blocking contact. `failed`
+and `inconclusive` both block closed-volume readiness for any new profile that
+requires this RFC.
+
+The serialized `self_intersection_tolerance_m` is used to expand broad-phase
+boxes and classify close non-adjacent pairs after exact contact/crossing
+checks. Non-adjacent coplanar overlap, coplanar touch, edge/point touch, and
+crossing classify as `failed`. Non-adjacent pairs closer than the tolerance
+without detected contact classify as `inconclusive`.
 
 Self-intersection diagnostics must treat parts as one assembled body. A deck
 triangle intersecting a hull triangle is a body failure even if each individual
@@ -100,10 +115,12 @@ future evidence, not sufficient evidence.
 
 - Should the first implementation depend on a geometry library, or keep a
   small local triangle-intersection implementation for deterministic tests?
+  Workflow 0032 chose a small local implementation.
 - How many intersecting triangle examples should diagnostics retain before
-  truncating the report?
+  truncating the report? Workflow 0032 retained up to eight example pairs.
 - Should touching-but-not-crossing coplanar triangles be classified as
-  `failed` or `inconclusive` for the first policy version?
+  `failed` or `inconclusive` for the first policy version? Workflow 0032
+  classifies non-adjacent coplanar touch as `failed`.
 
 ## Implementation Path
 
@@ -114,4 +131,3 @@ future evidence, not sufficient evidence.
 4. Document algorithm limits and make ambiguous cases block readiness.
 5. Leave generated hull-plus-deck construction and all CFD handoff work to
    RFC 0022 and later solver-profile workflows.
-

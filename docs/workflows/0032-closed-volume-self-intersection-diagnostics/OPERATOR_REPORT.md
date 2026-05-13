@@ -57,8 +57,38 @@ Updated: 2026-05-13
 - `git diff --check --no-index /dev/null striatum/0032-closed-volume-self-intersection-diagnostics/ledger/FINDINGS.md`
   produced no whitespace diagnostics for the new untracked ledger file
   (expected nonzero no-index diff exit because the file is new).
+- `PYTHONDONTWRITEBYTECODE=1 /home/halbritt/git/kayak-gen/.venv/bin/python -m pytest -p no:cacheprovider tests/test_closed_volume.py tests/test_cfd_jobs.py -q`
+  passed: 23 tests.
+- `PYTHONDONTWRITEBYTECODE=1 /home/halbritt/git/kayak-gen/.venv/bin/python -m pytest -p no:cacheprovider -q`
+  passed: 175 tests.
+- `git diff --check` passed for the implementation diff.
+- `git diff --check --no-index /dev/null striatum/0032-closed-volume-self-intersection-diagnostics/implementation/PATCH_SUMMARY.md`
+  produced no whitespace diagnostics for the new patch-summary file.
 
 ## Next action
 
-- Implement the ledger's conservative RFC 0021 diagnostic slice without
+- Implemented the ledger's conservative RFC 0021 diagnostic slice without
   crossing the generated-body or `cfd_ready` boundaries.
+
+## Implementation update
+
+- Added serialized self-intersection fields to closed-volume diagnostics:
+  status, algorithm identity, tolerance, pair count, and bounded example
+  triangle-pair references.
+- Preserved `explicit_synthetic_closed_volume_v1` as the RFC 0016 compatibility
+  profile with `self_intersection_status: not_checked`.
+- Added `explicit_synthetic_closed_volume_self_intersection_v1` for RFC 0021;
+  its `closed_volume` readiness requires `self_intersection_status: passed`.
+- Implemented the deterministic assembled-body checker
+  `assembled_welded_aabb_triangle_pairs_v1` with welded-topology adjacency,
+  vertex-fan handling for ordinary manifold vertices, blocking vertex-only
+  pinches, failed non-adjacent contact/crossing, inconclusive near-contact, and
+  eight capped example pairs.
+- Added tests for valid RFC 0021 diagnostics, closed edge-manifold
+  self-intersection failure, cross-part failure, vertex-only pinch failure,
+  inconclusive near-contact blocking, example capping, broad-phase separated
+  components, serialization gating, and continued watertight `cfd_ready`
+  rejection.
+- Updated `docs/USER_GUIDE.md`, RFC 0021, the RFC index, and `CHANGELOG.md` to
+  describe the diagnostic status values, algorithm/tolerance semantics, bounded
+  examples, and deferred repair/generated-body/solver-readiness work.

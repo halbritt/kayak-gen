@@ -8,6 +8,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Added workflow 0032's RFC 0021 explicit synthetic closed-volume
+  self-intersection diagnostics: serialized `not_checked`, `passed`,
+  `failed`, and `inconclusive` status, assembled-body triangle-pair evidence,
+  bounded examples, and a new profile that still keeps `cfd_ready` false.
 - Documented workflow 0027's closed-volume safe slice: serializable explicit
   synthetic diagnostics and evidence-based watertight dispatch rejection may
   land, while generated hull-plus-deck closure and `cfd_ready` handoff remain

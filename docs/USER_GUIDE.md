@@ -199,16 +199,43 @@ not a closed hull/deck solid.
 
 ## Synthetic Closed-Volume Diagnostics
 
-Workflow 0027 introduces a narrow diagnostic contract for explicit synthetic
-triangle meshes. These diagnostics are serializable and can distinguish valid
-closed synthetic bodies from open or nonmanifold synthetic fixtures.
+Workflow 0027 introduced a narrow diagnostic contract for explicit synthetic
+triangle meshes. Workflow 0032 adds self-intersection evidence for the
+RFC 0021 synthetic profile. These diagnostics are serializable and can
+distinguish valid closed synthetic bodies from open, nonmanifold, or
+self-intersecting synthetic fixtures.
 
 The contract requires zero body-level boundary edges, zero body-level
 nonmanifold edges, and positive signed volume with outward normals before a
-synthetic body can report `closed_volume`. The diagnostic artifact always keeps
-`cfd_ready` false. It does not build a closed body from generated kayak hulls,
-does not validate generated hull-plus-deck closure, and does not make a
-watertight solver handoff.
+synthetic body can report `closed_volume`. The compatibility profile
+`explicit_synthetic_closed_volume_v1` records
+`self_intersection_status: not_checked`; the RFC 0021 profile
+`explicit_synthetic_closed_volume_self_intersection_v1` requires
+`self_intersection_status: passed`.
+
+Self-intersection diagnostics are body-level checks on the assembled explicit
+body, not per-part readiness claims. The serialized result records
+`self_intersection_status`, `self_intersection_algorithm`,
+`self_intersection_tolerance_m`, `self_intersection_pair_count`, and up to
+eight example triangle pairs. Status values are `not_checked`, `passed`,
+`failed`, and `inconclusive`. Both `failed` and `inconclusive` block the
+RFC 0021 closed-volume diagnostic profile.
+
+The first algorithm,
+`assembled_welded_aabb_triangle_pairs_v1`, uses deterministic expanded
+axis-aligned bounding boxes as a broad phase, then checks non-adjacent triangle
+pairs. Adjacency is derived from the assembled body after the vertex-weld
+tolerance is applied: shared-edge neighbors are skipped, and vertex-only pairs
+are skipped only when the welded topology proves they belong to the same local
+vertex fan. Coplanar overlap, coplanar touch, edge/point touch, and crossing
+between non-adjacent triangles are `failed`; non-adjacent pairs closer than
+`self_intersection_tolerance_m` without a detected crossing are
+`inconclusive`.
+
+The diagnostic artifact always keeps `cfd_ready` false. It does not repair
+geometry, build a closed body from generated kayak hulls, validate generated
+hull-plus-deck closure, create a volume mesh, or make a watertight solver
+handoff.
 
 Generated mesh packages remain open-surface artifacts. Treat their hull and
 deck STLs as inspection and packaging surfaces, not as a closed volume for

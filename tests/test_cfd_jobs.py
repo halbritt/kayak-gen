@@ -23,6 +23,11 @@ from kayakgen.eval.cfd.jobs import (
     unavailable_open_surface_profile,
     unavailable_watertight_solid_profile,
 )
+from kayakgen.eval.closed_volume import (
+    diagnose_closed_volume_body,
+    explicit_synthetic_body,
+    explicit_synthetic_self_intersection_policy,
+)
 from kayakgen.eval.mesh_diagnostics import MeshReadiness
 from kayakgen.eval.mesh_package import watertight_solid_profile, write_mesh_package
 from kayakgen.model.hull import Hull
@@ -194,6 +199,66 @@ def test_prepare_rejects_forged_watertight_quality_report_evidence(
     }
     for ref in manifest.quality_reports.values():
         (mesh_dir / ref).write_text(json.dumps(forged_evidence))
+
+    with pytest.raises(
+        CfdDispatchError,
+        match="watertight dispatch requires profile-scoped closed-volume diagnostic evidence",
+    ):
+        prepare_local_job(
+            mesh_dir,
+            jobs_dir,
+            unavailable_watertight_solid_profile(),
+            speed_mps=2.4,
+        )
+
+
+def test_prepare_rejects_passed_rfc0021_closed_volume_as_cfd_ready_evidence(
+    tmp_path: Path,
+) -> None:
+    mesh_dir = tmp_path / "mesh"
+    jobs_dir = tmp_path / "jobs"
+    manifest = write_mesh_package(
+        Hull(),
+        mesh_dir,
+        stations=8,
+        solver_profile=watertight_solid_profile(),
+    )
+    forged = manifest.model_copy(
+        update={
+            "readiness": MeshReadiness(
+                level="cfd_ready",
+                reasons=["forged readiness claim"],
+            ),
+            "warnings": ["forged readiness claim"],
+        }
+    )
+    (mesh_dir / "manifest.json").write_text(forged.model_dump_json(indent=2))
+
+    vertices = [
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+    ]
+    faces = [
+        [0, 2, 1],
+        [0, 1, 3],
+        [1, 2, 3],
+        [2, 0, 3],
+    ]
+    diagnostic = diagnose_closed_volume_body(
+        explicit_synthetic_body(
+            vertices,
+            faces,
+            body_id="rfc0021-passed-synthetic",
+            policy=explicit_synthetic_self_intersection_policy(),
+        )
+    )
+    assert diagnostic.readiness.level == "closed_volume"
+    assert diagnostic.self_intersection_status == "passed"
+    assert diagnostic.cfd_ready is False
+    for ref in manifest.quality_reports.values():
+        (mesh_dir / ref).write_text(diagnostic.model_dump_json(indent=2))
 
     with pytest.raises(
         CfdDispatchError,
