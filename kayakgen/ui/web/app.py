@@ -62,6 +62,7 @@ SLIDER_DEFS: list[tuple[str, str, float, float, float]] = [
     ("deck_flatness", "Deck Flatness", 2.0, 16.0, 0.5),
     ("center_box_ratio", "Parallel Mid-Body", 0.10, 0.60, 0.01),
     ("bow_rake", "Bow Rake (1=raked)", 0.0, 1.0, 0.05),
+    ("stern_rake", "Stern Rake (1=raked)", 0.0, 1.0, 0.05),
     ("target_speed_kt", "Target Speed (kt)", 1.0, 6.0, 0.1),
 ]
 

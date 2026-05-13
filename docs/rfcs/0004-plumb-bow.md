@@ -24,6 +24,12 @@ polygons, closed/watertight hull-plus-deck solid readiness, asymmetric bow/stern
 rake, and manual visual confirmation of the sheer-plan annotation remain
 deferred.
 
+Status note (workflow 0039, 2026-05-13): RFC 0028 owns the deferred exact
+plumb-stem/end-cap semantics, independent `stern_rake`, bow/stern coordinate
+convention, and closed-body readiness wording. RFC 0004 remains the historical
+near-plumb open-surface safe slice and the origin of the legacy symmetric
+`bow_rake` compatibility behavior.
+
 ## Problem
 
 The current hull generator always produces a raked bow and stern: both keel
@@ -50,8 +56,8 @@ to model:
 
 - Add a continuous `bow_rake` parameter (0.0 = fully plumb, 1.0 = current
   raked behaviour).
-- `bow_rake` applies independently to bow and stern; a single scalar
-  controls both (symmetric). A future RFC may split them.
+- In RFC 0004, `bow_rake` is a symmetric compatibility control for both bow and
+  stern. RFC 0028 owns the later independent `stern_rake` split.
 - The 3D mesh, STL export, cross-section view, and sheer plan all update
   correctly for any `bow_rake` value.
 - Stations near `x = -L/2` inside the plumb transition zone show non-zero
@@ -154,8 +160,9 @@ This is a one-liner in `update_plots` after the sheer plan is drawn.
   strip of triangles is perpendicular to X), or is the 5% linear fade
   sufficient? For STL printing, a hard vertical face would require an
   explicit end-cap polygon.
-- Should bow and stern rake be independently controllable? (Stern often
-  raked even on plumb-bow designs.) Deferred to RFC 0006.
+- Should bow and stern rake be independently controllable? Owned by RFC 0028;
+  `bow_rake` remains the legacy symmetric compatibility field and `stern_rake`
+  is the independent stern control.
 
 ## Implementation Path
 

@@ -261,6 +261,8 @@ def _readiness(
 
     if nonfinite_vertices or nonfinite_faces:
         return MeshReadiness(level="invalid", reasons=reasons)
+    if degenerate_faces or raw_nonmanifold_edges or welded_nonmanifold_edges:
+        return MeshReadiness(level="display", reasons=reasons)
 
     if not reasons:
         reasons.append("current generator contract is an STL surface, not a CFD-ready volume")

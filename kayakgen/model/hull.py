@@ -40,12 +40,35 @@ class Hull(BaseModel):
     deck_flatness: float = Field(default=8.0, gt=0)
     center_box_ratio: float = Field(default=0.33, ge=0, le=1)
 
-    bow_rake: float = Field(default=1.0, ge=0, le=1, description="0 = plumb, 1 = current raked behaviour. RFC 0004.")
+    bow_rake: float = Field(
+        default=1.0,
+        ge=0,
+        le=1,
+        description=(
+            "0 = plumb bow, 1 = legacy raked bow. Legacy bow_rake-only "
+            "inputs seed stern_rake to the same value. RFC 0028."
+        ),
+    )
+    stern_rake: float = Field(
+        default=1.0,
+        ge=0,
+        le=1,
+        description="0 = plumb stern, 1 = legacy raked stern. RFC 0028.",
+    )
     LCB_frac: float = Field(default=0.50, ge=0, le=1, description="Reserved by RFC 0006; not yet honoured by the loft.")
     rocker_bow_m: float = Field(default=0.0, ge=0)
     rocker_stern_m: float = Field(default=0.0, ge=0)
 
     geometry_kind: Literal["lofted"] = "lofted"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _seed_legacy_symmetric_stern_rake(cls, data: object) -> object:
+        if not isinstance(data, dict):
+            return data
+        if "bow_rake" in data and "stern_rake" not in data:
+            return {**data, "stern_rake": data["bow_rake"]}
+        return data
 
     @model_validator(mode="after")
     def _validate_beam_wl(self) -> "Hull":

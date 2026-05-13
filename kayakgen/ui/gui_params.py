@@ -16,6 +16,7 @@ GUI_TO_HULL = {
     "deck_flatness": "deck_flatness",
     "center_box_ratio": "center_box_ratio",
     "bow_rake": "bow_rake",
+    "stern_rake": "stern_rake",
 }
 
 

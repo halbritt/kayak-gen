@@ -102,6 +102,53 @@ def test_degenerate_and_nonfinite_counts_make_mesh_invalid() -> None:
     assert diagnostics.readiness.level == "invalid"
 
 
+def test_finite_degenerate_mesh_is_below_stl_surface() -> None:
+    vertices = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+        ]
+    )
+    faces = np.array([[0, 1, 2]])
+
+    diagnostics = diagnose_mesh(_FakeHull(vertices, faces))
+
+    assert diagnostics.degenerate_faces == 1
+    assert diagnostics.nonfinite_vertices == 0
+    assert diagnostics.nonfinite_faces == 0
+    assert diagnostics.readiness.level == "display"
+    assert "mesh contains degenerate faces" in diagnostics.warnings
+
+
+def test_finite_nonmanifold_mesh_is_below_stl_surface() -> None:
+    vertices = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ]
+    )
+    faces = np.array(
+        [
+            [0, 2, 1],
+            [0, 1, 3],
+            [1, 2, 3],
+            [2, 0, 3],
+            [0, 1, 3],
+        ]
+    )
+
+    diagnostics = diagnose_mesh(_FakeHull(vertices, faces))
+
+    assert diagnostics.raw_nonmanifold_edges > 0
+    assert diagnostics.nonfinite_vertices == 0
+    assert diagnostics.nonfinite_faces == 0
+    assert diagnostics.readiness.level == "display"
+    assert "mesh has non-manifold edges" in diagnostics.warnings
+
+
 def test_nonfinite_face_indices_are_reported_without_crashing() -> None:
     vertices = np.array(
         [

@@ -136,20 +136,32 @@ class LoftedHullGeometry(HullGeometry):
         phase = (1.0 - x_norm) / self.PLUMB_TRANSITION_FRAC
         return float(max(0.0, min(1.0, phase)))
 
+    def _rake_for_x(self, x: float) -> float:
+        """Return the side-specific stem rake under the RFC 0028 X convention."""
+        return self.hull.bow_rake if x <= 0.0 else self.hull.stern_rake
+
+    def _is_exact_plumb_endpoint(self, x: float) -> bool:
+        if np.isclose(x, -self.L / 2, rtol=0.0, atol=1e-12):
+            return self.hull.bow_rake == 0.0
+        if np.isclose(x, self.L / 2, rtol=0.0, atol=1e-12):
+            return self.hull.stern_rake == 0.0
+        return False
+
     def _end_decay(self, x: float) -> float:
         """Blended decay between fully raked (sqrt area) and fully plumb.
 
-        ``hull.bow_rake`` interpolates: 1.0 reproduces the original raked
-        loft (``sqrt(area_fraction)``), 0.0 produces a near-vertical stem
-        with the keel held at full draft until the last ``PLUMB_TRANSITION_FRAC``
-        of each half-length. Intermediate values blend linearly.
+        ``hull.bow_rake`` and ``hull.stern_rake`` interpolate independently:
+        1.0 reproduces the original raked loft (``sqrt(area_fraction)``),
+        0.0 produces a near-vertical stem with the keel held at full draft
+        until the last ``PLUMB_TRANSITION_FRAC`` of that half-length.
+        Intermediate values blend linearly.
         """
         frac = self._get_area_fraction(x)
         if frac <= 0.0:
             return 0.0
         raked = np.sqrt(frac)
         plumb = self._plumb_transition_decay(x)
-        rake = self.hull.bow_rake
+        rake = self._rake_for_x(x)
         return float(rake * raked + (1.0 - rake) * plumb)
 
     def _get_deck_height_scaling(self, x: float) -> float:
@@ -160,19 +172,26 @@ class LoftedHullGeometry(HullGeometry):
             decay_phase = (x_norm - self.center_ratio) / (1.0 - self.center_ratio)
             raked = 1 - decay_phase**2
         plumb = self._plumb_transition_decay(x)
-        rake = self.hull.bow_rake
+        rake = self._rake_for_x(x)
         return float(rake * raked + (1.0 - rake) * plumb)
 
-    def _get_slice_points(self, x: float, part_type: PartType) -> np.ndarray:
+    def _get_slice_points(
+        self,
+        x: float,
+        part_type: PartType,
+        *,
+        closed_body_endpoint: bool = False,
+    ) -> np.ndarray:
         # _end_decay blends raked (sqrt-of-area-fraction, the legacy form)
         # with plumb (full-draft until the last PLUMB_TRANSITION_FRAC of the
-        # half-length). With bow_rake=1.0 (default) it reproduces the
-        # original loft bit-for-bit; the golden tests pin this.
-        hull_decay = self._end_decay(x)
+        # half-length). With bow_rake/stern_rake=1.0 (default) it reproduces
+        # the original loft bit-for-bit; the golden tests pin this.
+        force_plumb_endpoint = closed_body_endpoint and self._is_exact_plumb_endpoint(x)
+        hull_decay = 1.0 if force_plumb_endpoint else self._end_decay(x)
 
         local_B = self._half_beam_for_part(part_type) * hull_decay
         local_T = self.T * hull_decay
-        deck_scale = self._get_deck_height_scaling(x)
+        deck_scale = 1.0 if force_plumb_endpoint else self._get_deck_height_scaling(x)
         local_Deck = (self.H - self.T) * deck_scale
 
         if local_B < 0.0001:

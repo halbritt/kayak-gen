@@ -135,6 +135,8 @@ def _package_readiness(
 
     if any(diagnostics.readiness.level == "invalid" for diagnostics in diagnostics_by_part.values()):
         return MeshReadiness(level="invalid", reasons=reasons)
+    if any(diagnostics.readiness.level == "display" for diagnostics in diagnostics_by_part.values()):
+        return MeshReadiness(level="display", reasons=reasons)
 
     disallowed_parts = sorted(set(diagnostics_by_part) - set(profile.accepted_parts))
     if disallowed_parts:

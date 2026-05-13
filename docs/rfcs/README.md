@@ -41,7 +41,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0025](0025-cfd-calibration-claim-gates.md) | proposed | CFD and calibration claim gates |
 | [0026](0026-first-real-cfd-fixture-adapter.md) | landed fixture-local-command | First real CFD fixture adapter |
 | [0027](0027-resistance-calibration-acceptance.md) | proposed | Resistance calibration acceptance |
-| [0028](0028-plumb-stem-closure-semantics.md) | proposed | Plumb-stem closure semantics |
+| [0028](0028-plumb-stem-closure-semantics.md) | partial safe-slice | Plumb-stem closure semantics |
 | [0029](0029-design-constraint-surfacing.md) | proposed | Design constraint surfacing and validity metadata |
 | [0030](0030-web-hosted-browser-acceptance.md) | proposed | Web hosted and browser acceptance |
 
@@ -94,9 +94,16 @@ parts of the broader RFCs where that improves progress.
 RFC 0021 has landed only for explicit synthetic closed-volume diagnostics: the
 RFC 0016 compatibility profile records `not_checked`, while
 `explicit_synthetic_closed_volume_self_intersection_v1` requires passed
-assembled-body self-intersection evidence. Generated hull-plus-deck closed
-bodies, repair, volume meshing, high-angle `GZ`, and `cfd_ready` promotion
-remain deferred.
+assembled-body self-intersection evidence. Broad generated-body repair,
+volume meshing, high-angle `GZ`, and `cfd_ready` promotion remain deferred.
+
+RFC 0028 has landed as a partial safe slice: `Hull` now carries independent
+`bow_rake` and `stern_rake` with legacy `bow_rake`-only input seeding both
+ends, the loft selects side-specific rake under the bow-negative/stern-positive
+X convention, and a generated closed-body builder owns exact plumb endpoint
+rings and caps before diagnostics decide `closed_volume`. Open hull/deck STL
+exports and mesh packages remain inspection surfaces and are not promoted to
+watertight-solid or `cfd_ready`.
 
 The dependency spine for the closed-volume side is: RFC 0021
 self-intersection diagnostics first, then RFC 0022 generated hull-plus-deck

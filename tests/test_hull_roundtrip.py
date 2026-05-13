@@ -9,6 +9,8 @@ from kayakgen.model.hull import Hull
 
 def test_default_round_trip() -> None:
     hull = Hull()
+    assert hull.bow_rake == 1.0
+    assert hull.stern_rake == 1.0
     blob = hull.model_dump_json()
     hull2 = Hull.model_validate_json(blob)
     assert hull == hull2
@@ -34,6 +36,43 @@ def test_hash_reflects_changes() -> None:
     base = Hull()
     longer = base.model_copy(update={"length_m": 5.0})
     assert base.hash() != longer.hash()
+
+
+def test_legacy_bow_rake_json_seeds_symmetric_stern_rake() -> None:
+    blob = json.dumps({"bow_rake": 0.25})
+    hull = Hull.model_validate_json(blob)
+
+    assert hull.bow_rake == 0.25
+    assert hull.stern_rake == 0.25
+    assert Hull.model_validate_json(hull.model_dump_json()).stern_rake == 0.25
+    assert hull == Hull(bow_rake=0.25, stern_rake=0.25)
+    assert hull.hash() == Hull(bow_rake=0.25, stern_rake=0.25).hash()
+
+
+def test_independent_stern_rake_round_trip() -> None:
+    hull = Hull.model_validate_json(json.dumps({"bow_rake": 0.0, "stern_rake": 1.0}))
+
+    assert hull.bow_rake == 0.0
+    assert hull.stern_rake == 1.0
+    assert Hull.model_validate_json(hull.model_dump_json()) == hull
+
+
+def test_stern_rake_only_json_uses_default_bow_rake() -> None:
+    hull = Hull.model_validate_json(json.dumps({"stern_rake": 0.0}))
+
+    assert hull.bow_rake == 1.0
+    assert hull.stern_rake == 0.0
+
+
+def test_stern_rake_range_is_validated() -> None:
+    import pydantic
+
+    for value in (-0.1, 1.1):
+        try:
+            Hull(stern_rake=value)
+        except pydantic.ValidationError:
+            continue
+        raise AssertionError("Hull should validate stern_rake in [0, 1]")
 
 
 def test_unknown_field_rejected() -> None:

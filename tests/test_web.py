@@ -56,6 +56,7 @@ def test_state_dict_round_trip_via_hull() -> None:
     hull = Hull(name="touring", length_m=5.0, beam_oa_m=0.58, beam_wl_m=0.53)
     state = state_dict_from_hull(hull)
     back = hull_from_state_dict(state)
+    assert "stern_rake" in state
     assert back == hull
 
 

@@ -8,6 +8,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Added workflow 0039's RFC 0028 plumb-stem closure safe slice: independent
+  `stern_rake`, explicit bow/stern coordinate convention, and exact-plumb
+  endpoint/cap semantics for generated closed-body diagnostics while keeping
+  open hull/deck STLs labeled as inspection surfaces.
 - Added workflow 0032's RFC 0021 explicit synthetic closed-volume
   self-intersection diagnostics: serialized `not_checked`, `passed`,
   `failed`, and `inconclusive` status, assembled-body triangle-pair evidence,
@@ -53,6 +57,9 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Changed
 
+- Clarified that legacy `bow_rake` historically controlled both bow and stern
+  and remains the symmetric compatibility behavior for older hull JSON that
+  omits `stern_rake`.
 - Hardened comparison-report accepted-use provenance so raw comparative
   resistance and forged legacy final-prediction strings cannot become accepted
   calibrated prediction without fixture IDs, model version, fit evidence, and a

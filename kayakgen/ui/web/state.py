@@ -27,6 +27,7 @@ HULL_STATE_FIELDS: tuple[str, ...] = (
     "deck_flatness",
     "center_box_ratio",
     "bow_rake",
+    "stern_rake",
 )
 
 

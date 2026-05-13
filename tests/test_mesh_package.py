@@ -45,6 +45,8 @@ def test_write_mesh_package_creates_manifest_and_artifacts(tmp_path: Path) -> No
     assert manifest.hull_hash == Hull().hash()
     assert manifest.units == "m"
     assert manifest.coordinate_system.x.startswith("longitudinal, stern positive")
+    assert "bow negative" in manifest.coordinate_system.x
+    assert "-L/2 to +L/2" in manifest.coordinate_system.x
     assert manifest.coordinate_system.waterline_z_m == 0.0
     assert manifest.parts == ["hull", "deck"]
     assert manifest.hull_json == "hull.json"
@@ -75,6 +77,31 @@ def test_watertight_profile_package_stays_below_cfd_ready(tmp_path: Path) -> Non
     assert "requires zero boundary edges" in warning_text
     assert "closed combined hull/deck volume" in warning_text
     assert "separate open surfaces" in warning_text
+
+
+def test_mixed_rake_open_package_does_not_claim_cfd_ready(tmp_path: Path) -> None:
+    manifest = write_mesh_package(
+        Hull(bow_rake=0.0, stern_rake=1.0),
+        tmp_path,
+        stations=12,
+    )
+
+    assert manifest.readiness.level == "cfd_surface_candidate"
+    assert "cfd_ready" in " ".join(manifest.warnings)
+
+
+def test_mixed_rake_watertight_profile_keeps_open_surface_boundary(tmp_path: Path) -> None:
+    manifest = write_mesh_package(
+        Hull(bow_rake=0.0, stern_rake=1.0),
+        tmp_path,
+        stations=12,
+        solver_profile=watertight_solid_profile(),
+    )
+
+    assert manifest.readiness.level == "stl_surface"
+    warning_text = " ".join(manifest.warnings)
+    assert "requires zero boundary edges" in warning_text
+    assert "current package writer emits separate open surfaces" in warning_text
 
 
 def test_mesh_package_manifest_round_trips_from_json(tmp_path: Path) -> None:

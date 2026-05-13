@@ -97,6 +97,27 @@ def test_generate_accepts_non_default_bow_rake_and_beam_wl(tmp_path) -> None:
     assert (tmp_path / "non_default_deck.stl").stat().st_size > 0
 
 
+def test_generate_accepts_independent_stern_rake_json(tmp_path) -> None:
+    hull = tmp_path / "mixed_rake.json"
+    hull.write_text(
+        json.dumps(
+            {
+                "beam_oa_m": 0.58,
+                "beam_wl_m": 0.50,
+                "bow_rake": 0.0,
+                "stern_rake": 1.0,
+            }
+        )
+    )
+    out = tmp_path / "mixed_rake"
+
+    result = CliRunner().invoke(app, ["generate", str(hull), "--stl-out", str(out)])
+
+    assert result.exit_code == 0
+    assert (tmp_path / "mixed_rake_hull.stl").stat().st_size > 0
+    assert (tmp_path / "mixed_rake_deck.stl").stat().st_size > 0
+
+
 def test_evaluate_accepts_non_default_bow_rake_and_beam_wl(tmp_path) -> None:
     hull_model = Hull(beam_oa_m=0.58, beam_wl_m=0.50, bow_rake=0.0)
     hull = tmp_path / "non_default.json"
@@ -174,6 +195,20 @@ def test_mesh_package_can_select_watertight_profile_without_cfd_ready(tmp_path) 
     assert manifest["solver_profile"]["profile_name"] == "watertight_solid_resistance_v1"
     assert manifest["readiness"]["level"] == "stl_surface"
     assert any("separate open surfaces" in warning for warning in manifest["warnings"])
+
+
+def test_mesh_package_mixed_rake_stays_below_cfd_ready(tmp_path) -> None:
+    hull = tmp_path / "mixed_rake.json"
+    hull.write_text(Hull(bow_rake=0.0, stern_rake=1.0).model_dump_json())
+    out = tmp_path / "mesh-package"
+
+    result = CliRunner().invoke(app, ["mesh-package", str(hull), "--out", str(out)])
+
+    assert result.exit_code == 0
+    manifest = json.loads((out / "manifest.json").read_text())
+    assert manifest["hull_json"] == "hull.json"
+    assert manifest["readiness"]["level"] == "cfd_surface_candidate"
+    assert manifest["readiness"]["level"] != "cfd_ready"
 
 
 def test_cfd_prepare_status_and_unavailable_run(tmp_path) -> None:

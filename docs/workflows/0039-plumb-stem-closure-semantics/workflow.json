@@ -29,8 +29,11 @@
     {"path": "docs/rfcs/0028-plumb-stem-closure-semantics.md", "required": true},
     {"path": "docs/USER_GUIDE.md", "required": true},
     {"path": "kayakgen/model/hull.py", "required": false},
-    {"path": "kayakgen/geometry/loft.py", "required": false},
-    {"path": "kayakgen/mesh/diagnostics.py", "required": false},
+    {"path": "kayakgen/model/geometry.py", "required": false},
+    {"path": "kayakgen/eval/closed_volume.py", "required": false},
+    {"path": "kayakgen/eval/generated_closed_body.py", "required": false},
+    {"path": "kayakgen/eval/mesh_diagnostics.py", "required": false},
+    {"path": "kayakgen/eval/mesh_package.py", "required": false},
     {"path": "tests", "required": true}
   ],
   "parallelism": {"mode": "declared", "max_active_jobs": 3, "require_disjoint_write_scopes": true},

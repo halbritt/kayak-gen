@@ -51,8 +51,20 @@ for repeatable command-line work. Important fields include:
 
 - `length_m`, `beam_oa_m`, `beam_wl_m`, `draft_m`, `deck_height_m`
 - `Cp`, `Cm`, `deck_flatness`, `center_box_ratio`
-- `bow_rake`, where `0` is plumb and `1` is the legacy raked behavior
+- `bow_rake` and `stern_rake`, where `0.0` is exact plumb and `1.0` is the
+  legacy raked taper
 - `rocker_bow_m` and `rocker_stern_m`
+
+Coordinate convention: X increases from bow to stern. The bow endpoint is
+`x = -length_m / 2`; the stern endpoint is `x = +length_m / 2`. Z increases
+upward from the design waterline, and Y spans half-beam in generated sections
+before being mirrored port/starboard.
+
+`bow_rake` is retained as the legacy compatibility field. Older hull JSON that
+only supplies `bow_rake` uses that value symmetrically for bow and stern,
+matching historical behavior. New hull JSON may supply `stern_rake` to make the
+stern independent. Rake fields are dimensionless fullness controls, not angles;
+reverse rake and values outside `[0, 1]` are invalid.
 
 The current loft honors only the implemented parameter set. Some fields exist
 for RFC compatibility and are not complete shape controls yet; for example,
@@ -70,7 +82,7 @@ kayakgen init hull.json
 
 ### `generate`
 
-Write hull and deck STL surfaces from a hull JSON:
+Write open hull and deck STL inspection surfaces from a hull JSON:
 
 ```bash
 kayakgen generate hull.json --stl-out build/example
@@ -197,6 +209,10 @@ candidate with readiness `cfd_surface_candidate`, not `cfd_ready`. The
 remain below that readiness because the writer emits separate open surfaces,
 not a closed hull/deck solid.
 
+Changing `bow_rake` or `stern_rake` to `0.0` does not by itself make those
+inspection STLs watertight; closed-body readiness must come from the explicit
+generated closed-body path and diagnostics.
+
 ## Synthetic Closed-Volume Diagnostics
 
 Workflow 0027 introduced a narrow diagnostic contract for explicit synthetic
@@ -232,10 +248,11 @@ between non-adjacent triangles are `failed`; non-adjacent pairs closer than
 `self_intersection_tolerance_m` without a detected crossing are
 `inconclusive`.
 
-The diagnostic artifact always keeps `cfd_ready` false. It does not repair
-geometry, build a closed body from generated kayak hulls, validate generated
-hull-plus-deck closure, create a volume mesh, or make a watertight solver
-handoff.
+The diagnostic artifact always keeps `cfd_ready` false. Synthetic diagnostics
+do not repair geometry, create a volume mesh, or make a watertight solver
+handoff. Generated closed-body construction is a separate evaluation-side path;
+it must still pass closed-volume diagnostics before it can be treated as a
+closed body, and it still does not make a CFD-ready solver handoff.
 
 Generated mesh packages remain open-surface artifacts. Treat their hull and
 deck STLs as inspection and packaging surfaces, not as a closed volume for

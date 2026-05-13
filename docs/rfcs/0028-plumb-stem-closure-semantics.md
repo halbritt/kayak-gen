@@ -1,6 +1,6 @@
 # RFC 0028: Plumb-Stem Closure Semantics
 
-Status: proposed
+Status: partial safe-slice
 Date: 2026-05-13
 Context: closes deferred RFC 0004 exact plumb-stem and watertight semantics;
 depends on the generated closed-body work from RFCs 0022-0024.
@@ -107,7 +107,8 @@ Closed-body construction lives below presentation surfaces and above raw hull
 parameter validation:
 
 - `kayakgen.model.Hull` owns validated rake fields and compatibility behavior.
-- `kayakgen.geometry` owns station/ring construction and open hull/deck meshes.
+- `kayakgen.model.geometry` owns station/ring construction and open hull/deck
+  meshes.
 - A generated closed-body builder owns joining hull, deck, bow cap, and stern
   cap into a single body artifact.
 - Mesh diagnostics own watertight, nonmanifold, orientation, volume, and
@@ -141,9 +142,9 @@ by changing rake sliders.
 - Should exact plumb caps be planar in Y/Z at the endpoint or should a very
   short finite stem thickness be introduced for manufacturing-oriented exports?
   Lean: planar caps for this RFC; thickness belongs to a production-export RFC.
-- Should non-zero endpoint area apply to intermediate rake values below a
-  threshold such as `rake < 0.05`? Lean: no; exact endpoint semantics should be
-  tied to the exact value `0.0` for deterministic tests.
+- Non-zero endpoint area for generated closed bodies is tied to exact
+  `rake == 0.0`. Intermediate values below an arbitrary threshold continue to
+  follow the raked/blended path.
 
 ## Implementation Path
 

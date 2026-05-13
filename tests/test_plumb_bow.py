@@ -24,10 +24,21 @@ def test_default_rake_preserves_legacy_geometry(tmp_path: Path) -> None:
     """bow_rake=1.0 (default) must reproduce the golden STL payload."""
     hull = Hull()
     assert hull.bow_rake == 1.0
+    assert hull.stern_rake == 1.0
     out = tmp_path / "default_hull.stl"
     hull.to_geometry().generate_stl("hull", str(out))
     expected = "bd3ba7d497e78349d43495bb0d02097ddfcc3c0e2c5781945c25f781218a4c39"
     assert _stl_payload_sha256(out) == expected
+
+
+def test_coordinate_convention_pins_bow_negative_stern_positive() -> None:
+    geom = LoftedHullGeometry(Hull())
+
+    waterplane = geom.waterplane(n=2)
+
+    assert waterplane[0, 0] == -geom.L / 2
+    assert waterplane[-1, 0] == geom.L / 2
+    assert waterplane[0, 0] < waterplane[-1, 0]
 
 
 def test_plumb_keel_holds_full_draft_in_middle() -> None:
@@ -52,7 +63,7 @@ def test_plumb_keel_drops_in_last_five_percent() -> None:
     assert last5[0, 1] == 0.0
 
 
-def test_plumb_section_at_end_has_nonzero_area() -> None:
+def test_plumb_section_near_end_has_nonzero_area() -> None:
     """At bow_rake=0.0, station near x=-L/2 still has positive section area."""
     geom = LoftedHullGeometry(Hull(bow_rake=0.0))
     L = geom.L
@@ -73,6 +84,26 @@ def test_intermediate_rake_blends_monotonically() -> None:
     """Volume changes monotonically as bow_rake interpolates 1.0 → 0.0."""
     vols = [evaluate(Hull(bow_rake=r)).displaced_volume_m3 for r in (1.0, 0.75, 0.50, 0.25, 0.0)]
     assert all(b >= a for a, b in zip(vols, vols[1:]))
+
+
+def test_legacy_bow_rake_geometry_matches_explicit_symmetric_stern_rake() -> None:
+    legacy = LoftedHullGeometry(Hull(bow_rake=0.5))
+    explicit = LoftedHullGeometry(Hull(bow_rake=0.5, stern_rake=0.5))
+
+    for part in ("hull", "deck"):
+        legacy_vertices, legacy_faces = legacy.mesh(part)
+        explicit_vertices, explicit_faces = explicit.mesh(part)
+        np.testing.assert_allclose(legacy_vertices, explicit_vertices)
+        np.testing.assert_array_equal(legacy_faces, explicit_faces)
+
+
+def test_mixed_bow_and_stern_rake_produces_asymmetric_geometry() -> None:
+    plumb_bow = LoftedHullGeometry(Hull(bow_rake=0.0, stern_rake=1.0))
+    plumb_stern = LoftedHullGeometry(Hull(bow_rake=1.0, stern_rake=0.0))
+    x = 0.45 * plumb_bow.L
+
+    assert plumb_bow.section_area(-x) > plumb_bow.section_area(x)
+    assert plumb_stern.section_area(x) > plumb_stern.section_area(-x)
 
 
 def test_stl_open_surface_generation_at_plumb_bow_rake_zero(tmp_path: Path) -> None:

@@ -5,6 +5,9 @@
 - `docs/rfcs/0028-plumb-stem-closure-semantics.md`
 - `docs/USER_GUIDE.md`
 - `kayakgen/model/hull.py`
-- `kayakgen/geometry/loft.py`
-- `kayakgen/mesh/diagnostics.py`
+- `kayakgen/model/geometry.py`
+- `kayakgen/eval/closed_volume.py`
+- `kayakgen/eval/generated_closed_body.py`
+- `kayakgen/eval/mesh_diagnostics.py`
+- `kayakgen/eval/mesh_package.py`
 - `tests/`

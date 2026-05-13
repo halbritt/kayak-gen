@@ -25,7 +25,11 @@ This section describes current behavior, not the whole roadmap.
 
 - User specifies overall kayak dimensions (length, beam-overall, beam-at-waterline, draft, deck height) and naval-architecture form coefficients (prismatic coefficient Cp, midship section coefficient Cm, deck flatness exponent, parallel mid-body ratio, longitudinal centre of buoyancy fraction).
 - Generator computes a longitudinal station series (cross-sections) at configurable resolution and triangulates open hull and deck surfaces. Cross-section geometry is parametrically controlled: hull sections range from V-shaped through arched to U-shaped; deck camber is controlled by a power-curve exponent.
-- Bow geometry includes RFC 0004's `bow_rake` parameter, but exact plumb end-cap semantics, asymmetric rake, and watertight hull-plus-deck closure remain deferred.
+- Bow/stern geometry includes RFC 0028's independent `bow_rake` and
+  `stern_rake` fields. The generated closed-body path owns exact plumb
+  endpoint rings and caps and must pass diagnostics before reporting
+  `closed_volume`; open hull/deck STLs remain inspection surfaces and are not
+  watertight or `cfd_ready`.
 - Ends taper using a prismatic-coefficient-derived area curve. The centre parallel mid-body fraction is configurable.
 - Class presets (touring sea kayak, performance sea kayak, intermediate surfski, elite surfski) seed a hull at sensible defaults derived from `docs/design/kayak_hull_design_constraints.md`. Users can deviate from the preset; surfaced constraint checks are advisory and still incomplete in the desktop GUI.
 - Hull body and deck are exported as separate binary STL surfaces suitable for inspection, CAD import, or downstream packaging. Current generated mesh packages remain open-surface candidates and are not classified as `cfd_ready`.

@@ -159,6 +159,7 @@ def test_legacy_beam_wl_and_bow_rake_feed_hull_model() -> None:
 
     assert kg.hull.beam_wl_m == 0.50
     assert kg.hull.bow_rake == 0.0
+    assert kg.hull.stern_rake == 0.0
     assert kg.B_wl == 0.50
 
 
