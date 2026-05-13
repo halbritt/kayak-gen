@@ -85,6 +85,17 @@ Updated: 2026-05-13
   preserve lane ownership, require maximal useful sub-agent use, forbid Striatum
   mutation commands, and require exactly one `Verdict intent:` line before the
   operator will publish a review.
+- 2026-05-13T19:40:55Z checkpoint: all six successor first-pass reviews were
+  published. Gemini Pro 3.1 quota was exhausted for the two Gemini lanes, so
+  they were retried within the Gemini lane before publication rather than
+  switching vendors. Published artifacts: 0042
+  `art_2c4df4a9d92b45fab5c0fca3761dc54b` (traceability),
+  `art_2e46e0743dbc4f559dd8f31356880188` (domain), and
+  `art_e4ec60b3655e4e27a150e3dfdfaaccec` (ops); 0043
+  `art_3634834d5d4b4df09ec6ae67acff6f03` (traceability),
+  `art_6534da9ce1be4854920ee2073361c160` (browser), and
+  `art_aa0b01556a34496bb4a010c9961f36c1` (ops). Both successor runs now have
+  `findings_ledger` queued.
 - 2026-05-13T17:46:07Z checkpoint: the four unblocked ledger jobs completed
   and were published without `author:` bylines: 0033
   `art_b263fcf6154e4503b62f8ad2a142813a`, 0037
