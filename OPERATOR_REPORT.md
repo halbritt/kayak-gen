@@ -172,6 +172,17 @@ Updated: 2026-05-13
   `striatum/0043-web-hosted-browser-acceptance-revision`. The next claimable
   jobs are the two Codex revision-anchor/remediation roots, which can run in
   parallel because their write scopes are separate.
+- 2026-05-13T19:26:24Z checkpoint: the first Codex root-agent launch hit a
+  nested sandbox `bwrap` failure and produced no publishable files. The same
+  acknowledged jobs were relaunched with Codex shell sandboxing disabled while
+  preserving Striatum write scopes. 0042 published
+  `art_d700c5ca05b14f29964d1e8cdcb2dac1` and completed
+  `review_remediation`; the external remediator fixed RFC 0031/index status,
+  0042 workflow `OPERATOR_REPORT.md` forbid ambiguity, and changelog wording.
+  0043 published `art_0e6bf8daa4c54aa684082c7fa844a391` and completed
+  `review_revision_anchor`, carrying forward the 0041 browser blocker context
+  into the review handoff. Both artifacts have no `author:` byline, `git diff
+  --check` is clean, and both successor workflow files validate.
 - The failed adapter recovery briefly requeued downstream ledger/build/final
   jobs while clearing stale leases. Those jobs must not be claimed until the
   first-pass review artifacts are published and accepted; operator control is

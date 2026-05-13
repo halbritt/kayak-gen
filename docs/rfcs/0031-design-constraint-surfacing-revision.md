@@ -1,6 +1,6 @@
 # RFC 0031: Design Constraint Surfacing Revision
 
-Status: proposed
+Status: accepted implementation target
 Date: 2026-05-13
 Context: supersedes RFC 0029 as the implementation target for the
 design-constraint surfacing slice; RFC 0029 remains background for the broader

@@ -42,9 +42,9 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0026](0026-first-real-cfd-fixture-adapter.md) | landed fixture-local-command | First real CFD fixture adapter |
 | [0027](0027-resistance-calibration-acceptance.md) | proposed | Resistance calibration acceptance |
 | [0028](0028-plumb-stem-closure-semantics.md) | partial safe-slice | Plumb-stem closure semantics |
-| [0029](0029-design-constraint-surfacing.md) | proposed | Design constraint surfacing and validity metadata |
+| [0029](0029-design-constraint-surfacing.md) | proposed background | Design constraint surfacing and validity metadata, superseded by RFC 0031 for implementation |
 | [0030](0030-web-hosted-browser-acceptance.md) | proposed | Web hosted and browser acceptance |
-| [0031](0031-design-constraint-surfacing-revision.md) | proposed | Design constraint surfacing revision |
+| [0031](0031-design-constraint-surfacing-revision.md) | accepted implementation target | Design constraint surfacing revision |
 | [0032](0032-web-hosted-browser-acceptance-revision.md) | proposed | Web hosted browser acceptance revision |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
@@ -86,7 +86,8 @@ calibrated/validated CFD claims; all CFD dispatch output remains raw and
 unvalidated.
 
 RFCs 0016-0032 are mostly proposed, not accepted implementation commitments
-except for the explicitly marked landed or partial safe slices. RFCs 0016-0020
+except for the explicitly marked landed, partial safe-slice, or accepted
+implementation-target entries. RFCs 0016-0020
 split the major remaining deferrals into broad design documents:
 closed-volume geometry, first real CFD adapter, web CFD job routes, resistance
 calibration fixtures, and high-angle `GZ` / secondary stability. RFCs

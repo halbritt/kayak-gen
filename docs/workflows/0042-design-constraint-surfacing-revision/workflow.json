@@ -72,7 +72,7 @@
           "CHANGELOG.md",
           "striatum/0042-design-constraint-surfacing-revision/review_remediation/"
         ],
-        "forbidden_paths": [".striatum/", "OPERATOR_REPORT.md"]
+        "forbidden_paths": [".striatum/"]
       },
       "expected_artifacts": [{"logical_name": "review_remediation", "kind": "synthesis", "path": "striatum/0042-design-constraint-surfacing-revision/review_remediation/REMEDIATION.md", "required": true}]
     },
@@ -131,7 +131,7 @@
           "striatum/0042-design-constraint-surfacing-revision/ledger/",
           "docs/workflows/0042-design-constraint-surfacing-revision/OPERATOR_REPORT.md"
         ],
-        "forbidden_paths": [".striatum/", "OPERATOR_REPORT.md"]
+        "forbidden_paths": [".striatum/"]
       },
       "expected_artifacts": [{"logical_name": "ledger", "kind": "findings_ledger", "path": "striatum/0042-design-constraint-surfacing-revision/ledger/FINDINGS.md", "required": true}]
     },
@@ -153,7 +153,7 @@
           "tests/",
           "striatum/0042-design-constraint-surfacing-revision/implementation/"
         ],
-        "forbidden_paths": [".striatum/", "OPERATOR_REPORT.md"]
+        "forbidden_paths": [".striatum/"]
       },
       "expected_artifacts": [{"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0042-design-constraint-surfacing-revision/implementation/PATCH_SUMMARY.md", "required": true}]
     },

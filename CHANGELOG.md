@@ -68,6 +68,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Changed
 
+- Marked RFC 0031 as the accepted implementation target for workflow 0042 and
+  clarified in the RFC index that RFC 0029 remains background for that
+  narrowed revision slice.
+- Removed ambiguous `OPERATOR_REPORT.md` basename forbids from workflow 0042
+  job scopes while leaving the root operator report outside those allowed
+  paths.
 - Clarified that legacy `bow_rake` historically controlled both bow and stern
   and remains the symmetric compatibility behavior for older hull JSON that
   omits `stern_rake`.
