@@ -31,6 +31,12 @@ that is presented as stronger than it is.
   source as canonical calibration data. Sea Kayaker-derived tables remain
   citation-only/model-to-model context. Gomes and Tzabiras sprint-K1 studies are
   validation candidates, not general sea-kayak calibration anchors.
+- Workflow 0023 found the University of Edinburgh DataShare dataset
+  "Hydrodynamics of Three Slender Models Resembling Pacific Canoe Hulls"
+  (DOI `10.7488/ds/3785`, CC BY 4.0). It is accepted as an open measured
+  validation candidate, but not as `calibrated_kayak_v1` calibration input,
+  because its Pacific-canoe-like fixed-sink/trim hulls are outside the sea-kayak
+  design envelope.
 
 ## Goals
 
@@ -83,7 +89,9 @@ Add a `ResistanceSourceRecord` registry for candidate sources. A source record
 has `source_id`, `title`, `url`, `source_type`, `intended_use`,
 `measured_data`, `hull_class`, `rights_status`, `extraction_status`, `notes`,
 and `warnings`. The initial registry includes only `citation_only` and
-`validation_candidate` records; it has no `calibration_fixture` records.
+`validation_candidate` records; it has no `calibration_fixture` records. The
+Edinburgh Pacific-canoe dataset is recorded as a validation candidate with
+reusable source rights, not as a calibration fixture.
 
 Current raw curves should use `model_family = "raw_ittc_michell"`,
 `calibration_status = "uncalibrated"`, `accepted_use =
@@ -108,11 +116,16 @@ the numerical implementation, not a kayak calibration dataset.
   acceptance; workflow 0013 revised RFC 0005 and retired the stale expected
   failures without claiming calibration.
 - Tests cover metadata serialization and warning behavior.
+- Workflow 0023 added an open measured validation candidate to the registry
+  without changing current curve calibration status.
 
 ## Open Questions
 
 - Can the project obtain explicit permission or an open measured dataset for
-  checked-in calibration fixtures?
+  checked-in sea-kayak calibration fixtures?
+- Should the Edinburgh Pacific-canoe dataset get a dedicated validation fixture
+  schema, or remain source metadata until a kayak-class measured dataset is
+  found?
 - Should calibration tune total resistance only, or viscous form factor and wave
   component separately?
 - Is the original 200 ms curve budget still real acceptance, or should it be

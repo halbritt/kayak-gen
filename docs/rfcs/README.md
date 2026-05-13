@@ -51,10 +51,12 @@ reproducible generative pipeline. RFC 0010's mesh package/profile slice, RFC
 compact web inspection slices, and RFC 0014's partial trim slice have landed.
 The RFC 0014 slice includes compatible longitudinal load components, bounded
 fixed-body upright trim equilibrium for explicit component load cases, additive
-trim result fields, and CLI/sweep summaries. Hosted demo deployment, full
-plot/dashboard parity, remaining legacy RFC deferrals, high-angle `GZ`
-stability, resistance calibration, watertight solid readiness, and CFD solver
-dispatch are queued in `docs/workflows/0018-deferred-backlog/QUEUE.md`.
+trim result fields, and CLI/sweep summaries. RFC 0012 has an open measured
+Pacific-canoe validation source in the registry, but no kayak calibration
+fixture. Hosted demo deployment, full plot/dashboard parity, remaining legacy
+RFC deferrals, high-angle `GZ` stability, resistance calibration, watertight
+solid readiness, and CFD solver dispatch are queued in
+`docs/workflows/0018-deferred-backlog/QUEUE.md`.
 High-angle `GZ` remains unavailable because a closed-volume body for heeled
 integration is not defined.
 

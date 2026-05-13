@@ -32,11 +32,33 @@ class ResistanceSourceRecord(BaseModel):
 
 
 def default_resistance_source_registry() -> tuple[ResistanceSourceRecord, ...]:
-    """Return candidate sources reviewed by workflow 0012.
+    """Return candidate sources reviewed by workflows 0012 and 0023.
 
     None of these records is currently accepted as a calibration fixture.
     """
     return (
+        ResistanceSourceRecord(
+            source_id="edinburgh_pacific_canoe_hydrodynamics",
+            title="Hydrodynamics of Three Slender Models Resembling Pacific Canoe Hulls",
+            url="https://datashare.ed.ac.uk/handle/10283/4772",
+            source_type="open_measured_towing_tank_dataset",
+            intended_use="validation_candidate",
+            measured_data=True,
+            hull_class="pacific_canoe_like_slender_hulls",
+            rights_status="cc_by_4_0_dataset_doi_10_7488_ds_3785",
+            extraction_status="no_checked_in_numeric_fixture_until_schema",
+            notes=(
+                "Open measured towing-tank force dataset with CAD models for "
+                "three slender Pacific-canoe-like hulls. Useful for validation "
+                "source tracking, but not representative enough for general "
+                "sea-kayak resistance calibration."
+            ),
+            warnings=[
+                "pacific_canoe_not_sea_kayak",
+                "fixed_sink_trim",
+                "validation_not_calibration",
+            ],
+        ),
         ResistanceSourceRecord(
             source_id="sea_kayaker_kanu_compilation",
             title="Sea Kayaker-derived sea-kayak resistance compilation",

@@ -169,6 +169,7 @@ def test_default_resistance_source_registry_has_no_calibration_fixtures() -> Non
     registry = default_resistance_source_registry()
     assert registry
     assert {record.source_id for record in registry} >= {
+        "edinburgh_pacific_canoe_hydrodynamics",
         "sea_kayaker_kanu_compilation",
         "gomes_2018_k1_drag_components",
         "tzabiras_k1_tow_tank",
@@ -176,3 +177,13 @@ def test_default_resistance_source_registry_has_no_calibration_fixtures() -> Non
     assert all(record.intended_use != "calibration_fixture" for record in registry)
     assert any(record.measured_data for record in registry)
     assert any("redistribution" in warning for record in registry for warning in record.warnings)
+
+    edinburgh = next(
+        record
+        for record in registry
+        if record.source_id == "edinburgh_pacific_canoe_hydrodynamics"
+    )
+    assert edinburgh.intended_use == "validation_candidate"
+    assert edinburgh.measured_data is True
+    assert "cc_by_4_0" in edinburgh.rights_status
+    assert "validation_not_calibration" in edinburgh.warnings
