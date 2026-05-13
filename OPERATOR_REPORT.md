@@ -27,6 +27,18 @@ Updated: 2026-05-13
 - Current Striatum CLI state is SQLite-backed while Striatum 1.37.0 enforces
   daemon-required by default, so operator Striatum commands for this batch use
   `STRIATUM_DAEMON_REQUIRED=0`; no Striatum source changes were made.
+- The first process-adapter pass did not produce publishable Striatum review
+  results: some process parents were lost, several Codex/Gemini jobs exited
+  without artifacts or verdicts, and the few generated files used unattested
+  operator self-declared bylines. Those unsubmitted files were removed.
+- The 18 first-pass review jobs were retried with fresh leases. A second pass
+  is running through explicit headless Claude/Gemini/Codex invocations that
+  generate markdown artifacts without `author:` bylines; the operator will only
+  publish artifacts that include the agent's own `Verdict intent:` line.
+- The failed adapter recovery briefly requeued downstream ledger/build/final
+  jobs while clearing stale leases. Those jobs must not be claimed until the
+  first-pass review artifacts are published and accepted; operator control is
+  preserving the intended gate order.
 - `main` includes the completed 0032, 0036, and 0029 workflow landings; the
   workflow code landed through `d13d0ad` before this final report update.
 - All temporary workflow branches and worktrees from the 0032/0036/0029 batch
