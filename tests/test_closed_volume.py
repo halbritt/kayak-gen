@@ -344,3 +344,69 @@ def test_out_of_range_face_indices_are_reported_without_crashing() -> None:
     assert diagnostics.readiness.level == "invalid"
     assert diagnostics.invalid_face_indices == 1
     assert "body contains out-of-range face indices" in diagnostics.warnings
+
+
+def test_nonfinite_vertices_are_reported_without_crashing() -> None:
+    vertices, faces = _tetrahedron()
+    body = explicit_synthetic_body(
+        vertices + [[float("nan"), 0.0, 0.0]],
+        faces + [[0, 1, 4]],
+        body_id="nonfinite-vertex",
+        policy=explicit_synthetic_self_intersection_policy(),
+    )
+
+    diagnostics = diagnose_closed_volume_body(body)
+
+    assert diagnostics.readiness.level == "invalid"
+    assert diagnostics.nonfinite_vertices == 1
+    assert diagnostics.part_diagnostics[0].nonfinite_vertices == 1
+    assert "body contains non-finite vertices" in diagnostics.warnings
+
+
+def test_degenerate_faces_are_reported_without_masking_closed_edges() -> None:
+    vertices, faces = _tetrahedron()
+    body = explicit_synthetic_body(
+        vertices,
+        faces + [[0, 0, 1]],
+        body_id="degenerate-face",
+        policy=explicit_synthetic_self_intersection_policy(),
+    )
+
+    diagnostics = diagnose_closed_volume_body(body)
+
+    assert diagnostics.readiness.level == "invalid"
+    assert diagnostics.degenerate_faces == 1
+    assert diagnostics.part_diagnostics[0].degenerate_faces == 1
+    assert diagnostics.raw_boundary_edges == 0
+    assert diagnostics.welded_boundary_edges == 0
+    assert diagnostics.raw_nonmanifold_edges == 0
+    assert diagnostics.welded_nonmanifold_edges == 0
+    assert "body contains degenerate faces" in diagnostics.warnings
+
+
+def test_custom_tolerances_round_trip_through_diagnostics_json() -> None:
+    vertices, faces = _tetrahedron()
+    tolerances = ClosedVolumeTolerances(
+        vertex_weld_tolerance_m=2e-6,
+        degenerate_area_tolerance_m2=3e-12,
+        signed_volume_tolerance_m3=4e-13,
+        self_intersection_tolerance_m=5e-9,
+    )
+    policy = explicit_synthetic_self_intersection_policy().model_copy(
+        update={"tolerances": tolerances}
+    )
+    body = explicit_synthetic_body(
+        vertices,
+        faces,
+        body_id="custom-tolerances",
+        policy=policy,
+    )
+
+    diagnostics = diagnose_closed_volume_body(body)
+    loaded = ClosedVolumeDiagnostics.model_validate_json(diagnostics.model_dump_json())
+
+    assert loaded.readiness.level == "closed_volume"
+    assert loaded.policy.tolerances == tolerances
+    assert loaded.self_intersection_tolerance_m == pytest.approx(
+        tolerances.self_intersection_tolerance_m
+    )

@@ -46,11 +46,11 @@
     {"path": "docs/rfcs/0022-generated-closed-body-construction.md", "required": true},
     {"path": "docs/workflows/0027-closed-volume-geometry-contract/OPERATOR_REPORT.md", "required": true},
     {"path": "kayakgen/eval/closed_volume.py", "required": true},
-    {"path": "kayakgen/geometry/lofted_hull.py", "required": true},
-    {"path": "kayakgen/domain/hull.py", "required": true},
+    {"path": "kayakgen/model/geometry.py", "required": true},
+    {"path": "kayakgen/model/hull.py", "required": true},
     {"path": "generator.py", "required": true},
     {"path": "tests/test_closed_volume.py", "required": true},
-    {"path": "tests/test_geometry.py", "required": true},
+    {"path": "tests/test_geometry_lofted.py", "required": true},
     {"path": "tests/test_mesh_package.py", "required": true}
   ],
   "parallelism": {
@@ -175,8 +175,7 @@
         "repo_write": true,
         "allowed_paths": [
           "docs/",
-          "kayakgen/domain/",
-          "kayakgen/geometry/",
+          "kayakgen/model/",
           "kayakgen/eval/",
           "kayakgen/cli/",
           "tests/",
@@ -234,4 +233,3 @@
     }
   ]
 }
-

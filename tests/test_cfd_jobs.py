@@ -31,6 +31,7 @@ from kayakgen.eval.closed_volume import (
     diagnose_closed_volume_body,
     explicit_synthetic_body,
     explicit_synthetic_self_intersection_policy,
+    generated_hull_plus_deck_body,
 )
 from kayakgen.eval.contract import CfdResult
 from kayakgen.eval.mesh_diagnostics import MeshReadiness
@@ -387,6 +388,51 @@ def test_prepare_rejects_passed_rfc0021_closed_volume_as_cfd_ready_evidence(
             policy=explicit_synthetic_self_intersection_policy(),
         )
     )
+    assert diagnostic.readiness.level == "closed_volume"
+    assert diagnostic.self_intersection_status == "passed"
+    assert diagnostic.cfd_ready is False
+    for ref in manifest.quality_reports.values():
+        (mesh_dir / ref).write_text(diagnostic.model_dump_json(indent=2))
+
+    with pytest.raises(
+        CfdDispatchError,
+        match="watertight dispatch requires profile-scoped closed-volume diagnostic evidence",
+    ):
+        prepare_local_job(
+            mesh_dir,
+            jobs_dir,
+            unavailable_watertight_solid_profile(),
+            speed_mps=2.4,
+        )
+
+
+def test_prepare_rejects_generated_closed_body_as_cfd_ready_evidence(
+    tmp_path: Path,
+) -> None:
+    mesh_dir = tmp_path / "mesh"
+    jobs_dir = tmp_path / "jobs"
+    hull = Hull(name="generated-dispatch-boundary")
+    manifest = write_mesh_package(
+        hull,
+        mesh_dir,
+        stations=8,
+        solver_profile=watertight_solid_profile(),
+    )
+    forged = manifest.model_copy(
+        update={
+            "readiness": MeshReadiness(
+                level="cfd_ready",
+                reasons=["forged readiness claim"],
+            ),
+            "warnings": ["forged readiness claim"],
+        }
+    )
+    (mesh_dir / "manifest.json").write_text(forged.model_dump_json(indent=2))
+
+    diagnostic = diagnose_closed_volume_body(
+        generated_hull_plus_deck_body(hull, stations=10)
+    )
+    assert diagnostic.profile_name == "generated_hull_plus_deck_closed_body_v1"
     assert diagnostic.readiness.level == "closed_volume"
     assert diagnostic.self_intersection_status == "passed"
     assert diagnostic.cfd_ready is False

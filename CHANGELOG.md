@@ -12,6 +12,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   `stern_rake`, explicit bow/stern coordinate convention, and exact-plumb
   endpoint/cap semantics for generated closed-body diagnostics while keeping
   open hull/deck STLs labeled as inspection surfaces.
+- Added workflow 0033's RFC 0022 generated hull-plus-deck closed-volume
+  evaluation body with serialized cap/join policy, waterline metadata,
+  positive-volume diagnostics, and RFC 0021 self-intersection gating while
+  keeping generated bodies below `cfd_ready`.
 - Added workflow 0032's RFC 0021 explicit synthetic closed-volume
   self-intersection diagnostics: serialized `not_checked`, `passed`,
   `failed`, and `inconclusive` status, assembled-body triangle-pair evidence,
