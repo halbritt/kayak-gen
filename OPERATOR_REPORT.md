@@ -4,11 +4,10 @@ Updated: 2026-05-13
 
 ## Current State
 
-- `main` is clean and even with `origin/main` at `2ae4037`.
-- Active implementation batch:
-  `striatum/0032-closed-volume-self-intersection-diagnostics`,
-  `striatum/0036-cfd-calibration-claim-gates`, and
-  `striatum/0029-web-cfd-job-routes`.
+- `main` includes the completed 0032, 0036, and 0029 workflow landings; the
+  workflow code landed through `d13d0ad` before this final report update.
+- All temporary workflow branches and worktrees from the 0032/0036/0029 batch
+  were pruned locally and remotely; only `main` remains locally.
 - Active run IDs:
   `run_04735e0767704843a93cb507c202231f` (0032),
   `run_38b1b70956eb48eabbf39449375579ed` (0036), and
@@ -27,9 +26,11 @@ Updated: 2026-05-13
 - After workflow 0027 landed, the target repo Striatum Claude/Codex skill
   bundles were refreshed to match the running 1.36.0 install; `striatum doctor`
   is clean.
-- Old merged local and remote topic branches were pruned before the current
-  implementation batch; the only local topic branches now are the three active
-  Striatum run branches listed above.
+- After the 0032/0036/0029 batch landed, the target repo Striatum Claude/Codex
+  skill bundles were refreshed again to match the running 1.37.0 install;
+  `striatum doctor` is clean.
+- Old merged local and remote topic branches were pruned before and after the
+  current implementation batch.
 - Root report was created after compaction because only per-workflow reports
   were present in `docs/workflows/*/OPERATOR_REPORT.md`.
 
@@ -106,16 +107,13 @@ Updated: 2026-05-13
   `git diff --check` is clean, ASCII check is clean, and
   `striatum --repo . doctor` is clean.
 
-## Active Batch 0032 / 0036 / 0029
+## Completed Batch 0032 / 0036 / 0029
 
 - Dependency-safe first batch started with workflows 0032, 0036, and existing
   0029 because they do not depend on generated closed-body construction.
 - All nine first-pass review jobs are complete with
   `accept_with_findings` verdicts. Review artifact branches were pushed, then
   rebased onto current `origin/main`.
-  Artifact work is isolated by branch worktree: the root checkout remains on
-  0029, `/home/halbritt/git/kayak-gen.worktrees/0032` is on 0032, and
-  `/home/halbritt/git/kayak-gen.worktrees/0036` is on 0036.
 - Review artifact sessions:
   `operator-0032-traceability`, `operator-0032-domain`, `operator-0032-ops`,
   `operator-0036-traceability`, `operator-0036-domain-source`,
@@ -127,16 +125,42 @@ Updated: 2026-05-13
   `art_ee4d220fb5f14ede97b1bd660d25325c` (0029). Ledger commits are pushed on
   the rebased workflow branches: 0029 `2b7e2b6`, 0032 `c164fe1`, and 0036
   `2c23b1d`.
-- Current gate: three Codex implementation jobs are claimed and acknowledged:
-  `operator-0032-implementer`, `operator-0036-implementer`, and
-  `operator-0029-implementer`. Implementation workers are running in parallel
-  with prompts to use maximal useful sub-agent fanout.
+- The three Codex implementation jobs completed with accepted final reviews.
+  Patch-summary artifacts:
+  `art_96c0b07f08f94ce8b27d7e1da64abbbe` (0032),
+  `art_62ff09c30d564368a8e8ec52407a839d` (0036), and
+  `art_b0e58a678e764fdbbe91bd71d3ae2902` (0029). Final-review artifacts:
+  `art_8a3c5971361749cba97b7b2ecd098e78` (0032),
+  `art_c657118cad6c4fa6944ce801c7d4b3c2` (0036), and
+  `art_0d917b84e0834ea197a620cd370a0f73` (0029).
+- 0032 landed RFC 0021 explicit synthetic closed-volume self-intersection
+  diagnostics with `not_checked`, `passed`, `failed`, and `inconclusive`
+  status, bounded example pairs, and no `cfd_ready` promotion.
+- 0036 landed RFC 0025 claim-state gates and visible warnings for current raw
+  analytical resistance and raw local CFD dispatch, without adding real solver
+  success, calibrated models, accepted fixtures, or final design-fitness
+  claims.
+- 0029 landed local `/api/cfd/*` web routes and a compact browser panel over
+  existing server-local CFD job records, keeping outputs raw/unvalidated and
+  leaving hosted workers, auth, cancellation, real solvers, and validation
+  deferred.
 - Focused verification after review artifacts:
   `.venv/bin/python -m pytest tests/test_closed_volume.py
   tests/test_cfd_jobs.py tests/test_resistance.py tests/test_compare.py
   tests/test_web.py -q` -> 56 passed.
-- Next local gate: receive implementation patches, run focused and broad
-  verification, publish patch summaries, and push updated workflow branches.
+- Integration verification:
+  - After landing 0032: `.venv/bin/python -m pytest tests/test_closed_volume.py
+    tests/test_cfd_jobs.py -q` -> 23 passed.
+  - After rebasing/landing 0036:
+    `.venv/bin/python -m pytest tests/test_cfd_jobs.py tests/test_resistance.py
+    tests/test_compare.py tests/test_web.py tests/test_cli.py -q` -> 78 passed.
+  - After rebasing/landing 0029:
+    `.venv/bin/python -m pytest tests/test_cfd_jobs.py tests/test_web.py
+    tests/test_resistance.py tests/test_compare.py tests/test_cli.py -q` ->
+    82 passed; `tests/test_web_browser.py -q` -> 1 passed.
+  - Final integrated trunk: `.venv/bin/python -m pytest -q` -> 192 passed;
+    `git diff --check` -> clean.
+- All three workflows are complete in Striatum and fast-forwarded into `main`.
 
 ## Completed Workflow 0027
 
