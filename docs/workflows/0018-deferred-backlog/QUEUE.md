@@ -46,8 +46,12 @@ Workflows 0019-0025 have landed on `main` and are no longer queued work:
 - 0025 CFD solver dispatch and jobs: landed local job/run/profile records,
   readiness gating, local artifact directories, unavailable solver state, mock
   failed-command state, and `kayakgen cfd prepare/status/run/profiles`; real
-  solver adapters, normalized physical outputs, web job routes, container
+  solver adapters, normalized physical outputs, hosted workers, container
   execution, and validated CFD claims remain deferred.
+- 0029 web CFD job routes: landed `/api/cfd/*` routes and a compact browser
+  panel over the local dispatch records; hosted queues, auth, cancellation
+  guarantees, web-side mesh-package creation, real solver success, and
+  calibrated or validated CFD claims remain deferred.
 
 ## 0026 - Docs Roadmap And User Guide
 
@@ -156,6 +160,9 @@ raw/unvalidated unless backed by calibration work.
 ## 0029 - Web CFD Job Routes
 
 Target RFCs: 0008, 0015, and proposed RFC 0018.
+
+Status: local filesystem route/panel slice landed in workflow 0029; remaining
+hosted-worker and real-solver work stays deferred.
 
 Purpose: expose CFD job preparation, status, and artifact inspection in the web
 frontend without implying solver success or validated physics.

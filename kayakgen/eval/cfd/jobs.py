@@ -200,6 +200,17 @@ def solver_profile_names() -> tuple[str, ...]:
     return tuple(sorted(_solver_profiles()))
 
 
+def solver_profiles() -> tuple[SolverProfile, ...]:
+    """Return built-in local dispatch profiles in deterministic name order."""
+    profiles = _solver_profiles()
+    return tuple(profiles[name] for name in sorted(profiles))
+
+
+def solver_profile_by_name(name: str) -> SolverProfile:
+    """Return a built-in local dispatch profile by public name or accepted alias."""
+    return _solver_profile_by_name(name)
+
+
 def prepare_cfd_job(
     mesh_package: Path,
     out_dir: Path,
@@ -208,6 +219,7 @@ def prepare_cfd_job(
     speed_mps: float,
     seawater_density_kg_m3: float = 1025.0,
     kinematic_viscosity_m2_s: float = 1.19e-6,
+    hull_ref: str | None = None,
 ) -> CfdJobPaths:
     """Prepare a local CFD job using a named built-in solver profile."""
     profile = _solver_profile_by_name(solver_profile_name)
@@ -215,6 +227,7 @@ def prepare_cfd_job(
         mesh_package,
         out_dir,
         profile,
+        hull_ref=hull_ref,
         speed_mps=speed_mps,
         seawater_density_kg_m3=seawater_density_kg_m3,
         kinematic_viscosity_m2_s=kinematic_viscosity_m2_s,

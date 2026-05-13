@@ -17,14 +17,27 @@ from trame.widgets import vuetify3 as v3
 
 from kayakgen.model.hull import Hull
 from kayakgen.ui.web.controllers import (
+    CFD_RAW_RESULTS_WARNING,
+    CfdWebError,
+    CfdWebStore,
     HullStore,
     analysis_lines_from_state,
     candidate_state_from_report_json,
     clamp_beam_wl_state,
     comparison_view_model_from_json,
+    cfd_error_lines_from_payload,
+    cfd_job_logs_payload,
+    cfd_job_raw_result_payload,
+    cfd_job_status_payload,
+    cfd_logs_lines_from_payload,
+    cfd_profile_names,
+    cfd_raw_result_lines_from_payload,
+    cfd_status_lines_from_payload,
+    create_cfd_job_payload,
     hull_from_web_state,
     metrics_from_state,
     register_rest_routes,
+    run_cfd_job_payload,
     validation_error_payload,
 )
 from kayakgen.ui.web.state import (
@@ -75,7 +88,11 @@ def _build_polydata(vertices: np.ndarray, faces: np.ndarray) -> vtk.vtkPolyData:
     return normals.GetOutput()
 
 
-def _make_actor(poly: vtk.vtkPolyData, rgb: tuple[float, float, float], opacity: float) -> vtk.vtkActor:
+def _make_actor(
+    poly: vtk.vtkPolyData,
+    rgb: tuple[float, float, float],
+    opacity: float,
+) -> vtk.vtkActor:
     mapper = vtk.vtkPolyDataMapper()
     mapper.SetInputData(poly)
     actor = vtk.vtkActor()
@@ -113,6 +130,20 @@ class KayakgenApp:
         self.state.comparison_lines = []
         self.state.comparison_candidate_options = []
         self.state.selected_candidate_index = 0
+        self.state.cfd_profile_options = cfd_profile_names()
+        self.state.cfd_solver_profile = (
+            self.state.cfd_profile_options[0]
+            if self.state.cfd_profile_options
+            else "unavailable-open-wetted-surface"
+        )
+        self.state.cfd_mesh_package_ref = ""
+        self.state.cfd_speed_mps = 2.5
+        self.state.cfd_job_id = ""
+        self.state.cfd_warning = CFD_RAW_RESULTS_WARNING
+        self.state.cfd_jobs_root = ""
+        self.state.cfd_status_lines = cfd_status_lines_from_payload(None)
+        self.state.cfd_logs_lines = []
+        self.state.cfd_raw_result_lines = []
 
         self._renderer = vtk.vtkRenderer()
         self._renderer.SetBackground(0.10, 0.10, 0.18)
@@ -125,6 +156,8 @@ class KayakgenApp:
         self._hull_actor: vtk.vtkActor | None = None
         self._deck_actor: vtk.vtkActor | None = None
         self._hull_store = HullStore()
+        self._cfd_store = CfdWebStore()
+        self.state.cfd_jobs_root = str(self._cfd_store.jobs_root)
         self._rebuild_scene(hull)
 
         self.ctrl.export_stl = lambda part: self._export_stl(part)
@@ -133,8 +166,17 @@ class KayakgenApp:
         self.ctrl.refresh_analysis = lambda: self._refresh_analysis()
         self.ctrl.load_comparison = lambda: self._load_comparison()
         self.ctrl.load_candidate = lambda: self._load_selected_candidate()
+        self.ctrl.prepare_cfd_job = lambda: self._prepare_cfd_job()
+        self.ctrl.refresh_cfd_job = lambda: self._refresh_cfd_job()
+        self.ctrl.run_cfd_job = lambda: self._run_cfd_job()
+        self.ctrl.load_cfd_logs = lambda: self._load_cfd_logs()
+        self.ctrl.load_cfd_raw_result = lambda: self._load_cfd_raw_result()
         self.ctrl.on_server_bind.add(
-            lambda ws_server: register_rest_routes(ws_server.app, self._hull_store)
+            lambda ws_server: register_rest_routes(
+                ws_server.app,
+                self._hull_store,
+                cfd_store=self._cfd_store,
+            )
         )
 
         self._wire_state_listeners()
@@ -267,6 +309,66 @@ class KayakgenApp:
             f"Applied sweep parameters for candidate {self.state.selected_candidate_index}"
         )
 
+    def _cfd_request_payload(self) -> dict[str, Any]:
+        return {
+            "mesh_package_ref": str(self.state.cfd_mesh_package_ref or ""),
+            "solver_profile": str(self.state.cfd_solver_profile or ""),
+            "speed_mps": self.state.cfd_speed_mps,
+            "hull_ref": self._current_hull().hash(),
+        }
+
+    def _set_cfd_error(self, exc: CfdWebError, title: str) -> None:
+        self.state.cfd_status_lines = cfd_error_lines_from_payload(exc.payload, title=title)
+
+    def _prepare_cfd_job(self) -> None:
+        try:
+            payload = create_cfd_job_payload(self._cfd_request_payload(), self._cfd_store)
+        except CfdWebError as exc:
+            self._set_cfd_error(exc, "CFD job preparation rejected")
+            return
+        self.state.cfd_job_id = payload["job_id"]
+        self.state.cfd_status_lines = cfd_status_lines_from_payload(payload)
+        self.state.cfd_logs_lines = []
+        self.state.cfd_raw_result_lines = []
+
+    def _refresh_cfd_job(self) -> None:
+        try:
+            payload = cfd_job_status_payload(str(self.state.cfd_job_id or ""), self._cfd_store)
+        except CfdWebError as exc:
+            self._set_cfd_error(exc, "CFD status unavailable")
+            return
+        self.state.cfd_status_lines = cfd_status_lines_from_payload(payload)
+
+    def _run_cfd_job(self) -> None:
+        try:
+            payload = run_cfd_job_payload(str(self.state.cfd_job_id or ""), self._cfd_store)
+        except CfdWebError as exc:
+            self._set_cfd_error(exc, "CFD run failed")
+            return
+        self.state.cfd_status_lines = cfd_status_lines_from_payload(payload)
+
+    def _load_cfd_logs(self) -> None:
+        try:
+            payload = cfd_job_logs_payload(str(self.state.cfd_job_id or ""), self._cfd_store)
+        except CfdWebError as exc:
+            self.state.cfd_logs_lines = cfd_error_lines_from_payload(
+                exc.payload,
+                title="CFD logs unavailable",
+            )
+            return
+        self.state.cfd_logs_lines = cfd_logs_lines_from_payload(payload)
+
+    def _load_cfd_raw_result(self) -> None:
+        try:
+            payload = cfd_job_raw_result_payload(str(self.state.cfd_job_id or ""), self._cfd_store)
+        except CfdWebError as exc:
+            self.state.cfd_raw_result_lines = cfd_error_lines_from_payload(
+                exc.payload,
+                title="CFD raw artifact unavailable",
+            )
+            return
+        self.state.cfd_raw_result_lines = cfd_raw_result_lines_from_payload(payload)
+
     def load_from_query(self, query: str) -> None:
         try:
             hull = decode_hull_query(query)
@@ -327,6 +429,7 @@ class KayakgenApp:
                         with v3.VTabs(v_model=("analysis_tab",)):
                             v3.VTab("Analysis", value="analysis")
                             v3.VTab("Comparison", value="comparison")
+                            v3.VTab("CFD Jobs", value="cfd")
                         with v3.VWindow(v_model=("analysis_tab",)):
                             with v3.VWindowItem(value="analysis"):
                                 with v3.VCardText():
@@ -374,6 +477,80 @@ class KayakgenApp:
                                     )
                                     v3.VCardText(
                                         "<pre>{{ comparison_lines.join('\\n') }}</pre>",
+                                        classes="font-mono text-caption",
+                                        html=True,
+                                    )
+                            with v3.VWindowItem(value="cfd"):
+                                with v3.VCardText():
+                                    v3.VSelect(
+                                        v_model=("cfd_solver_profile",),
+                                        items=("cfd_profile_options",),
+                                        label="Solver profile",
+                                        density="compact",
+                                    )
+                                    v3.VTextField(
+                                        v_model=("cfd_mesh_package_ref",),
+                                        label="Server-local mesh package path",
+                                        density="compact",
+                                    )
+                                    v3.VTextField(
+                                        v_model=("cfd_speed_mps",),
+                                        label="Speed (m/s)",
+                                        type="number",
+                                        density="compact",
+                                    )
+                                    v3.VTextField(
+                                        v_model=("cfd_job_id",),
+                                        label="Job ID",
+                                        density="compact",
+                                    )
+                                    v3.VTextField(
+                                        v_model=("cfd_jobs_root",),
+                                        label="Local CFD jobs root",
+                                        readonly=True,
+                                        density="compact",
+                                    )
+                                    v3.VBtn(
+                                        "Prepare",
+                                        click=self.ctrl.prepare_cfd_job,
+                                        density="compact",
+                                        classes="mr-2",
+                                    )
+                                    v3.VBtn(
+                                        "Run",
+                                        click=self.ctrl.run_cfd_job,
+                                        density="compact",
+                                        classes="mr-2",
+                                    )
+                                    v3.VBtn(
+                                        "Refresh",
+                                        click=self.ctrl.refresh_cfd_job,
+                                        density="compact",
+                                        classes="mr-2",
+                                    )
+                                    v3.VBtn(
+                                        "Logs",
+                                        click=self.ctrl.load_cfd_logs,
+                                        density="compact",
+                                        classes="mr-2",
+                                    )
+                                    v3.VBtn(
+                                        "Raw Result",
+                                        click=self.ctrl.load_cfd_raw_result,
+                                        density="compact",
+                                    )
+                                    v3.VCardText(
+                                        "<pre>{{ cfd_status_lines.join('\\n') }}</pre>",
+                                        classes="font-mono text-caption mt-2",
+                                        html=True,
+                                    )
+                                    v3.VCardText(
+                                        "<pre>{{ cfd_logs_lines.join('\\n') }}</pre>",
+                                        classes="font-mono text-caption",
+                                        html=True,
+                                    )
+                                    v3.VCardText(
+                                        "<pre>{{ cfd_raw_result_lines.join('\\n') }}</pre>",
                                         classes="font-mono text-caption",
                                         html=True,
                                     )

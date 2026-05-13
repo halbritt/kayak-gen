@@ -8,9 +8,13 @@ is reserved for CI.
 
 from __future__ import annotations
 
+import asyncio
+import json
+
 import pytest
 
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
+from kayakgen.eval.mesh_package import watertight_solid_profile, write_mesh_package
 from kayakgen.model.hull import Hull
 
 
@@ -19,11 +23,17 @@ pytest.importorskip("trame", reason="kayakgen[web] not installed")
 
 from kayakgen.ui.web.controllers import metrics_from_state, stl_bytes_for_part  # noqa: E402
 from kayakgen.ui.web.controllers import (  # noqa: E402
+    CFD_RAW_RESULTS_WARNING,
+    CfdWebError,
+    CfdWebStore,
     HullStore,
     analysis_lines_from_state,
     candidate_state_from_report_json,
     clamp_beam_wl_state,
     comparison_view_model_from_json,
+    cfd_error_lines_from_payload,
+    cfd_job_status_payload,
+    cfd_status_lines_from_payload,
     evaluation_payload,
     hull_from_web_state,
     job_stub_payload,
@@ -147,6 +157,8 @@ def test_create_app_does_not_start_server() -> None:
     # State should reflect the initial hull
     assert web.state.length_m == 4.5
     assert web.state.target_speed_kt == 3.5
+    assert "unavailable-open-wetted-surface" in web.state.cfd_profile_options
+    assert any(CFD_RAW_RESULTS_WARNING in line for line in web.state.cfd_status_lines)
     # Reset clears overrides
     web.state.length_m = 5.0
     web._reset()
@@ -314,3 +326,264 @@ def test_register_rest_routes_on_router_like_app() -> None:
     assert ("GET", "/api/hulls/{id}") in app.router.routes
     assert ("POST", "/api/jobs") in app.router.routes
     assert ("GET", "/api/jobs/{id}") in app.router.routes
+    assert ("GET", "/api/cfd/profiles") in app.router.routes
+    assert ("POST", "/api/cfd/jobs") in app.router.routes
+    assert ("GET", "/api/cfd/jobs/{job_id}") in app.router.routes
+    assert ("POST", "/api/cfd/jobs/{job_id}/run") in app.router.routes
+    assert ("GET", "/api/cfd/jobs/{job_id}/logs") in app.router.routes
+    assert ("GET", "/api/cfd/jobs/{job_id}/raw-result") in app.router.routes
+
+
+def test_cfd_routes_prepare_status_run_and_raw_absence(tmp_path) -> None:
+    mesh_dir = tmp_path / "mesh"
+    write_mesh_package(Hull(), mesh_dir, stations=8)
+
+    async def scenario() -> None:
+        from aiohttp import web
+        from aiohttp.test_utils import TestClient, TestServer
+
+        app = web.Application()
+        register_rest_routes(app, cfd_store=CfdWebStore(tmp_path / "jobs"))
+        client = TestClient(TestServer(app))
+        await client.start_server()
+        try:
+            profiles_response = await client.get("/api/cfd/profiles")
+            profiles = await profiles_response.json()
+            assert profiles_response.status == 200
+            assert profiles["warning"] == CFD_RAW_RESULTS_WARNING
+            assert "unavailable-open-wetted-surface" in {
+                profile["name"] for profile in profiles["profiles"]
+            }
+
+            create_response = await client.post(
+                "/api/cfd/jobs",
+                json={
+                    "mesh_package_ref": str(mesh_dir),
+                    "solver_profile": "unavailable-open-wetted-surface",
+                    "speed_mps": 2.4,
+                },
+            )
+            created = await create_response.json()
+            assert create_response.status == 201
+            assert created["run"]["status"] == "queued"
+            assert created["result_semantics"] == "raw_unvalidated"
+            assert created["warning"] == CFD_RAW_RESULTS_WARNING
+
+            job_id = created["job_id"]
+            status_response = await client.get(f"/api/cfd/jobs/{job_id}")
+            status = await status_response.json()
+            assert status_response.status == 200
+            assert status["run"]["status"] == "queued"
+
+            run_response = await client.post(f"/api/cfd/jobs/{job_id}/run")
+            run = await run_response.json()
+            assert run_response.status == 200
+            assert run["run"]["status"] == "unavailable"
+            assert run["run"]["error_kind"] == "solver_unavailable"
+            assert run["warning"] == CFD_RAW_RESULTS_WARNING
+
+            logs_response = await client.get(f"/api/cfd/jobs/{job_id}/logs")
+            logs = await logs_response.json()
+            assert logs_response.status == 404
+            assert logs["error"] == "logs_not_found"
+            assert logs["warning"] == CFD_RAW_RESULTS_WARNING
+
+            raw_response = await client.get(f"/api/cfd/jobs/{job_id}/raw-result")
+            raw = await raw_response.json()
+            assert raw_response.status == 404
+            assert raw["error"] == "raw_result_not_found"
+            assert raw["warning"] == CFD_RAW_RESULTS_WARNING
+
+            (tmp_path / "jobs" / job_id / "run.json").unlink()
+            missing_run_response = await client.get(f"/api/cfd/jobs/{job_id}")
+            missing_run = await missing_run_response.json()
+            assert missing_run_response.status == 404
+            assert missing_run["error"] == "run_record_not_found"
+        finally:
+            await client.close()
+
+    asyncio.run(scenario())
+
+
+def test_cfd_routes_readiness_unknown_profile_and_job_id_errors(tmp_path) -> None:
+    open_mesh_dir = tmp_path / "open-mesh"
+    write_mesh_package(Hull(), open_mesh_dir, stations=8)
+    mesh_dir = tmp_path / "watertight-mesh"
+    write_mesh_package(
+        Hull(),
+        mesh_dir,
+        stations=8,
+        solver_profile=watertight_solid_profile(),
+    )
+    store = CfdWebStore(tmp_path / "jobs")
+
+    async def scenario() -> None:
+        from aiohttp import web
+        from aiohttp.test_utils import TestClient, TestServer
+
+        app = web.Application()
+        register_rest_routes(app, cfd_store=store)
+        client = TestClient(TestServer(app))
+        await client.start_server()
+        try:
+            rejected_response = await client.post(
+                "/api/cfd/jobs",
+                json={
+                    "mesh_package_ref": str(mesh_dir),
+                    "solver_profile": "unavailable-watertight-solid",
+                    "speed_mps": 2.4,
+                },
+            )
+            rejected = await rejected_response.json()
+            assert rejected_response.status == 422
+            assert rejected["error"] == "mesh_readiness_rejected"
+            assert rejected["required_mesh_readiness"] == "cfd_ready"
+            assert rejected["observed_mesh_readiness"] == "stl_surface"
+            assert rejected["warning"] == CFD_RAW_RESULTS_WARNING
+
+            unknown_response = await client.post(
+                "/api/cfd/jobs",
+                json={
+                    "mesh_package_ref": str(mesh_dir),
+                    "solver_profile": "does-not-exist",
+                    "speed_mps": 2.4,
+                },
+            )
+            unknown = await unknown_response.json()
+            assert unknown_response.status == 400
+            assert unknown["error"] == "unknown_solver_profile"
+            assert "unavailable-open-wetted-surface" in unknown["available_solver_profiles"]
+
+            mismatch_response = await client.post(
+                "/api/cfd/jobs",
+                json={
+                    "mesh_package_ref": str(open_mesh_dir),
+                    "solver_profile": "unavailable-watertight-solid",
+                    "speed_mps": 2.4,
+                },
+            )
+            mismatch = await mismatch_response.json()
+            assert mismatch_response.status == 422
+            assert mismatch["error"] == "solver_profile_mismatch"
+            assert mismatch["mesh_profile_mismatch"] == {
+                "required": "watertight_solid_resistance_v1",
+                "observed": "open_wetted_surface_resistance_v1",
+            }
+        finally:
+            await client.close()
+
+    asyncio.run(scenario())
+
+    with pytest.raises(CfdWebError) as exc_info:
+        cfd_job_status_payload("../secret", store)
+    assert exc_info.value.status == 400
+    assert exc_info.value.payload["error"] == "invalid_job_id"
+
+
+def test_cfd_routes_failed_command_logs_and_artifact_bounds(tmp_path) -> None:
+    mesh_dir = tmp_path / "mesh"
+    write_mesh_package(Hull(), mesh_dir, stations=8)
+
+    async def scenario() -> None:
+        from aiohttp import web
+        from aiohttp.test_utils import TestClient, TestServer
+
+        app = web.Application()
+        register_rest_routes(app, cfd_store=CfdWebStore(tmp_path / "jobs"))
+        client = TestClient(TestServer(app))
+        await client.start_server()
+        try:
+            create_response = await client.post(
+                "/api/cfd/jobs",
+                json={
+                    "mesh_package_ref": str(mesh_dir),
+                    "solver_profile": "mock-failing-local-command",
+                    "speed_mps": 2.4,
+                },
+            )
+            created = await create_response.json()
+            assert create_response.status == 201
+            job_id = created["job_id"]
+            job_dir = created["job_dir"]
+
+            run_response = await client.post(f"/api/cfd/jobs/{job_id}/run")
+            run = await run_response.json()
+            assert run_response.status == 200
+            assert run["run"]["status"] == "failed"
+            assert run["run"]["error_kind"] == "command_failed"
+            assert "mock CFD command failed intentionally" in run["run"]["error_message"]
+
+            logs_response = await client.get(f"/api/cfd/jobs/{job_id}/logs")
+            logs = await logs_response.json()
+            assert logs_response.status == 200
+            assert logs["logs"]["stdout"]["content"] == "mock CFD command starting\n"
+            assert logs["logs"]["stderr"]["content"] == "mock CFD command failed intentionally\n"
+
+            raw_absent_response = await client.get(f"/api/cfd/jobs/{job_id}/raw-result")
+            raw_absent = await raw_absent_response.json()
+            assert raw_absent_response.status == 404
+            assert raw_absent["error"] == "raw_result_not_found"
+
+            run_path = tmp_path / "jobs" / job_id / "run.json"
+            run_data = json.loads(run_path.read_text())
+            run_data["logs"]["stdout"] = "../outside.log"
+            run_path.write_text(json.dumps(run_data, indent=2) + "\n")
+            traversal_response = await client.get(f"/api/cfd/jobs/{job_id}/logs")
+            traversal = await traversal_response.json()
+            assert traversal_response.status == 400
+            assert traversal["error"] == "artifact_path_outside_job"
+
+            run_data["status"] = "succeeded"
+            run_data["logs"] = {}
+            run_data["output_manifest"] = "raw-result.json"
+            run_path.write_text(json.dumps(run_data, indent=2) + "\n")
+            (tmp_path / "jobs" / job_id / "raw-result.json").write_text("{not-json")
+            malformed_response = await client.get(f"/api/cfd/jobs/{job_id}/raw-result")
+            malformed = await malformed_response.json()
+            assert malformed_response.status == 422
+            assert malformed["error"] == "malformed_raw_result"
+            assert malformed["artifact_ref"] == "raw-result.json"
+            assert job_dir.endswith(job_id)
+        finally:
+            await client.close()
+
+    asyncio.run(scenario())
+
+
+def test_cfd_browser_lines_keep_problem_states_raw_and_visible() -> None:
+    payload = {
+        "job": {"job_id": "cfd-test", "solver_profile": "mock-failing-local-command"},
+        "run": {
+            "job_id": "cfd-test",
+            "status": "failed",
+            "solver_profile": "mock-failing-local-command",
+            "error_kind": "command_failed",
+            "error_message": "mock failure",
+        },
+    }
+
+    lines = cfd_status_lines_from_payload(payload)
+
+    assert CFD_RAW_RESULTS_WARNING in lines
+    assert any("Status: failed" in line for line in lines)
+    assert any("Terminal problem state" in line for line in lines)
+
+    error_lines = cfd_error_lines_from_payload(
+        {
+            "error": "mesh_readiness_rejected",
+            "message": "readiness rejected",
+            "solver_profile": "unavailable-watertight-solid",
+            "required_mesh_readiness": "cfd_ready",
+            "observed_mesh_readiness": "stl_surface",
+            "mesh_profile_mismatch": {
+                "required": "watertight_solid_resistance_v1",
+                "observed": "open_wetted_surface_resistance_v1",
+            },
+        },
+        title="CFD job preparation rejected",
+    )
+    assert "CFD job preparation rejected" in error_lines
+    assert any(
+        "Readiness: required cfd_ready, observed stl_surface" in line
+        for line in error_lines
+    )

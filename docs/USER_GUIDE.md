@@ -311,8 +311,33 @@ kayakgen serve hull.json --host 127.0.0.1 --port 8080
 ```
 
 Install `kayakgen[web]` first, then open the printed local URL. The web shell
-supports interactive hull inspection and compact analysis views, but full REST
-job routes, hosted-demo acceptance, and browser parity are not complete.
+supports interactive hull inspection, compact analysis views, comparison report
+loading, and a local CFD job panel. Hosted-demo acceptance, full browser
+parity, hosted CFD workers, cancellation guarantees, authentication, and real
+solver adapters are not complete.
+
+The web CFD panel and `/api/cfd/*` routes use the same local filesystem job
+records as `kayakgen cfd`. They accept an explicit server-local
+`mesh_package_ref`, prepare jobs under the web server's local CFD jobs root,
+run the current local adapter synchronously, and expose status, logs, and raw
+artifacts when present. All CFD route and panel output is raw and unvalidated;
+unavailable and failed states are terminal problem states, not completed solver
+work.
+
+Current local routes:
+
+```text
+GET  /api/cfd/profiles
+POST /api/cfd/jobs
+GET  /api/cfd/jobs/{job_id}
+POST /api/cfd/jobs/{job_id}/run
+GET  /api/cfd/jobs/{job_id}/logs
+GET  /api/cfd/jobs/{job_id}/raw-result
+```
+
+Set `KAYAKGEN_WEB_CFD_JOBS_ROOT` before `kayakgen serve` to choose the local
+job-artifact root. Web-side mesh-package creation remains a separate follow-up
+work item; create a mesh package with `kayakgen mesh-package` first.
 
 ## Mesh And CFD Readiness Caveats
 

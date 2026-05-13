@@ -16,6 +16,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   with forbidden-promotion tests for raw CFD, validation-only fixtures,
   uncalibrated resistance, calibrated prediction evidence, and final
   design-fitness claims.
+- Added workflow 0029's local web CFD job slice: `/api/cfd/*` routes and a
+  compact Trame panel now expose server-local CFD profiles, job preparation,
+  status, synchronous local adapter runs, bounded logs, and raw-result lookup
+  over RFC 0015 job records while keeping all output raw and unvalidated.
 - Documented workflow 0027's closed-volume safe slice: serializable explicit
   synthetic diagnostics and evidence-based watertight dispatch rejection may
   land, while generated hull-plus-deck closure and `cfd_ready` handoff remain

@@ -20,7 +20,9 @@ from kayakgen.eval.cfd.jobs import (
     read_local_status,
     run_cfd_job,
     run_local_job,
+    solver_profile_by_name,
     solver_profile_names,
+    solver_profiles,
     unavailable_open_surface_profile,
     unavailable_watertight_solid_profile,
 )
@@ -55,7 +57,9 @@ __all__ = [
     "read_local_status",
     "run_cfd_job",
     "run_local_job",
+    "solver_profile_by_name",
     "solver_profile_names",
+    "solver_profiles",
     "unavailable_open_surface_profile",
     "unavailable_watertight_solid_profile",
 ]

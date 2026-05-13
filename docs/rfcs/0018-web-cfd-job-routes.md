@@ -1,9 +1,15 @@
 # RFC 0018: Web CFD Job Routes
 
-Status: proposed
+Status: partial local-filesystem slice
 Date: 2026-05-13
 Context: builds on RFC 0008 web frontend direction, RFC 0010 mesh packages,
 and RFC 0015 local CFD job records.
+
+Implementation note: workflow 0029 landed the first local web route slice on
+2026-05-13. The implementation exposes `/api/cfd/*` over server-local
+filesystem job records and a compact browser panel. Hosted workers, auth,
+cancellation guarantees, real solver adapters, web-side mesh-package creation,
+and validated or calibrated CFD claims remain deferred.
 
 ## Problem
 
@@ -81,13 +87,33 @@ payloads.
 - The implementation can run against local filesystem jobs without hosted
   infrastructure.
 
+## Landed Local Slice
+
+The first slice keeps the route layer as an adapter over RFC 0015 records. It
+lists built-in local solver profiles, prepares jobs from an explicit
+server-local `mesh_package_ref`, reads persisted `CfdJobSpec` and
+`CfdRunRecord` files, runs the local adapter synchronously, and returns bounded
+log/raw-result artifact wrappers.
+
+Every job, run, log, raw-result, and structured error payload includes
+`result_semantics: raw_unvalidated` and the plain warning that CFD results are
+raw and unvalidated. The browser panel renders queued, unavailable, failed, and
+future succeeded records as local dispatch state, with unavailable and failed
+states shown as terminal problem states.
+
+The web server derives one local CFD job root per process, defaulting to
+`.kayakgen-web-cfd-jobs` or `KAYAKGEN_WEB_CFD_JOBS_ROOT` when set. Job IDs are
+validated as names, and log/raw-result references are resolved inside the
+selected job directory before reading.
+
 ## Open Questions
 
-- Should `run` be synchronous for the first local web slice, or should it always
-  enqueue even when local dispatch is used?
-- What route should own mesh-package creation: existing mesh APIs, a new CFD
-  preparation route, or an explicit user-provided package path?
-- How should logs be paged or truncated for large solver outputs?
+- When should `run` move from synchronous local adapter execution to durable
+  background scheduling?
+- What route should own web-side mesh-package creation: existing mesh APIs or a
+  new CFD preparation route?
+- How should logs be paged or streamed once real solver adapters can produce
+  larger output?
 - Should browser state poll job records, use server-sent events, or defer live
   progress until hosted workers exist?
 

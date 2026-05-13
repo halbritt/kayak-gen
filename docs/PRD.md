@@ -35,13 +35,13 @@ This section describes current behavior, not the whole roadmap.
 - **Hydrostatics, computed from the integrated geometry** — not from a formula envelope. Delivered readouts include displaced volume, displaced mass at seawater density, wetted surface area, waterplane area, longitudinal centre of buoyancy, and primary metacentric height GM₀. Upright trim equilibrium exists for explicit component load cases. High-angle GZ / secondary-stability curves are not currently available because the project has not accepted and implemented a closed-volume body model for heeled integration.
 - **Resistance estimation at user-selected paddling speeds.** Viscous resistance via the ITTC-57 friction line; wave-making resistance via the Michell (thin-ship) integral. This is an exploratory analytical screening filter for comparing candidates, not a calibrated final prediction.
 - **Speed sweep curve** broken into viscous and wave components, plotted against speed in knots and Froude number, with the user's target speed marked.
-- **Local CFD dispatch state.** Current CFD support is job/run/profile plumbing with readiness gates, local artifact directories, unavailable solver state, and mock failed-command state. It does not run OpenFOAM, SU2, hosted workers, Dockerized solvers, or any real CFD adapter.
+- **Local CFD dispatch state.** Current CFD support is job/run/profile plumbing with readiness gates, local artifact directories, unavailable solver state, mock failed-command state, CLI commands, and local web job routes. It does not run OpenFOAM, SU2, hosted workers, Dockerized solvers, or any real CFD adapter.
 
 ### Frontends and tooling
 
 - **Headless CLI.** `kayakgen generate / evaluate / sweep / view` makes every capability scriptable from a terminal, a notebook, or CI. The GUI is one consumer of the core, not its entry point.
 - **Desktop GUI.** PyQt6 + matplotlib + PyVista. Sliders for all design parameters; live 2D cross-section, sheer plan, and plan-view previews; a separate interactive 3D window with hull+deck rendered as distinct surfaces and smooth shading.
-- **Portable web frontend.** Browser-based UI built on Trame, with parameter editing, rendered hull inspection, compact analysis views, comparison report loading, and optional browser smoke coverage. Full desktop parity, console-clean Lighthouse acceptance, hosted-demo acceptance, and web CFD job routes remain roadmap items.
+- **Portable web frontend.** Browser-based UI built on Trame, with parameter editing, rendered hull inspection, compact analysis views, comparison report loading, local filesystem CFD job inspection, and optional browser smoke coverage. Full desktop parity, console-clean Lighthouse acceptance, hosted-demo acceptance, hosted CFD workers, and real solver adapters remain roadmap items.
 - **Installation and local operation.** The Python package and CLI run locally; deployment and packaging work continues through RFC-backed slices.
 
 ## Roadmap And Deferrals
@@ -51,7 +51,7 @@ These capabilities remain in scope, but they should not be described as delivere
 - Watertight, closed-volume hull-plus-deck geometry with exact end-cap semantics and a named readiness profile suitable for real solver dispatch.
 - Calibrated resistance prediction backed by licensed, relevant kayak-scale validation fixtures.
 - High-angle GZ / secondary-stability curves based on an accepted closed-volume integration model.
-- Real CFD solver adapters, normalized solver outputs, Docker/container execution, hosted workers, and browser job-management routes.
+- Real CFD solver adapters, normalized solver outputs, Docker/container execution, hosted workers, and browser job-management beyond the local filesystem route/panel slice.
 - Full browser parity with the desktop application, including hosted-demo acceptance and any remaining real-browser/Lighthouse criteria.
 - Generative search and multi-objective optimization over reproducible sweep and candidate records.
 

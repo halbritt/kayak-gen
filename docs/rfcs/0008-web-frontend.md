@@ -196,9 +196,10 @@ POST /api/jobs                body: {hull, evaluator: "rans"}
 GET  /api/jobs/<id>           → {status, result?}
 ```
 
-Implementation deferred to the CFD RFC; the route stubs return 501.
-Naming and contract are fixed here so the frontend can be designed
-against them.
+Implementation of these generic heavy-CFD stubs remains deferred; the route
+stubs return 501. RFC 0018 later added CFD-specific local filesystem routes
+under `/api/cfd/*` for profile, job, status, log, and raw-artifact inspection
+without claiming hosted worker execution or validated CFD output.
 
 ### 7. Deployment
 

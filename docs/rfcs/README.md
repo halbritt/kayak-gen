@@ -31,7 +31,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0015](0015-cfd-solver-dispatch-and-jobs.md) | partial local-dispatch | CFD solver dispatch and job artifacts |
 | [0016](0016-closed-volume-geometry.md) | proposed safe-slice | Closed-volume geometry contract |
 | [0017](0017-first-real-cfd-adapter.md) | proposed | First real CFD adapter |
-| [0018](0018-web-cfd-job-routes.md) | proposed | Web CFD job routes |
+| [0018](0018-web-cfd-job-routes.md) | partial local-web-dispatch | Web CFD job routes |
 | [0019](0019-resistance-calibration-fixtures.md) | proposed | Resistance calibration fixtures |
 | [0020](0020-high-angle-gz-secondary-stability.md) | proposed | High-angle GZ and secondary stability |
 | [0021](0021-closed-volume-self-intersection-diagnostics.md) | landed synthetic-diagnostic | Closed-volume self-intersection diagnostics |
@@ -73,13 +73,19 @@ future dispatch, while current generated packages remain open-surface and not
 `cfd_ready`. RFC 0015 has landed only as a deterministic local-dispatch slice:
 serializable job/run records, solver profiles, local job directories,
 profile/readiness gating, CLI prepare/status/run/profiles surfaces, unavailable
-solver state, and mock failed-command state. It does not include OpenFOAM, SU2,
-hosted workers, Docker/container execution, web job routes, normalized solver
-outputs, watertight geometry, or calibrated/validated CFD claims; all CFD
-dispatch output remains raw and unvalidated.
+solver state, and mock failed-command state. RFC 0018 has landed only as a
+local web-dispatch slice: `/api/cfd/*` routes and a compact browser panel
+expose server-local CFD profiles, job preparation, status, synchronous local
+adapter runs, logs, and raw-result lookup over RFC 0015 job records. These
+slices do not include OpenFOAM, SU2, hosted workers, Docker/container
+execution, auth, cancellation guarantees, web-side mesh-package creation, real
+solver success, normalized solver outputs, watertight geometry, or
+calibrated/validated CFD claims; all CFD dispatch output remains raw and
+unvalidated.
 
-RFCs 0016-0030 are mostly proposed, not accepted implementation commitments.
-RFCs 0016-0020 split the major remaining deferrals into broad design documents:
+RFCs 0016-0030 are mostly proposed, not accepted implementation commitments
+except for the explicitly marked landed or partial safe slices. RFCs 0016-0020
+split the major remaining deferrals into broad design documents:
 closed-volume geometry, first real CFD adapter, web CFD job routes, resistance
 calibration fixtures, and high-angle `GZ` / secondary stability. RFCs
 0021-0030 narrow the next implementation slices and may revise or supersede
