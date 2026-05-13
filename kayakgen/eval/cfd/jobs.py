@@ -456,6 +456,123 @@ def _validate_mesh_package(
             "mesh package is missing referenced artifact(s): " + ", ".join(missing)
         )
 
+    if _solver_profile_requires_watertight_evidence(solver_profile, manifest):
+        evidence = _watertight_dispatch_evidence(mesh_dir, manifest, solver_profile)
+        if not evidence.accepted:
+            detail = f": {evidence.reason}" if evidence.reason else ""
+            raise CfdDispatchError(
+                "watertight dispatch requires profile-scoped closed-volume "
+                f"diagnostic evidence{detail}"
+            )
+
+
+class _WatertightDispatchEvidence(BaseModel):
+    """Internal result for profile-scoped closed-volume dispatch evidence."""
+
+    accepted: bool
+    reason: str | None = None
+
+
+def _solver_profile_requires_watertight_evidence(
+    solver_profile: SolverProfile,
+    manifest: MeshPackageManifest,
+) -> bool:
+    if solver_profile.required_mesh_readiness == "cfd_ready":
+        return True
+    if solver_profile.required_mesh_profile == "watertight_solid_resistance_v1":
+        return True
+    return bool(manifest.solver_profile.requires_watertight)
+
+
+def _watertight_dispatch_evidence(
+    mesh_dir: Path,
+    manifest: MeshPackageManifest,
+    solver_profile: SolverProfile,
+) -> _WatertightDispatchEvidence:
+    diagnostic_refs = _profile_diagnostic_refs(manifest)
+    if not diagnostic_refs:
+        return _WatertightDispatchEvidence(
+            accepted=False,
+            reason="no referenced diagnostics were found",
+        )
+
+    reasons: list[str] = []
+    for ref in diagnostic_refs:
+        path = mesh_dir / ref
+        try:
+            evidence = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            reasons.append(f"{ref}: malformed diagnostic JSON")
+            continue
+
+        module_result = _closed_volume_module_accepts(evidence, solver_profile)
+        if module_result.accepted:
+            return module_result
+        if module_result.reason:
+            reasons.append(f"{ref}: {module_result.reason}")
+            continue
+
+        reasons.append(
+            f"{ref}: no closed-volume contract validator accepted diagnostic evidence"
+        )
+
+    return _WatertightDispatchEvidence(accepted=False, reason="; ".join(reasons))
+
+
+def _profile_diagnostic_refs(manifest: MeshPackageManifest) -> list[str]:
+    manifest_data = manifest.model_dump(mode="python")
+    refs: list[str] = []
+    refs.extend(str(ref) for ref in manifest.quality_reports.values())
+    refs.extend(_diagnostic_refs_from_mapping(manifest_data))
+    return list(dict.fromkeys(refs))
+
+
+def _diagnostic_refs_from_mapping(value: Any, *, parent_key: str = "") -> list[str]:
+    refs: list[str] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            key_text = str(key)
+            combined_key = f"{parent_key}.{key_text}" if parent_key else key_text
+            refs.extend(_diagnostic_refs_from_mapping(child, parent_key=combined_key))
+    elif isinstance(value, (list, tuple)):
+        for child in value:
+            refs.extend(_diagnostic_refs_from_mapping(child, parent_key=parent_key))
+    elif isinstance(value, str) and "diagnostic" in parent_key.lower():
+        refs.append(value)
+    return refs
+
+
+def _closed_volume_module_accepts(
+    evidence: dict[str, Any],
+    solver_profile: SolverProfile,
+) -> _WatertightDispatchEvidence:
+    try:
+        from kayakgen.eval import closed_volume
+    except ImportError:
+        return _WatertightDispatchEvidence(accepted=False)
+
+    validator = getattr(closed_volume, "dispatch_evidence_satisfies_profile", None)
+    if validator is None:
+        return _WatertightDispatchEvidence(accepted=False)
+
+    try:
+        accepted = bool(
+            validator(
+                evidence,
+                solver_profile.required_mesh_profile,
+                solver_profile.required_mesh_readiness,
+            )
+        )
+    except (TypeError, ValueError, AttributeError) as exc:
+        return _WatertightDispatchEvidence(accepted=False, reason=str(exc))
+
+    if accepted:
+        return _WatertightDispatchEvidence(accepted=True)
+    return _WatertightDispatchEvidence(
+        accepted=False,
+        reason="closed-volume module rejected diagnostic evidence",
+    )
+
 
 def _validate_positive_job_inputs(
     *,

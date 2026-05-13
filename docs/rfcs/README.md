@@ -29,7 +29,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0013](0013-pareto-frontier-comparison-ui.md) | landed report/web-slice | Pareto frontier and candidate comparison UI |
 | [0014](0014-generalized-trim-and-gz-stability.md) | partial trim-slice | Generalized trim and high-angle GZ stability |
 | [0015](0015-cfd-solver-dispatch-and-jobs.md) | partial local-dispatch | CFD solver dispatch and job artifacts |
-| [0016](0016-closed-volume-geometry.md) | proposed | Closed-volume geometry contract |
+| [0016](0016-closed-volume-geometry.md) | proposed safe-slice | Closed-volume geometry contract |
 | [0017](0017-first-real-cfd-adapter.md) | proposed | First real CFD adapter |
 | [0018](0018-web-cfd-job-routes.md) | proposed | Web CFD job routes |
 | [0019](0019-resistance-calibration-fixtures.md) | proposed | Resistance calibration fixtures |
@@ -71,12 +71,21 @@ dispatch output remains raw and unvalidated.
 RFCs 0016-0020 are proposed, not accepted implementation commitments. They
 break the major remaining deferrals into explicit design documents:
 closed-volume geometry, first real CFD adapter, web CFD job routes, resistance
-calibration fixtures, and high-angle `GZ` / secondary stability. Hosted demo
-deployment, full plot/dashboard parity, remaining legacy RFC deferrals,
-high-angle `GZ` stability, resistance calibration, watertight solid geometry,
-and real CFD solver dispatch remain queued in
+calibration fixtures, and high-angle `GZ` / secondary stability. Workflow 0027
+may land only RFC 0016's synthetic safe slice: serializable explicit
+closed-volume diagnostics, valid/open/nonmanifold synthetic fixtures, and
+evidence-based rejection of forged watertight readiness. Generated
+hull-plus-deck closed bodies, any `cfd_ready` handoff, high-angle `GZ`
+enablement, volume meshing, real solver readiness, calibrated drag, and final
+design fitness remain deferred until RFC 0016 specifies bow/stern caps, plumb
+endpoint semantics, sheerline/deck join, waterline semantics, outward normals,
+signed volume, body-level manifold authority, and serialized closure
+tolerances. Hosted demo deployment, full plot/dashboard parity, remaining
+legacy RFC deferrals, high-angle `GZ` stability, resistance calibration,
+watertight solid geometry, and real CFD solver dispatch remain queued in
 `docs/workflows/0018-deferred-backlog/QUEUE.md`. High-angle `GZ` remains
-unavailable because a closed-volume body for heeled integration is not defined.
+unavailable because a generated closed-volume body for heeled integration is
+not defined.
 
 For current user-facing commands and limitations, start with
 [`docs/USER_GUIDE.md`](../USER_GUIDE.md).

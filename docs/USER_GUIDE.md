@@ -197,6 +197,23 @@ candidate with readiness `cfd_surface_candidate`, not `cfd_ready`. The
 remain below that readiness because the writer emits separate open surfaces,
 not a closed hull/deck solid.
 
+## Synthetic Closed-Volume Diagnostics
+
+Workflow 0027 introduces a narrow diagnostic contract for explicit synthetic
+triangle meshes. These diagnostics are serializable and can distinguish valid
+closed synthetic bodies from open or nonmanifold synthetic fixtures.
+
+The contract requires zero body-level boundary edges, zero body-level
+nonmanifold edges, and positive signed volume with outward normals before a
+synthetic body can report `closed_volume`. The diagnostic artifact always keeps
+`cfd_ready` false. It does not build a closed body from generated kayak hulls,
+does not validate generated hull-plus-deck closure, and does not make a
+watertight solver handoff.
+
+Generated mesh packages remain open-surface artifacts. Treat their hull and
+deck STLs as inspection and packaging surfaces, not as a closed volume for
+high-angle stability or watertight CFD.
+
 ### `cfd profiles`
 
 List built-in local dispatch profiles:

@@ -8,6 +8,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Documented workflow 0027's closed-volume safe slice: serializable explicit
+  synthetic diagnostics and evidence-based watertight dispatch rejection may
+  land, while generated hull-plus-deck closure and `cfd_ready` handoff remain
+  deferred pending RFC 0016 policy decisions.
 - Scaffolded queued roadmap workflows 0027-0031:
   - 0027 closed-volume geometry contract.
   - 0028 real CFD solver adapter.

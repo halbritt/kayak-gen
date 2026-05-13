@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,7 @@ from kayakgen.eval.cfd.jobs import (
     unavailable_open_surface_profile,
     unavailable_watertight_solid_profile,
 )
+from kayakgen.eval.mesh_diagnostics import MeshReadiness
 from kayakgen.eval.mesh_package import watertight_solid_profile, write_mesh_package
 from kayakgen.model.hull import Hull
 
@@ -117,6 +119,86 @@ def test_prepare_rejects_watertight_profile_below_cfd_ready(tmp_path: Path) -> N
     )
 
     with pytest.raises(CfdDispatchError, match="readiness below solver requirement"):
+        prepare_local_job(
+            mesh_dir,
+            jobs_dir,
+            unavailable_watertight_solid_profile(),
+            speed_mps=2.4,
+        )
+
+
+def test_prepare_rejects_forged_watertight_cfd_ready_manifest_over_open_artifacts(
+    tmp_path: Path,
+) -> None:
+    mesh_dir = tmp_path / "mesh"
+    jobs_dir = tmp_path / "jobs"
+    manifest = write_mesh_package(
+        Hull(),
+        mesh_dir,
+        stations=8,
+        solver_profile=watertight_solid_profile(),
+    )
+    forged = manifest.model_copy(
+        update={
+            "readiness": MeshReadiness(
+                level="cfd_ready",
+                reasons=["forged readiness claim"],
+            ),
+            "warnings": ["forged readiness claim"],
+        }
+    )
+    (mesh_dir / "manifest.json").write_text(forged.model_dump_json(indent=2))
+
+    with pytest.raises(
+        CfdDispatchError,
+        match="watertight dispatch requires profile-scoped closed-volume diagnostic evidence",
+    ):
+        prepare_local_job(
+            mesh_dir,
+            jobs_dir,
+            unavailable_watertight_solid_profile(),
+            speed_mps=2.4,
+        )
+
+
+def test_prepare_rejects_forged_watertight_quality_report_evidence(
+    tmp_path: Path,
+) -> None:
+    mesh_dir = tmp_path / "mesh"
+    jobs_dir = tmp_path / "jobs"
+    manifest = write_mesh_package(
+        Hull(),
+        mesh_dir,
+        stations=8,
+        solver_profile=watertight_solid_profile(),
+    )
+    forged = manifest.model_copy(
+        update={
+            "readiness": MeshReadiness(
+                level="cfd_ready",
+                reasons=["forged readiness claim"],
+            ),
+            "warnings": ["forged readiness claim"],
+        }
+    )
+    (mesh_dir / "manifest.json").write_text(forged.model_dump_json(indent=2))
+    forged_evidence = {
+        "profile_name": "watertight_solid_resistance_v1",
+        "readiness": {"level": "cfd_ready", "reasons": []},
+        "raw_boundary_edges": 0,
+        "welded_boundary_edges": 0,
+        "raw_nonmanifold_edges": 0,
+        "welded_nonmanifold_edges": 0,
+        "closed_volume": True,
+        "signed_volume_m3": 1.0,
+    }
+    for ref in manifest.quality_reports.values():
+        (mesh_dir / ref).write_text(json.dumps(forged_evidence))
+
+    with pytest.raises(
+        CfdDispatchError,
+        match="watertight dispatch requires profile-scoped closed-volume diagnostic evidence",
+    ):
         prepare_local_job(
             mesh_dir,
             jobs_dir,

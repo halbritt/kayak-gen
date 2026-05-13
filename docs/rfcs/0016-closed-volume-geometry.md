@@ -1,6 +1,6 @@
 # RFC 0016: Closed-Volume Geometry
 
-Status: proposed
+Status: proposed safe-slice
 Date: 2026-05-13
 Context: builds on RFC 0004 plumb-bow ambiguity, RFC 0010 mesh readiness
 profiles, RFC 0014 high-angle stability boundary, and RFC 0015 solver dispatch
@@ -44,7 +44,36 @@ claiming either capability in this RFC.
 
 ## Proposal
 
-Add a closed-volume geometry layer distinct from the display mesh:
+Add a closed-volume geometry layer distinct from the display mesh. Workflow
+0027 may land only the ledger-constrained safe slice: serializable explicit
+synthetic triangle-mesh bodies, diagnostics for valid/open/nonmanifold
+synthetic fixtures, and evidence-based dispatch rejection for forged
+watertight readiness. It must not claim generated hull-plus-deck closure or
+`cfd_ready` handoff.
+
+The safe-slice body type is explicitly synthetic:
+
+```python
+ClosedVolumeBody(
+    body_id: str,
+    body_type: Literal["explicit_synthetic_triangle_mesh"],
+    policy: ClosedVolumePolicy,
+    parts: tuple[ClosedSurfacePart, ...],
+)
+```
+
+The synthetic policy records `profile_name =
+"explicit_synthetic_closed_volume_v1"`, `waterline_semantics =
+"metadata_only"`, `cap_policy = "not_applicable_explicit_mesh"`,
+`deck_join_policy = "not_applicable_explicit_mesh"`, `normal_orientation =
+"outward_positive_signed_volume"`, and `cfd_readiness_policy =
+"never_claim_cfd_ready"`. Diagnostics are serializable and authoritative only
+for the assembled synthetic body. Acceptance as `closed_volume` requires zero
+body-level raw or tolerance-welded boundary edges, zero body-level raw or
+tolerance-welded nonmanifold edges, no nonfinite/invalid/degenerate geometry,
+and positive signed volume above the serialized signed-volume tolerance.
+
+The future generated-body contract remains separate:
 
 ```python
 ClosedVolumeBody(
@@ -58,10 +87,11 @@ ClosedVolumeBody(
 )
 ```
 
-The initial body should be an evaluation body derived from the parametric hull
+The eventual generated evaluation body must be derived from the parametric hull
 and deck definitions, not a solver-specific case directory. It may later feed a
 mesh package, but it must stand on its own as the named body used for volume and
-heel integration.
+heel integration. That generated body is deferred until the policy decisions
+below are fully specified.
 
 Closure policy records:
 
@@ -72,9 +102,25 @@ Closure policy records:
 - tolerances for vertex welding, face degeneracy, and signed volume checks.
 
 Diagnostics report signed volume, boundary edges, nonmanifold edges,
-self-intersection checks when available, part list, and coordinate bounds. A
-body may be available for `closed_volume_candidate` calculations before it is
-accepted as `cfd_ready` for any watertight solver profile.
+self-intersection checks when available, part list, and coordinate bounds.
+Diagnostics must echo the exact tolerances used, including vertex welding,
+degenerate face area, cap/join matching when applicable, self-intersection
+availability/status, and signed-volume tolerance. A body may be available for
+closed-volume diagnostics before any future solver profile consumes it, but the
+workflow 0027 safe slice never promotes a body to `cfd_ready`.
+
+Generated hull-plus-deck closed bodies and any `cfd_ready` handoff are
+explicitly deferred until all of the following are specified and tested:
+
+- bow and stern cap policy;
+- exact plumb endpoint semantics;
+- sheerline and deck-join behavior, including `beam_wl_m != beam_oa_m`;
+- waterline semantics as metadata or geometric cut boundary;
+- outward normal orientation;
+- positive signed-volume acceptance;
+- body-level manifold checks as the only readiness authority;
+- serialized closure tolerances for welding, degeneracy, joins/caps, and
+  signed volume.
 
 ## Acceptance Criteria
 
@@ -82,9 +128,14 @@ accepted as `cfd_ready` for any watertight solver profile.
 - Diagnostics reject open surfaces and report closure failures explicitly.
 - The closed-volume body is separate from current display meshes and mesh
   package surfaces.
-- End-cap and sheerline closure choices are recorded in metadata.
-- The default generated hull can be evaluated for closure diagnostics without
-  changing current STL export behavior.
+- The synthetic safe slice records explicit non-applicable cap/deck policies
+  and `never_claim_cfd_ready` metadata.
+- Synthetic diagnostics require zero body-level boundary/nonmanifold edges and
+  positive signed volume for `closed_volume` readiness.
+- Generated mesh packages remain open-surface artifacts and are not relabeled
+  as closed-volume or `cfd_ready` outputs.
+- Dispatch preparation rejects forged or hand-edited watertight manifests whose
+  readiness evidence does not satisfy the selected solver profile.
 - Tests cover a valid synthetic closed body, an open body, and a nonmanifold
   body.
 
@@ -100,14 +151,19 @@ accepted as `cfd_ready` for any watertight solver profile.
 
 ## Implementation Path
 
-- Step 1 - Record the closure policy decision for bow, stern, deck join, and
-  sheerline semantics.
-- Step 2 - Add closed-volume body, part, policy, and diagnostics data models.
-- Step 3 - Add a deterministic body builder behind an opt-in API and CLI check.
-- Step 4 - Add synthetic validation fixtures before using generated hulls as
-  acceptance evidence.
-- Step 5 - Wire successful diagnostics into future high-angle stability and
-  watertight CFD work only by explicit dependency.
+- Step 1 - Land serializable synthetic closed-volume body, part, policy, and
+  diagnostics data models.
+- Step 2 - Add synthetic validation fixtures for valid, open, and nonmanifold
+  explicit triangle meshes.
+- Step 3 - Add evidence-based dispatch rejection for forged watertight
+  readiness manifests.
+- Step 4 - Record the generated-body closure policy decision for bow, stern,
+  deck join, sheerline, waterline, normals, signed volume, body-level manifold
+  authority, and serialized tolerances.
+- Step 5 - Add a deterministic generated-body builder only after Step 4 is
+  complete.
+- Step 6 - Wire successful generated-body diagnostics into future high-angle
+  stability and watertight CFD work only by explicit dependency.
 
 ## Domain Modeling
 
