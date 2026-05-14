@@ -1,6 +1,6 @@
 # RFC 0018: Web CFD Job Routes
 
-Status: partial local-filesystem slice
+Status: partial local-web-dispatch
 Date: 2026-05-13
 Context: builds on RFC 0008 web frontend direction, RFC 0010 mesh packages,
 and RFC 0015 local CFD job records.

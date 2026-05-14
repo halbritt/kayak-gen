@@ -1,6 +1,6 @@
 # RFC 0011: Hydrostatic Stability and Load Cases
 
-Status: landed-equilibrium-sinkage-plus-trim-slice
+Status: landed equilibrium-sinkage + trim-slice
 Date: 2026-05-13
 Context: `kayakgen.eval.hydrostatics` computes integrated hydrostatics and
 `GM0_m`; `kayakgen.eval.contract.GZCurve` is reserved for stability.

@@ -1,6 +1,6 @@
 # RFC 0005: Resistance Estimation (Michell Integral + ITTC Friction)
 
-Status: landed-raw-filter
+Status: landed raw-filter
 Date: 2026-05-09
 Context: generator.py, gui.py; follows RFC 0003
 

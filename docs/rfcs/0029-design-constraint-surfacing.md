@@ -1,6 +1,6 @@
 # RFC 0029: Design Constraint Surfacing and Validity Metadata
 
-Status: proposed
+Status: proposed background
 Date: 2026-05-13
 Context: closes deferred RFC 0006 GUI/web/CLI surfacing and validity metadata;
 source reference is `docs/design/kayak_hull_design_constraints.md`.

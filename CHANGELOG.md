@@ -108,6 +108,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Changed
 
+- Aligned individual RFC `Status:` headers with the sequential RFC index for
+  previously landed/partial slices, including RFC 0021's landed
+  self-intersection diagnostic status, and clarified workflow 0034/0035 review
+  verdict semantics so pre-implementation gaps route to findings ledgers rather
+  than dead-end review revisions.
 - Marked RFC 0031 as the accepted implementation target for workflow 0042 and
   clarified in the RFC index that RFC 0029 remains background for that
   narrowed revision slice.

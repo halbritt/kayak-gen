@@ -618,5 +618,21 @@ Updated: 2026-05-14
   `striatum/0034-watertight-volume-mesh-handoff` and workflow 0035
   (`run_cc879e1c30fa48d79fc1112669eb623c`) on
   `striatum/0035-high-angle-gz-generated-body-handoff`.
-- Next operator actions: commit/push/fast-forward `main`, then launch all six
-  first-pass review lanes for 0034 and 0035 in parallel.
+- 2026-05-14T07:56Z: all six first-pass review lanes for 0034 and 0035 were
+  launched in parallel. The Gemini Pro lanes exhausted quota; fallback attempts
+  on `gemini-2.5-flash` also exhausted quota. Claude/Codex traceability and
+  ops artifacts were produced, but several reviewers used `needs_revision`
+  solely because the queued RFC slice was not yet implemented. Operator
+  disposition: treat that as a scaffold/prompt defect, clarify review verdict
+  semantics, and ask the assigned reviewers to revise under the clarified
+  pre-implementation contract rather than editing their findings manually.
+- 2026-05-14T08:02Z: RFC status headers were aligned with the RFC index for
+  the landed/partial slices that had drifted, including RFC 0021's landed
+  synthetic-diagnostic status. Workflow 0034/0035 first-pass review prompts now
+  say to use `accept_with_findings` for implementable gaps and reserve
+  `needs_revision` for RFC/workflow scaffold contradictions, missing context,
+  or impossible/unsafe scope.
+- Next operator actions: commit/push/fast-forward `main`, rebase/update the
+  0034 and 0035 worktrees with the scaffold clarification, rerun affected
+  review artifacts, publish valid first-pass reviews, then continue to the
+  ledgers and implementation lanes with maximum parallelism.

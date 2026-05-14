@@ -1,6 +1,6 @@
 # RFC 0013: Pareto Frontier and Candidate Comparison UI
 
-Status: landed-report-web-slice
+Status: landed report/web-slice
 Date: 2026-05-13
 Context: builds on RFC 0009 sweep records, RFC 0010 mesh diagnostics, RFC 0011
 stability/load cases, RFC 0012 resistance metadata, and RFC 0008 web frontend.

@@ -1,6 +1,6 @@
 # RFC 0021: Closed-Volume Self-Intersection Diagnostics
 
-Status: proposed
+Status: landed synthetic-diagnostic
 Date: 2026-05-13
 Context: follows RFC 0016 closed-volume geometry and workflow 0027 findings.
 

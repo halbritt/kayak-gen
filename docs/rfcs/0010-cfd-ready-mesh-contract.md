@@ -1,6 +1,6 @@
 # RFC 0010: CFD-Ready Mesh Contract
 
-Status: landed-package-profile
+Status: landed package/profile
 Date: 2026-05-13
 Context: builds on RFC 0004 plumb-bow ambiguity, RFC 0007 `HullGeometry`, RFC
 0008 job stubs, and the reserved `kayakgen.eval.cfd` boundary.

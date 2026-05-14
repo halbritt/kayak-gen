@@ -1,6 +1,6 @@
 # RFC 0006: Hull Design Constraints — Canonical Parameter Space and Class Presets
 
-Status: partial
+Status: partial safe-slice
 Date: 2026-05-09
 Context: generator.py, gui.py; informs RFC 0005 (resistance) and any
 future optimizer RFC. Source: `kayak_hull_design_constraints.md`
