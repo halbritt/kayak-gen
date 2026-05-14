@@ -8,6 +8,13 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Scaffolded workflow 0051 as the first implementation burn-down after the
+  workflow 0050 decisions: seven parallel Codex implementation lanes for
+  docs/status follow-through, UI successor cleanup, sweep objective metadata,
+  solver-readiness reporting/schema hardening, OpenFOAM adapter skeleton,
+  resistance source-review packets, and high-angle stability v1 gates,
+  followed by three independent reviews, a findings ledger, remediation, and
+  final review.
 - Integrated workflow 0050's majority decisions as documentation-only design
   records: solver readiness is readiness-report-first, the first real solver
   target is OpenFOAM.com v2512 `interFoam` behind watertight evidence,

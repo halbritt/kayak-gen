@@ -902,3 +902,14 @@ Updated: 2026-05-14
   `striatum/0050-decision-panel-research/integration/DECISION_RESULTS.md`.
   Next operator action after landing this commit: scaffold/run the unblocked
   implementation burn-down from the integration queue.
+
+## Workflow 0051 Implementation Burn-Down Stage 1
+
+- 2026-05-14T15:09Z: scaffolded the first implementation burn-down from
+  workflow 0050's accepted decisions. The planned run uses seven parallel
+  Codex implementation lanes with disjoint ownership, requests maximal useful
+  sub-agent fanout from implementers, then runs Claude/Gemini/Codex reviews,
+  a Codex findings ledger, Codex remediation, and Claude final review. Blocked
+  items remain blocked: calibrated fit, validation/calibration fixture
+  promotion, real OpenFOAM success, hosted CFD, and public production hosting
+  are outside this stage.

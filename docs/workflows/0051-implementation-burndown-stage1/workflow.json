@@ -1,0 +1,402 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0051-implementation-burndown-stage1",
+  "workflow_version": "2026-05-14",
+  "name": "0051 - Implementation burn-down stage 1",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0051-implementation-burndown-stage1",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "codex"
+  },
+  "lanes": {
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "-"
+      ],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["claude", "--model", "opus", "-p", "--dangerously-skip-permissions", "--output-format", "text"],
+      "capabilities": ["review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["bash", "-lc", "gemini --model gemini-3.1-pro-preview --yolo -p \"\""],
+      "capabilities": ["review", "synthesis"]
+    }
+  },
+  "roles": {
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_claims": {"definition_path": "roles/reviewer_claims.md"},
+    "reviewer_ops_tests": {"definition_path": "roles/reviewer_ops_tests.md"},
+    "findings_ledger": {"definition_path": "roles/findings_ledger.md"},
+    "remediator": {"definition_path": "roles/remediator.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/PRD.md", "required": true},
+    {"path": "docs/USER_GUIDE.md", "required": true},
+    {"path": "docs/ROADMAP.md", "required": true},
+    {"path": "docs/DECISION_LOG.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/rfcs/0009-sweep-run-records.md", "required": true},
+    {"path": "docs/rfcs/0036-trame-seed-listener-proof.md", "required": true},
+    {"path": "docs/rfcs/0037-export-row-schema-consolidation.md", "required": true},
+    {"path": "docs/rfcs/0038-export-menu-disabled-copy-polish.md", "required": true},
+    {"path": "docs/rfcs/0039-web-snapshot-schema-unification.md", "required": true},
+    {"path": "docs/rfcs/0040-closed-volume-solver-readiness-roadmap.md", "required": true},
+    {"path": "docs/rfcs/0041-real-cfd-adapter-successor.md", "required": true},
+    {"path": "docs/rfcs/0042-resistance-calibration-fixture-successor.md", "required": true},
+    {"path": "docs/rfcs/0043-high-angle-gz-successor.md", "required": true},
+    {"path": "striatum/0050-decision-panel-research/integration/DECISION_RESULTS.md", "required": true},
+    {"path": "striatum/0050-decision-panel-research/final/FINAL_REVIEW.md", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 7,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement_docs_status",
+      "type": "synthesis",
+      "title": "Implement docs/status follow-through",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage1_implementation",
+      "fresh_session_required": true,
+      "objective": "Reconcile docs/status follow-through from workflow 0050: update the RFC index and RFC 0009 status where delivered sweep behavior is already landed, keep roadmap/user guide wording aligned, and avoid any implementation or capability claim.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/rfcs/README.md",
+          "docs/rfcs/0009-sweep-run-records.md",
+          "docs/ROADMAP.md",
+          "docs/USER_GUIDE.md",
+          "striatum/0051-implementation-burndown-stage1/implementation/docs_status/"
+        ],
+        "forbidden_paths": [".striatum/", "kayakgen/", "tests/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0051-implementation-burndown-stage1/implementation/docs_status/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_ui_successors",
+      "type": "synthesis",
+      "title": "Implement UI successor cleanup RFCs 0036-0039",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage1_implementation",
+      "fresh_session_required": true,
+      "objective": "Implement RFCs 0036-0039 as one UI-maintenance lane: prove or remove the same-seed preset listener path, consolidate export row guidance onto canonical subtitle ownership, polish disabled Mesh package label only after consolidation, and unify web snapshot/CFD alias schema without changing REST payload shapes or backend capability.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/ui/web/",
+          "tests/test_web.py",
+          "tests/test_web_browser.py",
+          "tests/test_web_layout.py",
+          "tests/test_web_read_models.py",
+          "striatum/0051-implementation-burndown-stage1/implementation/ui_successors/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0051-implementation-burndown-stage1/implementation/ui_successors/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_sweep_objectives",
+      "type": "synthesis",
+      "title": "Implement sweep objective metadata",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage1_implementation",
+      "fresh_session_required": true,
+      "objective": "Implement the RFC 0009/objective-metadata prerequisite accepted by workflow 0050: add explicit objective metadata for label, unit, direction, source evaluator, availability rule, claim-state requirement, accepted-use requirement, and role; keep default objectives conservative and keep raw resistance explicit exploratory only.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/search/",
+          "kayakgen/cli/main.py",
+          "tests/test_compare.py",
+          "tests/test_pareto.py",
+          "tests/test_sweep.py",
+          "tests/test_cli.py",
+          "striatum/0051-implementation-burndown-stage1/implementation/sweep_objectives/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0051-implementation-burndown-stage1/implementation/sweep_objectives/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_readiness_report",
+      "type": "synthesis",
+      "title": "Implement solver-readiness report and schema hardening",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage1_implementation",
+      "fresh_session_required": true,
+      "objective": "Implement the first RFC 0040 slice: a closed-volume solver-readiness report/read model over existing generated-body, diagnostic, volume-mesh, manifest, and dispatch evidence, plus structured blockers/warnings, hash-algorithm fields, boundary patch/marker metadata, and focused generated-body/negative gate tests. Do not promote ordinary generated packages to cfd_ready.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/eval/closed_volume.py",
+          "kayakgen/eval/contract.py",
+          "kayakgen/eval/generated_closed_body.py",
+          "kayakgen/eval/mesh_diagnostics.py",
+          "kayakgen/eval/mesh_package.py",
+          "kayakgen/eval/volume_mesh.py",
+          "tests/test_closed_volume.py",
+          "tests/test_generated_closed_body.py",
+          "tests/test_mesh_diagnostics.py",
+          "tests/test_mesh_package.py",
+          "tests/test_solver_readiness.py",
+          "striatum/0051-implementation-burndown-stage1/implementation/readiness_report/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0051-implementation-burndown-stage1/implementation/readiness_report/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_openfoam_skeleton",
+      "type": "synthesis",
+      "title": "Implement OpenFOAM adapter skeleton",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage1_implementation",
+      "fresh_session_required": true,
+      "objective": "Implement the RFC 0041 first external-solver slice selected by workflow 0050: OpenFOAM.com OpenFOAM-v2512 interFoam profile metadata, dependency/version probing, deterministic case rendering, unavailable/failed states, raw force.dat parser fixtures, log/timeout caps, and forbidden-claim tests. Do not add a real succeeded path or require OpenFOAM in CI.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/eval/cfd/",
+          "tests/test_cfd_jobs.py",
+          "tests/fixtures/openfoam/",
+          "striatum/0051-implementation-burndown-stage1/implementation/openfoam_skeleton/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0051-implementation-burndown-stage1/implementation/openfoam_skeleton/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_resistance_source_review",
+      "type": "synthesis",
+      "title": "Implement resistance source-review packets",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage1_implementation",
+      "fresh_session_required": true,
+      "objective": "Implement the RFC 0042 first slice: source-review packet/checklist data structures and source-use mapping tests for rights, extraction, measured quantity, units, hull envelope, speed/Froude range, uncertainty, review verdict, and non-promotion reasons. Apply to one candidate only if evidence is complete; do not promote validation or calibration fixtures.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/eval/calibration.py",
+          "kayakgen/eval/claims.py",
+          "kayakgen/eval/resistance.py",
+          "tests/test_resistance.py",
+          "tests/test_calibration.py",
+          "striatum/0051-implementation-burndown-stage1/implementation/resistance_source_review/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0051-implementation-burndown-stage1/implementation/resistance_source_review/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_high_angle_v1",
+      "type": "synthesis",
+      "title": "Implement high-angle stability v1 gates",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage1_implementation",
+      "fresh_session_required": true,
+      "objective": "Implement the RFC 0043 fixed-trim generated-body v1 gate and metadata surface: per-heel status/residual/iteration metadata, strict heel-grid handling, sealed-body/flooding warnings, grid-bounded summaries, and unavailable behavior until generated-body gates pass. Do not introduce safety, seaworthiness, capsize, design-fitness, or solver-readiness claims.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/eval/hydrostatics.py",
+          "kayakgen/eval/stability.py",
+          "tests/test_stability.py",
+          "striatum/0051-implementation-burndown-stage1/implementation/high_angle_v1/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0051-implementation-burndown-stage1/implementation/high_angle_v1/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review traceability and RFC scope",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Review all workflow 0051 changes for RFC/workflow 0050 traceability, correct deferral handling, and scoped implementation.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0051-implementation-burndown-stage1/reviews/traceability/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0051-implementation-burndown-stage1/reviews/traceability/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_claims",
+      "type": "review",
+      "title": "Review claims and user-facing boundaries",
+      "role_id": "reviewer_claims",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Review all workflow 0051 changes for overclaiming, user-facing wording, calibration/CFD/stability/hosting boundaries, and forbidden design-fitness or safety claims.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0051-implementation-burndown-stage1/reviews/claims/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0051-implementation-burndown-stage1/reviews/claims/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_ops_tests",
+      "type": "review",
+      "title": "Review tests and operational behavior",
+      "role_id": "reviewer_ops_tests",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Review all workflow 0051 changes for tests, determinism, failure modes, CLI/API compatibility, and operational risks.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0051-implementation-burndown-stage1/reviews/ops_tests/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0051-implementation-burndown-stage1/reviews/ops_tests/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "synthesis",
+      "title": "Build findings ledger",
+      "role_id": "findings_ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate review findings into must-fix remediation items and non-blocking successor items without inventing new design scope.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0051-implementation-burndown-stage1/ledger/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "findings_ledger", "kind": "findings_ledger", "path": "striatum/0051-implementation-burndown-stage1/ledger/FINDINGS_LEDGER.md", "required": true}
+      ]
+    },
+    {
+      "id": "remediate_findings",
+      "type": "synthesis",
+      "title": "Remediate review findings",
+      "role_id": "remediator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Fix must-fix findings from the ledger, update changelog and workflow report, and preserve all no-claims boundaries.",
+      "task_prompt": {"path": "prompts/remediate.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "CHANGELOG.md",
+          "OPERATOR_REPORT.md",
+          "docs/ROADMAP.md",
+          "docs/USER_GUIDE.md",
+          "docs/rfcs/README.md",
+          "docs/rfcs/0009-sweep-run-records.md",
+          "docs/workflows/0051-implementation-burndown-stage1/OPERATOR_REPORT.md",
+          "kayakgen/cli/main.py",
+          "kayakgen/eval/",
+          "kayakgen/search/",
+          "kayakgen/ui/web/",
+          "tests/",
+          "striatum/0051-implementation-burndown-stage1/remediation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0051-implementation-burndown-stage1/remediation/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final review workflow 0051",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Final-review workflow 0051 for accepted scope, findings resolution, no-claims boundaries, and validation evidence.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0051-implementation-burndown-stage1/final/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "final_review", "kind": "finding", "path": "striatum/0051-implementation-burndown-stage1/final/FINAL_REVIEW.md", "required": true}
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "implement_docs_status", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_ui_successors", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_sweep_objectives", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_readiness_report", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_openfoam_skeleton", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_resistance_source_review", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_high_angle_v1", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_docs_status", "to": "review_claims", "on": "completed"},
+    {"from": "implement_ui_successors", "to": "review_claims", "on": "completed"},
+    {"from": "implement_sweep_objectives", "to": "review_claims", "on": "completed"},
+    {"from": "implement_readiness_report", "to": "review_claims", "on": "completed"},
+    {"from": "implement_openfoam_skeleton", "to": "review_claims", "on": "completed"},
+    {"from": "implement_resistance_source_review", "to": "review_claims", "on": "completed"},
+    {"from": "implement_high_angle_v1", "to": "review_claims", "on": "completed"},
+    {"from": "implement_docs_status", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_ui_successors", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_sweep_objectives", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_readiness_report", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_openfoam_skeleton", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_resistance_source_review", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_high_angle_v1", "to": "review_ops_tests", "on": "completed"},
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_claims", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops_tests", "to": "findings_ledger", "on": "completed"},
+    {"from": "findings_ledger", "to": "remediate_findings", "on": "completed"},
+    {"from": "remediate_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {"from": "final_review", "to": "remediate_findings", "on_verdict": "needs_revision", "max_iterations": 1}
+  ]
+}
