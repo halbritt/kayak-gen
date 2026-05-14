@@ -607,5 +607,11 @@ Updated: 2026-05-14
   workflow 0045.
 - RFC 0034 and the RFC index were corrected from accepted-target language to
   landed safe-slice after the final review/run completion.
-- Next operator actions: commit/push/fast-forward `main`, then inspect the
-  remaining backlog and continue with claimable work.
+- 2026-05-14T07:45Z: remaining real backlog identified in the deferred queue:
+  workflows 0034 and 0035 were held until workflow 0033 landed, and 0033 is
+  now complete. Stale aggregate Striatum claimable counts come from canceled
+  workflows 0040/0041 and are not real work. Review/ledger/final prompts for
+  workflows 0034 and 0035 were amended to request maximal useful sub-agent or
+  parallel-helper use, keep helpers read-only, and forbid byline metadata.
+- Next operator actions: commit/push/fast-forward `main`, then prepare and
+  start workflows 0034 and 0035 in parallel.
