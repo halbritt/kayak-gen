@@ -69,6 +69,12 @@ Updated: 2026-05-14
   docs now describe workflow 0034/0035 as landed conservative handoff slices
   while keeping production solver readiness and real high-angle GZ claims
   deferred.
+- 2026-05-14T09:03Z checkpoint: merged workflow branches 0034, 0035, and 0045
+  were pruned locally and remotely after their changes landed on `main`.
+  Workflow 0046 (`slider-label-visibility`) was scaffolded as a narrow
+  follow-up for the user-reported hidden slider-label issue, with traceability,
+  ergonomics/design, and ops/test first-pass review lanes and a Codex
+  implementation lane that requires maximal useful sub-agent fanout.
 - 2026-05-14T06:48:42Z checkpoint: workflow 0045 review remediation completed
   on branch `striatum/0045-workspace-ui-follow-up`; artifact
   `art_27fb1b0083f84d3a879c6e4c35f249b8` was published. The packet changes

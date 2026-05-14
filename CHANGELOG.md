@@ -34,6 +34,9 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   0034/0035 landings so the index now distinguishes fixture-backed
   `cfd_ready` handoff evidence from production solver readiness and real
   high-angle GZ stability claims.
+- Scaffolded workflow 0046 for the reported slider-label visibility issue with
+  traceability, ergonomics/design, and ops/test review lanes before Codex
+  implementation.
 - Added the RFC 0024 high-angle GZ handoff envelope: generated closed-body
   diagnostic validation, structured unavailable results, fixture-only synthetic
   math, provenance-safe GZ fields, and tests that keep unavailable or fixture
