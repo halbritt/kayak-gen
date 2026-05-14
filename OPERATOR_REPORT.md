@@ -48,6 +48,13 @@ Updated: 2026-05-14
   explicitly blocks dependent implementation burn-down unless a decision has
   at least two matching panel votes. Scaffold validation and `git diff --check`
   passed; no runtime or test paths changed.
+- 2026-05-14T14:18Z checkpoint: workflow 0050 run
+  `run_dc0a506896094745b380fd3ad2535d59` is running on branch
+  `striatum/0050-decision-panel-research`. All eight Codex research packets
+  are claimed and running in parallel under live supervisors: browser hosting,
+  calibrated resistance, desktop parity, high-angle stability, resistance
+  sources, solver path, solver readiness, and sweep/optimization. Each packet
+  is design/research-only and writes only its workflow-local research artifact.
 - 2026-05-14T10:00Z checkpoint: corrected stale RFC status/index labels for
   landed safe slices RFC 0016, RFC 0022, RFC 0025, RFC 0027, and RFC 0031.
   This was operator bookkeeping only; no runtime behavior or product claims
@@ -877,3 +884,21 @@ Updated: 2026-05-14
   Claude final review completed with `accept`; Striatum marks
   `run_c1de081e76f14cd1a81194e306338ac2` completed. Workflow 0048 is ready
   to commit and fast-forward to `main`.
+
+## Workflow 0050 Decision Panel Research
+
+- 2026-05-14T14:48Z: scaffold was already landed to `main` as commit
+  `248b8f4`. The active run
+  `run_dc0a506896094745b380fd3ad2535d59` has completed all eight research
+  packets and all 24 panel votes. Eight adapter-output blockers from direct
+  Claude/Gemini fallbacks were recovered by publishing the existing vote files
+  with truthful model bylines and override rationale. No design decisions have
+  been integrated yet; `integrate_decisions` is now claimable.
+- 2026-05-14T15:09Z: Codex decision integration completed; Claude final review
+  accepted the workflow. Striatum marks
+  `run_dc0a506896094745b380fd3ad2535d59` completed with no open blockers and
+  no non-accepting review verdicts. The accepted decisions are recorded in
+  `docs/DECISION_LOG.md`, `docs/ROADMAP.md`, `CHANGELOG.md`, and
+  `striatum/0050-decision-panel-research/integration/DECISION_RESULTS.md`.
+  Next operator action after landing this commit: scaffold/run the unblocked
+  implementation burn-down from the integration queue.

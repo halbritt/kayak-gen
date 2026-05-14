@@ -8,6 +8,16 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Integrated workflow 0050's majority decisions as documentation-only design
+  records: solver readiness is readiness-report-first, the first real solver
+  target is OpenFOAM.com v2512 `interFoam` behind watertight evidence,
+  resistance source/calibration promotion remains gated, high-angle stability
+  has a fixed-trim generated-body v1 design, browser hosting is only a narrow
+  server-backed exploratory demo posture, web is the primary UI composition
+  target, and sweep/search defaults remain conservative. No runtime behavior,
+  tests, solver execution, public URL, calibration, watertight readiness,
+  high-angle stability output, desktop rewrite, optimization behavior, or
+  product capability changed.
 - Scaffolded workflow 0050 as a design-only decision workflow. Each open
   roadmap decision now has a required research packet, independent
   Claude/Codex/Gemini panel votes, strict majority integration, and final
