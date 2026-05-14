@@ -802,3 +802,6 @@ Updated: 2026-05-14
   browser proof or removal for the retained preset seed-listener branch,
   export-row `subtitle`/`description` schema consolidation, optional
   `Mesh package...` ellipsis polish, and future snapshot-schema unification.
+- 2026-05-14T11:20Z: landed workflow 0047 to `main` as commit `78b14e5`,
+  pushed `main`, and deleted merged branch
+  `striatum/0047-ui-follow-up-cleanup` locally and remotely.
