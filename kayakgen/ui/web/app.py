@@ -14,6 +14,7 @@ import numpy as np
 import vtk
 from trame.app import get_server
 from trame.ui.vuetify3 import SinglePageWithDrawerLayout
+from trame.widgets import html as html_widgets
 from trame.widgets import vtk as vtkw
 from trame.widgets import vuetify3 as v3
 
@@ -197,6 +198,17 @@ RESPONSIVE_CLASS_HOOKS: tuple[str, ...] = (
     "kg-status-wrap-under-960",
 )
 
+PARAMETER_RAIL_CSS = (
+    f"{theme.css_root_block()}\n"
+    ".kg-param-slider .v-slider__label { "
+    "font: var(--type-label); "
+    "color: var(--text-secondary); "
+    "white-space: nowrap; "
+    "overflow: hidden; "
+    "text-overflow: ellipsis; "
+    "}"
+)
+
 RAW_COMPARATIVE_CAPTION = "Raw comparative filter; not final prediction."
 RESISTANCE_DETAIL_COPY = (
     "Uncalibrated; no accepted final-prediction validity envelope. "
@@ -229,6 +241,17 @@ PERSISTENT_COPY: dict[str, str] = {
 }
 
 _SLIDER_BY_KEY = {key: (label, vmin, vmax, step) for key, label, vmin, vmax, step in SLIDER_DEFS}
+
+
+def _param_row_raw_attrs(key: str, label: str) -> list[str]:
+    escaped_key = html.escape(key, quote=True)
+    escaped_label = html.escape(label, quote=True)
+    return [
+        f'data-param-key="{escaped_key}"',
+        f'data-testid="param-{escaped_key}"',
+        'role="group"',
+        f'aria-label="{escaped_label}"',
+    ]
 
 
 def _build_polydata(vertices: np.ndarray, faces: np.ndarray) -> vtk.vtkPolyData:
@@ -893,6 +916,7 @@ class KayakgenApp:
 
     def _build_layout(self) -> None:
         with SinglePageWithDrawerLayout(self.server) as layout:
+            html_widgets.Style(PARAMETER_RAIL_CSS)
             layout.title.set_text("kayakgen")
 
             with layout.toolbar:
@@ -953,21 +977,20 @@ class KayakgenApp:
                         v3.VCardSubtitle(group_label, classes="kg-rail-group-label")
                         for key in keys:
                             label, vmin, vmax, step = _SLIDER_BY_KEY[key]
-                            v3.VSlider(
-                                v_model=(key,),
-                                label=label,
-                                min=(f"{key}_min", vmin),
-                                max=(f"{key}_max", vmax),
-                                step=step,
-                                thumb_label="always",
-                                density="compact",
-                                classes=f"kg-param-slider kg-param-{key} mt-2",
-                                **{
-                                    "data-param-key": key,
-                                    "data-testid": f"param-{key}",
-                                    "aria-label": label,
-                                },
-                            )
+                            with html_widgets.Div(
+                                raw_attrs=_param_row_raw_attrs(key, label),
+                                classes=f"kg-param-slider kg-param-{key} mt-3",
+                            ):
+                                v3.VSlider(
+                                    v_model=(key,),
+                                    label=label,
+                                    min=(f"{key}_min", vmin),
+                                    max=(f"{key}_max", vmax),
+                                    step=step,
+                                    thumb_label=True,
+                                    density="compact",
+                                    classes="kg-param-slider-control",
+                                )
                     v3.VDivider(classes="mt-3")
                     v3.VChip(
                         "{{ validity_badge }}",

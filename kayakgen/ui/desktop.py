@@ -15,9 +15,17 @@ Refactor of the legacy ``gui.py`` onto the new package boundary
 
 from __future__ import annotations
 
+import inspect
+import os
+
 import matplotlib
 
-matplotlib.use("qtagg")
+try:
+    matplotlib.use("qtagg")
+except ImportError:
+    if os.environ.get("QT_QPA_PLATFORM") != "offscreen" and os.environ.get("DISPLAY"):
+        raise
+    matplotlib.use("agg")
 
 import matplotlib.pyplot as plt
 import matplotlib.widgets as widgets
@@ -35,6 +43,10 @@ from kayakgen.ui.gui_params import GUI_TO_HULL as _GUI_TO_HULL
 from kayakgen.ui.gui_params import hull_from_gui_params as _hull_from_gui_params
 
 matplotlib.rcParams.update(theme.matplotlib_rc_params())
+
+_SLIDER_SUPPORTS_LABEL_LOCATION = (
+    "label_location" in inspect.signature(widgets.Slider.__init__).parameters
+)
 
 
 PLOT_COLORS = {
@@ -218,12 +230,22 @@ class KayakGUI:
             kwargs = {}
             if key in self.SLIDER_STEPS:
                 kwargs["valstep"] = self.SLIDER_STEPS[key]
+            if _SLIDER_SUPPORTS_LABEL_LOCATION:
+                kwargs["label_location"] = "bottom"
             s = widgets.Slider(
-                ax, label, vmin, vmax, valinit=self.params[key], **kwargs
+                ax,
+                label,
+                vmin,
+                vmax,
+                valinit=self.params[key],
+                **kwargs,
             )
-            s.label.set_fontsize(6.5)
-            s.label.set_position((0.5, -1.8))
-            s.label.set_horizontalalignment("center")
+            s.label.set_fontsize(7.5)
+            s.valtext.set_fontsize(7.5)
+            if not _SLIDER_SUPPORTS_LABEL_LOCATION:
+                s.label.set_position((0.5, -0.52))
+                s.label.set_horizontalalignment("center")
+                s.label.set_verticalalignment("top")
             s.on_changed(self._on_change)
             self.sliders[key] = s
 

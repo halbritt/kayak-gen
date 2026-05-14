@@ -317,6 +317,112 @@ def _slider_number(page, key: str, attr: str) -> float:
     return float(value)
 
 
+def _assert_parameter_slider_label_geometry(page) -> None:
+    expected = {
+        "length_m": "Length (m)",
+        "beam_oa_m": "Beam OA (m)",
+        "beam_wl_m": "Beam WL (m)",
+        "draft_m": "Draft (m)",
+        "deck_height_m": "Deck Height (m)",
+        "Cp": "Prismatic Cp",
+        "Cm": "Midship Cm",
+        "deck_flatness": "Deck Flatness",
+        "center_box_ratio": "Parallel Mid-Body",
+        "bow_rake": "Bow Rake (1=raked)",
+        "stern_rake": "Stern Rake (1=raked)",
+        "target_speed_kt": "Target Speed (kt)",
+    }
+    failures = page.evaluate(
+        """
+        async (expected) => {
+          const intersects = (a, b) => (
+            a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+          );
+          const rectObject = (rect) => ({
+            left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+            width: rect.width, height: rect.height,
+          });
+          const visibleRect = (el) => {
+            if (!el) return null;
+            const style = window.getComputedStyle(el);
+            if (
+              style.display === "none"
+              || style.visibility === "hidden"
+              || Number(style.opacity) === 0
+            ) {
+              return null;
+            }
+            const rect = el.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) return null;
+            return rectObject(rect);
+          };
+          const rail = document.querySelector(".kg-parameter-rail");
+          const railBoundary = rail?.closest(".v-navigation-drawer") || rail;
+          const failures = [];
+          if (!visibleRect(railBoundary)) {
+            return ["parameter rail has no positive rendered box"];
+          }
+          for (const [key, expectedLabel] of Object.entries(expected)) {
+            const row = document.querySelector(`.kg-param-${key}`);
+            if (!row) {
+              failures.push(`${key}: missing slider row`);
+              continue;
+            }
+            row.scrollIntoView({ block: "center", inline: "nearest" });
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+            const railRect = visibleRect(railBoundary);
+            if (!railRect) {
+              failures.push(`${key}: parameter rail lost its rendered box after scroll`);
+              continue;
+            }
+            const label = row.querySelector(".v-slider__label");
+            const labelRect = visibleRect(label);
+            const actualLabel = (label?.textContent || "").trim();
+            if (actualLabel !== expectedLabel) {
+              failures.push(`${key}: label text ${actualLabel} != ${expectedLabel}`);
+            }
+            const ariaValues = [
+              row.getAttribute("aria-label"),
+              ...Array.from(row.querySelectorAll("[aria-label]"))
+                .map((el) => el.getAttribute("aria-label")),
+            ].filter(Boolean);
+            if (!ariaValues.includes(expectedLabel)) {
+              failures.push(
+                `${key}: aria-label values ${ariaValues.join("|")} omit ${expectedLabel}`
+              );
+            }
+            if (!labelRect) {
+              failures.push(`${key}: label has no positive rendered box`);
+              continue;
+            }
+            const track = row.querySelector(".v-slider-track");
+            const trackRect = visibleRect(track);
+            if (
+              labelRect.left < railRect.left
+              || labelRect.right > railRect.right
+              || labelRect.top < railRect.top
+              || labelRect.bottom > railRect.bottom
+            ) {
+              failures.push(`${key}: label is clipped outside parameter rail`);
+            }
+            if (trackRect && intersects(labelRect, trackRect)) {
+              failures.push(`${key}: label intersects slider track`);
+            }
+            for (const thumbLabel of Array.from(row.querySelectorAll(".v-slider-thumb__label"))) {
+              const thumbRect = visibleRect(thumbLabel);
+              if (thumbRect && intersects(labelRect, thumbRect)) {
+                failures.push(`${key}: label intersects visible thumb label`);
+              }
+            }
+          }
+          return failures;
+        }
+        """,
+        arg=expected,
+    )
+    assert failures == [], "parameter slider label geometry failures:\n" + "\n".join(failures)
+
+
 @pytest.mark.browser_acceptance
 def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> None:
     playwright_api = _load_playwright(request)
@@ -341,6 +447,7 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 page.get_by_text("Rv N").first.wait_for(timeout=10_000)
                 page.get_by_text("uncalibrated_comparative").first.wait_for(timeout=10_000)
                 page.get_by_text("Comparison").first.wait_for(timeout=10_000)
+                _assert_parameter_slider_label_geometry(page)
                 _assert_nonblank_3d(page)
 
                 page.locator(

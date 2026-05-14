@@ -57,6 +57,52 @@ def test_parameter_rail_groups_cover_visible_hull_fields_and_target_speed() -> N
     ]
 
 
+def test_parameter_slider_labels_spacing_and_accessibility_contract() -> None:
+    app_source = Path(web_app.__file__).read_text()
+    expected_labels = [label for _key, label, _vmin, _vmax, _step in web_app.SLIDER_DEFS]
+
+    assert expected_labels == [
+        "Length (m)",
+        "Beam OA (m)",
+        "Beam WL (m)",
+        "Draft (m)",
+        "Deck Height (m)",
+        "Prismatic Cp",
+        "Midship Cm",
+        "Deck Flatness",
+        "Parallel Mid-Body",
+        "Bow Rake (1=raked)",
+        "Stern Rake (1=raked)",
+        "Target Speed (kt)",
+    ]
+    assert 'thumb_label="always"' not in app_source
+    assert "thumb_label=True" in app_source
+    assert 'classes=f"kg-param-slider kg-param-{key} mt-3"' in app_source
+    assert 'classes=f"kg-param-slider kg-param-{key} mt-2"' not in app_source
+    assert 'f\'aria-label="{escaped_label}"\'' in app_source
+    for key, label, _vmin, _vmax, _step in web_app.SLIDER_DEFS:
+        assert web_app._param_row_raw_attrs(key, label) == [
+            f'data-param-key="{key}"',
+            f'data-testid="param-{key}"',
+            'role="group"',
+            f'aria-label="{label}"',
+        ]
+
+
+def test_parameter_slider_label_css_uses_existing_tokens() -> None:
+    css = web_app.PARAMETER_RAIL_CSS
+
+    assert ".kg-param-slider .v-slider__label {" in css
+    assert "font: var(--type-label);" in css
+    assert "color: var(--text-secondary);" in css
+    assert "white-space: nowrap;" in css
+    assert "overflow: hidden;" in css
+    assert "text-overflow: ellipsis;" in css
+    assert "--type-label:" in css
+    assert "--text-secondary:" in css
+    assert "--surface-rail:" in css
+
+
 def test_review_tabs_and_status_segments_match_workspace_contract() -> None:
     assert [tab["label"] for tab in web_app.REVIEW_TABS] == [
         "Hydro",

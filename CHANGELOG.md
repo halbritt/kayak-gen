@@ -37,6 +37,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 - Scaffolded workflow 0046 for the reported slider-label visibility issue with
   traceability, ergonomics/design, and ops/test review lanes before Codex
   implementation.
+- Fixed workflow 0046's desktop and web slider-label visibility issue: desktop
+  hull-parameter labels and value text now render legibly without overlapping
+  adjacent rows, and web parameter-rail slider labels no longer sit under
+  persistent thumb labels while preserving the canonical label text.
 - Added the RFC 0024 high-angle GZ handoff envelope: generated closed-body
   diagnostic validation, structured unavailable results, fixture-only synthetic
   math, provenance-safe GZ fields, and tests that keep unavailable or fixture

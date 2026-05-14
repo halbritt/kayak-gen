@@ -136,6 +136,15 @@ def test_contrast_manifest_clears_thresholds(
         )
 
 
+def test_slider_label_contrast_pair_is_manifested() -> None:
+    assert any(
+        pair.name == "slider.label.rail"
+        and pair.foreground_token == "text-secondary"
+        and pair.background_token == "surface-rail"
+        for pair in theme.CONTRAST_MANIFEST
+    )
+
+
 @pytest.mark.parametrize(
     ("palette_name", "tokens"),
     [("light", theme.COLORS_LIGHT), ("dark", theme.COLORS_DARK)],

@@ -337,6 +337,7 @@ class ContrastPair:
 CONTRAST_MANIFEST: Final[tuple[ContrastPair, ...]] = (
     ContrastPair("text.primary", "text-primary", "surface-bg"),
     ContrastPair("text.secondary", "text-secondary", "surface-bg"),
+    ContrastPair("slider.label.rail", "text-secondary", "surface-rail"),
     ContrastPair("text.muted.panel", "text-muted", "surface-panel"),
     ContrastPair("brand.primary", "brand-primary", "surface-bg"),
     ContrastPair("chip.raw", "state-raw-text", "state-raw-bg"),

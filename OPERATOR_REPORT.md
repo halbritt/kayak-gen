@@ -75,6 +75,47 @@ Updated: 2026-05-14
   follow-up for the user-reported hidden slider-label issue, with traceability,
   ergonomics/design, and ops/test first-pass review lanes and a Codex
   implementation lane that requires maximal useful sub-agent fanout.
+- 2026-05-14T09:06Z checkpoint: workflow 0046 run
+  `run_cec0311f06dd4484a8743c329f4dca61` was prepared, branch-confirmed on
+  `striatum/0046-slider-label-visibility`, and started. Three first-pass
+  review jobs were claimed, acknowledged, and launched concurrently:
+  traceability (`sess_291f53a848b148bbb396ffe5eee44221`), ergonomics/design
+  (`sess_88c321b49c8f413e8ffb19a62a6f4e9c`), and ops/test
+  (`sess_6b85d7c949cd406c823a2c0111b8f191`).
+- 2026-05-14T09:15Z checkpoint: workflow 0046 first-pass reviews were
+  published. Traceability accepted the workflow as covered by existing UI RFCs
+  (`art_2f2a661522de4d749ae564a8df82a99a`). Ergonomics/design accepted with
+  focused findings around desktop label placement/font/value text and web
+  slider thumb-label/typography behavior
+  (`art_31b4ea64b1e54d4084cbd4c2f90b61d5`). Ops/test accepted with findings
+  and validation guidance after a Codex sandbox-bypass retry
+  (`art_5a7259782f6644688f255b6b2be5db58`).
+- 2026-05-14T09:22:41Z checkpoint: workflow 0046 findings ledger was
+  published as `art_502be1cdc477464893ebdc8f2e8e37a0` and completed. The
+  ledger gates implementation to narrow desktop/web slider-label visibility
+  fixes plus rendered/DOM geometry proof, with no new RFC required.
+- 2026-05-14T09:22:41Z checkpoint: workflow 0046 Codex implementation lane was
+  claimed and acknowledged under session
+  `sess_8646f5f047fd4044ab43931ca400fdc8`, job
+  `job_run_cec0311f06dd4484a8743c329f4dca61_implement_findings`, lease
+  `lease_28502700cee142e48c100629fa609881`. The prompt requires maximal useful
+  sub-agent fanout, forbids Striatum mutation/commit/push and forbidden byline
+  metadata, and asks for a workflow-local patch summary.
+- 2026-05-14T09:45:03Z checkpoint: workflow 0046 implementation completed and
+  was published as `art_f2914d2dcfd94aecbab7dac7a570f848`. Codex reported
+  focused desktop bbox, web static/theme, browser acceptance, and full-suite
+  validation passing, with full-suite result `328 passed in 84.93s`. Operator
+  checks found clean `git diff --check`, no forbidden attribution metadata, and
+  no trailing whitespace in new workflow/test artifacts.
+- 2026-05-14T09:50:29Z checkpoint: workflow 0046 final review completed with
+  verdict `accept_with_findings`; artifact
+  `art_7d18e35fb80c48ea8bd2b8061165c855`; verdict
+  `verdict_c1f65bb287bd484f850f96d7b351e8b4`. Striatum reports run
+  `run_cec0311f06dd4484a8743c329f4dca61` complete. Non-blocking findings:
+  Matplotlib fallback keeps a tested manual bottom offset until
+  `label_location` is available, web rows intentionally use a wrapper
+  `role="group"` for canonical aria labels, and `PARAMETER_RAIL_CSS`
+  duplicates the `:root` token block harmlessly.
 - 2026-05-14T06:48:42Z checkpoint: workflow 0045 review remediation completed
   on branch `striatum/0045-workspace-ui-follow-up`; artifact
   `art_27fb1b0083f84d3a879c6e4c35f249b8` was published. The packet changes
