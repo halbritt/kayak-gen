@@ -33,6 +33,23 @@ Updated: 2026-05-14
   Both prompts require maximal useful sub-agent fanout, forbid Striatum
   mutation/commit/push, forbid false bylines, and keep root `CHANGELOG.md`
   wording in patch summaries for operator application.
+- 2026-05-14T08:47:31Z checkpoint: both implementation jobs completed and
+  were published. Workflow 0035 implementation artifact
+  `art_4a64e5d18e0d43a6b6f6590a6a7f1c27` adds the RFC 0024 structured
+  unavailable/fixture-only GZ handoff and records `kayakgen/search/compare.py`
+  hardening as deferred outside the packet write scope. Workflow 0034
+  implementation artifact `art_8b5ac8bea9ea4b0f8f525fd1c7204022` adds the RFC
+  0023 fixture-backed volume-mesh handoff, hash/path-bound dispatch gates, CLI
+  blocker classes, and focused tests. Operator mechanical checks found no
+  forbidden attribution metadata in changed files and clean `git diff --check`
+  for both worktrees.
+- 2026-05-14T08:47:31Z checkpoint: final reviews were claimed and launched in
+  parallel. Workflow 0035 final review is running under Striatum session
+  `sess_cd50d75bae894ae89a374df2dca1f638`, lease
+  `lease_2a977cf4f629475d828865f9b34dcfc6`, local exec session `1610`.
+  Workflow 0034 final review is running under Striatum session
+  `sess_79f47bf1b31149b29522e8ad037dc400`, lease
+  `lease_798233907a7e43159f269517c6786cfb`, local exec session `56948`.
 - 2026-05-14T06:48:42Z checkpoint: workflow 0045 review remediation completed
   on branch `striatum/0045-workspace-ui-follow-up`; artifact
   `art_27fb1b0083f84d3a879c6e4c35f249b8` was published. The packet changes
