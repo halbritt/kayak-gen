@@ -144,7 +144,7 @@
       "fresh_session_required": true,
       "objective": "Implement the accepted RFC 0034 safe-now UI follow-up findings with tests and docs.",
       "task_prompt": {"path": "prompts/implement_findings.md"},
-      "write_scope": {"mode": "repo_write", "repo_write": true, "allowed_paths": ["docs/", "kayakgen/", "tests/", "striatum/0045-workspace-ui-follow-up/implementation/"], "forbidden_paths": [".striatum/"]},
+      "write_scope": {"mode": "repo_write", "repo_write": true, "allowed_paths": ["docs/", "kayakgen/", "tests/", "CHANGELOG.md", "striatum/0045-workspace-ui-follow-up/implementation/"], "forbidden_paths": [".striatum/"]},
       "expected_artifacts": [{"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0045-workspace-ui-follow-up/implementation/PATCH_SUMMARY.md", "required": true}]
     },
     {

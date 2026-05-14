@@ -16,6 +16,9 @@ domain/no-claims checks if available.
 Include:
 
 - verdict intent: `accept`, `accept_with_findings`, or `needs_revision`
+- use `needs_revision` only for RFC/workflow packet blockers that prevent a
+  fair implementation review; route implementation-scope findings through
+  `accept_with_findings` for the ledger
 - domain findings ordered by severity
 - no-claims copy risks
 - safe-now vs deferred work

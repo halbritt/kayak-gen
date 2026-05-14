@@ -1,9 +1,22 @@
 # Sources
 
+- `AGENTS.md`
 - `docs/rfcs/0034-workspace-ui-follow-up.md`
 - `docs/rfcs/0033-workspace-ui-rework.md`
+- `docs/rfcs/README.md`
 - `striatum/0044-workspace-ui-rework/final/FINAL_REVIEW.md`
 - `striatum/0044-workspace-ui-rework/ledger/FINDINGS.md`
 - `striatum/0044-workspace-ui-rework/implementation/PATCH_SUMMARY.md`
 - `docs/design/kayak_hull_design_constraints.md`
 - `docs/USER_GUIDE.md`
+- `CHANGELOG.md`
+- `docs/workflows/0045-workspace-ui-follow-up/workflow.json`
+- `docs/workflows/0045-workspace-ui-follow-up/prompts/`
+- `kayakgen/model/classes.py`
+- `kayakgen/model/advisory.py`
+- `kayakgen/ui/web/app.py`
+- `kayakgen/ui/web/controllers.py`
+- `kayakgen/ui/theme.py`
+- `kayakgen/cli/main.py`
+- `kayakgen/eval/mesh_package.py`
+- `tests/`

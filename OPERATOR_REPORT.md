@@ -8,6 +8,13 @@ Updated: 2026-05-14
   must be performed by Striatum-assigned agents, with this session limited to
   orchestration, artifact handling, report updates, trunk hygiene, and branch
   cleanup.
+- 2026-05-14T06:48:42Z checkpoint: workflow 0045 review remediation completed
+  on branch `striatum/0045-workspace-ui-follow-up`; artifact
+  `art_27fb1b0083f84d3a879c6e4c35f249b8` was published. The packet changes
+  only clarified review verdict routing, added `CHANGELOG.md` to the
+  implementation write scope, expanded sources, and documented the harness-safe
+  validation command. Workflow validation and `git diff --check` passed; four
+  first-pass review lanes are queued for parallel launch.
 - 2026-05-13T20:56:04Z checkpoint: workflow 0044 scaffold was amended to add
   a dedicated ergonomics/design first-pass review lane before findings ledger
   and implementation. The workflow validates with the repo venv Striatum CLI.

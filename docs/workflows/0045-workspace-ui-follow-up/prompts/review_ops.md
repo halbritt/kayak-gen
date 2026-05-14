@@ -13,6 +13,9 @@ test/export/package-boundary checks if available.
 Include:
 
 - verdict intent: `accept`, `accept_with_findings`, or `needs_revision`
+- use `needs_revision` only for RFC/workflow packet blockers that prevent a
+  fair implementation review; route implementation-scope findings through
+  `accept_with_findings` for the ledger
 - ops/test findings ordered by severity
 - test matrix and browser acceptance recommendations
 - export safety concerns

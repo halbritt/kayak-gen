@@ -7,9 +7,8 @@ parallel agents for independent UI, controller/read-model, tests, docs, and
 browser-acceptance tasks, but keep one agent responsible for final integration.
 
 Do not mutate Striatum state, commit, push, edit `.striatum/`, or falsify
-bylines. Keep changes inside the declared write scope. Include proposed
-changelog wording in the patch summary if root `CHANGELOG.md` is outside your
-specific job scope.
+bylines. Keep changes inside the declared write scope. Update `CHANGELOG.md`
+for user-facing behavior, docs/status, or workflow landing changes.
 
 Expected artifact:
 `striatum/0045-workspace-ui-follow-up/implementation/PATCH_SUMMARY.md`
