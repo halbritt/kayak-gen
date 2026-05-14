@@ -43,6 +43,12 @@ Updated: 2026-05-14
   forbidden-copy expansion, browser/layout/read-model tests, and factual docs
   and changelog updates. Striatum now has one queued workflow 0045 job:
   `implement_findings`.
+- 2026-05-14T07:09:37Z checkpoint: workflow 0045 implementation was claimed,
+  acknowledged, and launched under Codex session
+  `sess_990d8f1faba94666990e0d75cfb613c7`. The live run snapshot write scope
+  excludes root `CHANGELOG.md`, so the implementer was instructed to propose
+  exact changelog wording in `PATCH_SUMMARY.md` and leave root changelog edits
+  to the operator after the job.
 - 2026-05-13T20:56:04Z checkpoint: workflow 0044 scaffold was amended to add
   a dedicated ergonomics/design first-pass review lane before findings ledger
   and implementation. The workflow validates with the repo venv Striatum CLI.
@@ -571,3 +577,21 @@ Updated: 2026-05-14
   landed after workflow 0025.
 - Ruff is not installed in the current virtualenv, so ruff checks are
   unavailable unless dependencies are added.
+
+## Workflow 0045 Implementation Checkpoint
+
+- 2026-05-14T07:33:13Z: implementation lane
+  `job_run_e185c1837e3c4000acd92b0339374577_implement_findings` exited
+  successfully. Codex wrote
+  `striatum/0045-workspace-ui-follow-up/implementation/PATCH_SUMMARY.md` and
+  reported `git diff --check`, `58 passed` focused web/layout/read-model/mesh
+  tests, `1 passed` browser acceptance, and `299 passed` full suite.
+- Operator scope check found changed paths under docs, web UI, tests,
+  workflow-local implementation artifact, root changelog, and this operator
+  report. Touched-file byline scan was clean; broader byline hits were
+  pre-existing workflow prompt/reference docs outside this change.
+- Published patch-summary artifact
+  `art_5d1cf66d36ea4a47898d8b9ac1ed9f7c` and completed the implementation
+  job in Striatum.
+- Next operator actions: commit/push/fast-forward main, then launch the final
+  review lane.

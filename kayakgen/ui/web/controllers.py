@@ -34,6 +34,7 @@ from kayakgen.eval.mesh_diagnostics import MeshDiagnostics, diagnose_mesh
 from kayakgen.eval.mesh_package import MeshPackageManifest
 from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance, resistance_curve
 from kayakgen.model.advisory import design_advisory
+from kayakgen.model.classes import CLASSES, KayakClass, list_classes
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import evaluate_design_validity
 from kayakgen.search.compare import ComparisonReport
@@ -41,6 +42,13 @@ from kayakgen.ui.web.state import HULL_STATE_FIELDS
 from kayakgen.ui.web.state import hull_from_state_dict
 
 DISPLAY_CURVE_SPEEDS_KT: tuple[float, ...] = (2.0, 3.0, 4.0, 5.0, 6.0)
+CLASS_PRESET_HULL_FIELDS: tuple[str, ...] = (
+    "length_m",
+    "beam_oa_m",
+    "beam_wl_m",
+    "draft_m",
+    "Cp",
+)
 CFD_JOBS_ROOT_ENV = "KAYAKGEN_WEB_CFD_JOBS_ROOT"
 CFD_ARTIFACT_MAX_BYTES = 64 * 1024
 CFD_LOCAL_FILESYSTEM_NOTICE = (
@@ -79,6 +87,58 @@ def clamp_beam_wl_state(state: dict[str, Any]) -> dict[str, Any]:
 def hull_from_web_state(state: dict[str, Any]) -> Hull:
     """Build a Hull from web state after applying UI-level normalization."""
     return hull_from_state_dict(clamp_beam_wl_state(state))
+
+
+def class_preset_options() -> list[dict[str, str]]:
+    """Return stable class preset ids with human labels for web controls."""
+    return [
+        *[
+            {
+                "value": kayak_class.name,
+                "label": kayak_class.label,
+            }
+            for kayak_class in list_classes()
+        ],
+        {"value": "custom", "label": "Custom"},
+    ]
+
+
+def class_preset_read_model(preset: str) -> dict[str, Any]:
+    """Class preset values and bounds for the web parameter rail."""
+    if preset == "custom" or preset not in CLASSES:
+        return {
+            "preset": "custom",
+            "label": "Custom",
+            "values": {},
+            "bounds": {},
+        }
+    kayak_class = CLASSES[preset]
+    hull = kayak_class.default_hull()
+    return {
+        "preset": kayak_class.name,
+        "label": kayak_class.label,
+        "values": {
+            field: getattr(hull, field)
+            for field in CLASS_PRESET_HULL_FIELDS
+        },
+        "bounds": _class_bounds(kayak_class),
+    }
+
+
+def validity_badge_from_state(state: dict[str, Any]) -> str:
+    """Return the exact RFC 0033/0034 web validity badge string."""
+    hull = hull_from_web_state(state)
+    selected_class = str(state.get("class_preset") or "custom")
+    if selected_class in CLASSES and _hull_in_kayak_class(hull, CLASSES[selected_class]):
+        return f"In {CLASSES[selected_class].label} envelope"
+
+    beam_wl = hull.beam_wl_m or hull.beam_oa_m
+    l_over_bwl = hull.length_m / beam_wl
+    if l_over_bwl < 8.0:
+        return "Custom — sub-touring"
+    if l_over_bwl > 15.5:
+        return "Custom — beyond elite"
+    return f"Custom (L/B_wl={l_over_bwl:.1f})"
 
 
 def validation_error_payload(exc: Exception) -> dict[str, Any]:
@@ -378,8 +438,32 @@ def mesh_package_view_model(path: str | Path) -> dict[str, Any]:
 
     diagnostics: dict[str, Any] = {}
     warnings = list(manifest.warnings)
+    artifact_errors: list[str] = []
+    for label, artifact_ref in [
+        ("hull_json", manifest.hull_json),
+        *[
+            (f"surface {part}", artifact_ref)
+            for part, artifact_ref in sorted(manifest.surfaces.items())
+        ],
+    ]:
+        try:
+            _resolve_package_artifact_path(package_path, artifact_ref)
+        except ValueError:
+            artifact_errors.append(f"{label}: artifact path outside package")
+            warnings.append(f"{label}: artifact path outside package")
+
     for part, report_ref in sorted(manifest.quality_reports.items()):
-        report_path = package_path / report_ref
+        try:
+            report_path = _resolve_package_artifact_path(package_path, report_ref)
+        except ValueError:
+            diagnostics[part] = {
+                "status": "error",
+                "error": "artifact_path_outside_package",
+                "path": report_ref,
+            }
+            artifact_errors.append(f"{part}: artifact path outside package")
+            warnings.append(f"{part}: artifact path outside package")
+            continue
         try:
             report = MeshDiagnostics.model_validate_json(report_path.read_text())
         except Exception:
@@ -406,6 +490,7 @@ def mesh_package_view_model(path: str | Path) -> dict[str, Any]:
         "profile": _profile_view(manifest.solver_profile.profile_name),
         "readiness": manifest.readiness.model_dump(mode="json"),
         "warnings": warnings,
+        "artifact_errors": artifact_errors,
         "parts": list(manifest.parts),
         "diagnostics": diagnostics,
     }
@@ -438,6 +523,21 @@ def analysis_lines_from_state(state: dict[str, Any]) -> list[str]:
                 "Resistance warnings",
                 *[f"  {warning}" for warning in model["resistance_warnings"]],
             ]
+        )
+    return lines
+
+
+def hydro_lines_from_state(state: dict[str, Any]) -> list[str]:
+    """Hydrostatics-only text view for the web Hydrostatics card."""
+    model = analysis_view_model(state)
+    lines = ["Hydrostatics"]
+    lines.extend(
+        f"  {label:<16} {value:>10} {unit}".rstrip()
+        for label, value, unit in model["hydro_rows"]
+    )
+    if model["design_warnings"]:
+        lines.extend(
+            ["", "Design warnings", *[f"  {warning}" for warning in model["design_warnings"]]]
         )
     return lines
 
@@ -920,6 +1020,39 @@ def _mesh_profile_options() -> list[dict[str, Any]]:
     ]
 
 
+def _class_bounds(kayak_class: KayakClass) -> dict[str, dict[str, float]]:
+    return {
+        field: {
+            "min": getattr(kayak_class, field).min,
+            "max": getattr(kayak_class, field).max,
+            "default": getattr(kayak_class, field).default,
+        }
+        for field in CLASS_PRESET_HULL_FIELDS
+    }
+
+
+def _matching_kayak_class(hull: Hull) -> KayakClass | None:
+    for kayak_class in list_classes():
+        if _hull_in_kayak_class(hull, kayak_class):
+            return kayak_class
+    return None
+
+
+def _hull_in_kayak_class(hull: Hull, kayak_class: KayakClass) -> bool:
+    values = {
+        "length_m": hull.length_m,
+        "beam_oa_m": hull.beam_oa_m,
+        "beam_wl_m": hull.beam_wl_m or hull.beam_oa_m,
+        "draft_m": hull.draft_m,
+        "Cp": hull.Cp,
+    }
+    bounds = _class_bounds(kayak_class)
+    return all(
+        bounds[field]["min"] <= value <= bounds[field]["max"]
+        for field, value in values.items()
+    )
+
+
 def _profile_view(profile_id: str) -> dict[str, str]:
     return {
         "label": MESH_PROFILE_ID_TO_LABEL.get(profile_id, profile_id),
@@ -1234,6 +1367,19 @@ def _resolve_job_artifact_path(job_dir: Path, artifact_ref: str) -> Path:
     return resolved
 
 
+def _resolve_package_artifact_path(package_dir: Path, artifact_ref: str) -> Path:
+    if "://" in artifact_ref:
+        raise ValueError("mesh package artifact references must be local relative paths")
+    ref_path = Path(artifact_ref)
+    if ref_path.is_absolute():
+        raise ValueError("mesh package artifact references must be relative")
+    package_root = package_dir.resolve()
+    resolved = (package_root / ref_path).resolve()
+    if not _is_relative_to(resolved, package_root):
+        raise ValueError("mesh package artifact reference resolves outside package")
+    return resolved
+
+
 def _read_text_artifact(path: Path, *, content_type: str) -> dict[str, Any]:
     size_bytes = path.stat().st_size
     with path.open("rb") as handle:
@@ -1345,6 +1491,9 @@ def register_rest_routes(
             return web.Response(
                 body=stl_bytes_for_part(state, part),
                 content_type="application/sla",
+                headers={
+                    "Content-Disposition": f'attachment; filename="kayak_{part}.stl"'
+                },
             )
         except Exception as exc:
             return web.json_response(validation_error_payload(exc), status=400)

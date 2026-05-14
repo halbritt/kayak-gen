@@ -294,13 +294,27 @@ def _paeth(a: int, b: int, c: int) -> int:
     return c
 
 
-def _assert_stl_response(stl: dict[str, object]) -> None:
+def _assert_stl_response(
+    stl: dict[str, object],
+    *,
+    expected_filename: str | None = None,
+) -> None:
     assert stl["status"] == 200
     assert "application/sla" in str(stl["content_type"])
+    if expected_filename is not None:
+        assert str(stl["content_disposition"]) == (
+            f'attachment; filename="{expected_filename}"'
+        )
     length = int(stl["length"])
     tri_count = int(stl["triangle_count"])
     assert length == 84 + tri_count * 50
     assert tri_count > 0
+
+
+def _slider_number(page, key: str, attr: str) -> float:
+    value = page.locator(f".kg-param-{key} [role='slider']").first.get_attribute(attr)
+    assert value is not None
+    return float(value)
 
 
 @pytest.mark.browser_acceptance
@@ -321,12 +335,43 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 page.get_by_text("Hydrostatics").first.wait_for(timeout=10_000)
                 page.get_by_text("Displacement").first.wait_for(timeout=10_000)
                 page.get_by_text("GM0").first.wait_for(timeout=10_000)
-                page.get_by_text("Resistance curve (raw comparative filter)").first.wait_for(
+                page.get_by_text("Resistance - raw comparative filter").first.wait_for(
                     timeout=10_000
                 )
-                page.get_by_text("comparative_filter_only").first.wait_for(timeout=10_000)
+                page.get_by_text("Rv N").first.wait_for(timeout=10_000)
+                page.get_by_text("uncalibrated_comparative").first.wait_for(timeout=10_000)
                 page.get_by_text("Comparison").first.wait_for(timeout=10_000)
                 _assert_nonblank_3d(page)
+
+                page.locator(
+                    ".kg-class-preset-radio input[type='radio'][value='surfski_elite']"
+                ).check(force=True)
+                page.wait_for_function(
+                    """
+                    () => Math.abs(parseFloat(
+                      document.querySelector(".kg-param-length_m [role='slider']")
+                        ?.getAttribute("aria-valuenow") || "0"
+                    ) - 6.1) < 0.001
+                    """,
+                    timeout=10_000,
+                )
+                assert abs(_slider_number(page, "length_m", "aria-valuemin") - 5.8) < 1e-6
+                assert abs(_slider_number(page, "length_m", "aria-valuemax") - 6.4) < 1e-6
+                assert abs(_slider_number(page, "beam_wl_m", "aria-valuemin") - 0.38) < 1e-6
+                assert abs(_slider_number(page, "beam_wl_m", "aria-valuemax") - 0.43) < 1e-6
+                page.get_by_text("In Elite surfski envelope").first.wait_for(timeout=10_000)
+
+                page.locator(".kg-param-length_m [role='slider']").first.focus()
+                page.keyboard.press("ArrowRight")
+                page.wait_for_function(
+                    """
+                    () => document.querySelector(
+                      ".kg-class-preset-radio input[type='radio'][value='custom']"
+                    )?.checked === true
+                    """,
+                    timeout=10_000,
+                )
+                page.get_by_text("Custom (L/B_wl=15.4)").first.wait_for(timeout=10_000)
 
                 before = _metrics_text(page)
                 sliders = page.get_by_role("slider")
@@ -341,6 +386,23 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 mutated_metrics = _metrics_text(page)
                 assert mutated_metrics != before
                 _assert_nonblank_3d(page)
+
+                page.get_by_role("tab", name="Mesh").click()
+                page.get_by_text("Hull diagnostics").first.wait_for(timeout=10_000)
+                page.get_by_text("Deck diagnostics").first.wait_for(timeout=10_000)
+                page.get_by_text("Boundary edges:").first.wait_for(timeout=10_000)
+                page.get_by_text("(welded primary)").first.wait_for(timeout=10_000)
+                page.get_by_text("Raw detail:").first.wait_for(timeout=10_000)
+                page.get_by_text("watertight-solid").first.wait_for(timeout=10_000)
+                page.get_by_text("not watertight cfd_ready").first.wait_for(timeout=10_000)
+
+                page.locator(".kg-export-menu-under-1200").click()
+                page.get_by_text("Hull STL").first.wait_for(timeout=10_000)
+                page.get_by_text("Deck STL").first.wait_for(timeout=10_000)
+                page.get_by_text("Hydro JSON").first.wait_for(timeout=10_000)
+                page.get_by_text("Stability JSON").first.wait_for(timeout=10_000)
+                page.get_by_text("Mesh package...").first.wait_for(timeout=10_000)
+                page.get_by_text("use kayakgen mesh-package").first.wait_for(timeout=10_000)
 
                 page.get_by_role("button", name="Share").click()
                 page.wait_for_function(
@@ -370,8 +432,8 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 default_state = state_dict_from_hull(Hull()) | {"target_speed_kt": 3.5}
                 stl = reload_page.evaluate(
                     """
-                    async (state) => {
-                      const response = await fetch('/api/stl?part=hull', {
+                    async ({state, part}) => {
+                      const response = await fetch(`/api/stl?part=${part}`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify(state),
@@ -381,14 +443,37 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                       return {
                         status: response.status,
                         content_type: response.headers.get('content-type'),
+                        content_disposition: response.headers.get('content-disposition'),
                         length: buffer.byteLength,
                         triangle_count: buffer.byteLength >= 84 ? view.getUint32(80, true) : 0,
                       };
                     }
                     """,
-                    arg=default_state,
+                    arg={"state": default_state, "part": "hull"},
                 )
-                _assert_stl_response(stl)
+                _assert_stl_response(stl, expected_filename="kayak_hull.stl")
+                deck_stl = reload_page.evaluate(
+                    """
+                    async ({state, part}) => {
+                      const response = await fetch(`/api/stl?part=${part}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(state),
+                      });
+                      const buffer = await response.arrayBuffer();
+                      const view = new DataView(buffer);
+                      return {
+                        status: response.status,
+                        content_type: response.headers.get('content-type'),
+                        content_disposition: response.headers.get('content-disposition'),
+                        length: buffer.byteLength,
+                        triangle_count: buffer.byteLength >= 84 ? view.getUint32(80, true) : 0,
+                      };
+                    }
+                    """,
+                    arg={"state": default_state, "part": "deck"},
+                )
+                _assert_stl_response(deck_stl, expected_filename="kayak_deck.stl")
                 _assert_no_browser_failures(failures)
                 reload_page.close()
             finally:

@@ -8,6 +8,16 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed workflow 0045's RFC 0034 workspace UI follow-up safe slice: web class
+  presets reseed canonical hull sliders and narrow ranges, manual hull edits
+  return the preset selector to `custom`, the validity badge derives from
+  class/envelope state, Resistance and Mesh review cards render existing read
+  models, and the Export menu exposes enabled STL rows plus honest local-data or
+  unavailable JSON/package states. The slice preserves RFC 0033's no-new-backend
+  capability boundary; calibrated drag, final prediction, design fitness,
+  high-angle `GZ`, hosted/cloud CFD, real solver adapters, web-side
+  mesh-package authoring, watertight `cfd_ready`, and desktop parity rewrite
+  remain deferred.
 - Added RFC 0034 and workflow 0045 for the workspace UI follow-up slice:
   dynamic web class presets, dynamic validity badge, resistance and mesh
   read-model wiring, export-menu completion, and broader forbidden-copy

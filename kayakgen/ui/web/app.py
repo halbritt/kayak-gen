@@ -6,6 +6,8 @@ Importing this module requires the ``kayakgen[web]`` extras
 
 from __future__ import annotations
 
+import html
+import json
 from typing import Any
 
 import numpy as np
@@ -24,6 +26,8 @@ from kayakgen.ui.web.controllers import (
     CfdWebStore,
     HullStore,
     analysis_lines_from_state,
+    class_preset_options,
+    class_preset_read_model,
     candidate_state_from_report_json,
     clamp_beam_wl_state,
     comparison_view_model_from_json,
@@ -36,11 +40,18 @@ from kayakgen.ui.web.controllers import (
     cfd_raw_result_lines_from_payload,
     cfd_status_lines_from_payload,
     create_cfd_job_payload,
+    evaluation_payload,
+    evaluation_summary,
+    hydro_lines_from_state,
     hull_from_web_state,
+    mesh_diagnostics_lines_from_state,
+    mesh_package_view_model,
     metrics_from_state,
     register_rest_routes,
+    resistance_table_view_model,
     run_cfd_job_payload,
     validation_error_payload,
+    validity_badge_from_state,
 )
 from kayakgen.ui.web.state import (
     HULL_STATE_FIELDS,
@@ -86,6 +97,43 @@ CLASS_PRESETS: tuple[str, ...] = (
     "surfski_int",
     "surfski_elite",
     "custom",
+)
+CLASS_PRESET_OPTIONS: tuple[dict[str, str], ...] = tuple(class_preset_options())
+
+EXPORT_MENU_ROWS: tuple[dict[str, Any], ...] = (
+    {
+        "key": "hull_stl",
+        "label": "Hull STL",
+        "status": "enabled",
+        "description": "Download the current open hull inspection surface.",
+    },
+    {
+        "key": "deck_stl",
+        "label": "Deck STL",
+        "status": "enabled",
+        "description": "Download the current open deck inspection surface.",
+    },
+    {
+        "key": "hydro_json",
+        "label": "Hydro JSON",
+        "status": "enabled",
+        "description": "Download current local evaluation data as JSON.",
+    },
+    {
+        "key": "stability_json",
+        "label": "Stability JSON",
+        "status": "unavailable",
+        "description": "Use kayakgen stability for current initial-stability JSON.",
+    },
+    {
+        "key": "mesh_package",
+        "label": "Mesh package...",
+        "status": "unavailable",
+        "description": (
+            "Mesh package authoring is not enabled in the browser; "
+            "use kayakgen mesh-package."
+        ),
+    },
 )
 
 REVIEW_TABS: tuple[dict[str, str], ...] = (
@@ -220,6 +268,35 @@ def _make_actor(
     return actor
 
 
+def _pre_html(lines: list[str]) -> str:
+    body = "\n".join(html.escape(str(line)) for line in lines)
+    return f"<pre>{body}</pre>"
+
+
+def _resistance_table_html(rows: list[dict[str, Any]]) -> str:
+    header = (
+        "<table class=\"kg-resistance-table\" data-testid=\"resistance-table\">"
+        "<thead><tr>"
+        "<th>target</th><th>kt</th><th>Fn</th><th>Rv N</th><th>Rw N</th><th>Rt N</th>"
+        "</tr></thead><tbody>"
+    )
+    body: list[str] = []
+    for row in rows:
+        target_marker = "target" if row["is_target"] else ""
+        row_class = "kg-resistance-row-target state-focus-row" if row["is_target"] else ""
+        body.append(
+            f"<tr class=\"{row_class}\">"
+            f"<td>{target_marker}</td>"
+            f"<td>{row['speed_kt']:.1f}</td>"
+            f"<td>{row['Fn']:.2f}</td>"
+            f"<td>{row['Rv_N']:.1f}</td>"
+            f"<td>{row['Rw_N']:.1f}</td>"
+            f"<td><strong>{row['Rt_N']:.1f}</strong></td>"
+            "</tr>"
+        )
+    return header + "".join(body) + "</tbody></table>"
+
+
 class KayakgenApp:
     """Trame app driving the kayakgen web UI."""
 
@@ -245,11 +322,26 @@ class KayakgenApp:
         self.state.analysis_tab = "analysis"
         self.state.analysis_lines = []
         self.state.class_preset = "custom"
+        self.state.class_preset_options = list(CLASS_PRESET_OPTIONS)
+        self.state.validity_badge = "Custom (L/B_wl=0.0)"
+        self.state.validity_badge_aria_label = "Design validity badge: unavailable"
+        self._init_slider_bounds()
+        self._applying_class_preset = False
+        self.state.export_menu_rows = [dict(row) for row in EXPORT_MENU_ROWS]
+        self.state.export_status = ""
         self.state.mesh_profile_label = MESH_PROFILE_LABEL
         self.state.mesh_profile_id = MESH_PROFILE_ID
-        self.state.mesh_profile_options = [MESH_PROFILE_LABEL, "watertight-solid"]
+        self.state.mesh_profile_options = []
         self.state.mesh_readiness_level = MESH_READINESS_LEVEL
         self.state.mesh_package_readiness_copy = MESH_PACKAGE_READINESS_COPY
+        self.state.mesh_hull_diagnostics_lines = []
+        self.state.mesh_deck_diagnostics_lines = []
+        self.state.mesh_package_warning_lines = []
+        self.state.mesh_package_status = "No mesh package selected."
+        self.state.resistance_table_rows = []
+        self.state.resistance_table_html = ""
+        self.state.resistance_table_caption = RESISTANCE_DETAIL_COPY
+        self.state.resistance_claim_state = "uncalibrated_comparative"
         self.state.advisory_count = 0
         self.state.advisory_lines = ["No design advisories for current hull."]
         self.state.comparison_json = ""
@@ -278,6 +370,10 @@ class KayakgenApp:
         self.state.status_resistance = "uncalibrated_comparative"
         self.state.status_cfd = "unavailable"
         self.state.status_segments = []
+        self.state.status_package_aria_label = ""
+        self.state.status_readiness_aria_label = ""
+        self.state.status_resistance_aria_label = ""
+        self.state.status_cfd_aria_label = ""
 
         self._renderer = vtk.vtkRenderer()
         self._renderer.SetBackground(*theme.vtk_background_rgb(dark=False))
@@ -295,6 +391,7 @@ class KayakgenApp:
         self._rebuild_scene(hull)
 
         self.ctrl.export_stl = lambda part: self._export_stl(part)
+        self.ctrl.export_hydro_json = lambda: self._export_hydro_json()
         self.ctrl.share_url = lambda: self._share_url()
         self.ctrl.reset = lambda: self._reset()
         self.ctrl.refresh_analysis = lambda: self._refresh_analysis()
@@ -313,6 +410,55 @@ class KayakgenApp:
         self._refresh_metrics()
         self._refresh_analysis()
         self._refresh_status_segments()
+        self._refresh_mesh()
+
+    # ----- parameter rail state -----
+
+    def _init_slider_bounds(self) -> None:
+        for key, _label, vmin, vmax, _step in SLIDER_DEFS:
+            setattr(self.state, f"{key}_min", vmin)
+            setattr(self.state, f"{key}_max", vmax)
+
+    def _apply_slider_bounds(self, preset: str) -> None:
+        model = class_preset_read_model(preset)
+        bounds = model["bounds"]
+        for key, _label, vmin, vmax, _step in SLIDER_DEFS:
+            bound = bounds.get(key)
+            setattr(self.state, f"{key}_min", bound["min"] if bound else vmin)
+            setattr(self.state, f"{key}_max", bound["max"] if bound else vmax)
+
+    def _apply_class_preset(self, preset: str) -> None:
+        model = class_preset_read_model(str(preset or "custom"))
+        if model["preset"] == "custom":
+            self.state.class_preset = "custom"
+            self._apply_slider_bounds("custom")
+            self._refresh_current_hull_surface()
+            return
+
+        self._applying_class_preset = True
+        try:
+            self._apply_slider_bounds(model["preset"])
+            values = clamp_beam_wl_state({**self._state_snapshot(), **model["values"]})
+            self.state.update(
+                {
+                    key: values[key]
+                    for key in model["values"]
+                    if key in values
+                }
+            )
+        finally:
+            self._applying_class_preset = False
+        self._refresh_current_hull_surface()
+
+    def _state_matches_preset_seed(self, preset: str) -> bool:
+        model = class_preset_read_model(preset)
+        if model["preset"] == "custom":
+            return False
+        snapshot = self._state_snapshot()
+        return all(
+            abs(float(snapshot.get(key, 0.0)) - float(value)) <= 1e-9
+            for key, value in model["values"].items()
+        )
 
     # ----- 3D scene -----
 
@@ -344,11 +490,47 @@ class KayakgenApp:
     # ----- handlers -----
 
     def _current_hull(self) -> Hull:
-        return hull_from_web_state(dict(self.state.to_dict()))
+        return hull_from_web_state(self._state_snapshot())
+
+    def _state_snapshot(self) -> dict[str, Any]:
+        keys = [
+            *HULL_STATE_FIELDS,
+            "name",
+            "target_speed_kt",
+            "class_preset",
+            "mesh_package_ref",
+            "cfd_mesh_package_ref",
+            "cfd_status",
+            "status",
+            "cfd_payload",
+            "cfd_job_payload",
+            "cfd_last_payload",
+            "cfd_status_lines",
+        ]
+        return {
+            key: getattr(self.state, key)
+            for key in keys
+            if hasattr(self.state, key)
+        }
+
+    def _refresh_current_hull_surface(self) -> None:
+        try:
+            hull = self._current_hull()
+        except Exception:
+            self._refresh_metrics()
+            self._refresh_analysis()
+            self._refresh_mesh()
+            return
+        self._rebuild_scene(hull)
+        self._refresh_metrics()
+        self._refresh_analysis()
+        self._refresh_mesh()
+        if hasattr(self, "view") and self.view is not None:
+            self.view.update()
 
     def _refresh_metrics(self) -> None:
         try:
-            m = metrics_from_state(dict(self.state.to_dict()))
+            m = metrics_from_state(self._state_snapshot())
         except Exception as exc:  # validation errors from Pydantic
             payload = validation_error_payload(exc)
             details = payload.get("details", [])
@@ -380,26 +562,116 @@ class KayakgenApp:
             self.state.advisory_lines = ["No design advisories for current hull."]
         self.state.advisory_count = len(m["advisory_warnings"])
         self.state.status_resistance = m["resistance_claim_state"]
+        self._refresh_validity_badge()
         self._refresh_status_segments()
 
     def _refresh_analysis(self) -> None:
+        state = self._state_snapshot()
         try:
-            self.state.analysis_lines = analysis_lines_from_state(dict(self.state.to_dict()))
+            self.state.analysis_lines = hydro_lines_from_state(state)
         except Exception as exc:
             payload = validation_error_payload(exc)
             details = payload.get("details", [])
             messages = [f"{d['field']}: {d['message']}" for d in details]
             self.state.analysis_lines = ["Analysis unavailable", *messages]
+        try:
+            model = resistance_table_view_model(state)
+        except Exception as exc:
+            payload = validation_error_payload(exc)
+            details = payload.get("details", [])
+            messages = [f"{d['field']}: {d['message']}" for d in details]
+            self.state.resistance_table_rows = []
+            self.state.resistance_table_html = _pre_html(["Resistance unavailable", *messages])
+            return
+        self.state.resistance_table_rows = model["rows"]
+        self.state.resistance_table_caption = model["caption"]
+        self.state.resistance_claim_state = model["metadata"]["claim_state"]
+        self.state.resistance_table_html = _resistance_table_html(model["rows"])
+
+    def _refresh_mesh(self) -> None:
+        state = self._state_snapshot()
+        try:
+            self.state.mesh_hull_diagnostics_lines = mesh_diagnostics_lines_from_state(
+                state,
+                part="hull",
+            )
+            self.state.mesh_deck_diagnostics_lines = mesh_diagnostics_lines_from_state(
+                state,
+                part="deck",
+            )
+        except Exception as exc:
+            payload = validation_error_payload(exc)
+            details = payload.get("details", [])
+            messages = [f"{d['field']}: {d['message']}" for d in details]
+            self.state.mesh_hull_diagnostics_lines = ["Hull diagnostics unavailable", *messages]
+            self.state.mesh_deck_diagnostics_lines = ["Deck diagnostics unavailable", *messages]
+
+        package_ref = str(
+            state.get("mesh_package_ref") or state.get("cfd_mesh_package_ref") or ""
+        )
+        model = mesh_package_view_model(package_ref) if package_ref else None
+        if model is None:
+            model = mesh_package_view_model("")
+            self.state.mesh_package_status = "No mesh package selected."
+            self.state.mesh_package_warning_lines = [
+                "No mesh package selected.",
+                MESH_PACKAGE_READINESS_COPY,
+            ]
+            self.state.mesh_package_readiness_copy = (
+                "No mesh package selected. Live diagnostics use the current hull and deck. "
+                f"{MESH_PACKAGE_READINESS_COPY}"
+            )
+        else:
+            self.state.mesh_package_status = str(model.get("status", "unknown"))
+            self.state.mesh_package_warning_lines = list(model.get("warnings", []))
+            reasons = model.get("readiness", {}).get("reasons", [])
+            self.state.mesh_package_readiness_copy = (
+                "; ".join(reasons) if reasons else "Mesh package readiness has no warnings."
+            )
+        self.state.mesh_profile_options = model["profile_options"]
+        self.state.mesh_profile_label = model["profile"]["label"]
+        self.state.mesh_profile_id = model["profile"]["profile_id"]
+        readiness = model["readiness"]
+        self.state.mesh_readiness_level = (
+            readiness.get("display") or readiness.get("level") or "unavailable"
+        )
+
+    def _refresh_validity_badge(self) -> None:
+        try:
+            badge = validity_badge_from_state(self._state_snapshot())
+        except Exception:
+            badge = "Custom (L/B_wl=0.0)"
+        self.state.validity_badge = badge
+        self.state.validity_badge_aria_label = f"Design validity badge: {badge}"
 
     def _refresh_status_segments(self) -> None:
-        self.state.status_package = MESH_PROFILE_LABEL
-        self.state.status_readiness = MESH_READINESS_LEVEL
+        try:
+            summary = evaluation_summary(self._state_snapshot())
+            self.state.status_package = summary["package"]["label"]
+            self.state.status_readiness = (
+                summary["readiness"].get("display")
+                or summary["readiness"].get("level")
+                or "unavailable"
+            )
+            self.state.status_resistance = summary["resistance_claim"]["claim_state"]
+            self.state.status_cfd = summary["cfd_status"]
+        except Exception:
+            self.state.status_package = MESH_PROFILE_LABEL
+            self.state.status_readiness = "unavailable"
         self.state.status_segments = [
             f"package: {self.state.status_package}",
             f"readiness: {self.state.status_readiness}",
             f"resistance: {self.state.status_resistance}",
             f"cfd: {self.state.status_cfd}",
         ]
+        for segment in STATUS_SEGMENTS:
+            label = segment["key"]
+            value = getattr(self.state, segment["state_key"])
+            setattr(
+                self.state,
+                f"{segment['state_key']}_aria_label",
+                f"{label}: {value}; opens {segment['target_tab']} tab",
+            )
 
     def _set_cfd_status_segment(self, payload: dict[str, Any] | None = None) -> None:
         status = "unavailable"
@@ -413,26 +685,35 @@ class KayakgenApp:
         if tab in {entry["value"] for entry in REVIEW_TABS}:
             self.state.analysis_tab = tab
 
-    def _on_param_change(self, **_kwargs: Any) -> None:
-        normalized = clamp_beam_wl_state(dict(self.state.to_dict()))
+    def _on_hull_param_change(self, **_kwargs: Any) -> None:
+        if self._applying_class_preset:
+            return
+        if not self._applying_class_preset and self.state.class_preset != "custom":
+            if self._state_matches_preset_seed(str(self.state.class_preset)):
+                self._apply_slider_bounds(str(self.state.class_preset))
+                self._refresh_current_hull_surface()
+                return
+            self.state.class_preset = "custom"
+            self._apply_slider_bounds("custom")
+            self._refresh_current_hull_surface()
+            return
+        normalized = clamp_beam_wl_state(self._state_snapshot())
         if normalized.get("beam_wl_m") != self.state.beam_wl_m:
             self.state.beam_wl_m = normalized["beam_wl_m"]
             return
-        try:
-            hull = self._current_hull()
-        except Exception:
-            self._refresh_metrics()
-            self._refresh_analysis()
-            return
-        self._rebuild_scene(hull)
+        self._refresh_current_hull_surface()
+
+    def _on_view_param_change(self, **_kwargs: Any) -> None:
         self._refresh_metrics()
         self._refresh_analysis()
-        if hasattr(self, "view") and self.view is not None:
-            self.view.update()
+
+    def _on_class_preset_change(self, **_kwargs: Any) -> None:
+        self._apply_class_preset(str(self.state.class_preset or "custom"))
 
     def _wire_state_listeners(self) -> None:
-        watched = list(HULL_STATE_FIELDS) + ["target_speed_kt"]
-        self.state.change(*watched)(self._on_param_change)
+        self.state.change(*HULL_STATE_FIELDS)(self._on_hull_param_change)
+        self.state.change("target_speed_kt")(self._on_view_param_change)
+        self.state.change("class_preset")(self._on_class_preset_change)
 
     def _on_server_bind(self, ws_server: Any) -> None:
         register_rest_routes(
@@ -477,17 +758,27 @@ class KayakgenApp:
     def _export_stl(self, part: str) -> None:
         from kayakgen.ui.web.controllers import stl_bytes_for_part
 
-        data = stl_bytes_for_part(dict(self.state.to_dict()), part)
+        data = stl_bytes_for_part(self._state_snapshot(), part)
         if hasattr(self.ctrl, "trigger"):
             self.ctrl.trigger("download_stl", part, data)
+
+    def _export_hydro_json(self) -> None:
+        data = json.dumps(
+            evaluation_payload(self._state_snapshot()),
+            indent=2,
+            sort_keys=True,
+        ).encode("utf-8")
+        self.state.export_status = "Hydro JSON prepared from current local evaluation data."
+        if hasattr(self.ctrl, "trigger"):
+            self.ctrl.trigger("download_json", "kayak_hydro.json", data)
 
     def _reset(self) -> None:
         self.state.update(state_dict_from_hull(Hull()))
         self.state.target_speed_kt = 3.5
         self.state.class_preset = "custom"
+        self._apply_slider_bounds("custom")
         self.state.analysis_tab = "analysis"
-        self._refresh_analysis()
-        self._refresh_metrics()
+        self._refresh_current_hull_surface()
 
     def _load_comparison(self) -> None:
         model = comparison_view_model_from_json(str(self.state.comparison_json or ""))
@@ -502,18 +793,15 @@ class KayakgenApp:
             updated = candidate_state_from_report_json(
                 str(self.state.comparison_json or ""),
                 self.state.selected_candidate_index,
-                dict(self.state.to_dict()),
+                self._state_snapshot(),
             )
         except Exception as exc:
             self.state.comparison_status = f"Candidate reload failed: {exc}"
             return
         self.state.update({key: updated[key] for key in HULL_STATE_FIELDS if key in updated})
-        hull = hull_from_web_state(updated)
-        self._rebuild_scene(hull)
-        self._refresh_metrics()
-        self._refresh_analysis()
-        if hasattr(self, "view") and self.view is not None:
-            self.view.update()
+        self.state.class_preset = "custom"
+        self._apply_slider_bounds("custom")
+        self._refresh_current_hull_surface()
         self.state.comparison_status = (
             f"Applied sweep parameters for candidate {self.state.selected_candidate_index}"
         )
@@ -589,9 +877,9 @@ class KayakgenApp:
         except Exception:
             return
         self.state.update(state_dict_from_hull(hull))
-        self._rebuild_scene(hull)
-        self._refresh_metrics()
-        self._refresh_analysis()
+        self.state.class_preset = "custom"
+        self._apply_slider_bounds("custom")
+        self._refresh_current_hull_surface()
 
     # ----- layout -----
 
@@ -612,7 +900,9 @@ class KayakgenApp:
                 v3.VSpacer()
                 v3.VSelect(
                     v_model=("class_preset",),
-                    items=list(CLASS_PRESETS),
+                    items=("class_preset_options",),
+                    item_title="label",
+                    item_value="value",
                     label="Class",
                     density="compact",
                     hide_details=True,
@@ -620,16 +910,7 @@ class KayakgenApp:
                 )
                 v3.VBtn("Reset", click=self.ctrl.reset, classes="kg-toolbar-action")
                 v3.VBtn("Share", click=self.ctrl.share_url, classes="kg-toolbar-action")
-                v3.VBtn(
-                    "Export Hull STL",
-                    click=lambda: self.ctrl.export_stl("hull"),
-                    classes="kg-toolbar-action kg-export-menu-under-1200",
-                )
-                v3.VBtn(
-                    "Export Deck STL",
-                    click=lambda: self.ctrl.export_stl("deck"),
-                    classes="kg-toolbar-action kg-export-menu-under-1200",
-                )
+                self._render_export_menu()
                 v3.VSnackbar(
                     "{{ share_status }}",
                     v_model=("share_toast",),
@@ -665,8 +946,8 @@ class KayakgenApp:
                         hide_details=True,
                         classes="kg-class-preset-radio",
                     ):
-                        for preset in CLASS_PRESETS:
-                            v3.VRadio(label=preset, value=preset)
+                        for preset in CLASS_PRESET_OPTIONS:
+                            v3.VRadio(label=preset["label"], value=preset["value"])
                     for group_label, keys in PARAMETER_GROUPS:
                         v3.VDivider(classes="mt-3")
                         v3.VCardSubtitle(group_label, classes="kg-rail-group-label")
@@ -675,8 +956,8 @@ class KayakgenApp:
                             v3.VSlider(
                                 v_model=(key,),
                                 label=label,
-                                min=vmin,
-                                max=vmax,
+                                min=(f"{key}_min", vmin),
+                                max=(f"{key}_max", vmax),
                                 step=step,
                                 thumb_label="always",
                                 density="compact",
@@ -689,9 +970,15 @@ class KayakgenApp:
                             )
                     v3.VDivider(classes="mt-3")
                     v3.VChip(
-                        "Custom (L/B_wl from current hull)",
+                        "{{ validity_badge }}",
                         classes="kg-validity-badge",
                         size="small",
+                        **{
+                            "data-testid": "validity-badge",
+                            "role": "status",
+                            "aria-live": "polite",
+                            "aria-label": ("validity_badge_aria_label",),
+                        },
                     )
 
             with layout.content:
@@ -749,6 +1036,52 @@ class KayakgenApp:
                                     self._render_advisories_tab()
                     self._render_status_bar()
 
+    def _render_export_menu(self) -> None:
+        with v3.VMenu(location="bottom", close_on_content_click=True):
+            with v3.Template(v_slot_activator=("{ props }",)):
+                v3.VBtn(
+                    "Export",
+                    v_bind=("props",),
+                    classes="kg-toolbar-action kg-export-menu-under-1200",
+                    **{"aria-label": "Export menu"},
+                )
+            with v3.VList(classes="kg-export-menu-list", density="compact"):
+                v3.VListItem(
+                    title="Hull STL",
+                    subtitle="Current open hull inspection surface",
+                    click=lambda: self.ctrl.export_stl("hull"),
+                    classes="kg-export-row kg-export-hull-stl",
+                )
+                v3.VListItem(
+                    title="Deck STL",
+                    subtitle="Current open deck inspection surface",
+                    click=lambda: self.ctrl.export_stl("deck"),
+                    classes="kg-export-row kg-export-deck-stl",
+                )
+                v3.VListItem(
+                    title="Hydro JSON",
+                    subtitle="Current local evaluation data",
+                    click=self.ctrl.export_hydro_json,
+                    classes="kg-export-row kg-export-hydro-json",
+                )
+                v3.VListItem(
+                    title="Stability JSON",
+                    subtitle="Use kayakgen stability for current initial-stability JSON.",
+                    disabled=True,
+                    classes="kg-export-row kg-export-stability-json",
+                    **{"aria-disabled": "true"},
+                )
+                v3.VListItem(
+                    title="Mesh package...",
+                    subtitle=(
+                        "Mesh package authoring is not enabled in the browser; "
+                        "use kayakgen mesh-package."
+                    ),
+                    disabled=True,
+                    classes="kg-export-row kg-export-mesh-package",
+                    **{"aria-disabled": "true"},
+                )
+
     def _render_hydro_tab(self) -> None:
         with v3.VWindowItem(value="analysis"):
             with v3.VCard(classes="kg-review-card kg-hydro-card"):
@@ -778,7 +1111,12 @@ class KayakgenApp:
             with v3.VCard(classes="kg-review-card kg-resistance-card mt-2"):
                 v3.VCardTitle("Resistance - raw comparative filter")
                 v3.VCardText(RAW_COMPARATIVE_CAPTION)
-                v3.VCardText(RESISTANCE_DETAIL_COPY)
+                v3.VCardText("{{ resistance_table_caption }}")
+                v3.VCardText(
+                    "{{ resistance_table_html }}",
+                    classes="font-mono text-caption kg-resistance-table-wrap",
+                    html=True,
+                )
                 v3.VChip(
                     "uncalibrated_comparative",
                     size="small",
@@ -790,23 +1128,26 @@ class KayakgenApp:
             with v3.VCard(classes="kg-review-card kg-mesh-card"):
                 v3.VCardTitle("Hull diagnostics")
                 v3.VCardText(
-                    "Welded boundary edges, welded non-manifold edges, and "
-                    "degenerate faces are used for readiness interpretation."
+                    "<pre>{{ mesh_hull_diagnostics_lines.join('\\n') }}</pre>",
+                    classes="font-mono text-caption",
+                    html=True,
                 )
             with v3.VCard(classes="kg-review-card kg-mesh-card mt-2"):
                 v3.VCardTitle("Deck diagnostics")
                 v3.VCardText(
-                    "Welded boundary edges, welded non-manifold edges, and "
-                    "degenerate faces are used for readiness interpretation."
+                    "<pre>{{ mesh_deck_diagnostics_lines.join('\\n') }}</pre>",
+                    classes="font-mono text-caption",
+                    html=True,
                 )
             with v3.VCard(classes="kg-review-card kg-mesh-readiness-card mt-2"):
                 v3.VCardTitle(MESH_PACKAGE_READINESS_HEADING)
                 v3.VSelect(
                     v_model=("mesh_profile_label",),
                     items=("mesh_profile_options",),
+                    item_title="label",
+                    item_value="label",
                     label="Profile",
                     density="compact",
-                    readonly=True,
                     classes="kg-mesh-profile-select",
                 )
                 v3.VCardText("Manifest profile: {{ mesh_profile_id }}")
@@ -817,6 +1158,11 @@ class KayakgenApp:
                 )
                 v3.VCardText("{{ mesh_package_readiness_copy }}")
                 v3.VCardText(WATERTIGHT_DISABLED_COPY)
+                v3.VCardText(
+                    "<pre>{{ mesh_package_warning_lines.join('\\n') }}</pre>",
+                    classes="font-mono text-caption",
+                    html=True,
+                )
 
     def _render_comparison_tab(self) -> None:
         with v3.VWindowItem(value="comparison"):
@@ -954,7 +1300,10 @@ class KayakgenApp:
     def _render_status_bar(self) -> None:
         with v3.VSheet(
             classes="kg-status-bar kg-status-wrap-under-960",
-            **{"data-testid": "workspace-status-bar"},
+            **{
+                "data-testid": "workspace-status-bar",
+                "aria-live": "polite",
+            },
         ):
             for segment in STATUS_SEGMENTS:
                 state_key = segment["state_key"]
@@ -968,7 +1317,7 @@ class KayakgenApp:
                     classes=f"kg-status-segment kg-status-{label}",
                     **{
                         "data-testid": f"status-{label}",
-                        "aria-label": segment["aria_label"],
+                        "aria-label": (f"{state_key}_aria_label",),
                     },
                 )
 

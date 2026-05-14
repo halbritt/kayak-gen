@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from kayakgen.eval.mesh_diagnostics import diagnose_mesh
 from kayakgen.eval.mesh_package import watertight_solid_profile, write_mesh_package
 from kayakgen.model.hull import Hull
@@ -7,10 +9,13 @@ from kayakgen.model.validity import CODE_L_BWL_LOW
 from kayakgen.ui.web.controllers import (
     MESH_PROFILE_LABEL_TO_ID,
     WATERTIGHT_SOLID_DISABLED_TOOLTIP,
+    class_preset_options,
+    class_preset_read_model,
     evaluation_summary,
     mesh_diagnostics_lines_from_state,
     mesh_package_view_model,
     resistance_table_view_model,
+    validity_badge_from_state,
 )
 from kayakgen.ui.web.state import state_dict_from_hull
 
@@ -20,6 +25,46 @@ def _state(hull: Hull | None = None, **overrides: object) -> dict[str, object]:
     state["target_speed_kt"] = 3.5
     state.update(overrides)
     return state
+
+
+def test_class_preset_read_model_returns_defaults_bounds_and_human_labels() -> None:
+    options = class_preset_options()
+    assert options[0] == {"value": "touring", "label": "Touring sea kayak"}
+    assert options[-1] == {"value": "custom", "label": "Custom"}
+
+    model = class_preset_read_model("surfski_elite")
+
+    assert model["preset"] == "surfski_elite"
+    assert model["label"] == "Elite surfski"
+    assert model["values"] == {
+        "length_m": 6.1,
+        "beam_oa_m": 0.43,
+        "beam_wl_m": 0.40,
+        "draft_m": 0.11,
+        "Cp": 0.58,
+    }
+    assert model["bounds"]["length_m"] == {"min": 5.8, "max": 6.4, "default": 6.1}
+    assert model["bounds"]["beam_wl_m"] == {"min": 0.38, "max": 0.43, "default": 0.40}
+
+
+def test_class_preset_read_model_custom_and_unknown_do_not_reseed() -> None:
+    assert class_preset_read_model("custom")["values"] == {}
+    assert class_preset_read_model("unknown") == class_preset_read_model("custom")
+
+
+def test_validity_badge_uses_exact_allowed_strings() -> None:
+    assert validity_badge_from_state(
+        _state(class_preset="touring", **class_preset_read_model("touring")["values"])
+    ) == "In Touring sea kayak envelope"
+    assert validity_badge_from_state(
+        _state(Hull(length_m=5.0, beam_oa_m=0.54, beam_wl_m=0.50, draft_m=0.16, Cp=0.62))
+    ) == "Custom (L/B_wl=10.0)"
+    assert validity_badge_from_state(
+        _state(Hull(length_m=4.0, beam_oa_m=0.70, beam_wl_m=0.65))
+    ) == "Custom — sub-touring"
+    assert validity_badge_from_state(
+        _state(Hull(length_m=6.4, beam_oa_m=0.39, beam_wl_m=0.38, draft_m=0.14, Cp=0.62))
+    ) == "Custom — beyond elite"
 
 
 def test_evaluation_summary_uses_manifest_profile_readiness_and_cfd_status(
@@ -121,6 +166,23 @@ def test_mesh_package_view_model_maps_watertight_profile_manifest_id(tmp_path) -
         "label": "watertight-solid",
         "profile_id": MESH_PROFILE_LABEL_TO_ID["watertight-solid"],
     }
+
+
+def test_mesh_package_view_model_rejects_manifest_refs_outside_package(tmp_path) -> None:
+    mesh_dir = tmp_path / "mesh"
+    write_mesh_package(Hull(), mesh_dir, stations=8)
+    outside = tmp_path / "outside.json"
+    outside.write_text((mesh_dir / "quality.hull.json").read_text())
+    manifest_path = mesh_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["quality_reports"]["hull"] = "../outside.json"
+    manifest_path.write_text(json.dumps(manifest))
+
+    model = mesh_package_view_model(mesh_dir)
+
+    assert model["diagnostics"]["hull"]["error"] == "artifact_path_outside_package"
+    assert "hull: artifact path outside package" in model["warnings"]
+    assert "hull: artifact path outside package" in model["artifact_errors"]
 
 
 def test_resistance_table_inserts_sorted_target_row_when_off_sweep() -> None:

@@ -362,6 +362,34 @@ hosted-demo documentation are covered by the web verification runbook; public
 hosting, full dashboard parity, hosted CFD workers, cancellation guarantees,
 authentication, and real solver adapters are not complete.
 
+The web workspace class selector now reseeds `length_m`, `beam_oa_m`,
+`beam_wl_m`, `draft_m`, and `Cp` for the touring, performance,
+intermediate-surfski, and elite-surfski presets, and narrows those slider ranges
+to the selected class envelope. Editing a hull slider returns the selector to
+`custom`; target speed remains view state and is not written to `Hull` JSON.
+
+The rail validity badge is advisory. It reports one of
+`In <class> envelope`, `Custom — sub-touring`, `Custom — beyond elite`, or
+`Custom (L/B_wl=X.X)` from the current hull and selected class state. It is not
+proof of seaworthiness, calibrated performance, design fitness, or solver
+readiness.
+
+The Review area renders existing read models only. Resistance shows fixed sweep
+rows plus the target-speed row with `kt`, `Fn`, `Rv N`, `Rw N`, and `Rt N`, and
+keeps the `uncalibrated_comparative` raw comparative warning. Mesh shows
+hull/deck diagnostics, welded-primary counts, raw-count detail, warnings, and
+package/readiness/profile state when available. `watertight-solid` remains
+unavailable for current generated packages unless a future closed-volume and
+volume-mesh RFC lands the required evidence.
+
+The Export menu lists Hull STL, Deck STL, Hydro JSON, Stability JSON, and Mesh
+package. Hull and Deck STL use the existing local STL behavior. Hydro JSON uses
+current local evaluation data. Stability JSON and Mesh package remain
+unavailable in the browser; use `kayakgen stability` and
+`kayakgen mesh-package` for those artifacts today. The menu does not create
+hosted storage, hosted solver jobs, high-angle `GZ` exports, or watertight
+`cfd_ready` packages.
+
 The web CFD panel and `/api/cfd/*` routes use the same local filesystem job
 records as `kayakgen cfd`. They accept an explicit server-local
 `mesh_package_ref`, prepare jobs under the web server's local CFD jobs root,

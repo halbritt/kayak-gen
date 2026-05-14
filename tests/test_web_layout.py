@@ -48,6 +48,13 @@ def test_parameter_rail_groups_cover_visible_hull_fields_and_target_speed() -> N
         "surfski_elite",
         "custom",
     )
+    assert [option["label"] for option in web_app.CLASS_PRESET_OPTIONS] == [
+        "Touring sea kayak",
+        "Performance sea kayak",
+        "Intermediate surfski",
+        "Elite surfski",
+        "Custom",
+    ]
 
 
 def test_review_tabs_and_status_segments_match_workspace_contract() -> None:
@@ -91,13 +98,55 @@ def test_persistent_claim_readiness_and_cfd_copy_is_static_and_exact() -> None:
     assert copy["share_toast"] == "Shareable URL copied"
 
 
-def test_forbidden_high_angle_and_mesh_claim_copy_does_not_creep_into_static_layout() -> None:
-    app_source = Path(web_app.__file__).read_text()
+def test_export_menu_rows_are_single_honest_menu_contract() -> None:
+    assert [row["label"] for row in web_app.EXPORT_MENU_ROWS] == [
+        "Hull STL",
+        "Deck STL",
+        "Hydro JSON",
+        "Stability JSON",
+        "Mesh package...",
+    ]
+    assert [row["status"] for row in web_app.EXPORT_MENU_ROWS] == [
+        "enabled",
+        "enabled",
+        "enabled",
+        "unavailable",
+        "unavailable",
+    ]
+    assert "kayakgen stability" in web_app.EXPORT_MENU_ROWS[3]["description"]
+    assert "kayakgen mesh-package" in web_app.EXPORT_MENU_ROWS[4]["description"]
 
-    assert "GZ_max" not in app_source
-    assert "heel_angle_max_deg" not in app_source
-    assert app_source.count("cfd_ready") == 1
-    assert "not watertight cfd_ready" in app_source
+
+def test_forbidden_claim_copy_has_only_documented_negations_in_render_surfaces() -> None:
+    app_source = Path(web_app.__file__).read_text()
+    controllers_source = Path(web_app.__file__).with_name("controllers.py").read_text()
+    render_source = "\n".join([app_source, controllers_source])
+
+    allowed_phrases = (
+        "not final prediction",
+        "no accepted final-prediction",
+        "not watertight cfd_ready",
+        "no hosted worker is running",
+    )
+    scrubbed = render_source
+    for phrase in allowed_phrases:
+        assert phrase in render_source
+        scrubbed = scrubbed.replace(phrase, "")
+
+    for forbidden in (
+        "GZ_max",
+        "heel_angle_max_deg",
+        "OpenFOAM",
+        "SU2",
+        "worker queue",
+        "calibrated drag",
+        "design fitness",
+        "cfd_ready",
+    ):
+        assert forbidden not in scrubbed
+    assert "final prediction" not in scrubbed
+    assert "hosted" not in scrubbed
+    assert "cloud" not in scrubbed
 
 
 def test_create_app_exposes_workspace_status_state_without_changing_tab_key() -> None:
@@ -106,17 +155,78 @@ def test_create_app_exposes_workspace_status_state_without_changing_tab_key() ->
     assert web.state.analysis_tab == "analysis"
     assert web.state.mesh_profile_label == "open-wetted-surface"
     assert web.state.mesh_profile_id == "open_wetted_surface_resistance_v1"
-    assert web.state.mesh_readiness_level == "cfd_surface_candidate"
+    assert web.state.mesh_readiness_level == "unavailable"
     assert web.state.status_segments == [
         "package: open-wetted-surface",
-        "readiness: cfd_surface_candidate",
+        "readiness: unavailable",
         "resistance: uncalibrated_comparative",
         "cfd: unavailable",
     ]
+    assert web.state.validity_badge == "Custom (L/B_wl=8.2)"
+    assert web.state.status_package_aria_label == "package: open-wetted-surface; opens mesh tab"
+    assert web.state.status_readiness_aria_label == "readiness: unavailable; opens mesh tab"
     assert web.state.cfd_local_banner == web_app.PERSISTENT_COPY["cfd_local_banner"]
     assert web.state.cfd_artifact_strapline == web_app.PERSISTENT_COPY[
         "cfd_artifact_strapline"
     ]
+
+
+def test_class_preset_reseeds_bounds_and_manual_hull_edit_flips_custom() -> None:
+    web = web_app.create_app(initial_hull=Hull())
+
+    web.state.class_preset = "surfski_elite"
+    web._apply_class_preset("surfski_elite")
+
+    assert web.state.length_m == 6.1
+    assert web.state.beam_oa_m == 0.43
+    assert web.state.beam_wl_m == 0.40
+    assert web.state.draft_m == 0.11
+    assert web.state.Cp == 0.58
+    assert web.state.length_m_min == 5.8
+    assert web.state.length_m_max == 6.4
+    assert web.state.beam_wl_m_min == 0.38
+    assert web.state.beam_wl_m_max == 0.43
+    assert web.state.target_speed_kt_min == 1.0
+    assert web.state.target_speed_kt_max == 6.0
+    assert web.state.validity_badge == "In Elite surfski envelope"
+
+    web.state.length_m = 6.15
+    web._on_hull_param_change()
+
+    assert web.state.class_preset == "custom"
+    assert web.state.length_m_min == 2.0
+    assert web.state.length_m_max == 6.5
+    assert web.state.validity_badge == "Custom (L/B_wl=15.4)"
+
+
+def test_target_speed_edit_does_not_flip_class_preset() -> None:
+    web = web_app.create_app(initial_hull=Hull())
+    web.state.class_preset = "touring"
+    web._apply_class_preset("touring")
+
+    web.state.target_speed_kt = 4.0
+    web._on_view_param_change()
+
+    assert web.state.class_preset == "touring"
+    assert web.state.target_speed_kt == 4.0
+
+
+def test_resistance_mesh_and_export_render_contract_is_present() -> None:
+    app_source = Path(web_app.__file__).read_text()
+
+    assert "kg-resistance-card" in app_source
+    assert "data-testid=\\\"resistance-table\\\"" in app_source
+    assert "kg-resistance-row-target" in app_source
+    assert "Resistance curve (raw comparative filter)" not in web_app.create_app(
+        initial_hull=Hull()
+    ).state.analysis_lines
+    assert "kg-mesh-profile-select" in app_source
+    assert "item_title=\"label\"" in app_source
+    assert "kg-export-hull-stl" in app_source
+    assert "kg-export-deck-stl" in app_source
+    assert "kg-export-hydro-json" in app_source
+    assert "kg-export-stability-json" in app_source
+    assert "kg-export-mesh-package" in app_source
 
 
 def test_share_action_keeps_encoded_url_in_state_but_uses_copied_status() -> None:
