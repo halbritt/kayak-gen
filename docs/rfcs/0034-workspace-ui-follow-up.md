@@ -1,10 +1,20 @@
 # RFC 0034: Workspace UI Follow-Up
 
-Status: accepted implementation target
+Status: landed safe-slice
 Date: 2026-05-14
 Context: successor to RFC 0033 and workflow 0044 final review. Uses
 `striatum/0044-workspace-ui-rework/final/FINAL_REVIEW.md` as the
 finding source and keeps RFC 0033's no-new-backend-capability boundary.
+
+Status note (workflow 0045, 2026-05-14): landed the safe UI follow-up
+slice. Web class presets reseed and narrow canonical hull sliders, manual
+hull edits switch presets back to `custom`, the validity badge derives from
+current hull/class state, Resistance and Mesh cards render existing read
+models, the Export menu exposes enabled STL/Hydro JSON rows plus honest
+unavailable Stability JSON/Mesh package rows, and forbidden-copy tests cover
+the RFC 0033 no-go list. Hosted CFD, real solver adapters, calibrated drag,
+final prediction, high-angle `GZ`, web-side mesh-package authoring,
+watertight `cfd_ready`, and the desktop parity rewrite remain deferred.
 
 ## Problem
 

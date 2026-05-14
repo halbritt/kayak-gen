@@ -605,5 +605,7 @@ Updated: 2026-05-14
   non-canonical sliders under active presets, duplicated export-menu row data,
   and ad-hoc web `_state_snapshot` keys. No remediation was required for
   workflow 0045.
+- RFC 0034 and the RFC index were corrected from accepted-target language to
+  landed safe-slice after the final review/run completion.
 - Next operator actions: commit/push/fast-forward `main`, then inspect the
   remaining backlog and continue with claimable work.
