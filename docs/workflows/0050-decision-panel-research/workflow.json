@@ -1,0 +1,298 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0050-decision-panel-research",
+  "workflow_version": "2026-05-14",
+  "name": "0050 - Decision panel research",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0050-decision-panel-research",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "coordinator",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["claude", "--model", "opus", "-p"],
+      "capabilities": ["review", "synthesis"]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "-"
+      ],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["gemini", "--model", "gemini-3.1-pro-preview"],
+      "capabilities": ["review", "synthesis"]
+    }
+  },
+  "roles": {
+    "coordinator": {"definition_path": "roles/coordinator.md"},
+    "researcher": {"definition_path": "roles/researcher.md"},
+    "panelist": {"definition_path": "roles/panelist.md"},
+    "decision_integrator": {"definition_path": "roles/decision_integrator.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/PRD.md", "required": true},
+    {"path": "docs/USER_GUIDE.md", "required": true},
+    {"path": "docs/ROADMAP.md", "required": true},
+    {"path": "docs/DECISION_LOG.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/design/kayak_hull_design_constraints.md", "required": true},
+    {"path": "docs/workflows/0018-deferred-backlog/QUEUE.md", "required": true},
+    {"path": "striatum/0049-roadmap-reconciliation/final/FINAL_REVIEW.md", "required": true},
+    {"path": "striatum/0049-roadmap-reconciliation/integration/PATCH_SUMMARY.md", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 12,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "research_solver_path",
+      "type": "synthesis",
+      "title": "Research CFD solver path decision",
+      "role_id": "researcher",
+      "lane_id": "codex",
+      "parallel_group": "decision_research",
+      "fresh_session_required": true,
+      "objective": "Research the CFD solver path decision: first external solver target, mesh profile/readiness gate, case-template version, parser scope, install/platform notes, and CI strategy.",
+      "task_prompt": {"path": "prompts/research_decision.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/research/solver_path/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "research", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/research/solver_path/RESEARCH.md", "required": true}]
+    },
+    {
+      "id": "research_solver_readiness",
+      "type": "synthesis",
+      "title": "Research solver-readiness evidence decision",
+      "role_id": "researcher",
+      "lane_id": "codex",
+      "parallel_group": "decision_research",
+      "fresh_session_required": true,
+      "objective": "Research the solver-readiness evidence decision: generated-body diagnostics, volume-mesh diagnostic schema, quality thresholds, artifact hashes, blocker/warning semantics, and `cfd_ready` promotion rules.",
+      "task_prompt": {"path": "prompts/research_decision.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/research/solver_readiness/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "research", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/research/solver_readiness/RESEARCH.md", "required": true}]
+    },
+    {
+      "id": "research_resistance_sources",
+      "type": "synthesis",
+      "title": "Research resistance source acceptance decision",
+      "role_id": "researcher",
+      "lane_id": "codex",
+      "parallel_group": "decision_research",
+      "fresh_session_required": true,
+      "objective": "Research the resistance source acceptance decision: measured-source rights, extraction, measured quantity, units, hull envelope, speed/Froude range, uncertainty, and review metadata before validation/calibration fixture promotion.",
+      "task_prompt": {"path": "prompts/research_decision.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/research/resistance_sources/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "research", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/research/resistance_sources/RESEARCH.md", "required": true}]
+    },
+    {
+      "id": "research_calibrated_resistance",
+      "type": "synthesis",
+      "title": "Research calibrated resistance promotion decision",
+      "role_id": "researcher",
+      "lane_id": "codex",
+      "parallel_group": "decision_research",
+      "fresh_session_required": true,
+      "objective": "Research the calibrated resistance promotion decision: fit metrics, validity envelope, model-versioning rules, and wording threshold before calibrated prediction or design-fitness claims.",
+      "task_prompt": {"path": "prompts/research_decision.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/research/calibrated_resistance/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "research", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/research/calibrated_resistance/RESEARCH.md", "required": true}]
+    },
+    {
+      "id": "research_high_angle_stability",
+      "type": "synthesis",
+      "title": "Research high-angle stability model decision",
+      "role_id": "researcher",
+      "lane_id": "codex",
+      "parallel_group": "decision_research",
+      "fresh_session_required": true,
+      "objective": "Research the high-angle stability model decision: accepted body profile, heel grid, trim policy, CG convention, waterline clipping, residuals, convergence warnings, deck/flooding assumptions, and user-facing warnings.",
+      "task_prompt": {"path": "prompts/research_decision.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/research/high_angle_stability/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "research", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/research/high_angle_stability/RESEARCH.md", "required": true}]
+    },
+    {
+      "id": "research_browser_hosting",
+      "type": "synthesis",
+      "title": "Research browser hosting posture decision",
+      "role_id": "researcher",
+      "lane_id": "codex",
+      "parallel_group": "decision_research",
+      "fresh_session_required": true,
+      "objective": "Research the browser hosting posture decision: whether to pursue a public hosted demo now, what hosted means, whether it is static/local-only or server-backed, and the acceptance bar.",
+      "task_prompt": {"path": "prompts/research_decision.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/research/browser_hosting/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "research", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/research/browser_hosting/RESEARCH.md", "required": true}]
+    },
+    {
+      "id": "research_desktop_parity",
+      "type": "synthesis",
+      "title": "Research desktop parity strategy decision",
+      "role_id": "researcher",
+      "lane_id": "codex",
+      "parallel_group": "decision_research",
+      "fresh_session_required": true,
+      "objective": "Research the desktop parity strategy decision: whether desktop parity remains a rewrite/embedding target or whether the web workspace becomes primary while desktop remains legacy/supporting.",
+      "task_prompt": {"path": "prompts/research_decision.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/research/desktop_parity/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "research", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/research/desktop_parity/RESEARCH.md", "required": true}]
+    },
+    {
+      "id": "research_sweep_optimization",
+      "type": "synthesis",
+      "title": "Research sweep and optimization admissibility decision",
+      "role_id": "researcher",
+      "lane_id": "codex",
+      "parallel_group": "decision_research",
+      "fresh_session_required": true,
+      "objective": "Research the sweep/search/optimization admissibility decision: reconcile RFC 0009 against current sweep behavior and decide which metrics are admissible for candidate ranking.",
+      "task_prompt": {"path": "prompts/research_decision.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/research/sweep_optimization/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "research", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/research/sweep_optimization/RESEARCH.md", "required": true}]
+    },
+
+    {"id": "panel_solver_path_claude", "type": "synthesis", "title": "Claude panel vote CFD solver path", "role_id": "panelist", "lane_id": "claude", "parallel_group": "panel_solver_path", "fresh_session_required": true, "objective": "Vote on the CFD solver path decision using the solver_path research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/solver_path/claude/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/solver_path/claude/VOTE.md", "required": true}]},
+    {"id": "panel_solver_path_codex", "type": "synthesis", "title": "Codex panel vote CFD solver path", "role_id": "panelist", "lane_id": "codex", "parallel_group": "panel_solver_path", "fresh_session_required": true, "objective": "Vote on the CFD solver path decision using the solver_path research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/solver_path/codex/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/solver_path/codex/VOTE.md", "required": true}]},
+    {"id": "panel_solver_path_gemini", "type": "synthesis", "title": "Gemini panel vote CFD solver path", "role_id": "panelist", "lane_id": "gemini", "parallel_group": "panel_solver_path", "fresh_session_required": true, "objective": "Vote on the CFD solver path decision using the solver_path research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/solver_path/gemini/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/solver_path/gemini/VOTE.md", "required": true}]},
+
+    {"id": "panel_solver_readiness_claude", "type": "synthesis", "title": "Claude panel vote solver readiness", "role_id": "panelist", "lane_id": "claude", "parallel_group": "panel_solver_readiness", "fresh_session_required": true, "objective": "Vote on the solver-readiness evidence decision using the solver_readiness research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/solver_readiness/claude/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/solver_readiness/claude/VOTE.md", "required": true}]},
+    {"id": "panel_solver_readiness_codex", "type": "synthesis", "title": "Codex panel vote solver readiness", "role_id": "panelist", "lane_id": "codex", "parallel_group": "panel_solver_readiness", "fresh_session_required": true, "objective": "Vote on the solver-readiness evidence decision using the solver_readiness research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/solver_readiness/codex/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/solver_readiness/codex/VOTE.md", "required": true}]},
+    {"id": "panel_solver_readiness_gemini", "type": "synthesis", "title": "Gemini panel vote solver readiness", "role_id": "panelist", "lane_id": "gemini", "parallel_group": "panel_solver_readiness", "fresh_session_required": true, "objective": "Vote on the solver-readiness evidence decision using the solver_readiness research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/solver_readiness/gemini/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/solver_readiness/gemini/VOTE.md", "required": true}]},
+
+    {"id": "panel_resistance_sources_claude", "type": "synthesis", "title": "Claude panel vote resistance sources", "role_id": "panelist", "lane_id": "claude", "parallel_group": "panel_resistance_sources", "fresh_session_required": true, "objective": "Vote on the resistance source acceptance decision using the resistance_sources research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/resistance_sources/claude/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/resistance_sources/claude/VOTE.md", "required": true}]},
+    {"id": "panel_resistance_sources_codex", "type": "synthesis", "title": "Codex panel vote resistance sources", "role_id": "panelist", "lane_id": "codex", "parallel_group": "panel_resistance_sources", "fresh_session_required": true, "objective": "Vote on the resistance source acceptance decision using the resistance_sources research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/resistance_sources/codex/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/resistance_sources/codex/VOTE.md", "required": true}]},
+    {"id": "panel_resistance_sources_gemini", "type": "synthesis", "title": "Gemini panel vote resistance sources", "role_id": "panelist", "lane_id": "gemini", "parallel_group": "panel_resistance_sources", "fresh_session_required": true, "objective": "Vote on the resistance source acceptance decision using the resistance_sources research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/resistance_sources/gemini/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/resistance_sources/gemini/VOTE.md", "required": true}]},
+
+    {"id": "panel_calibrated_resistance_claude", "type": "synthesis", "title": "Claude panel vote calibrated resistance", "role_id": "panelist", "lane_id": "claude", "parallel_group": "panel_calibrated_resistance", "fresh_session_required": true, "objective": "Vote on the calibrated resistance promotion decision using the calibrated_resistance research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/calibrated_resistance/claude/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/calibrated_resistance/claude/VOTE.md", "required": true}]},
+    {"id": "panel_calibrated_resistance_codex", "type": "synthesis", "title": "Codex panel vote calibrated resistance", "role_id": "panelist", "lane_id": "codex", "parallel_group": "panel_calibrated_resistance", "fresh_session_required": true, "objective": "Vote on the calibrated resistance promotion decision using the calibrated_resistance research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/calibrated_resistance/codex/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/calibrated_resistance/codex/VOTE.md", "required": true}]},
+    {"id": "panel_calibrated_resistance_gemini", "type": "synthesis", "title": "Gemini panel vote calibrated resistance", "role_id": "panelist", "lane_id": "gemini", "parallel_group": "panel_calibrated_resistance", "fresh_session_required": true, "objective": "Vote on the calibrated resistance promotion decision using the calibrated_resistance research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/calibrated_resistance/gemini/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/calibrated_resistance/gemini/VOTE.md", "required": true}]},
+
+    {"id": "panel_high_angle_stability_claude", "type": "synthesis", "title": "Claude panel vote high-angle stability", "role_id": "panelist", "lane_id": "claude", "parallel_group": "panel_high_angle_stability", "fresh_session_required": true, "objective": "Vote on the high-angle stability model decision using the high_angle_stability research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/high_angle_stability/claude/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/high_angle_stability/claude/VOTE.md", "required": true}]},
+    {"id": "panel_high_angle_stability_codex", "type": "synthesis", "title": "Codex panel vote high-angle stability", "role_id": "panelist", "lane_id": "codex", "parallel_group": "panel_high_angle_stability", "fresh_session_required": true, "objective": "Vote on the high-angle stability model decision using the high_angle_stability research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/high_angle_stability/codex/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/high_angle_stability/codex/VOTE.md", "required": true}]},
+    {"id": "panel_high_angle_stability_gemini", "type": "synthesis", "title": "Gemini panel vote high-angle stability", "role_id": "panelist", "lane_id": "gemini", "parallel_group": "panel_high_angle_stability", "fresh_session_required": true, "objective": "Vote on the high-angle stability model decision using the high_angle_stability research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/high_angle_stability/gemini/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/high_angle_stability/gemini/VOTE.md", "required": true}]},
+
+    {"id": "panel_browser_hosting_claude", "type": "synthesis", "title": "Claude panel vote browser hosting", "role_id": "panelist", "lane_id": "claude", "parallel_group": "panel_browser_hosting", "fresh_session_required": true, "objective": "Vote on the browser hosting posture decision using the browser_hosting research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/browser_hosting/claude/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/browser_hosting/claude/VOTE.md", "required": true}]},
+    {"id": "panel_browser_hosting_codex", "type": "synthesis", "title": "Codex panel vote browser hosting", "role_id": "panelist", "lane_id": "codex", "parallel_group": "panel_browser_hosting", "fresh_session_required": true, "objective": "Vote on the browser hosting posture decision using the browser_hosting research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/browser_hosting/codex/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/browser_hosting/codex/VOTE.md", "required": true}]},
+    {"id": "panel_browser_hosting_gemini", "type": "synthesis", "title": "Gemini panel vote browser hosting", "role_id": "panelist", "lane_id": "gemini", "parallel_group": "panel_browser_hosting", "fresh_session_required": true, "objective": "Vote on the browser hosting posture decision using the browser_hosting research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/browser_hosting/gemini/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/browser_hosting/gemini/VOTE.md", "required": true}]},
+
+    {"id": "panel_desktop_parity_claude", "type": "synthesis", "title": "Claude panel vote desktop parity", "role_id": "panelist", "lane_id": "claude", "parallel_group": "panel_desktop_parity", "fresh_session_required": true, "objective": "Vote on the desktop parity strategy decision using the desktop_parity research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/desktop_parity/claude/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/desktop_parity/claude/VOTE.md", "required": true}]},
+    {"id": "panel_desktop_parity_codex", "type": "synthesis", "title": "Codex panel vote desktop parity", "role_id": "panelist", "lane_id": "codex", "parallel_group": "panel_desktop_parity", "fresh_session_required": true, "objective": "Vote on the desktop parity strategy decision using the desktop_parity research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/desktop_parity/codex/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/desktop_parity/codex/VOTE.md", "required": true}]},
+    {"id": "panel_desktop_parity_gemini", "type": "synthesis", "title": "Gemini panel vote desktop parity", "role_id": "panelist", "lane_id": "gemini", "parallel_group": "panel_desktop_parity", "fresh_session_required": true, "objective": "Vote on the desktop parity strategy decision using the desktop_parity research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/desktop_parity/gemini/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/desktop_parity/gemini/VOTE.md", "required": true}]},
+
+    {"id": "panel_sweep_optimization_claude", "type": "synthesis", "title": "Claude panel vote sweep optimization", "role_id": "panelist", "lane_id": "claude", "parallel_group": "panel_sweep_optimization", "fresh_session_required": true, "objective": "Vote on the sweep/search/optimization admissibility decision using the sweep_optimization research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/sweep_optimization/claude/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/sweep_optimization/claude/VOTE.md", "required": true}]},
+    {"id": "panel_sweep_optimization_codex", "type": "synthesis", "title": "Codex panel vote sweep optimization", "role_id": "panelist", "lane_id": "codex", "parallel_group": "panel_sweep_optimization", "fresh_session_required": true, "objective": "Vote on the sweep/search/optimization admissibility decision using the sweep_optimization research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/sweep_optimization/codex/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/sweep_optimization/codex/VOTE.md", "required": true}]},
+    {"id": "panel_sweep_optimization_gemini", "type": "synthesis", "title": "Gemini panel vote sweep optimization", "role_id": "panelist", "lane_id": "gemini", "parallel_group": "panel_sweep_optimization", "fresh_session_required": true, "objective": "Vote on the sweep/search/optimization admissibility decision using the sweep_optimization research packet.", "task_prompt": {"path": "prompts/panel_vote.md"}, "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/panels/sweep_optimization/gemini/"], "forbidden_paths": [".striatum/"]}, "expected_artifacts": [{"logical_name": "vote", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/panels/sweep_optimization/gemini/VOTE.md", "required": true}]},
+
+    {
+      "id": "integrate_decisions",
+      "type": "synthesis",
+      "title": "Integrate majority decisions",
+      "role_id": "decision_integrator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Apply strict two-of-three majority rule across all decision panels, record accepted decision-log rows and roadmap updates, and identify the resulting implementation burn-down queue without runtime changes.",
+      "task_prompt": {"path": "prompts/integrate_decisions.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/DECISION_LOG.md",
+          "docs/ROADMAP.md",
+          "CHANGELOG.md",
+          "docs/workflows/0050-decision-panel-research/OPERATOR_REPORT.md",
+          "striatum/0050-decision-panel-research/integration/"
+        ],
+        "forbidden_paths": [".striatum/", "kayakgen/", "tests/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "decision_results", "kind": "synthesis", "path": "striatum/0050-decision-panel-research/integration/DECISION_RESULTS.md", "required": true},
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0050-decision-panel-research/integration/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final review majority decisions",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify every recorded decision is research-backed, majority-derived, evidence-bound, and documentation-only.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0050-decision-panel-research/final/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [{"logical_name": "final_review", "kind": "finding", "path": "striatum/0050-decision-panel-research/final/FINAL_REVIEW.md", "required": true}]
+    }
+  ],
+  "edges": [
+    {"from": "research_solver_path", "to": "panel_solver_path_claude", "on": "completed"},
+    {"from": "research_solver_path", "to": "panel_solver_path_codex", "on": "completed"},
+    {"from": "research_solver_path", "to": "panel_solver_path_gemini", "on": "completed"},
+    {"from": "research_solver_readiness", "to": "panel_solver_readiness_claude", "on": "completed"},
+    {"from": "research_solver_readiness", "to": "panel_solver_readiness_codex", "on": "completed"},
+    {"from": "research_solver_readiness", "to": "panel_solver_readiness_gemini", "on": "completed"},
+    {"from": "research_resistance_sources", "to": "panel_resistance_sources_claude", "on": "completed"},
+    {"from": "research_resistance_sources", "to": "panel_resistance_sources_codex", "on": "completed"},
+    {"from": "research_resistance_sources", "to": "panel_resistance_sources_gemini", "on": "completed"},
+    {"from": "research_calibrated_resistance", "to": "panel_calibrated_resistance_claude", "on": "completed"},
+    {"from": "research_calibrated_resistance", "to": "panel_calibrated_resistance_codex", "on": "completed"},
+    {"from": "research_calibrated_resistance", "to": "panel_calibrated_resistance_gemini", "on": "completed"},
+    {"from": "research_high_angle_stability", "to": "panel_high_angle_stability_claude", "on": "completed"},
+    {"from": "research_high_angle_stability", "to": "panel_high_angle_stability_codex", "on": "completed"},
+    {"from": "research_high_angle_stability", "to": "panel_high_angle_stability_gemini", "on": "completed"},
+    {"from": "research_browser_hosting", "to": "panel_browser_hosting_claude", "on": "completed"},
+    {"from": "research_browser_hosting", "to": "panel_browser_hosting_codex", "on": "completed"},
+    {"from": "research_browser_hosting", "to": "panel_browser_hosting_gemini", "on": "completed"},
+    {"from": "research_desktop_parity", "to": "panel_desktop_parity_claude", "on": "completed"},
+    {"from": "research_desktop_parity", "to": "panel_desktop_parity_codex", "on": "completed"},
+    {"from": "research_desktop_parity", "to": "panel_desktop_parity_gemini", "on": "completed"},
+    {"from": "research_sweep_optimization", "to": "panel_sweep_optimization_claude", "on": "completed"},
+    {"from": "research_sweep_optimization", "to": "panel_sweep_optimization_codex", "on": "completed"},
+    {"from": "research_sweep_optimization", "to": "panel_sweep_optimization_gemini", "on": "completed"},
+
+    {"from": "panel_solver_path_claude", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_solver_path_codex", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_solver_path_gemini", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_solver_readiness_claude", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_solver_readiness_codex", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_solver_readiness_gemini", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_resistance_sources_claude", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_resistance_sources_codex", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_resistance_sources_gemini", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_calibrated_resistance_claude", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_calibrated_resistance_codex", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_calibrated_resistance_gemini", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_high_angle_stability_claude", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_high_angle_stability_codex", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_high_angle_stability_gemini", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_browser_hosting_claude", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_browser_hosting_codex", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_browser_hosting_gemini", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_desktop_parity_claude", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_desktop_parity_codex", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_desktop_parity_gemini", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_sweep_optimization_claude", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_sweep_optimization_codex", "to": "integrate_decisions", "on": "completed"},
+    {"from": "panel_sweep_optimization_gemini", "to": "integrate_decisions", "on": "completed"},
+    {"from": "integrate_decisions", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {"from": "final_review", "to": "integrate_decisions", "on_verdict": "needs_revision", "max_iterations": 1}
+  ]
+}

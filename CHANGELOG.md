@@ -8,6 +8,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Scaffolded workflow 0050 as a design-only decision workflow. Each open
+  roadmap decision now has a required research packet, independent
+  Claude/Codex/Gemini panel votes, strict majority integration, and final
+  review before dependent implementation work can begin. No runtime behavior,
+  tests, solver execution, calibration, watertight readiness, hosted operation,
+  desktop rewrite, optimization behavior, or product capability changed.
 - Added `docs/ROADMAP.md` through workflow 0049 as a documentation-only
   reconciliation of outstanding RFCs, stale deferred-queue items, workflow 0048
   successor RFCs, dependency tracks, and future Striatum implementation

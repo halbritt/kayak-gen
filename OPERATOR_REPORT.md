@@ -40,6 +40,14 @@ Updated: 2026-05-14
   artifacts only; no runtime, test, `.striatum`, solver, calibration,
   watertight-readiness, final-prediction, hosted-operation, full-parity, or
   high-angle stability capability changed.
+- 2026-05-14T14:10Z checkpoint: scaffolded workflow 0050
+  (`decision-panel-research`) as a design-only research workflow for the eight
+  open roadmap decisions. The workflow runs one research packet per decision,
+  then Claude/Codex/Gemini panel votes for each question, then strict majority
+  integration into decision-log/roadmap/changelog docs and final review. It
+  explicitly blocks dependent implementation burn-down unless a decision has
+  at least two matching panel votes. Scaffold validation and `git diff --check`
+  passed; no runtime or test paths changed.
 - 2026-05-14T10:00Z checkpoint: corrected stale RFC status/index labels for
   landed safe slices RFC 0016, RFC 0022, RFC 0025, RFC 0027, and RFC 0031.
   This was operator bookkeeping only; no runtime behavior or product claims
