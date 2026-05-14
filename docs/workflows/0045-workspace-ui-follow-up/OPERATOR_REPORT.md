@@ -27,7 +27,9 @@ Updated: 2026-05-14
   `art_5c88ea0bcee540a1b54a521e8eed60a1`.
 - Domain/no-claims used `gemini-2.5-flash` after configured Gemini Pro 3.1
   quota was exhausted.
+- Findings ledger published as `art_6a1511c0c59b4a7cab13f8a0951f31d2` with
+  gate verdict `accept_with_findings`.
 
 ## Next action
 
-- Claim and run the findings ledger under Codex.
+- Claim and run `implement_findings` under Codex.

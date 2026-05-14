@@ -30,6 +30,19 @@ Updated: 2026-05-14
   `gemini-2.5-flash` fallback after `gemini-3.1-pro-preview` quota exhaustion.
   No review requested a remediation cycle; Striatum now has one queued job for
   workflow 0045, the findings ledger.
+- 2026-05-14T07:00:23Z checkpoint: workflow 0045 findings ledger was claimed,
+  acknowledged, and launched under Codex session
+  `sess_951648fa34e54963add9fbc04df14e47`. The prompt asks for maximal useful
+  sub-agent extraction across the four review lanes and only the workflow-local
+  `FINDINGS.md` artifact plus optional workflow-local report notes.
+- 2026-05-14T07:08:15Z checkpoint: workflow 0045 findings ledger completed and
+  published as `art_6a1511c0c59b4a7cab13f8a0951f31d2`. Gate verdict is
+  `accept_with_findings`; no review remediation cycle is needed. The ledger
+  defines the safe implementation scope as web preset binding, dynamic validity
+  badge, Resistance and Mesh read-model wiring, honest Export menu rows,
+  forbidden-copy expansion, browser/layout/read-model tests, and factual docs
+  and changelog updates. Striatum now has one queued workflow 0045 job:
+  `implement_findings`.
 - 2026-05-13T20:56:04Z checkpoint: workflow 0044 scaffold was amended to add
   a dedicated ergonomics/design first-pass review lane before findings ledger
   and implementation. The workflow validates with the repo venv Striatum CLI.
