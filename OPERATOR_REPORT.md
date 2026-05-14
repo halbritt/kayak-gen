@@ -23,6 +23,16 @@ Updated: 2026-05-14
   jobs are blocked behind those implementation jobs. Next action is to claim
   both Codex implementation lanes in parallel and require maximal useful
   sub-agent fanout within each lane.
+- 2026-05-14T08:25:46Z checkpoint: both Codex implementation lanes were
+  claimed and acknowledged. Workflow 0034 is running under Striatum session
+  `sess_d3d234b140f4413c99fcd04d52c7357b`, lease
+  `lease_1d861a16d3c5486288dc6c76e7cffd66`, local exec session `53660`.
+  Workflow 0035 is running under Striatum session
+  `sess_09f287c5596d475abba65afbf0826e4b`, lease
+  `lease_bf0a58c35baa4cd18d360fa7a02f8445`, local exec session `87691`.
+  Both prompts require maximal useful sub-agent fanout, forbid Striatum
+  mutation/commit/push, forbid false bylines, and keep root `CHANGELOG.md`
+  wording in patch summaries for operator application.
 - 2026-05-14T06:48:42Z checkpoint: workflow 0045 review remediation completed
   on branch `striatum/0045-workspace-ui-follow-up`; artifact
   `art_27fb1b0083f84d3a879c6e4c35f249b8` was published. The packet changes
