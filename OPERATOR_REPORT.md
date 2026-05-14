@@ -8,6 +8,12 @@ Updated: 2026-05-14
   must be performed by Striatum-assigned agents, with this session limited to
   orchestration, artifact handling, report updates, trunk hygiene, and branch
   cleanup.
+- 2026-05-14T10:40Z checkpoint: scaffolded workflow 0049
+  (`roadmap-reconciliation`) to have Codex author/integrate a contributor-facing
+  `docs/ROADMAP.md`, three independent review lanes for backlog completeness,
+  no-claims/domain boundaries, and ops/sequencing, plus Claude final review.
+  The scaffold is documentation/workflow-only; no roadmap content or runtime
+  behavior was operator-authored.
 - 2026-05-14T10:00Z checkpoint: corrected stale RFC status/index labels for
   landed safe slices RFC 0016, RFC 0022, RFC 0025, RFC 0027, and RFC 0031.
   This was operator bookkeeping only; no runtime behavior or product claims

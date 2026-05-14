@@ -1,0 +1,354 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0049-roadmap-reconciliation",
+  "workflow_version": "2026-05-14",
+  "name": "0049 - Roadmap reconciliation",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0049-roadmap-reconciliation",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "coordinator",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": [
+        "claude",
+        "--model",
+        "opus",
+        "-p"
+      ],
+      "capabilities": [
+        "review",
+        "synthesis"
+      ]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "-"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    }
+  },
+  "roles": {
+    "coordinator": {
+      "definition_path": "roles/coordinator.md"
+    },
+    "roadmap_author": {
+      "definition_path": "roles/roadmap_author.md"
+    },
+    "reviewer_backlog_completeness": {
+      "definition_path": "roles/reviewer_backlog_completeness.md"
+    },
+    "reviewer_no_claims_domain": {
+      "definition_path": "roles/reviewer_no_claims_domain.md"
+    },
+    "reviewer_ops_sequence": {
+      "definition_path": "roles/reviewer_ops_sequence.md"
+    },
+    "roadmap_integrator": {
+      "definition_path": "roles/roadmap_integrator.md"
+    },
+    "final_reviewer": {
+      "definition_path": "roles/final_reviewer.md"
+    }
+  },
+  "context_docs": [
+    {
+      "path": "AGENTS.md",
+      "required": true
+    },
+    {
+      "path": "docs/PRD.md",
+      "required": true
+    },
+    {
+      "path": "docs/USER_GUIDE.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/README.md",
+      "required": true
+    },
+    {
+      "path": "docs/workflows/0018-deferred-backlog/QUEUE.md",
+      "required": true
+    },
+    {
+      "path": "CHANGELOG.md",
+      "required": true
+    },
+    {
+      "path": "OPERATOR_REPORT.md",
+      "required": true
+    },
+    {
+      "path": "striatum/0048-successor-rfc-backlog/final/FINAL_REVIEW.md",
+      "required": true
+    },
+    {
+      "path": "striatum/0048-successor-rfc-backlog/integration/PATCH_SUMMARY.md",
+      "required": true
+    }
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "author_roadmap",
+      "type": "build",
+      "title": "Author reconciled roadmap",
+      "role_id": "roadmap_author",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Create docs/ROADMAP.md for all outstanding RFCs, deferred items, and backlog work without implementing runtime behavior.",
+      "task_prompt": {
+        "path": "prompts/author_roadmap.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/ROADMAP.md",
+          "CHANGELOG.md",
+          "docs/workflows/0049-roadmap-reconciliation/OPERATOR_REPORT.md",
+          "striatum/0049-roadmap-reconciliation/roadmap/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "kayakgen/",
+          "tests/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "striatum/0049-roadmap-reconciliation/roadmap/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_backlog_completeness",
+      "type": "review",
+      "title": "Review roadmap backlog completeness",
+      "role_id": "reviewer_backlog_completeness",
+      "lane_id": "claude",
+      "parallel_group": "roadmap_reviews",
+      "fresh_session_required": true,
+      "objective": "Verify the roadmap accounts for all outstanding RFCs, deferred items, stale queue entries, successor RFCs, and recent findings.",
+      "task_prompt": {
+        "path": "prompts/review_backlog_completeness.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0049-roadmap-reconciliation/backlog_completeness/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0049-roadmap-reconciliation/backlog_completeness/REVIEW_BACKLOG_COMPLETENESS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_no_claims_domain",
+      "type": "review",
+      "title": "Review roadmap no-claims domain boundaries",
+      "role_id": "reviewer_no_claims_domain",
+      "lane_id": "codex",
+      "parallel_group": "roadmap_reviews",
+      "fresh_session_required": true,
+      "objective": "Verify the roadmap keeps geometry, resistance, CFD, and stability claims evidence-bound.",
+      "task_prompt": {
+        "path": "prompts/review_no_claims_domain.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0049-roadmap-reconciliation/no_claims_domain/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0049-roadmap-reconciliation/no_claims_domain/REVIEW_NO_CLAIMS_DOMAIN.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_ops_sequence",
+      "type": "review",
+      "title": "Review roadmap sequencing and ops",
+      "role_id": "reviewer_ops_sequence",
+      "lane_id": "codex",
+      "parallel_group": "roadmap_reviews",
+      "fresh_session_required": true,
+      "objective": "Verify roadmap dependency order, workflow batching, and documentation-only scope.",
+      "task_prompt": {
+        "path": "prompts/review_ops_sequence.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0049-roadmap-reconciliation/ops_sequence/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0049-roadmap-reconciliation/ops_sequence/REVIEW_OPS_SEQUENCE.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "integrate_roadmap",
+      "type": "build",
+      "title": "Integrate roadmap review findings",
+      "role_id": "roadmap_integrator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Integrate accepted review findings into docs/ROADMAP.md, changelog, and workflow report without runtime changes.",
+      "task_prompt": {
+        "path": "prompts/integrate_roadmap.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/ROADMAP.md",
+          "CHANGELOG.md",
+          "docs/workflows/0049-roadmap-reconciliation/OPERATOR_REPORT.md",
+          "striatum/0049-roadmap-reconciliation/integration/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "kayakgen/",
+          "tests/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "striatum/0049-roadmap-reconciliation/integration/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final review roadmap",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify the reconciled roadmap is complete, coherent, evidence-bound, and documentation-only.",
+      "task_prompt": {
+        "path": "prompts/final_review.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0049-roadmap-reconciliation/final/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "final_review",
+          "kind": "finding",
+          "path": "striatum/0049-roadmap-reconciliation/final/FINAL_REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "author_roadmap",
+      "to": "review_backlog_completeness",
+      "on": "completed"
+    },
+    {
+      "from": "author_roadmap",
+      "to": "review_no_claims_domain",
+      "on": "completed"
+    },
+    {
+      "from": "author_roadmap",
+      "to": "review_ops_sequence",
+      "on": "completed"
+    },
+    {
+      "from": "review_backlog_completeness",
+      "to": "integrate_roadmap",
+      "on": "completed"
+    },
+    {
+      "from": "review_no_claims_domain",
+      "to": "integrate_roadmap",
+      "on": "completed"
+    },
+    {
+      "from": "review_ops_sequence",
+      "to": "integrate_roadmap",
+      "on": "completed"
+    },
+    {
+      "from": "integrate_roadmap",
+      "to": "final_review",
+      "on": "completed"
+    }
+  ],
+  "cycles": [
+    {
+      "from": "final_review",
+      "to": "integrate_roadmap",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1
+    }
+  ]
+}
