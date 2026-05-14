@@ -94,18 +94,50 @@ runtime capability:
   comparison only, and optimizer work waits for RFC 0009's remaining deltas
   plus objective metadata.
 
+## Workflow 0052 Decision Posture
+
+Workflow 0052 resolved the successor panels by strict two-of-three majority
+rule. These are follow-up design and sequencing decisions, not delivered
+runtime capability:
+
+- The first production volume-mesher candidate for RFC 0040 is
+  OpenFOAM.com OpenFOAM-v2512 `snappyHexMesh`, under a profile such as
+  `openfoam-v2512-snappyhexmesh-watertight-v1`, implemented first as a
+  deterministic evidence harness over
+  `generated_hull_plus_deck_closed_body_v1`. It must record `checkMesh`,
+  patch, artifact-hash, and dispatch evidence; it does not promote ordinary
+  packages or enable real solver success.
+- `openfoam-v2512-interfoam-local` remains unable to return `succeeded` until
+  one run record binds accepted OpenFOAM-readable volume-mesh evidence,
+  OpenFOAM.com v2512 provenance, deterministic case smoke, a v2512-correct
+  `force.dat` parser, and raw-unvalidated no-claims payloads.
+- The first full resistance source-review packet is the University of
+  Edinburgh DataShare Pacific-canoe hydrodynamics dataset, capped at
+  `validation_fixture`; it is explicitly not a calibration fixture.
+- Fixed-trim generated-body v1 high-angle `GZ` may be surfaced only through a
+  staged opt-in path: CLI JSON first, opt-in sweep artifacts next,
+  display-only comparison/web read models after that, and minimal desktop
+  support last. Defaults and objective/frontier behavior remain unchanged.
+- Public browser operation remains deferred. Once operator and budget evidence
+  exists, the authorized path is one fixed-size managed container running the
+  existing `kayakgen serve --host 0.0.0.0 --port 8080` or repo Docker path,
+  with no public-service SLA, production hosting, or hosted CFD claim.
+- The next sweep/search delta is the RFC 0009 `pending` candidate lifecycle
+  state. Sweep-side STL artifacts and active optimizer/search remain later
+  work.
+
 ## Dependency Tracks
 
 | Track | Current state | Roadmap status | Next work |
 | --- | --- | --- | --- |
 | Docs, status, and claim hygiene | PRD, user guide, RFC index, changelog, and this roadmap describe current limits. | `ready-now` | Keep these files synchronized after each RFC/workflow landing. Reconcile stale RFC labels before using them as implementation authority. |
 | UI and web maintenance | RFCs 0033-0035 landed conservative UI slices; RFCs 0036-0039 are proposed workflow 0048 successors. Workflow 0050 makes the web workspace primary and desktop supporting. | `ready-now` | Land small UI cleanup batches: Trame same-seed proof/removal, export-row schema consolidation, disabled mesh-package label polish, and web snapshot/CFD alias schema unification. RFC 0037 should precede RFC 0038 or be bundled with separate gates. Do not fund full native desktop parity unless a later decision records a need. |
-| Browser hosting and parity | RFC 0008 is partial; RFC 0032 landed local browser acceptance and hosted-demo docs; workflow 0050 selected only a narrow server-backed exploratory public-demo posture. | `partial` / `blocked` | Cut public demo operation only after an operator owner, budget/cap, deployment revision, hosted smoke, persistence limits, and cleanup policy are recorded. Static/Pyodide and production hosted app paths require separate RFCs. |
-| Geometry and mesh evidence | RFCs 0021-0023 and 0028 landed conservative diagnostics, generated-body, fixture-handoff, and plumb-stem safe slices. Workflow 0050 selected a profile-scoped RFC 0040 readiness-report-first path. | `partial` / `evidence-gated` | Treat RFC 0040 as a sequence: readiness report, generated-body hardening, volume-mesh diagnostic contract, package gates, dispatch gates. Do not schedule it as one "make generated packages `cfd_ready`" feature. |
-| CFD dispatch and real adapter | RFC 0015 local dispatch, RFC 0018 local web routes, and RFC 0026 fixture-local-command have landed. Workflow 0050 selected OpenFOAM.com v2512 `interFoam` as the first external solver target. | `ready-now` / `evidence-gated` | Implement only the OpenFOAM profile metadata, dependency detection, deterministic case rendering, unavailable/failed states, and raw `forces` parser fixtures first. A real `succeeded` path remains gated on matching OpenFOAM-readable volume-mesh evidence and stays `raw_unvalidated`. |
-| Resistance evidence and calibration | RFC 0005 landed only as raw filter; RFC 0025/0027 landed claim gates. Workflow 0050 chose source-review-first and preserved the calibrated-resistance no-promotion gate. | `evidence-gated` | Add source-review packets and source-use mapping tests before any fixture promotion. Promote validation or calibration fixtures only with accepted review metadata; fitting and calibrated wording require a later accepted-fit workflow. |
-| Stability and high-angle `GZ` | RFC 0011 landed load cases; RFC 0014 landed upright trim slice; RFC 0024 landed structured unavailable/fixture-only handoff. Workflow 0050 selected fixed-trim generated-body v1 as the first model design. | `ready-now` / `evidence-gated` | Implement the v1 model behind RFC 0024 generated-body gates: per-heel clipping/capping diagnostics, sinkage residuals, unsolved longitudinal-moment residuals, grid-bounded summaries, and sealed-body/flooding warnings. Real kayak curves remain unavailable until those gates land. |
-| Sweeps, comparison, and search | `kayakgen sweep` and `compare` are user-facing. RFC 0009 is now indexed as a partial landed sweep-run-record slice, and RFC 0013 has a landed report/web slice. Workflow 0050 accepted the current conservative admissibility split. | `partial` | Add objective metadata before optimizer work. Keep defaults to `GM0_m`, `displacement_error_kg`, and `mesh_problem_count`; raw resistance remains explicit exploratory only. Leave `pending` and sweep-side STL emission as recorded RFC 0009 deltas until a later workflow implements them. |
+| Browser hosting and parity | RFC 0008 is partial; RFC 0032 landed local browser acceptance and hosted-demo docs; workflows 0050 and 0052 keep public operation narrow and evidence-gated. | `partial` / `blocked` | Keep public operation deferred until owner, budget/cap, deployment revision, hosted smoke, persistence limits, cleanup receipt, and public no-claims wording are recorded. If those gates pass, use one fixed-size managed container on the existing serve/Docker path. Static/Pyodide and production hosted app paths require separate RFCs. |
+| Geometry and mesh evidence | RFCs 0021-0023 and 0028 landed diagnostics, generated-body, fixture-handoff, and plumb-stem safe slices; workflow 0051 landed a readiness report; workflow 0052 selected an OpenFOAM-v2512 `snappyHexMesh` evidence harness as the first production mesher candidate. | `partial` / `evidence-gated` | Implement the `snappyHexMesh` harness only as evidence: generated-body identity gates, deterministic dictionaries, patch metadata, `checkMesh`, artifact checksums, and dispatch rejection tests. Do not promote ordinary packages or treat meshing as solver success. |
+| CFD dispatch and real adapter | RFC 0015 local dispatch, RFC 0018 local web routes, RFC 0026 fixture-local-command, and the workflow 0051 OpenFOAM skeleton have landed. | `ready-now` / `evidence-gated` | Keep `openfoam-v2512-interfoam-local` blocked from `succeeded` until accepted OpenFOAM-readable volume-mesh evidence, v2512 provenance, deterministic smoke, a corrected v2512 `force.dat` parser, and raw-unvalidated payloads all bind in one run record. |
+| Resistance evidence and calibration | RFC 0005 landed only as raw filter; RFC 0025/0027 landed claim gates; workflows 0050 and 0052 preserve the calibration no-promotion gate. | `evidence-gated` | Complete the first full RFC 0042 packet for the Edinburgh DataShare Pacific-canoe source as validation-only. Calibration fixture promotion still waits for an in-envelope measured kayak/surfski source with accepted rights, extraction, uncertainty, fit metadata, and validity envelope. |
+| Stability and high-angle `GZ` | RFC 0011 landed load cases; RFC 0014 landed upright trim; RFC 0024 landed structured unavailable/fixture-only handoff; workflow 0051 landed generated-body v1 evaluator plumbing; workflow 0052 selected staged product surfacing. | `ready-now` / `evidence-gated` | Surface v1 only through explicit opt-in product work: CLI JSON first, opt-in sweep artifacts next, display-only comparison/web read models after that, desktop minimal. Defaults, frontiers, and objectives stay on the current conservative posture until those gates land. |
+| Sweeps, comparison, and search | `kayakgen sweep` and `compare` are user-facing. RFC 0009 is partial landed, RFC 0013 has a landed report/web slice, and workflow 0051 added objective metadata. | `partial` | Implement `pending` candidate lifecycle next: additive `pending_count`, planned records, transition/resume policy, and visible but frontier-ineligible comparison rows. Sweep-side STL artifacts and active optimizer/search follow only after lifecycle and provenance gates. |
 
 ## Future Striatum Batches
 
@@ -148,14 +180,16 @@ Status: `partial` / `blocked`
 
 Scope: RFC 0008, RFC 0030, RFC 0032, and the unresolved UI parity portions of
 RFC 0033. Workflow 0050 chose a narrow server-backed exploratory public demo as
-the only current hosting posture.
+the only current hosting posture; workflow 0052 keeps public operation deferred
+until owner, budget, hosted-smoke, persistence, and cleanup evidence exists.
 
 Work should be split into small workflows:
 
-- public hosted demo operation using the documented local command/Docker path,
-  but only after an operator owner, budget/cap, deployment revision, hosted
-  smoke, persistence limits, cleanup policy, and no-SLA/no-hosted-CFD wording
-  are recorded;
+- public hosted demo operation using one fixed-size managed container running
+  the documented local command/Docker path, but only after an operator owner,
+  budget/cap or hard limit, provider/account/region/tier, deployment revision,
+  hosted smoke, persistence limits, cleanup receipt, and
+  no-SLA/no-hosted-CFD wording are recorded;
 - console-clean and Lighthouse acceptance upkeep;
 - full plot/dashboard parity beyond compact analysis;
 - desktop shell or embedding work only if a later workflow records a user or
@@ -176,17 +210,21 @@ partials from RFCs 0004/0006.
 
 Recommended order:
 
-1. Add a closed-volume solver-readiness report that explains evidence and
-   blocker reasons without changing package readiness.
-2. Harden generated-body diagnostics across default, plumb, mixed-rake,
-   `beam_wl_m != beam_oa_m`, draft, `Cp`, and `Cm` cases.
-3. Define volume-mesh diagnostics with body refs, diagnostic hashes, mesher
-   metadata, quality summaries, artifact checksums, warnings, and blockers.
-4. Gate mesh-package handoff and dispatch preparation on matching evidence.
+1. Keep generated-body matrix hardening active across default, plumb,
+   mixed-rake, `beam_wl_m != beam_oa_m`, draft, `Cp`, and `Cm` cases.
+2. Add the OpenFOAM-v2512 `snappyHexMesh` evidence harness profile
+   `openfoam-v2512-snappyhexmesh-watertight-v1` or its accepted successor.
+3. Render deterministic meshing cases from generated closed-body evidence and
+   record body refs, diagnostic hashes, OpenFOAM.com v2512 provenance,
+   dictionary hashes, patch metadata, `checkMesh`, quality summaries,
+   artifact checksums, warnings, and blockers.
+4. Gate mesh-package handoff and dispatch preparation on matching
+   OpenFOAM-readable evidence.
 
 Exit criteria: ordinary generated packages still remain below
 watertight-required solver-profile acceptance unless matching evidence exists.
-Any fixture evidence is labeled as fixture evidence, not production meshing.
+Any fixture evidence is labeled as fixture evidence, and a passing meshing
+harness run is OpenFOAM-readable evidence, not validated CFD or solver success.
 
 ### Batch E: Real CFD Adapter Decision And Implementation
 
@@ -196,24 +234,28 @@ Scope: RFC 0041, with RFC 0017 as background and RFC 0026 as the landed
 fixture boundary. Workflow 0050 selected OpenFOAM.com OpenFOAM-v2512
 `interFoam` as the first external solver target.
 
-Prerequisites:
+Prerequisites and success gate:
 
 - selected solver profile `openfoam-v2512-interfoam-local`;
 - required mesh profile `watertight_solid_resistance_v1` and readiness
   `cfd_ready`;
 - case-template version `openfoam-v2512-interfoam-dtchull-v1`;
-- raw parser scope limited to solver version/provenance, logs, and
-  `postProcessing/forces/**/force.dat`;
+- accepted OpenFOAM-readable volume-mesh evidence from the selected RFC 0040
+  profile;
+- OpenFOAM.com v2512 provenance from application/build/API probes, not only
+  `$WM_PROJECT_VERSION`;
+- deterministic v2512 `interFoam` smoke with a real `polyMesh`, two-phase
+  properties, required fields, and a `forces` object over the mapped hull patch;
+- a corrected parser for the v2512 `postProcessing/forces/**/force.dat` schema;
 - Linux primary platform note, with macOS/Windows optional Docker/WSL/source
   routes;
 - required tests that do not require the solver binary.
 
-Exit criteria for the first slice: the profile, dependency detection,
-deterministic case rendering, unavailable/failed states, raw parser fixtures,
-and run-record round trip land without requiring OpenFOAM in CI. A real
-OpenFOAM `succeeded` path remains blocked until matching OpenFOAM-readable
-volume-mesh evidence exists; any later successful records remain
-`raw_unvalidated`.
+Exit criteria: until all gate items bind in one run record, parser-readable
+output remains `solver_success_blocked`. After the gate opens, `succeeded`
+means only local solver execution plus raw artifact parsing; successful records
+remain `raw_unvalidated` and carry no validation, calibration, final
+prediction, design-fitness, or broad readiness claim.
 
 ### Batch F: Resistance Source Evidence
 
@@ -225,15 +267,16 @@ resistance in the current no-promotion state.
 
 Recommended order:
 
-1. Add a source-review packet/checklist for rights, extraction, measured
-   quantity, units, hull envelope, speed/Froude range, uncertainty, and verdict.
-2. Apply it to one candidate source without promoting it unless evidence is
-   complete.
+1. Complete the first full source-review packet for the Edinburgh DataShare
+   Pacific-canoe source, binding locators, access dates, checksums, license,
+   attribution, extraction script, units, Froude basis, and uncertainty notes.
+2. Cap Edinburgh's positive outcome at `validation_fixture` and preserve
+   `outside_sea_kayak_calibration_envelope` or an equivalent calibration
+   blocker.
 3. Add source-use mapping checks so `rejected` stays a review outcome, not a
    runtime fixture source-use value.
-4. Add validation fixture ingest only if rights and extraction metadata pass.
-   Edinburgh remains only a permitted later validation-only candidate, not a
-   fixture selected by decision.
+4. Pursue K1, sea-kayak, or surfski sources only after rights, measured rows,
+   geometry/load metadata, and uncertainty evidence are accepted.
 5. Add calibration fixture ingest only after a kayak-envelope measured source
    is accepted.
 6. Defer fitting and calibrated-output wording to a separate accepted-fit
@@ -250,7 +293,7 @@ Status: `ready-now` / `evidence-gated`
 
 Scope: RFC 0043, preserving RFC 0024's structured unavailable handoff.
 Workflow 0050 selected fixed-trim generated-body v1 as the first real model
-design.
+design; workflow 0052 selects staged, explicit product surfacing.
 
 Prerequisites:
 
@@ -266,12 +309,22 @@ Prerequisites:
 - sealed-body, deck-immersion, flooding/downflooding-not-modeled, active
   paddler-not-modeled, and no-safety/no-seaworthiness warnings.
 
-Exit criteria: until all gates pass, CLI, sweep, comparison, desktop, and web
-surfaces continue to show unavailable results rather than numeric high-angle
-`GZ` or secondary-stability summaries. Fixture-only math tests cannot satisfy
-user-facing stability claims or ranking. Once v1 lands, its results are
-unvalidated hydrostatic comparison curves, not safety, seaworthiness, capsize,
-design-fitness, or solver-readiness claims.
+Product surfacing order:
+
+1. Add explicit CLI JSON output while default `kayakgen stability` remains
+   unchanged.
+2. Add an opt-in sweep evaluator that writes artifacts without adding numeric
+   high-angle fields to default summaries or frontiers.
+3. Add display-only comparison and web read models with body/load/trim
+   provenance and warnings adjacent to any plot or table.
+4. Keep desktop support minimal and behind shared read models.
+
+Exit criteria: until all surface gates pass, defaults continue to show
+unavailable results rather than numeric high-angle `GZ` or secondary-stability
+summaries. Fixture-only math tests cannot satisfy user-facing stability claims
+or ranking. Once surfaced, v1 results are unvalidated hydrostatic comparison
+curves, not safety, seaworthiness, capsize, validation, design-fitness, or
+solver-readiness claims.
 
 ### Batch H: Sweep, Comparison, And Optimization
 
@@ -280,33 +333,32 @@ Status: `partial`
 Scope: RFC 0009, RFC 0013, future search/optimization RFCs.
 
 RFC 0009 is now reconciled with the current user-facing sweep command and
-run-record behavior: the safe slice has landed while `pending` status, the
-sweep-side `stl` evaluator artifact path, and objective metadata remain deltas.
-Next, add an objective registry before any optimizer work: metric label, unit,
-direction, source evaluator, availability rule, claim-state requirement,
-accepted-use requirement, and role (`default_objective`,
-`explicit_exploratory_objective`, `constraint_or_filter`, `display_only`,
-`unavailable`, or `forbidden_until_claim_gate`).
+run-record behavior: the safe slice has landed, and workflow 0051 added the
+objective registry. Workflow 0052 selects `pending` status as the next delta:
+candidate records for planned work, additive `pending_count`, explicit
+transition/resume semantics, and visible-but-frontier-ineligible pending rows.
+Sweep-side `stl` evaluator artifacts should follow only after pending
+lifecycle and artifact-provenance gates are in place.
 
 Exit criteria: candidate comparison can use only metrics whose claim state and
 availability are explicit. Optimization must not silently treat raw resistance,
-raw CFD, advisory validity, or unavailable stability as final design fitness.
-Default Pareto objectives remain `GM0_m`, `displacement_error_kg`, and
-`mesh_problem_count` when present; raw resistance is explicit exploratory
-comparison only.
+raw CFD, advisory validity, pending candidates, or unavailable stability as
+final design fitness. Default Pareto objectives remain `GM0_m`,
+`displacement_error_kg`, and `mesh_problem_count` when present; raw resistance
+is explicit exploratory comparison only.
 
 ## Current RFC Disposition
 
 | RFCs | Current disposition | Roadmap status |
 | --- | --- | --- |
 | 0004, 0028 | Historical plumb-bow and current plumb-stem closure semantics are partial safe slices. Independent `stern_rake` and generated closed-body cap/ring semantics exist, but open STLs remain inspection surfaces and broader solver readiness maps to RFC 0040. | `partial` |
-| 0005, 0012, 0019, 0025, 0027, 0042 | Raw analytical resistance landed; source registries and claim gates exist; workflow 0050 chose source-review-first and preserved the calibrated-resistance no-promotion gate. | `evidence-gated` |
+| 0005, 0012, 0019, 0025, 0027, 0042 | Raw analytical resistance landed; source registries and claim gates exist; workflow 0050 chose source-review-first, and workflow 0052 selected the Edinburgh DataShare source for validation-only full packet review. Calibrated-resistance promotion remains blocked. | `evidence-gated` |
 | 0006, 0029, 0031 | Canonical constraints, presets, validity metadata, and surfacing slices landed. RFC 0029 is background superseded by RFC 0031. Future shape parameters and any remaining desktop/manual surfacing stay open only as focused follow-ups. | `partial` / `background` |
-| 0008, 0030, 0032, 0033 | Local Trame shell, compact analysis, comparison loading, local browser acceptance, hosted-demo docs, and workspace safe slices landed. Workflow 0050 selected a narrow server-backed exploratory public-demo posture, while richer dashboards and any desktop shell remain separate work. | `partial` / `blocked` |
-| 0009, 0013 | RFC 0009 is indexed as a partial landed sweep-run-record slice, and the RFC 0013 comparison report/web slice landed. Workflow 0050 accepted the conservative default objective whitelist and keeps objective metadata plus the recorded RFC 0009 deltas as prerequisites to search. | `partial` |
-| 0011, 0014, 0020, 0024, 0043 | Load cases and upright trim landed; high-angle `GZ` is structured unavailable or fixture-only. Workflow 0050 selected fixed-trim generated-body v1 as the first model design, but real curves remain unavailable until implementation gates pass. | `ready-now` / `evidence-gated` |
-| 0015, 0017, 0018, 0026, 0041 | Local dispatch, local web routes, unavailable/mock states, and fixture-local-command landed. Workflow 0050 selected OpenFOAM.com v2512 `interFoam` as the first external solver target; real success remains evidence-gated. | `ready-now` / `evidence-gated` |
-| 0010, 0016, 0021, 0022, 0023, 0040 | Mesh packages, synthetic diagnostics, self-intersection checks, generated body construction, and fixture handoff landed. Workflow 0050 selected the readiness-report-first evidence contract for production solver readiness. | `evidence-gated` |
+| 0008, 0030, 0032, 0033 | Local Trame shell, compact analysis, comparison loading, local browser acceptance, hosted-demo docs, and workspace safe slices landed. Workflow 0052 keeps public operation deferred until owner/budget/smoke/cleanup evidence exists, then allows only a fixed-container serve/Docker path. | `partial` / `blocked` |
+| 0009, 0013 | RFC 0009 is indexed as a partial landed sweep-run-record slice, RFC 0013 comparison report/web slice landed, workflow 0051 added objective metadata, and workflow 0052 selected `pending` lifecycle as the next delta before STLs or optimizer/search. | `partial` |
+| 0011, 0014, 0020, 0024, 0043 | Load cases and upright trim landed; high-angle `GZ` is structured unavailable or fixture-only on current product surfaces. Workflow 0052 selects opt-in staged surfacing only after generated-body and per-heel product gates pass. | `ready-now` / `evidence-gated` |
+| 0015, 0017, 0018, 0026, 0041 | Local dispatch, local web routes, unavailable/mock states, fixture-local-command, and an OpenFOAM skeleton landed. Workflow 0052 defines the evidence gate required before `openfoam-v2512-interfoam-local` can ever return `succeeded`. | `ready-now` / `evidence-gated` |
+| 0010, 0016, 0021, 0022, 0023, 0040 | Mesh packages, synthetic diagnostics, self-intersection checks, generated body construction, fixture handoff, and a readiness report landed. Workflow 0052 selected OpenFOAM-v2512 `snappyHexMesh` as the first production volume-mesher evidence harness candidate. | `evidence-gated` |
 | 0034, 0035 | Workspace follow-up and UI cleanup safe slices landed. Residual workflow 0047 final-review findings became RFCs 0036-0039. | `completed-history` |
 | 0036, 0037, 0038, 0039 | Workflow 0048 proposed UI successors; they are small maintenance scopes with no backend or capability changes. | `ready-now` |
 
@@ -340,14 +392,18 @@ Use this table instead of claiming the stale queue prompts directly.
 - Do not parallelize two batches that write the same UI schema/copy surface
   unless one workflow explicitly owns integration; RFC 0037 and RFC 0038 are
   the known dependency pair.
-- Do not start real solver work before the solver-selection and mesh-profile
-  gates are written down. If the selected solver needs watertight input, it
-  must consume RFC 0040/RFC 0023 evidence instead of creating readiness itself.
-- Do not start high-angle `GZ` implementation before the heeled integration
-  design is accepted. Fixture-only numerical tests may precede product output
-  only if every artifact is labeled `fixture_only`.
+- Do not start real solver success work before OpenFOAM-readable mesh evidence,
+  v2512 provenance, deterministic smoke, corrected parser semantics, and
+  raw-unvalidated payload gates are written down and implemented together.
+- Do not start public-demo operation before owner, budget/cap, deployment,
+  hosted-smoke, bounded-persistence, cleanup, and no-claims evidence exists.
+- Do not surface high-angle `GZ` outside the staged opt-in path. Fixture-only
+  numerical tests may precede product output only if every artifact is labeled
+  `fixture_only`.
 - Do not start calibrated resistance fitting before at least one kayak-envelope
   measured source is accepted as a calibration fixture with rights, extraction,
   units, fit metadata, and validity envelope.
-- Treat optimization/search as a later consumer of evidence, not as a shortcut
-  around missing calibration, stability, or solver-readiness decisions.
+- Implement `pending` lifecycle before sweep-side STL artifacts or active
+  optimizer/search. Treat optimization/search as a later consumer of evidence,
+  not as a shortcut around missing calibration, stability, or solver-readiness
+  decisions.

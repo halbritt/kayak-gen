@@ -34,3 +34,20 @@ Started: 2026-05-14
   blocked by `process_exit_nonzero` after quota exhaustion, and two wave-two
   Gemini jobs remain queued after pre-claim attested supervisor startup was lost
   before packet delivery. No Gemini artifacts were created or substituted.
+- 2026-05-14T19:07Z: Gemini quota was restored and the workflow was rerun to
+  completion. The four blocked Gemini vote jobs were regenerated and published,
+  the two queued Gemini jobs were claimed and completed, the majority integrator
+  recorded 3-0 majorities for all six decisions, and Claude final review
+  accepted the run. Documentation-only integration updated
+  `docs/DECISION_LOG.md`, `docs/ROADMAP.md`, and `CHANGELOG.md`; no runtime code
+  or tests changed.
+- 2026-05-14T18:27Z: decision integration claimed by Codex
+  `decision-integrator-codex-gpt-5.5-001`. All six research packets and all
+  eighteen panel votes under
+  `striatum/0052-successor-decision-research/` were read. Strict
+  two-of-three majority rule found six accepted decisions and zero unresolved
+  panels.
+- 2026-05-14T18:27Z: integration updates are documentation-only:
+  `docs/DECISION_LOG.md`, `docs/ROADMAP.md`, `CHANGELOG.md`, this operator
+  report, and `striatum/0052-successor-decision-research/integration/`.
+  Runtime, tests, package metadata, and `.striatum/` remain outside scope.

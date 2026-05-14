@@ -18,6 +18,16 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Integrated workflow 0052's majority decisions as documentation-only design
+  records: the first production volume-mesher candidate is an OpenFOAM-v2512
+  `snappyHexMesh` evidence harness, OpenFOAM `succeeded` remains blocked behind
+  full mesh/provenance/case/parser gates, Edinburgh is the first validation-only
+  resistance source-review packet, high-angle `GZ` surfacing is staged and
+  opt-in, public demo operation remains deferred until owner/budget/smoke/
+  cleanup evidence exists, and RFC 0009 `pending` lifecycle is the next
+  sweep/search delta. No runtime behavior, tests, solver execution, public URL,
+  calibration, watertight readiness, default high-angle output, desktop rewrite,
+  optimization behavior, or product capability changed.
 - Scaffolded workflow 0051 as the first implementation burn-down after the
   workflow 0050 decisions: seven parallel Codex implementation lanes for
   docs/status follow-through, UI successor cleanup, sweep objective metadata,
