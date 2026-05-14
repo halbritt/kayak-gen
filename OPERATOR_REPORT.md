@@ -57,6 +57,13 @@ Updated: 2026-05-14
   tuple validation cleanup, raw diagnostic exception text, and brittle
   fixture-only warning text. Operator `git diff --check` and forbidden
   attribution scans passed before commit.
+- 2026-05-14T08:54:29Z checkpoint: workflow 0034 final review accepted the
+  watertight volume-mesh handoff. Final review artifact
+  `art_969aca7642fd4cfaadd2364f1fa6f578` recorded one low-severity
+  follow-up for missing direct negative tests on several existing rejection
+  codes, plus two low-risk contract/documentation observations. The accepted
+  implementation commit was rebased onto current `main` after workflow 0035
+  landed, preserving fast-forward trunk hygiene.
 - 2026-05-14T06:48:42Z checkpoint: workflow 0045 review remediation completed
   on branch `striatum/0045-workspace-ui-follow-up`; artifact
   `art_27fb1b0083f84d3a879c6e4c35f249b8` was published. The packet changes

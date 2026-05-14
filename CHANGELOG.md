@@ -24,6 +24,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   `cfd_ready` promotion, and RFC 0024 remains limited to generated-body GZ
   handoff contracts, structured unavailable results, fixture-only labeling,
   claim guards, and tests before any real high-angle stability claims.
+- Landed RFC 0023 watertight volume-mesh handoff slice: typed manifest,
+  diagnostic, artifact, hash, and path-bound evidence records now preserve
+  conservative open-surface behavior while allowing `cfd_ready` only for
+  matching generated-body fixture volume-mesh evidence. CLI and JSON dispatch
+  surfaces expose structured rejection reasons for missing, stale, synthetic,
+  mismatched, and unsafe handoff evidence.
 - Added the RFC 0024 high-angle GZ handoff envelope: generated closed-body
   diagnostic validation, structured unavailable results, fixture-only synthetic
   math, provenance-safe GZ fields, and tests that keep unavailable or fixture
