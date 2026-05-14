@@ -613,5 +613,10 @@ Updated: 2026-05-14
   workflows 0040/0041 and are not real work. Review/ledger/final prompts for
   workflows 0034 and 0035 were amended to request maximal useful sub-agent or
   parallel-helper use, keep helpers read-only, and forbid byline metadata.
-- Next operator actions: commit/push/fast-forward `main`, then prepare and
-  start workflows 0034 and 0035 in parallel.
+- 2026-05-14T07:47Z: prepared and started workflow 0034
+  (`run_ef025ef630ec470e8d138821225783a2`) on
+  `striatum/0034-watertight-volume-mesh-handoff` and workflow 0035
+  (`run_cc879e1c30fa48d79fc1112669eb623c`) on
+  `striatum/0035-high-angle-gz-generated-body-handoff`.
+- Next operator actions: commit/push/fast-forward `main`, then launch all six
+  first-pass review lanes for 0034 and 0035 in parallel.
