@@ -8,8 +8,10 @@ from kayakgen.eval.mesh_package import (
     MeshPackageManifest,
     open_wetted_surface_profile,
     watertight_solid_profile,
+    write_watertight_volume_mesh_handoff_package,
     write_mesh_package,
 )
+from kayakgen.eval.volume_mesh import VolumeMeshDiagnostic
 from kayakgen.model.hull import Hull
 
 
@@ -58,6 +60,13 @@ def test_write_mesh_package_creates_manifest_and_artifacts(tmp_path: Path) -> No
         "hull": "hull.stl",
         "deck": "deck.stl",
     }
+    assert manifest.body_ref is None
+    assert manifest.closed_volume_diagnostic is None
+    assert manifest.self_intersection_diagnostic is None
+    assert manifest.volume_mesh_artifacts == {}
+    assert manifest.volume_mesh_diagnostic is None
+    assert manifest.evidence_hashes == {}
+    assert manifest.readiness_authority == "surface_diagnostics"
     assert manifest.readiness.level == "cfd_surface_candidate"
     assert "cfd_ready" in " ".join(manifest.warnings)
 
@@ -119,3 +128,75 @@ def test_mesh_package_uses_relative_manifest_paths(tmp_path: Path) -> None:
 
     assert all("/" not in path for path in paths)
     assert all(not Path(path).is_absolute() for path in paths)
+
+
+def test_generated_body_package_without_volume_mesh_stays_below_cfd_ready(
+    tmp_path: Path,
+) -> None:
+    manifest = write_watertight_volume_mesh_handoff_package(
+        Hull(name="closed-body-no-volume-mesh"),
+        tmp_path,
+        stations=8,
+        closed_body_stations=8,
+    )
+
+    assert manifest.solver_profile.profile_name == "watertight_solid_resistance_v1"
+    assert manifest.body_ref
+    assert manifest.closed_volume_diagnostic == "closed-volume-diagnostic.json"
+    assert manifest.self_intersection_diagnostic == "closed-volume-diagnostic.json"
+    assert manifest.volume_mesh_diagnostic is None
+    assert manifest.volume_mesh_artifacts == {}
+    assert manifest.readiness_authority == "surface_diagnostics"
+    assert manifest.readiness.level != "cfd_ready"
+    assert "closed_volume_diagnostic" in manifest.evidence_hashes
+    assert "self_intersection_diagnostic" in manifest.evidence_hashes
+    assert (tmp_path / "closed-volume-diagnostic.json").is_file()
+    assert "volume mesh evidence is missing" in " ".join(manifest.warnings)
+
+
+def test_watertight_fixture_handoff_manifest_records_hash_bound_evidence(
+    tmp_path: Path,
+) -> None:
+    manifest = write_watertight_volume_mesh_handoff_package(
+        Hull(name="fixture-volume-mesh"),
+        tmp_path,
+        stations=8,
+        closed_body_stations=8,
+        include_fixture_volume_mesh=True,
+    )
+    loaded = MeshPackageManifest.model_validate_json(
+        (tmp_path / "manifest.json").read_text()
+    )
+
+    assert loaded == manifest
+    assert manifest.readiness.level == "cfd_ready"
+    assert manifest.readiness_authority == "verified_watertight_volume_mesh_evidence"
+    assert manifest.body_ref
+    assert manifest.closed_volume_diagnostic == "closed-volume-diagnostic.json"
+    assert manifest.self_intersection_diagnostic == "closed-volume-diagnostic.json"
+    assert manifest.volume_mesh_diagnostic == "volume-mesh-diagnostic.json"
+    assert manifest.volume_mesh_artifacts == {"volume_mesh": "volume-mesh.fixture.json"}
+    assert {
+        "closed_volume_diagnostic",
+        "self_intersection_diagnostic",
+        "volume_mesh_diagnostic",
+        "volume_mesh_artifacts.volume_mesh",
+    } <= set(manifest.evidence_hashes)
+    for ref in [
+        manifest.closed_volume_diagnostic,
+        manifest.self_intersection_diagnostic,
+        manifest.volume_mesh_diagnostic,
+        *manifest.volume_mesh_artifacts.values(),
+    ]:
+        assert ref is not None
+        assert not Path(ref).is_absolute()
+        assert ".." not in Path(ref).parts
+        assert (tmp_path / ref).is_file()
+
+    volume = VolumeMeshDiagnostic.model_validate_json(
+        (tmp_path / manifest.volume_mesh_diagnostic).read_text()
+    )
+    assert volume.body_ref == manifest.body_ref
+    assert volume.source_hull_hash == manifest.hull_hash
+    assert volume.readiness.level == "cfd_ready"
+    assert volume.output_artifacts["volume_mesh"].ref == "volume-mesh.fixture.json"

@@ -20,6 +20,11 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from kayakgen.eval.claims import RawUnvalidatedClaimFields, WARNING_RAW_CFD_UNVALIDATED
 from kayakgen.eval.mesh_diagnostics import ReadinessLevel
 from kayakgen.eval.mesh_package import MeshPackageManifest
+from kayakgen.eval.volume_mesh import (
+    VolumeMeshDiagnostic,
+    sha256_file,
+    sha256_json,
+)
 
 CfdRunStatus = Literal["queued", "running", "succeeded", "failed", "unavailable"]
 CfdAdapterName = Literal["unavailable", "mock_local_command", "fixture_local_command"]
@@ -41,6 +46,15 @@ READINESS_ORDER: dict[ReadinessLevel, int] = {
 
 class CfdDispatchError(ValueError):
     """Raised when a local CFD job cannot be prepared or read."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "cfd_dispatch_error",
+    ) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class SolverProfile(RawUnvalidatedClaimFields):
@@ -74,6 +88,7 @@ class CfdJobSpec(RawUnvalidatedClaimFields):
     input_manifest: str
     mesh_readiness: ReadinessLevel
     mesh_warnings: list[str] = Field(default_factory=list)
+    mesh_evidence_hashes: dict[str, str] = Field(default_factory=dict)
     result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
 
 
@@ -412,6 +427,7 @@ def prepare_local_job(
         input_manifest=input_manifest,
         mesh_readiness=manifest.readiness.level,
         mesh_warnings=list(manifest.warnings),
+        mesh_evidence_hashes=dict(manifest.evidence_hashes),
     )
     run_record = _initial_run_record(job_spec)
 
@@ -722,9 +738,15 @@ def _load_mesh_manifest(mesh_dir: Path) -> MeshPackageManifest:
     try:
         return MeshPackageManifest.model_validate_json(manifest_path.read_text())
     except FileNotFoundError as exc:
-        raise CfdDispatchError(f"mesh package manifest not found: {manifest_path}") from exc
+        raise CfdDispatchError(
+            f"mesh package manifest not found: {manifest_path}",
+            code="missing_artifact",
+        ) from exc
     except ValidationError as exc:
-        raise CfdDispatchError(f"malformed mesh package manifest: {manifest_path}") from exc
+        raise CfdDispatchError(
+            f"malformed mesh package manifest: {manifest_path}",
+            code="malformed_manifest",
+        ) from exc
 
 
 def _validate_mesh_package(
@@ -737,43 +759,51 @@ def _validate_mesh_package(
         if actual_profile != solver_profile.required_mesh_profile:
             raise CfdDispatchError(
                 "mesh package solver profile mismatch: "
-                f"expected {solver_profile.required_mesh_profile!r}, got {actual_profile!r}"
+                f"expected {solver_profile.required_mesh_profile!r}, got {actual_profile!r}",
+                code="mesh_profile_mismatch",
             )
-
-    actual = READINESS_ORDER[manifest.readiness.level]
-    required = READINESS_ORDER[solver_profile.required_mesh_readiness]
-    if actual < required:
-        raise CfdDispatchError(
-            "mesh package readiness below solver requirement: "
-            f"readiness {manifest.readiness.level} is below required "
-            f"{solver_profile.required_mesh_readiness}"
-        )
 
     refs = [
         manifest.hull_json,
         *manifest.quality_reports.values(),
         *manifest.surfaces.values(),
     ]
-    missing = sorted(ref for ref in refs if not (mesh_dir / ref).is_file())
-    if missing:
-        raise CfdDispatchError(
-            "mesh package is missing referenced artifact(s): " + ", ".join(missing)
-        )
+    for ref in refs:
+        _resolve_package_ref(mesh_dir, ref)
 
+    actual = READINESS_ORDER[manifest.readiness.level]
+    required = READINESS_ORDER[solver_profile.required_mesh_readiness]
     if _solver_profile_requires_watertight_evidence(solver_profile, manifest):
         evidence = _watertight_dispatch_evidence(mesh_dir, manifest, solver_profile)
         if not evidence.accepted:
             detail = f": {evidence.reason}" if evidence.reason else ""
+            readiness_detail = ""
+            if actual < required:
+                readiness_detail = (
+                    "; mesh package readiness below solver requirement: "
+                    f"readiness {manifest.readiness.level} is below required "
+                    f"{solver_profile.required_mesh_readiness}"
+                )
             raise CfdDispatchError(
                 "watertight dispatch requires profile-scoped closed-volume "
-                f"diagnostic evidence{detail}"
+                f"diagnostic evidence{detail}{readiness_detail}",
+                code=evidence.code,
             )
+
+    if actual < required:
+        raise CfdDispatchError(
+            "mesh package readiness below solver requirement: "
+            f"readiness {manifest.readiness.level} is below required "
+            f"{solver_profile.required_mesh_readiness}",
+            code="readiness_below_requirement",
+        )
 
 
 class _WatertightDispatchEvidence(BaseModel):
     """Internal result for profile-scoped closed-volume dispatch evidence."""
 
     accepted: bool
+    code: str = "accepted"
     reason: str | None = None
 
 
@@ -793,89 +823,367 @@ def _watertight_dispatch_evidence(
     manifest: MeshPackageManifest,
     solver_profile: SolverProfile,
 ) -> _WatertightDispatchEvidence:
-    diagnostic_refs = _profile_diagnostic_refs(manifest)
-    if not diagnostic_refs:
+    try:
+        return _validate_watertight_dispatch_evidence(
+            mesh_dir,
+            manifest,
+            solver_profile,
+        )
+    except CfdDispatchError as exc:
         return _WatertightDispatchEvidence(
             accepted=False,
-            reason="no referenced diagnostics were found",
+            code=exc.code,
+            reason=f"{exc.code}: {exc}",
         )
 
-    reasons: list[str] = []
-    for ref in diagnostic_refs:
-        path = mesh_dir / ref
-        try:
-            evidence = json.loads(path.read_text())
-        except json.JSONDecodeError:
-            reasons.append(f"{ref}: malformed diagnostic JSON")
-            continue
 
-        module_result = _closed_volume_module_accepts(evidence, solver_profile)
-        if module_result.accepted:
-            return module_result
-        if module_result.reason:
-            reasons.append(f"{ref}: {module_result.reason}")
-            continue
-
-        reasons.append(
-            f"{ref}: no closed-volume contract validator accepted diagnostic evidence"
-        )
-
-    return _WatertightDispatchEvidence(accepted=False, reason="; ".join(reasons))
-
-
-def _profile_diagnostic_refs(manifest: MeshPackageManifest) -> list[str]:
-    manifest_data = manifest.model_dump(mode="python")
-    refs: list[str] = []
-    refs.extend(str(ref) for ref in manifest.quality_reports.values())
-    refs.extend(_diagnostic_refs_from_mapping(manifest_data))
-    return list(dict.fromkeys(refs))
-
-
-def _diagnostic_refs_from_mapping(value: Any, *, parent_key: str = "") -> list[str]:
-    refs: list[str] = []
-    if isinstance(value, dict):
-        for key, child in value.items():
-            key_text = str(key)
-            combined_key = f"{parent_key}.{key_text}" if parent_key else key_text
-            refs.extend(_diagnostic_refs_from_mapping(child, parent_key=combined_key))
-    elif isinstance(value, (list, tuple)):
-        for child in value:
-            refs.extend(_diagnostic_refs_from_mapping(child, parent_key=parent_key))
-    elif isinstance(value, str) and "diagnostic" in parent_key.lower():
-        refs.append(value)
-    return refs
-
-
-def _closed_volume_module_accepts(
-    evidence: dict[str, Any],
+def _validate_watertight_dispatch_evidence(
+    mesh_dir: Path,
+    manifest: MeshPackageManifest,
     solver_profile: SolverProfile,
 ) -> _WatertightDispatchEvidence:
-    try:
-        from kayakgen.eval import closed_volume
-    except ImportError:
-        return _WatertightDispatchEvidence(accepted=False)
-
-    validator = getattr(closed_volume, "dispatch_evidence_satisfies_profile", None)
-    if validator is None:
-        return _WatertightDispatchEvidence(accepted=False)
-
-    try:
-        accepted = bool(
-            validator(
-                evidence,
-                solver_profile.required_mesh_profile,
-                solver_profile.required_mesh_readiness,
-            )
+    if solver_profile.required_mesh_readiness != "cfd_ready":
+        raise CfdDispatchError(
+            "watertight handoff evidence only satisfies cfd_ready dispatch",
+            code="readiness_below_requirement",
         )
-    except (TypeError, ValueError, AttributeError) as exc:
-        return _WatertightDispatchEvidence(accepted=False, reason=str(exc))
+    if solver_profile.required_mesh_profile != "watertight_solid_resistance_v1":
+        raise CfdDispatchError(
+            "watertight evidence profile mismatch: expected "
+            "'watertight_solid_resistance_v1'",
+            code="evidence_profile_mismatch",
+        )
+    if manifest.readiness_authority != "verified_watertight_volume_mesh_evidence":
+        raise CfdDispatchError(
+            "manifest readiness_authority is not verified watertight volume mesh evidence",
+            code="missing_volume_mesh",
+        )
+    if not manifest.body_ref:
+        raise CfdDispatchError(
+            "manifest body_ref is missing for watertight handoff",
+            code="missing_volume_mesh",
+        )
+    if not manifest.closed_volume_diagnostic:
+        raise CfdDispatchError(
+            "closed volume diagnostic is not referenced",
+            code="missing_volume_mesh",
+        )
+    if not manifest.self_intersection_diagnostic:
+        raise CfdDispatchError(
+            "self-intersection diagnostic is not referenced",
+            code="missing_volume_mesh",
+        )
+    if not manifest.volume_mesh_diagnostic:
+        raise CfdDispatchError(
+            "volume mesh diagnostic is not referenced",
+            code="missing_volume_mesh",
+        )
+    if not manifest.volume_mesh_artifacts:
+        raise CfdDispatchError(
+            "volume mesh artifact is not referenced",
+            code="missing_volume_mesh",
+        )
 
-    if accepted:
-        return _WatertightDispatchEvidence(accepted=True)
-    return _WatertightDispatchEvidence(
-        accepted=False,
-        reason="closed-volume module rejected diagnostic evidence",
+    closed_path, closed_hash = _verified_evidence_path(
+        mesh_dir,
+        manifest,
+        "closed_volume_diagnostic",
+        manifest.closed_volume_diagnostic,
     )
+    self_path, self_hash = _verified_evidence_path(
+        mesh_dir,
+        manifest,
+        "self_intersection_diagnostic",
+        manifest.self_intersection_diagnostic,
+    )
+    volume_path, volume_hash = _verified_evidence_path(
+        mesh_dir,
+        manifest,
+        "volume_mesh_diagnostic",
+        manifest.volume_mesh_diagnostic,
+    )
+    artifact_hashes: dict[str, str] = {}
+    for name, ref in sorted(manifest.volume_mesh_artifacts.items()):
+        _path, artifact_hash = _verified_evidence_path(
+            mesh_dir,
+            manifest,
+            f"volume_mesh_artifacts.{name}",
+            ref,
+        )
+        artifact_hashes[name] = artifact_hash
+
+    closed = _load_closed_volume_diagnostic(
+        closed_path,
+        code="malformed_diagnostic",
+    )
+    self_diagnostic = (
+        closed
+        if self_path == closed_path
+        else _load_closed_volume_diagnostic(
+            self_path,
+            code="malformed_diagnostic",
+        )
+    )
+    _validate_closed_volume_handoff(
+        manifest,
+        closed,
+        self_diagnostic,
+    )
+
+    volume = _load_volume_mesh_diagnostic(volume_path)
+    _validate_volume_mesh_handoff(
+        manifest,
+        solver_profile,
+        volume,
+        closed_hash=closed_hash,
+        self_hash=self_hash,
+        volume_hash=volume_hash,
+        closed_tolerances_hash=sha256_json(closed.policy.tolerances),
+        artifact_hashes=artifact_hashes,
+    )
+    return _WatertightDispatchEvidence(accepted=True)
+
+
+def _resolve_package_ref(mesh_dir: Path, ref: str) -> Path:
+    ref_path = Path(ref)
+    if not ref or ref_path.is_absolute() or ".." in ref_path.parts:
+        raise CfdDispatchError(
+            f"forbidden path ref {ref!r}",
+            code="forbidden_path_ref",
+        )
+    root = mesh_dir.resolve()
+    path = (mesh_dir / ref_path).resolve()
+    if not path.is_relative_to(root):
+        raise CfdDispatchError(
+            f"forbidden path ref {ref!r}",
+            code="forbidden_path_ref",
+        )
+    if not path.is_file():
+        raise CfdDispatchError(
+            f"mesh package is missing referenced artifact: {ref}",
+            code="missing_artifact",
+        )
+    return path
+
+
+def _verified_evidence_path(
+    mesh_dir: Path,
+    manifest: MeshPackageManifest,
+    key: str,
+    ref: str,
+) -> tuple[Path, str]:
+    path = _resolve_package_ref(mesh_dir, ref)
+    actual = sha256_file(path)
+    expected = _expected_evidence_hash(manifest, key, ref)
+    if expected is None:
+        raise CfdDispatchError(
+            f"missing evidence hash for {key} ({ref})",
+            code="stale_checksum",
+        )
+    if actual != expected:
+        raise CfdDispatchError(
+            f"stale checksum for {key} ({ref})",
+            code="stale_checksum",
+        )
+    return path, actual
+
+
+def _expected_evidence_hash(
+    manifest: MeshPackageManifest,
+    key: str,
+    ref: str,
+) -> str | None:
+    aliases = (
+        key,
+        ref,
+        f"volume_mesh_artifact:{key.rsplit('.', maxsplit=1)[-1]}",
+    )
+    for alias in aliases:
+        expected = manifest.evidence_hashes.get(alias)
+        if expected:
+            return expected
+    return None
+
+
+def _load_closed_volume_diagnostic(path: Path, *, code: str):
+    from kayakgen.eval.closed_volume import ClosedVolumeDiagnostics
+
+    try:
+        return ClosedVolumeDiagnostics.model_validate_json(path.read_text())
+    except (ValidationError, ValueError) as exc:
+        raise CfdDispatchError(
+            f"malformed closed-volume diagnostic {path.name}: {exc}",
+            code=code,
+        ) from exc
+
+
+def _load_volume_mesh_diagnostic(path: Path) -> VolumeMeshDiagnostic:
+    try:
+        return VolumeMeshDiagnostic.model_validate_json(path.read_text())
+    except (ValidationError, ValueError) as exc:
+        raise CfdDispatchError(
+            f"malformed volume mesh diagnostic {path.name}: {exc}",
+            code="malformed_diagnostic",
+        ) from exc
+
+
+def _validate_closed_volume_handoff(
+    manifest: MeshPackageManifest,
+    closed: Any,
+    self_diagnostic: Any,
+) -> None:
+    if closed.body_type == "explicit_synthetic_triangle_mesh":
+        raise CfdDispatchError(
+            "synthetic closed-volume evidence cannot satisfy generated kayak handoff",
+            code="synthetic_evidence",
+        )
+    if closed.body_type != "generated_hull_plus_deck_closed_body":
+        raise CfdDispatchError(
+            f"unsupported closed-volume body_type {closed.body_type!r}",
+            code="malformed_diagnostic",
+        )
+    if closed.profile_name != "generated_hull_plus_deck_closed_body_v1":
+        raise CfdDispatchError(
+            "closed-volume diagnostic profile mismatch",
+            code="evidence_profile_mismatch",
+        )
+    if closed.body_id != manifest.body_ref:
+        raise CfdDispatchError(
+            "closed-volume diagnostic body_ref mismatch",
+            code="cross_body",
+        )
+    if closed.source_hull_hash != manifest.hull_hash:
+        raise CfdDispatchError(
+            "closed-volume diagnostic source hull hash mismatch",
+            code="cross_hull",
+        )
+    if self_diagnostic.body_id != closed.body_id:
+        raise CfdDispatchError(
+            "self-intersection diagnostic body_ref mismatch",
+            code="cross_body",
+        )
+    if self_diagnostic.source_hull_hash != closed.source_hull_hash:
+        raise CfdDispatchError(
+            "self-intersection diagnostic source hull hash mismatch",
+            code="cross_hull",
+        )
+    if sha256_json(self_diagnostic.policy.tolerances) != sha256_json(
+        closed.policy.tolerances
+    ):
+        raise CfdDispatchError(
+            "self-intersection diagnostic tolerance set mismatch",
+            code="cross_tolerance",
+        )
+    if closed.self_intersection_status != "passed":
+        raise CfdDispatchError(
+            "self-intersection diagnostic did not pass",
+            code="failed_self_intersection",
+        )
+    if self_diagnostic.self_intersection_status != "passed":
+        raise CfdDispatchError(
+            "self-intersection diagnostic did not pass",
+            code="failed_self_intersection",
+        )
+    if closed.readiness.level != "closed_volume":
+        raise CfdDispatchError(
+            "closed-volume diagnostic is below closed_volume readiness",
+            code="volume_mesh_not_ready",
+        )
+    if (
+        closed.raw_boundary_edges
+        or closed.welded_boundary_edges
+        or closed.raw_nonmanifold_edges
+        or closed.welded_nonmanifold_edges
+        or closed.degenerate_faces
+        or closed.nonfinite_vertices
+        or closed.nonfinite_faces
+        or closed.invalid_face_indices
+    ):
+        raise CfdDispatchError(
+            "closed-volume diagnostic has blocking topology or numeric counts",
+            code="volume_mesh_not_ready",
+        )
+
+
+def _validate_volume_mesh_handoff(
+    manifest: MeshPackageManifest,
+    solver_profile: SolverProfile,
+    volume: VolumeMeshDiagnostic,
+    *,
+    closed_hash: str,
+    self_hash: str,
+    volume_hash: str,
+    closed_tolerances_hash: str,
+    artifact_hashes: dict[str, str],
+) -> None:
+    if volume.profile_name != solver_profile.required_mesh_profile:
+        raise CfdDispatchError(
+            "volume mesh diagnostic profile mismatch",
+            code="evidence_profile_mismatch",
+        )
+    if volume.readiness.level != "cfd_ready":
+        raise CfdDispatchError(
+            "volume mesh diagnostic is below cfd_ready",
+            code="volume_mesh_not_ready",
+        )
+    if volume.body_ref != manifest.body_ref:
+        raise CfdDispatchError(
+            "volume mesh diagnostic body_ref mismatch",
+            code="cross_body",
+        )
+    if volume.source_hull_hash != manifest.hull_hash:
+        raise CfdDispatchError(
+            "volume mesh diagnostic source hull hash mismatch",
+            code="cross_hull",
+        )
+    if volume.closed_volume_diagnostic_hash != closed_hash:
+        raise CfdDispatchError(
+            "volume mesh diagnostic closed-volume hash mismatch",
+            code="stale_checksum",
+        )
+    if volume.self_intersection_diagnostic_hash != self_hash:
+        raise CfdDispatchError(
+            "volume mesh diagnostic self-intersection hash mismatch",
+            code="stale_checksum",
+        )
+    if volume.closed_volume_tolerances_hash != closed_tolerances_hash:
+        raise CfdDispatchError(
+            "volume mesh diagnostic tolerance set mismatch",
+            code="cross_tolerance",
+        )
+    if (
+        _expected_evidence_hash(
+            manifest,
+            "volume_mesh_diagnostic",
+            manifest.volume_mesh_diagnostic or "",
+        )
+        != volume_hash
+    ):
+        raise CfdDispatchError(
+            "manifest volume mesh diagnostic hash mismatch",
+            code="stale_checksum",
+        )
+    if not volume.body_surface_matches_diagnostic:
+        raise CfdDispatchError(
+            "volume mesh body surface does not match diagnostic",
+            code="body_surface_mismatch",
+        )
+    if set(volume.output_artifacts) != set(manifest.volume_mesh_artifacts):
+        raise CfdDispatchError(
+            "volume mesh artifact set mismatch",
+            code="artifact_checksum_mismatch",
+        )
+    for name, artifact in volume.output_artifacts.items():
+        if artifact.ref != manifest.volume_mesh_artifacts[name]:
+            raise CfdDispatchError(
+                f"volume mesh artifact ref mismatch for {name}",
+                code="artifact_checksum_mismatch",
+            )
+        if artifact.sha256 != artifact_hashes[name]:
+            raise CfdDispatchError(
+                f"volume mesh artifact checksum mismatch for {name}",
+                code="artifact_checksum_mismatch",
+            )
 
 
 def _validate_positive_job_inputs(
@@ -975,6 +1283,10 @@ def _job_id(
         "speed_mps": speed_mps,
         "seawater_density_kg_m3": seawater_density_kg_m3,
         "kinematic_viscosity_m2_s": kinematic_viscosity_m2_s,
+        "body_ref": manifest.body_ref,
+        "readiness_authority": manifest.readiness_authority,
+        "volume_mesh_artifacts": dict(sorted(manifest.volume_mesh_artifacts.items())),
+        "evidence_hashes": dict(sorted(manifest.evidence_hashes.items())),
     }
     encoded = json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return "cfd-" + hashlib.sha256(encoded).hexdigest()[:16]

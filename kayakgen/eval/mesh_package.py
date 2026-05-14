@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Literal
 
@@ -17,8 +18,21 @@ from kayakgen.io.json import save_hull
 from kayakgen.io.stl import write_stl
 from kayakgen.model.geometry import PartType
 from kayakgen.model.hull import Hull
+from kayakgen.eval.closed_volume import (
+    diagnose_closed_volume_body,
+    generated_hull_plus_deck_body,
+)
+from kayakgen.eval.volume_mesh import (
+    fixture_volume_mesh_artifact,
+    fixture_volume_mesh_diagnostic,
+    sha256_file,
+)
 
 PackagePart = Literal["hull", "deck"]
+ReadinessAuthority = Literal[
+    "surface_diagnostics",
+    "verified_watertight_volume_mesh_evidence",
+]
 
 
 class MeshPackageCoordinateSystem(BaseModel):
@@ -49,6 +63,13 @@ class MeshPackageManifest(BaseModel):
     hull_json: str
     quality_reports: dict[PackagePart, str]
     surfaces: dict[PackagePart, str]
+    body_ref: str | None = None
+    closed_volume_diagnostic: str | None = None
+    self_intersection_diagnostic: str | None = None
+    volume_mesh_artifacts: dict[str, str] = Field(default_factory=dict)
+    volume_mesh_diagnostic: str | None = None
+    evidence_hashes: dict[str, str] = Field(default_factory=dict)
+    readiness_authority: ReadinessAuthority = "surface_diagnostics"
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -121,6 +142,114 @@ def write_mesh_package(
         warnings=readiness.reasons,
     )
     (out / "manifest.json").write_text(manifest.model_dump_json(indent=2))
+    return manifest
+
+
+def write_watertight_volume_mesh_handoff_package(
+    hull: Hull,
+    out_dir: str | Path,
+    *,
+    stations: int | None = None,
+    closed_body_stations: int = 12,
+    include_fixture_volume_mesh: bool = False,
+) -> MeshPackageManifest:
+    """Write a watertight-profile package with explicit RFC 0023 evidence.
+
+    The default path writes generated closed-body diagnostics only and remains
+    below ``cfd_ready``. Passing ``include_fixture_volume_mesh=True`` adds a
+    deterministic fixture volume-mesh artifact derived from that generated body
+    and promotes readiness from verified in-memory evidence.
+    """
+
+    out = Path(out_dir)
+    manifest = write_mesh_package(
+        hull,
+        out,
+        stations=stations,
+        solver_profile=watertight_solid_profile(),
+    )
+
+    body = generated_hull_plus_deck_body(
+        hull,
+        stations=closed_body_stations,
+    )
+    closed_diagnostics = diagnose_closed_volume_body(body)
+    closed_ref = "closed-volume-diagnostic.json"
+    closed_path = out / closed_ref
+    closed_path.write_text(closed_diagnostics.model_dump_json(indent=2) + "\n")
+    closed_hash = sha256_file(closed_path)
+
+    evidence_hashes = {
+        "closed_volume_diagnostic": closed_hash,
+        "self_intersection_diagnostic": closed_hash,
+    }
+    warnings = list(manifest.warnings)
+    _append_once(
+        warnings,
+        "generated closed body diagnostic is present but volume mesh evidence is missing",
+    )
+
+    readiness = manifest.readiness
+    volume_mesh_artifacts: dict[str, str] = {}
+    volume_mesh_diagnostic_ref: str | None = None
+    readiness_authority: ReadinessAuthority = "surface_diagnostics"
+
+    if include_fixture_volume_mesh:
+        artifact_ref = "volume-mesh.fixture.json"
+        artifact_path = out / artifact_ref
+        artifact = fixture_volume_mesh_artifact(
+            closed_diagnostics,
+            closed_volume_diagnostic_hash=closed_hash,
+        )
+        artifact_path.write_text(
+            json.dumps(artifact, indent=2, sort_keys=True) + "\n"
+        )
+        artifact_hash = sha256_file(artifact_path)
+
+        volume_diagnostic = fixture_volume_mesh_diagnostic(
+            closed_diagnostics,
+            closed_volume_diagnostic_hash=closed_hash,
+            self_intersection_diagnostic_hash=closed_hash,
+            artifact_ref=artifact_ref,
+            artifact_sha256=artifact_hash,
+        )
+        volume_mesh_diagnostic_ref = "volume-mesh-diagnostic.json"
+        volume_diagnostic_path = out / volume_mesh_diagnostic_ref
+        volume_diagnostic_path.write_text(
+            volume_diagnostic.model_dump_json(indent=2) + "\n"
+        )
+        volume_diagnostic_hash = sha256_file(volume_diagnostic_path)
+        volume_mesh_artifacts = {"volume_mesh": artifact_ref}
+        evidence_hashes.update(
+            {
+                "volume_mesh_diagnostic": volume_diagnostic_hash,
+                "volume_mesh_artifacts.volume_mesh": artifact_hash,
+            }
+        )
+        readiness = MeshReadiness(
+            level="cfd_ready",
+            reasons=[
+                "watertight volume mesh fixture evidence verified for generated body",
+                "CFD solver outputs remain raw and unvalidated",
+            ],
+        )
+        readiness_authority = "verified_watertight_volume_mesh_evidence"
+        warnings = list(readiness.reasons)
+
+    manifest = manifest.model_copy(
+        update={
+            "readiness": readiness,
+            "body_ref": closed_diagnostics.body_id,
+            "closed_volume_diagnostic": closed_ref,
+            "self_intersection_diagnostic": closed_ref,
+            "volume_mesh_artifacts": volume_mesh_artifacts,
+            "volume_mesh_diagnostic": volume_mesh_diagnostic_ref,
+            "evidence_hashes": evidence_hashes,
+            "readiness_authority": readiness_authority,
+            "warnings": warnings,
+        }
+    )
+    (out / "manifest.json").write_text(manifest.model_dump_json(indent=2) + "\n")
     return manifest
 
 

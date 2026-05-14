@@ -200,6 +200,8 @@ def test_mesh_package_writes_manifest_and_artifacts(tmp_path) -> None:
 
     assert result.exit_code == 0
     assert "cfd_surface_candidate" in result.stdout
+    assert "readiness: cfd_surface_candidate" in result.stdout
+    assert "readiness_blocker: not_watertight_profile" in result.stdout
     assert (out / "manifest.json").exists()
     assert (out / "quality.hull.json").exists()
     assert (out / "quality.deck.json").exists()
@@ -226,6 +228,9 @@ def test_mesh_package_can_select_watertight_profile_without_cfd_ready(tmp_path) 
 
     assert result.exit_code == 0
     assert "stl_surface" in result.stdout
+    assert "readiness_blocker: missing_volume_mesh" in result.stdout
+    assert "readiness_blocker: readiness_below_cfd_ready" in result.stdout
+    assert "readiness_reason:" in result.stdout
     manifest = json.loads((out / "manifest.json").read_text())
     assert manifest["solver_profile"]["profile_name"] == "watertight_solid_resistance_v1"
     assert manifest["readiness"]["level"] == "stl_surface"
@@ -376,6 +381,7 @@ def test_cfd_prepare_rejects_watertight_solver_for_current_package(tmp_path) -> 
     )
 
     assert result.exit_code == 1
+    assert "blocker_class: missing_volume_mesh" in result.stderr
     assert "readiness stl_surface is below required cfd_ready" in result.stderr
 
 

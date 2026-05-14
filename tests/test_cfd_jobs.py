@@ -28,6 +28,7 @@ from kayakgen.eval.cfd.jobs import (
     unavailable_watertight_solid_profile,
 )
 from kayakgen.eval.closed_volume import (
+    ClosedVolumeReadiness,
     diagnose_closed_volume_body,
     explicit_synthetic_body,
     explicit_synthetic_self_intersection_policy,
@@ -35,7 +36,12 @@ from kayakgen.eval.closed_volume import (
 )
 from kayakgen.eval.contract import CfdResult
 from kayakgen.eval.mesh_diagnostics import MeshReadiness
-from kayakgen.eval.mesh_package import watertight_solid_profile, write_mesh_package
+from kayakgen.eval.mesh_package import (
+    watertight_solid_profile,
+    write_mesh_package,
+    write_watertight_volume_mesh_handoff_package,
+)
+from kayakgen.eval.volume_mesh import VolumeMeshDiagnostic, sha256_file
 from kayakgen.model.hull import Hull
 
 FIXTURE_PROFILE_NAME = "fixture-local-command"
@@ -78,6 +84,10 @@ def _fixture_warning_text(raw_records: dict[str, object]) -> str:
     warnings = raw_records.get("warnings")
     assert isinstance(warnings, list)
     return " ".join(str(warning) for warning in warnings)
+
+
+def _write_manifest(mesh_dir: Path, manifest) -> None:
+    (mesh_dir / "manifest.json").write_text(manifest.model_dump_json(indent=2) + "\n")
 
 
 def test_job_spec_and_run_record_round_trip() -> None:
@@ -449,6 +459,254 @@ def test_prepare_rejects_generated_closed_body_as_cfd_ready_evidence(
             unavailable_watertight_solid_profile(),
             speed_mps=2.4,
         )
+
+
+def test_prepare_accepts_matching_watertight_volume_mesh_handoff(
+    tmp_path: Path,
+) -> None:
+    mesh_dir = tmp_path / "mesh"
+    jobs_dir = tmp_path / "jobs"
+    manifest = write_watertight_volume_mesh_handoff_package(
+        Hull(name="rfc0023-positive-handoff"),
+        mesh_dir,
+        stations=8,
+        closed_body_stations=8,
+        include_fixture_volume_mesh=True,
+    )
+
+    job = prepare_local_job(
+        mesh_dir,
+        jobs_dir,
+        unavailable_watertight_solid_profile(),
+        speed_mps=2.4,
+    )
+
+    assert manifest.readiness.level == "cfd_ready"
+    assert job.mesh_manifest.readiness.level == "cfd_ready"
+    assert job.job_spec.mesh_readiness == "cfd_ready"
+    assert job.job_spec.mesh_evidence_hashes == manifest.evidence_hashes
+    assert job.run_record.status == "queued"
+
+
+def test_prepare_rejects_watertight_handoff_with_stale_artifact_hash(
+    tmp_path: Path,
+) -> None:
+    mesh_dir = tmp_path / "mesh"
+    jobs_dir = tmp_path / "jobs"
+    write_watertight_volume_mesh_handoff_package(
+        Hull(name="rfc0023-stale-artifact"),
+        mesh_dir,
+        stations=8,
+        closed_body_stations=8,
+        include_fixture_volume_mesh=True,
+    )
+    (mesh_dir / "volume-mesh.fixture.json").write_text('{"tampered": true}\n')
+
+    with pytest.raises(CfdDispatchError) as excinfo:
+        prepare_local_job(
+            mesh_dir,
+            jobs_dir,
+            unavailable_watertight_solid_profile(),
+            speed_mps=2.4,
+        )
+
+    assert excinfo.value.code == "stale_checksum"
+    assert "stale checksum" in str(excinfo.value)
+
+
+def test_prepare_rejects_watertight_handoff_with_forbidden_path_ref(
+    tmp_path: Path,
+) -> None:
+    mesh_dir = tmp_path / "mesh"
+    jobs_dir = tmp_path / "jobs"
+    manifest = write_watertight_volume_mesh_handoff_package(
+        Hull(name="rfc0023-forbidden-ref"),
+        mesh_dir,
+        stations=8,
+        closed_body_stations=8,
+        include_fixture_volume_mesh=True,
+    )
+    forged = manifest.model_copy(update={"volume_mesh_diagnostic": "../outside.json"})
+    _write_manifest(mesh_dir, forged)
+
+    with pytest.raises(CfdDispatchError) as excinfo:
+        prepare_local_job(
+            mesh_dir,
+            jobs_dir,
+            unavailable_watertight_solid_profile(),
+            speed_mps=2.4,
+        )
+
+    assert excinfo.value.code == "forbidden_path_ref"
+    assert "forbidden path ref" in str(excinfo.value)
+
+
+def test_prepare_rejects_synthetic_closed_volume_even_with_volume_mesh_refs(
+    tmp_path: Path,
+) -> None:
+    mesh_dir = tmp_path / "mesh"
+    jobs_dir = tmp_path / "jobs"
+    manifest = write_watertight_volume_mesh_handoff_package(
+        Hull(name="rfc0023-synthetic-rejection"),
+        mesh_dir,
+        stations=8,
+        closed_body_stations=8,
+        include_fixture_volume_mesh=True,
+    )
+    vertices = [
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+    ]
+    faces = [
+        [0, 2, 1],
+        [0, 1, 3],
+        [1, 2, 3],
+        [2, 0, 3],
+    ]
+    synthetic = diagnose_closed_volume_body(
+        explicit_synthetic_body(
+            vertices,
+            faces,
+            body_id="synthetic-not-generated",
+            policy=explicit_synthetic_self_intersection_policy(),
+        )
+    )
+    closed_path = mesh_dir / "closed-volume-diagnostic.json"
+    closed_path.write_text(synthetic.model_dump_json(indent=2) + "\n")
+    forged = manifest.model_copy(
+        update={
+            "evidence_hashes": {
+                **manifest.evidence_hashes,
+                "closed_volume_diagnostic": sha256_file(closed_path),
+                "self_intersection_diagnostic": sha256_file(closed_path),
+            }
+        }
+    )
+    _write_manifest(mesh_dir, forged)
+
+    with pytest.raises(CfdDispatchError) as excinfo:
+        prepare_local_job(
+            mesh_dir,
+            jobs_dir,
+            unavailable_watertight_solid_profile(),
+            speed_mps=2.4,
+        )
+
+    assert excinfo.value.code == "synthetic_evidence"
+    assert "synthetic closed-volume evidence" in str(excinfo.value)
+
+
+def test_prepare_rejects_failed_self_intersection_evidence(
+    tmp_path: Path,
+) -> None:
+    mesh_dir = tmp_path / "mesh"
+    jobs_dir = tmp_path / "jobs"
+    manifest = write_watertight_volume_mesh_handoff_package(
+        Hull(name="rfc0023-self-intersection"),
+        mesh_dir,
+        stations=8,
+        closed_body_stations=8,
+        include_fixture_volume_mesh=True,
+    )
+    closed_path = mesh_dir / "closed-volume-diagnostic.json"
+    closed = diagnose_closed_volume_body(
+        generated_hull_plus_deck_body(Hull(name="rfc0023-self-intersection"), stations=8)
+    )
+    failed = closed.model_copy(
+        update={
+            "readiness": ClosedVolumeReadiness(
+                level="invalid",
+                reasons=["self-intersection diagnostic status is failed"],
+            ),
+            "self_intersection_status": "failed",
+            "self_intersection_pair_count": 1,
+        }
+    )
+    closed_path.write_text(failed.model_dump_json(indent=2) + "\n")
+    forged = manifest.model_copy(
+        update={
+            "evidence_hashes": {
+                **manifest.evidence_hashes,
+                "closed_volume_diagnostic": sha256_file(closed_path),
+                "self_intersection_diagnostic": sha256_file(closed_path),
+            }
+        }
+    )
+    _write_manifest(mesh_dir, forged)
+
+    with pytest.raises(CfdDispatchError) as excinfo:
+        prepare_local_job(
+            mesh_dir,
+            jobs_dir,
+            unavailable_watertight_solid_profile(),
+            speed_mps=2.4,
+        )
+
+    assert excinfo.value.code == "failed_self_intersection"
+
+
+def test_watertight_job_identity_changes_with_accepted_evidence_hash(
+    tmp_path: Path,
+) -> None:
+    hull = Hull(name="rfc0023-job-identity")
+    jobs_dir = tmp_path / "jobs"
+    first_mesh = tmp_path / "mesh-a"
+    second_mesh = tmp_path / "mesh-b"
+    first_manifest = write_watertight_volume_mesh_handoff_package(
+        hull,
+        first_mesh,
+        stations=8,
+        closed_body_stations=8,
+        include_fixture_volume_mesh=True,
+    )
+    second_manifest = write_watertight_volume_mesh_handoff_package(
+        hull,
+        second_mesh,
+        stations=8,
+        closed_body_stations=8,
+        include_fixture_volume_mesh=True,
+    )
+    artifact_path = second_mesh / "volume-mesh.fixture.json"
+    artifact = json.loads(artifact_path.read_text())
+    artifact["fixture_variant"] = "changed-evidence"
+    artifact_path.write_text(json.dumps(artifact, indent=2, sort_keys=True) + "\n")
+    artifact_hash = sha256_file(artifact_path)
+
+    volume_path = second_mesh / "volume-mesh-diagnostic.json"
+    volume_data = json.loads(volume_path.read_text())
+    volume_data["output_artifacts"]["volume_mesh"]["sha256"] = artifact_hash
+    volume_path.write_text(json.dumps(volume_data, indent=2, sort_keys=True) + "\n")
+    volume = VolumeMeshDiagnostic.model_validate_json(volume_path.read_text())
+    volume_hash = sha256_file(volume_path)
+    second_manifest = second_manifest.model_copy(
+        update={
+            "evidence_hashes": {
+                **second_manifest.evidence_hashes,
+                "volume_mesh_diagnostic": volume_hash,
+                "volume_mesh_artifacts.volume_mesh": artifact_hash,
+            }
+        }
+    )
+    _write_manifest(second_mesh, second_manifest)
+
+    first = prepare_local_job(
+        first_mesh,
+        jobs_dir,
+        unavailable_watertight_solid_profile(),
+        speed_mps=2.4,
+    )
+    second = prepare_local_job(
+        second_mesh,
+        jobs_dir,
+        unavailable_watertight_solid_profile(),
+        speed_mps=2.4,
+    )
+
+    assert volume.output_artifacts["volume_mesh"].sha256 == artifact_hash
+    assert first_manifest.evidence_hashes != second_manifest.evidence_hashes
+    assert first.job_dir != second.job_dir
 
 
 def test_prepare_rejects_solver_profile_mismatch(tmp_path: Path) -> None:

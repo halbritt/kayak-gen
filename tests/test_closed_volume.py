@@ -14,7 +14,15 @@ from kayakgen.eval.closed_volume import (
     diagnose_closed_volume_body,
     explicit_synthetic_body,
     explicit_synthetic_self_intersection_policy,
+    generated_hull_plus_deck_body,
 )
+from kayakgen.eval.volume_mesh import (
+    VolumeMeshDiagnostic,
+    fixture_volume_mesh_diagnostic,
+    sha256_file,
+    sha256_json,
+)
+from kayakgen.model.hull import Hull
 
 
 def _tetrahedron() -> tuple[list[list[float]], list[list[int]]]:
@@ -256,6 +264,83 @@ def test_rfc0021_profile_rejects_serialized_closed_volume_without_passed_check()
 
     with pytest.raises(ValidationError, match="requires passed self-intersection"):
         ClosedVolumeDiagnostics.model_validate(forged)
+
+
+def test_rfc0023_fixture_volume_mesh_diagnostic_round_trips(tmp_path) -> None:
+    artifact = tmp_path / "fixture-volume.mesh"
+    artifact.write_bytes(b"fixture volume mesh\n")
+    hull = Hull(name="rfc0023-volume-mesh")
+    closed_diagnostics = diagnose_closed_volume_body(
+        generated_hull_plus_deck_body(hull, stations=4)
+    )
+    closed_hash = sha256_json(closed_diagnostics)
+
+    diagnostic = fixture_volume_mesh_diagnostic(
+        closed_diagnostics,
+        closed_volume_diagnostic_hash=closed_hash,
+        self_intersection_diagnostic_hash=closed_hash,
+        artifact_ref="fixture-volume.mesh",
+        artifact_sha256=sha256_file(artifact),
+    )
+    loaded = VolumeMeshDiagnostic.model_validate_json(diagnostic.model_dump_json())
+
+    assert loaded.body_ref == closed_diagnostics.body_id
+    assert loaded.source_hull_hash == hull.hash()
+    assert loaded.closed_volume_diagnostic_hash == closed_hash
+    assert loaded.self_intersection_diagnostic_hash == closed_hash
+    assert loaded.deterministic_inputs["closed_volume_diagnostic_hash"] == closed_hash
+    assert loaded.output_artifacts["volume_mesh"].sha256 == sha256_file(artifact)
+    assert loaded.cell_count > 0
+    assert loaded.boundary_face_count == closed_diagnostics.face_count
+    assert loaded.body_surface_matches_diagnostic is True
+    assert loaded.readiness.level == "cfd_ready"
+    assert loaded.readiness.reasons[0].code == "passed"
+
+
+def test_rfc0023_volume_mesh_records_structured_blockers() -> None:
+    hull = Hull(name="rfc0023-volume-mesh-blocked")
+    closed_diagnostics = diagnose_closed_volume_body(
+        generated_hull_plus_deck_body(hull, stations=4)
+    )
+    passing = fixture_volume_mesh_diagnostic(
+        closed_diagnostics,
+        closed_volume_diagnostic_hash=sha256_json(closed_diagnostics),
+        self_intersection_diagnostic_hash=sha256_json(closed_diagnostics),
+        artifact_ref="fixture-volume.mesh",
+        artifact_sha256="0" * 64,
+    )
+
+    payload = passing.model_dump(mode="json")
+    payload.update(
+        {
+            "output_artifacts": {},
+            "cell_count": 0,
+            "inverted_cell_count": 2,
+            "body_surface_matches_diagnostic": False,
+            "readiness": {"level": "invalid", "reasons": [
+                {
+                    "code": "missing_volume_mesh",
+                    "message": "volume mesh artifact is missing",
+                },
+                {
+                    "code": "volume_mesh_not_ready",
+                    "message": "volume mesh contains blocking cell counts",
+                },
+                {
+                    "code": "body_surface_mismatch",
+                    "message": "body surface does not match generated diagnostic",
+                },
+            ]},
+        }
+    )
+    blocked = VolumeMeshDiagnostic.model_validate(payload)
+
+    assert blocked.readiness.level == "invalid"
+    assert {reason.code for reason in blocked.readiness.reasons} >= {
+        "missing_volume_mesh",
+        "volume_mesh_not_ready",
+        "body_surface_mismatch",
+    }
 
 
 def test_rfc0021_broad_phase_handles_many_non_overlapping_components() -> None:

@@ -137,6 +137,11 @@ def mesh_package(
         typer.echo(f"mesh-package failed: {exc}", err=True)
         raise typer.Exit(code=1)
     typer.echo(f"wrote {out / 'manifest.json'} ({manifest.readiness.level})")
+    typer.echo(f"readiness: {manifest.readiness.level}")
+    for blocker in _mesh_readiness_blockers(manifest):
+        typer.echo(f"readiness_blocker: {blocker}")
+    for reason in manifest.readiness.reasons:
+        typer.echo(f"readiness_reason: {reason}")
 
 
 def _mesh_solver_profile(name: str):
@@ -145,6 +150,20 @@ def _mesh_solver_profile(name: str):
     if name == "watertight-solid":
         return watertight_solid_profile()
     raise ValueError("--solver-profile must be open-wetted-surface or watertight-solid")
+
+
+def _mesh_readiness_blockers(manifest) -> list[str]:
+    blockers: list[str] = []
+    if manifest.solver_profile.requires_watertight:
+        if not manifest.volume_mesh_diagnostic:
+            blockers.append("missing_volume_mesh")
+        if manifest.readiness.level != "cfd_ready":
+            blockers.append("readiness_below_cfd_ready")
+    else:
+        blockers.append("not_watertight_profile")
+    if any("separate open surfaces" in reason for reason in manifest.readiness.reasons):
+        blockers.append("open_surface_package")
+    return list(dict.fromkeys(blockers))
 
 
 @cfd_app.command("prepare")
@@ -185,6 +204,7 @@ def cfd_prepare(
             kinematic_viscosity_m2_s=kinematic_viscosity_m2_s,
         )
     except CfdDispatchError as exc:
+        typer.echo(f"blocker_class: {exc.code}", err=True)
         typer.echo(f"cfd prepare failed: {exc}", err=True)
         raise typer.Exit(code=1)
     typer.echo(f"wrote {paths.job_dir}")
