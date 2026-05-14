@@ -13,6 +13,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   solver readiness, real CFD adapter work, resistance calibration fixtures,
   and high-angle `GZ`, followed by traceability, no-claims, ergonomics/design,
   ops/test, integration, and final-review gates.
+- Added proposed RFCs 0036-0043 through workflow 0048 as docs-only successor
+  backlog scopes: four UI cleanup follow-ups from workflow 0047 plus
+  closed-volume solver-readiness, real CFD adapter, resistance calibration
+  fixture, and high-angle `GZ` successor gates. No runtime behavior, tests, API
+  payloads, export availability, solver execution, calibration, watertight
+  readiness, final prediction, or real stability output changed.
 - Landed workflow 0047's RFC 0035 UI cleanup slice: web validity badges now
   classify the current hull against canonical web class envelopes before custom
   fallback, preset edit behavior is documented and test-pinned, export-menu

@@ -814,3 +814,26 @@ Updated: 2026-05-14
   0048. Scope requested: RFCs for workflow 0047 successor findings plus the
   named deferred backlog items around closed-volume/solver readiness, real CFD
   adapter work, resistance calibration fixtures, and high-angle `GZ`.
+- 2026-05-14T11:39Z: completed the three parallel Codex RFC-scoping lanes for
+  workflow 0048. Draft RFCs now exist for 0036-0043; no runtime code was
+  changed. Review lanes are claimable next: traceability, no-claims,
+  ergonomics/design, and ops/test.
+- 2026-05-14T11:55Z: ops review completed with `accept_with_findings`.
+  No-claims completed with `accept`, but the direct Gemini Flash fallback
+  artifact carried an operator byline; traceability and ergonomics/design
+  Claude supervisors also died and reverted byline lookup to operator. Operator
+  disposition: do not submit stale/misattributed artifacts; recover by
+  requeueing those review lanes and rerunning with truthful bylines before
+  integration.
+- 2026-05-14T11:57Z: corrected the repo copy of the no-claims review author
+  line to `reviewer-no-claims-gemini-2.5-flash-001`; Striatum had already
+  accepted the stale artifact and cannot retry a completed job, so the mismatch
+  remains recorded here for auditability.
+- 2026-05-14T12:05Z: recovered and submitted Claude traceability and
+  ergonomics/design reviews with truthful Claude bylines. Both completed with
+  `accept_with_findings`; the RFC integration job is now queued.
+- 2026-05-14T12:18Z: integration completed and published
+  `striatum/0048-successor-rfc-backlog/integration/PATCH_SUMMARY.md`.
+  Claude final review completed with `accept`; Striatum marks
+  `run_c1de081e76f14cd1a81194e306338ac2` completed. Workflow 0048 is ready
+  to commit and fast-forward to `main`.

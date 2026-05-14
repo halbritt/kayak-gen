@@ -30,10 +30,10 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0014](0014-generalized-trim-and-gz-stability.md) | partial trim-slice | Generalized trim and high-angle GZ stability |
 | [0015](0015-cfd-solver-dispatch-and-jobs.md) | partial local-dispatch | CFD solver dispatch and job artifacts |
 | [0016](0016-closed-volume-geometry.md) | landed synthetic-contract safe-slice | Closed-volume geometry contract |
-| [0017](0017-first-real-cfd-adapter.md) | proposed | First real CFD adapter |
+| [0017](0017-first-real-cfd-adapter.md) | proposed background; successor 0041 | First real CFD adapter |
 | [0018](0018-web-cfd-job-routes.md) | partial local-web-dispatch | Web CFD job routes |
-| [0019](0019-resistance-calibration-fixtures.md) | proposed | Resistance calibration fixtures |
-| [0020](0020-high-angle-gz-secondary-stability.md) | proposed | High-angle GZ and secondary stability |
+| [0019](0019-resistance-calibration-fixtures.md) | proposed background; successor 0042 | Resistance calibration fixtures |
+| [0020](0020-high-angle-gz-secondary-stability.md) | proposed background; successors 0024/0043 | High-angle GZ and secondary stability |
 | [0021](0021-closed-volume-self-intersection-diagnostics.md) | landed synthetic-diagnostic | Closed-volume self-intersection diagnostics |
 | [0022](0022-generated-closed-body-construction.md) | landed generated-body safe-slice | Generated hull-plus-deck closed-body construction |
 | [0023](0023-watertight-volume-mesh-handoff.md) | landed fixture-handoff | Watertight volume mesh and `cfd_ready` handoff |
@@ -49,6 +49,14 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0033](0033-workspace-ui-rework.md) | partial landed safe-slice | Workspace UI rework — three-region web shell, semantic theme, claim/readiness/status chips |
 | [0034](0034-workspace-ui-follow-up.md) | landed safe-slice | Workspace UI follow-up — dynamic presets, review-card wiring, export menu, and forbidden-copy tests |
 | [0035](0035-ui-follow-up-cleanup.md) | landed safe-slice | UI follow-up cleanup — validity semantics, export/state hygiene, slider-label maintenance |
+| [0036](0036-trame-seed-listener-proof.md) | proposed successor | Trame seed listener proof |
+| [0037](0037-export-row-schema-consolidation.md) | proposed successor | Export row schema consolidation |
+| [0038](0038-export-menu-disabled-copy-polish.md) | proposed successor | Export menu disabled copy polish |
+| [0039](0039-web-snapshot-schema-unification.md) | proposed successor | Web snapshot schema unification |
+| [0040](0040-closed-volume-solver-readiness-roadmap.md) | proposed roadmap/gated scope | Closed-volume solver readiness roadmap |
+| [0041](0041-real-cfd-adapter-successor.md) | proposed gated successor | Real CFD adapter successor |
+| [0042](0042-resistance-calibration-fixture-successor.md) | proposed evidence-gate successor | Resistance calibration fixture successor |
+| [0043](0043-high-angle-gz-successor.md) | proposed design-gate successor | High-angle GZ successor |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
@@ -117,6 +125,25 @@ maintenance, desktop slider fallback cleanup, and focused tests/docs. It did
 not reopen desktop parity, hosted CFD, real solvers, calibrated drag, final
 prediction, high-angle `GZ`, web-side mesh-package authoring beyond existing
 safe entries, or watertight `cfd_ready` promotion.
+
+RFCs 0036-0039 are proposed workflow 0048 UI successor scopes for workflow
+0047 final-review findings FR1-FR4: Trame same-seed listener proof or removal,
+export-row guidance-copy consolidation, disabled mesh-package label polish, and
+web snapshot/CFD alias schema unification. They do not change runtime behavior,
+REST payload shapes, export availability, backend capability, or no-claims
+boundaries.
+
+RFC 0040 is a proposed roadmap/gated scope layered above the closed-volume and
+solver-readiness RFC spine; it does not supersede the underlying landed or
+partial RFCs and must not be read as one ready-to-code feature. RFC 0041 is the
+proposed current successor to RFC 0017 and requires both a solver-selection
+decision and an accepted mesh-profile gate before any external solver success
+path. RFC 0042 narrows RFC 0019 to source review and fixture-promotion evidence
+while keeping RFC 0027 claim gates authoritative. RFC 0043 supersedes the
+remaining proposed implementation scope of RFC 0020 while preserving RFC 0024
+as the landed structured-unavailable handoff; real kayak high-angle `GZ`
+remains unavailable until generated-body evidence and an accepted heeled
+integration model exist.
 
 RFC 0021 has landed only for explicit synthetic closed-volume diagnostics: the
 RFC 0016 compatibility profile records `not_checked`, while
