@@ -9,7 +9,9 @@ desktop rewrite, or optimization/search behavior in this workflow.
 
 For each decision:
 
-1. A research lane gathers local context and current external evidence.
+1. A dedicated research lane gathers local context and current external
+   evidence, producing one cited research artifact for that decision before
+   any panel lane votes.
 2. A three-lane panel votes independently: Claude, Codex, and Gemini.
 3. The integrator records a decision only when at least two panel lanes converge
    on the same answer.

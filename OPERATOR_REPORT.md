@@ -8,6 +8,19 @@ Updated: 2026-05-14
   must be performed by Striatum-assigned agents, with this session limited to
   orchestration, artifact handling, report updates, trunk hygiene, and branch
   cleanup.
+- 2026-05-14T17:06Z checkpoint: workflow 0052
+  (`successor-decision-research`) remains design-only and research-first. All
+  six decision questions now have separate cited research artifacts under
+  `striatum/0052-successor-decision-research/research/`. Claude and Codex
+  panel votes exist for all six decisions; the two wave-two Claude
+  process-output handoff blockers were recovered by publishing the already
+  written declared artifacts and completing the jobs. Gemini is the remaining
+  gate: four panel jobs are blocked by `process_exit_nonzero` from CLI quota
+  exhaustion, and two later Gemini panel jobs remain queued after an attested
+  supervisor startup attempt was lost before packet delivery. No Gemini vote
+  artifacts were fabricated, and decision integration remains blocked until a
+  truthful third-lane retry or an explicit replacement-lane decision is
+  available.
 - 2026-05-14T16:01Z checkpoint: workflow 0051 remediation lane fixed the two
   must-fix findings from the ledger. OpenFOAM local reruns now clear expected
   raw outputs before command execution, preventing stale `force.dat` and
@@ -974,3 +987,21 @@ Updated: 2026-05-14
   covers remaining post-0051 decisions: volume-mesh production path, OpenFOAM
   success gate, first resistance source candidate, high-angle product surface,
   public demo operations, and the next sweep/search delta.
+- 2026-05-14T16:22Z: scaffold committed and fast-forwarded to `main` as
+  `5c978d6`; branch `striatum/0052-successor-decision-research` remains active
+  for execution. Prepared and started Striatum run
+  `run_439eb6df3d1e4f12940bedad37c9a4ac`. The six research lanes are
+  claimable next.
+- 2026-05-14T16:23Z: released one pre-supervisor claim before any work because
+  it produced an operator expected byline. Reclaimed under attached Codex
+  supervisors and launched all six research lanes concurrently:
+  `research_high_angle_product_surface`, `research_openfoam_success_gate`,
+  `research_public_demo_ops`, `research_resistance_source_candidate`,
+  `research_sweep_next_delta`, and `research_volume_mesher_path`.
+- 2026-05-14T16:41Z: all six research lanes completed with Codex model
+  bylines and wrote research artifacts under
+  `striatum/0052-successor-decision-research/research/`. The adapter run
+  command completed and advanced Striatum job state automatically; a manual
+  publish attempt saw inactive leases, confirming the research jobs were
+  already completed. Panel jobs are now claimable across Claude, Codex, and
+  Gemini.
