@@ -15,6 +15,21 @@ Updated: 2026-05-14
   implementation write scope, expanded sources, and documented the harness-safe
   validation command. Workflow validation and `git diff --check` passed; four
   first-pass review lanes are queued for parallel launch.
+- 2026-05-14T06:52:05Z checkpoint: workflow 0045 first-pass reviews were
+  claimed, acknowledged, and launched in parallel across traceability
+  (`claude`), domain/no-claims (`gemini`), ergonomics/design (`claude`), and
+  ops/test (`codex`). Each prompt preserves review-only scope, forbids
+  Striatum mutation and falsified bylines, and requests maximal useful
+  sub-agent or parallel-helper use.
+- 2026-05-14T06:59:03Z checkpoint: workflow 0045 first-pass reviews were
+  published with `accept_with_findings` verdicts: traceability
+  `art_d260c5db42464b60b8764e544d2ab438`, domain/no-claims
+  `art_242397acaf984873ab2e2c0de9ff2670`, ergonomics/design
+  `art_fbe7c080d8f4499888b0117ff00d1654`, and ops/test
+  `art_5c88ea0bcee540a1b54a521e8eed60a1`. The Gemini domain lane used a
+  `gemini-2.5-flash` fallback after `gemini-3.1-pro-preview` quota exhaustion.
+  No review requested a remediation cycle; Striatum now has one queued job for
+  workflow 0045, the findings ledger.
 - 2026-05-13T20:56:04Z checkpoint: workflow 0044 scaffold was amended to add
   a dedicated ergonomics/design first-pass review lane before findings ledger
   and implementation. The workflow validates with the repo venv Striatum CLI.

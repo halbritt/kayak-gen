@@ -17,8 +17,17 @@ Updated: 2026-05-14
 - The remediation clarified review verdict routing, added `CHANGELOG.md` to the
   implementation write scope, expanded `SOURCES.md`, and added the
   harness-safe validation command to `RUNBOOK.md`.
+- First-pass reviews were launched in parallel:
+  traceability (`claude`), domain/no-claims (`gemini`),
+  ergonomics/design (`claude`), and ops/test (`codex`).
+- First-pass reviews published `accept_with_findings` verdicts:
+  traceability `art_d260c5db42464b60b8764e544d2ab438`, domain/no-claims
+  `art_242397acaf984873ab2e2c0de9ff2670`, ergonomics/design
+  `art_fbe7c080d8f4499888b0117ff00d1654`, and ops/test
+  `art_5c88ea0bcee540a1b54a521e8eed60a1`.
+- Domain/no-claims used `gemini-2.5-flash` after configured Gemini Pro 3.1
+  quota was exhausted.
 
 ## Next action
 
-- Launch the four first-pass review lanes in parallel: traceability,
-  domain/no-claims, ergonomics/design, and ops/test.
+- Claim and run the findings ledger under Codex.
