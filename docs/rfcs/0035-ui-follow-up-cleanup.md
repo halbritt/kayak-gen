@@ -1,6 +1,6 @@
 # RFC 0035: UI Follow-Up Cleanup
 
-Status: proposed
+Status: landed safe-slice
 Date: 2026-05-14
 Context: successor to RFC 0034, workflow 0045 final review, and workflow
 0046 final review. This RFC is limited to reviewable UI cleanup and

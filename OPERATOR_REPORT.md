@@ -805,3 +805,5 @@ Updated: 2026-05-14
 - 2026-05-14T11:20Z: landed workflow 0047 to `main` as commit `78b14e5`,
   pushed `main`, and deleted merged branch
   `striatum/0047-ui-follow-up-cleanup` locally and remotely.
+- 2026-05-14T11:23Z: corrected RFC 0035 and the RFC index from `proposed`
+  to `landed safe-slice` after the completed workflow was fast-forwarded.
