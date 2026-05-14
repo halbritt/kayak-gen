@@ -8,6 +8,13 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Added `docs/ROADMAP.md` through workflow 0049 as a documentation-only
+  reconciliation of outstanding RFCs, stale deferred-queue items, workflow 0048
+  successor RFCs, dependency tracks, and future Striatum implementation
+  batches. No runtime behavior, tests, API payloads, export availability,
+  solver execution, calibration, watertight readiness, final prediction,
+  design-fitness, hosted-demo, full-parity, or real high-angle stability
+  capability changed.
 - Scaffolded workflow 0048 as a docs-only successor RFC backlog workflow with
   parallel Codex RFC drafting lanes for UI follow-up findings, closed-volume/
   solver readiness, real CFD adapter work, resistance calibration fixtures,

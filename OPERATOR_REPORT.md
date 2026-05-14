@@ -14,6 +14,32 @@ Updated: 2026-05-14
   no-claims/domain boundaries, and ops/sequencing, plus Claude final review.
   The scaffold is documentation/workflow-only; no roadmap content or runtime
   behavior was operator-authored.
+- 2026-05-14T13:06Z checkpoint: workflow 0049 run
+  `run_3497e451ce5a401293549cd3c9238554` is running on branch
+  `striatum/0049-roadmap-reconciliation`. The Codex roadmap-author lane is
+  claimed under session `sess_8341316c7d4244eca8b187258fe86e5d`, supervised
+  with byline `author: roadmap-author-codex-gpt-5.5-001`, and has been sent
+  the authoring packet. The packet requires maximal useful sub-agent use and
+  forbids runtime/test changes.
+- 2026-05-14T13:24Z checkpoint: workflow 0049 roadmap-author job completed.
+  The first supervised stdin attempt stalled, so the job was retried and
+  adopted under attested Codex session `sess_536e15b2e4ac4dd0b3999ffa06a32594`
+  with artifact `art_448f5cb138934ddab6e96a1f3c1c1aa9`. A publish override was
+  recorded because the adopted artifact came from the direct Codex CLI fallback
+  while a live supervisor supplied the Codex byline. Changed files are docs and
+  workflow artifacts only; `git diff --check` and forbidden path status checks
+  passed.
+- 2026-05-14T13:52Z checkpoint: workflow 0049 completed. First-pass reviews
+  accepted backlog completeness (`art_3a93b6c2aa884b97bf4eb5e1683e1f43`),
+  no-claims/domain boundaries (`art_ca532557c4794d0d9d1eb9a2b918f499`), and
+  ops/sequencing (`art_bb1690a581b84ad78b39273f5f480a88`). Integration
+  published `art_ecfe8711acc94251bdc0ae6241c1f385`; Claude final review
+  published `art_526881c4995942d2947c9e05b74d2156` and completed with
+  `accept`. Striatum marks run `run_3497e451ce5a401293549cd3c9238554`
+  completed with no open blockers. Changes remain documentation/workflow
+  artifacts only; no runtime, test, `.striatum`, solver, calibration,
+  watertight-readiness, final-prediction, hosted-operation, full-parity, or
+  high-angle stability capability changed.
 - 2026-05-14T10:00Z checkpoint: corrected stale RFC status/index labels for
   landed safe slices RFC 0016, RFC 0022, RFC 0025, RFC 0027, and RFC 0031.
   This was operator bookkeeping only; no runtime behavior or product claims
