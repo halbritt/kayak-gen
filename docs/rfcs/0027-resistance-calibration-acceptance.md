@@ -1,6 +1,6 @@
 # RFC 0027: Resistance Calibration Acceptance
 
-Status: proposed
+Status: landed acceptance-gates
 Date: 2026-05-13
 Context: revises RFC 0019 where useful and uses RFC 0025 claim gates to define
 when resistance output may stop saying uncalibrated.

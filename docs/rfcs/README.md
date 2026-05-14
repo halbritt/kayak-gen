@@ -29,22 +29,22 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0013](0013-pareto-frontier-comparison-ui.md) | landed report/web-slice | Pareto frontier and candidate comparison UI |
 | [0014](0014-generalized-trim-and-gz-stability.md) | partial trim-slice | Generalized trim and high-angle GZ stability |
 | [0015](0015-cfd-solver-dispatch-and-jobs.md) | partial local-dispatch | CFD solver dispatch and job artifacts |
-| [0016](0016-closed-volume-geometry.md) | proposed safe-slice | Closed-volume geometry contract |
+| [0016](0016-closed-volume-geometry.md) | landed synthetic-contract safe-slice | Closed-volume geometry contract |
 | [0017](0017-first-real-cfd-adapter.md) | proposed | First real CFD adapter |
 | [0018](0018-web-cfd-job-routes.md) | partial local-web-dispatch | Web CFD job routes |
 | [0019](0019-resistance-calibration-fixtures.md) | proposed | Resistance calibration fixtures |
 | [0020](0020-high-angle-gz-secondary-stability.md) | proposed | High-angle GZ and secondary stability |
 | [0021](0021-closed-volume-self-intersection-diagnostics.md) | landed synthetic-diagnostic | Closed-volume self-intersection diagnostics |
-| [0022](0022-generated-closed-body-construction.md) | proposed | Generated hull-plus-deck closed-body construction |
+| [0022](0022-generated-closed-body-construction.md) | landed generated-body safe-slice | Generated hull-plus-deck closed-body construction |
 | [0023](0023-watertight-volume-mesh-handoff.md) | landed fixture-handoff | Watertight volume mesh and `cfd_ready` handoff |
 | [0024](0024-high-angle-gz-generated-body-handoff.md) | landed structured-unavailable handoff | High-angle GZ generated-body handoff |
-| [0025](0025-cfd-calibration-claim-gates.md) | proposed | CFD and calibration claim gates |
+| [0025](0025-cfd-calibration-claim-gates.md) | landed claim-gates | CFD and calibration claim gates |
 | [0026](0026-first-real-cfd-fixture-adapter.md) | landed fixture-local-command | First real CFD fixture adapter |
-| [0027](0027-resistance-calibration-acceptance.md) | proposed | Resistance calibration acceptance |
+| [0027](0027-resistance-calibration-acceptance.md) | landed acceptance-gates | Resistance calibration acceptance |
 | [0028](0028-plumb-stem-closure-semantics.md) | partial safe-slice | Plumb-stem closure semantics |
 | [0029](0029-design-constraint-surfacing.md) | proposed background | Design constraint surfacing and validity metadata, superseded by RFC 0031 for implementation |
 | [0030](0030-web-hosted-browser-acceptance.md) | proposed | Web hosted and browser acceptance |
-| [0031](0031-design-constraint-surfacing-revision.md) | accepted implementation target | Design constraint surfacing revision |
+| [0031](0031-design-constraint-surfacing-revision.md) | landed validity-metadata slice | Design constraint surfacing revision |
 | [0032](0032-web-hosted-browser-acceptance-revision.md) | landed local-browser-docs | Web hosted browser acceptance revision |
 | [0033](0033-workspace-ui-rework.md) | partial landed safe-slice | Workspace UI rework — three-region web shell, semantic theme, claim/readiness/status chips |
 | [0034](0034-workspace-ui-follow-up.md) | landed safe-slice | Workspace UI follow-up — dynamic presets, review-card wiring, export menu, and forbidden-copy tests |

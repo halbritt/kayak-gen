@@ -1,6 +1,6 @@
 # RFC 0022: Generated Hull-Plus-Deck Closed-Body Construction
 
-Status: proposed
+Status: landed generated-body safe-slice
 Date: 2026-05-13
 Context: supersedes the unresolved generated-body portion of RFC 0016.
 
@@ -171,4 +171,3 @@ tests.
    normals, positive volume, and display STL separation.
 5. Expose generated closed-body diagnostics to evaluation code only as
    closed-volume evidence, not CFD evidence.
-

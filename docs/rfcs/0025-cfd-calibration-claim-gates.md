@@ -1,6 +1,6 @@
 # RFC 0025: CFD and Calibration Claim Gates
 
-Status: proposed
+Status: landed claim-gates
 Date: 2026-05-13
 Context: revises the wording obligations in RFC 0005, RFC 0012, RFC 0015,
 RFC 0017, and RFC 0019 without changing their raw-evaluator or dispatch
@@ -121,4 +121,3 @@ Promotion rules:
 4. Wire CLI/web/report wording to the same metadata fields.
 5. Let RFC 0026 and RFC 0027 use these gates for fixture adapter and calibrated
    resistance work.
-

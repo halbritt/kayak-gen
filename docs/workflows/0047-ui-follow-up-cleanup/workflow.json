@@ -1,0 +1,495 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0047-ui-follow-up-cleanup",
+  "workflow_version": "2026-05-14",
+  "name": "0047 - UI follow-up cleanup",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0047-ui-follow-up-cleanup",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "coordinator",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": [
+        "claude",
+        "--model",
+        "opus",
+        "-p"
+      ],
+      "capabilities": [
+        "review",
+        "synthesis"
+      ]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "-"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": [
+        "gemini",
+        "--model",
+        "gemini-3.1-pro-preview"
+      ],
+      "capabilities": [
+        "review"
+      ]
+    }
+  },
+  "roles": {
+    "coordinator": {
+      "definition_path": "roles/coordinator.md"
+    },
+    "rfc_scoper": {
+      "definition_path": "roles/rfc_scoper.md"
+    },
+    "reviewer_traceability": {
+      "definition_path": "roles/reviewer_traceability.md"
+    },
+    "reviewer_no_claims": {
+      "definition_path": "roles/reviewer_no_claims.md"
+    },
+    "reviewer_ergonomics_design": {
+      "definition_path": "roles/reviewer_ergonomics_design.md"
+    },
+    "reviewer_ops": {
+      "definition_path": "roles/reviewer_ops.md"
+    },
+    "ledger": {
+      "definition_path": "roles/ledger.md"
+    },
+    "implementer": {
+      "definition_path": "roles/implementer.md"
+    },
+    "final_reviewer": {
+      "definition_path": "roles/final_reviewer.md"
+    }
+  },
+  "context_docs": [
+    {
+      "path": "AGENTS.md",
+      "required": true
+    },
+    {
+      "path": "docs/PRD.md",
+      "required": true
+    },
+    {
+      "path": "docs/USER_GUIDE.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/README.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0033-workspace-ui-rework.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0034-workspace-ui-follow-up.md",
+      "required": true
+    },
+    {
+      "path": "striatum/0045-workspace-ui-follow-up/final/FINAL_REVIEW.md",
+      "required": true
+    },
+    {
+      "path": "striatum/0046-slider-label-visibility/final/FINAL_REVIEW.md",
+      "required": true
+    },
+    {
+      "path": "striatum/0046-slider-label-visibility/ledger/FINDINGS.md",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/web/app.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/web/controllers.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/desktop.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/theme.py",
+      "required": true
+    },
+    {
+      "path": "tests",
+      "required": true
+    }
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 4,
+    "require_disjoint_write_scopes": true
+  },
+  "review_revision_policy": {
+    "root_review_needs_revision": "declared_cycle",
+    "description": "First-pass review needs_revision verdicts cycle to the RFC scope job once before re-review."
+  },
+  "jobs": [
+    {
+      "id": "rfc_scope",
+      "type": "synthesis",
+      "title": "Draft UI cleanup successor RFC and scope",
+      "role_id": "rfc_scoper",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Turn workflow 0045 and 0046 final-review follow-ups into a narrow proposed RFC 0035 and reviewable workflow scope, without implementing runtime behavior.",
+      "task_prompt": {
+        "path": "prompts/rfc_scope.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/rfcs/0035-ui-follow-up-cleanup.md",
+          "docs/rfcs/README.md",
+          "docs/workflows/0047-ui-follow-up-cleanup/",
+          "CHANGELOG.md",
+          "striatum/0047-ui-follow-up-cleanup/rfc_scope/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "rfc_scope",
+          "kind": "synthesis",
+          "path": "striatum/0047-ui-follow-up-cleanup/rfc_scope/RFC_SCOPE.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review UI cleanup traceability",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Map proposed RFC 0035 and workflow 0047 scope to RFC 0033, RFC 0034, and final-review findings from workflows 0045 and 0046.",
+      "task_prompt": {
+        "path": "prompts/review_traceability.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0047-ui-follow-up-cleanup/traceability/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0047-ui-follow-up-cleanup/traceability/REVIEW_TRACEABILITY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_no_claims",
+      "type": "review",
+      "title": "Review no-claims boundaries",
+      "role_id": "reviewer_no_claims",
+      "lane_id": "gemini",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Verify the cleanup scope preserves raw/unvalidated, unavailable, and no-new-backend-capability boundaries.",
+      "task_prompt": {
+        "path": "prompts/review_no_claims.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0047-ui-follow-up-cleanup/no_claims/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0047-ui-follow-up-cleanup/no_claims/REVIEW_NO_CLAIMS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_ergonomics_design",
+      "type": "review",
+      "title": "Review UI ergonomics and design cleanup",
+      "role_id": "reviewer_ergonomics_design",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Evaluate proposed cleanup for slider labels, preset semantics, accessibility labels, export menu affordance, and desktop/web polish.",
+      "task_prompt": {
+        "path": "prompts/review_ergonomics_design.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0047-ui-follow-up-cleanup/ergonomics/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0047-ui-follow-up-cleanup/ergonomics/REVIEW_ERGONOMICS_DESIGN.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_ops",
+      "type": "review",
+      "title": "Review UI cleanup tests and maintainability",
+      "role_id": "reviewer_ops",
+      "lane_id": "codex",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Review maintainability risks, likely dead branches, duplicate data/CSS, and test coverage for the UI cleanup slice.",
+      "task_prompt": {
+        "path": "prompts/review_ops.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0047-ui-follow-up-cleanup/ops/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0047-ui-follow-up-cleanup/ops/REVIEW_OPS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "ledger",
+      "title": "Consolidate UI cleanup findings",
+      "role_id": "ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate first-pass review findings and define the smallest safe implementation slice for UI cleanup.",
+      "task_prompt": {
+        "path": "prompts/findings_ledger.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/0047-ui-follow-up-cleanup/ledger/",
+          "docs/workflows/0047-ui-follow-up-cleanup/OPERATOR_REPORT.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "ledger",
+          "kind": "findings_ledger",
+          "path": "striatum/0047-ui-follow-up-cleanup/ledger/FINDINGS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "implement_findings",
+      "type": "build",
+      "title": "Implement UI cleanup findings",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Implement only ledger-approved UI cleanup changes and focused tests, preserving all no-new-capability and no-overclaim boundaries.",
+      "task_prompt": {
+        "path": "prompts/implement_findings.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/",
+          "kayakgen/ui/",
+          "tests/",
+          "CHANGELOG.md",
+          "striatum/0047-ui-follow-up-cleanup/implementation/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "striatum/0047-ui-follow-up-cleanup/implementation/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final gate for UI cleanup",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify the UI cleanup implementation against RFC 0035, the ledger, tests, ergonomics, and no-overclaim boundaries.",
+      "task_prompt": {
+        "path": "prompts/final_review.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0047-ui-follow-up-cleanup/final/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "final_review",
+          "kind": "finding",
+          "path": "striatum/0047-ui-follow-up-cleanup/final/FINAL_REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rfc_scope",
+      "to": "review_traceability",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope",
+      "to": "review_no_claims",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope",
+      "to": "review_ergonomics_design",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope",
+      "to": "review_ops",
+      "on": "completed"
+    },
+    {
+      "from": "review_traceability",
+      "to": "findings_ledger",
+      "on": "completed"
+    },
+    {
+      "from": "review_no_claims",
+      "to": "findings_ledger",
+      "on": "completed"
+    },
+    {
+      "from": "review_ergonomics_design",
+      "to": "findings_ledger",
+      "on": "completed"
+    },
+    {
+      "from": "review_ops",
+      "to": "findings_ledger",
+      "on": "completed"
+    },
+    {
+      "from": "findings_ledger",
+      "to": "implement_findings",
+      "on": "completed"
+    },
+    {
+      "from": "implement_findings",
+      "to": "final_review",
+      "on": "completed"
+    }
+  ],
+  "cycles": [
+    {
+      "from": "review_traceability",
+      "to": "rfc_scope",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1
+    },
+    {
+      "from": "review_no_claims",
+      "to": "rfc_scope",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1
+    },
+    {
+      "from": "review_ergonomics_design",
+      "to": "rfc_scope",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1
+    },
+    {
+      "from": "review_ops",
+      "to": "rfc_scope",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1,
+      "allow_same_lane": true
+    },
+    {
+      "from": "final_review",
+      "to": "implement_findings",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1
+    }
+  ]
+}

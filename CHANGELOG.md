@@ -37,6 +37,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 - Scaffolded workflow 0046 for the reported slider-label visibility issue with
   traceability, ergonomics/design, and ops/test review lanes before Codex
   implementation.
+- Scaffolded workflow 0047 as a UI follow-up cleanup successor with a Codex
+  RFC/scope lane, traceability/no-claims/ergonomics-design/ops first-pass
+  reviews, a Codex implementation lane requiring maximal useful sub-agent
+  fanout, and a Claude final-review gate.
 - Fixed workflow 0046's desktop and web slider-label visibility issue: desktop
   hull-parameter labels and value text now render legibly without overlapping
   adjacent rows, and web parameter-rail slider labels no longer sit under
@@ -135,6 +139,9 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Changed
 
+- Corrected the RFC index/status headers for previously landed safe slices:
+  RFC 0016, RFC 0022, RFC 0025, RFC 0027, and RFC 0031 now match their landed
+  workflow state instead of stale proposed/accepted-target labels.
 - Aligned individual RFC `Status:` headers with the sequential RFC index for
   previously landed/partial slices, including RFC 0021's landed
   self-intersection diagnostic status, and clarified workflow 0034/0035 review

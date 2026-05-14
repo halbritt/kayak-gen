@@ -1,6 +1,6 @@
 # RFC 0016: Closed-Volume Geometry
 
-Status: proposed safe-slice
+Status: landed synthetic-contract safe-slice
 Date: 2026-05-13
 Context: builds on RFC 0004 plumb-bow ambiguity, RFC 0010 mesh readiness
 profiles, RFC 0014 high-angle stability boundary, and RFC 0015 solver dispatch

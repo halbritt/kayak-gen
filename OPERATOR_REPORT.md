@@ -8,6 +8,17 @@ Updated: 2026-05-14
   must be performed by Striatum-assigned agents, with this session limited to
   orchestration, artifact handling, report updates, trunk hygiene, and branch
   cleanup.
+- 2026-05-14T10:00Z checkpoint: corrected stale RFC status/index labels for
+  landed safe slices RFC 0016, RFC 0022, RFC 0025, RFC 0027, and RFC 0031.
+  This was operator bookkeeping only; no runtime behavior or product claims
+  changed. Next step is to scaffold a Striatum workflow for the narrow UI
+  cleanup/follow-up work and then resume backlog burn-down with parallel
+  Striatum runs where dependencies permit.
+- 2026-05-14T10:05Z checkpoint: scaffolded workflow 0047
+  (`ui-follow-up-cleanup`) with a Codex RFC/scope lane, four first-pass review
+  lanes including ergonomics/design, Codex ledger and implementation lanes, and
+  Claude final review. `workflow validate`, `workflow plan`, and `git diff
+  --check` passed before commit. No runtime behavior changed in the scaffold.
 - 2026-05-14T08:24:35Z checkpoint: workflows 0034 and 0035 first-pass review
   ledgers are complete and published. Workflow 0034 ledger artifact
   `art_b4dcf8d2ad3f4972a1b00b2b904a2c80` gates RFC 0023 implementation to an
