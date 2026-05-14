@@ -138,7 +138,9 @@ kayakgen stability hull.json --load-case load.json --equilibrium --out build/equ
 ```
 
 High-angle `GZ` curves and secondary-stability peak metrics are unavailable.
-They require a closed-volume heeled integration contract that has not landed.
+They require real heeled integration over the generated closed-body evidence;
+the current handoff records unavailable results or explicitly labeled
+fixture-only synthetic math instead of real kayak stability claims.
 
 ### `sweep`
 
@@ -212,9 +214,10 @@ kayakgen mesh-package hull.json --out build/watertight-package --solver-profile 
 
 The default `open-wetted-surface` profile currently produces an open-surface
 candidate with readiness `cfd_surface_candidate`, not `cfd_ready`. The
-`watertight-solid` profile is a future boundary and current generated packages
-remain below that readiness because the writer emits separate open surfaces,
-not a closed hull/deck solid.
+`watertight-solid` profile can report `cfd_ready` only for matching
+generated-body fixture volume-mesh evidence with bound diagnostics, hashes, and
+paths. Ordinary generated packages still emit separate open surfaces and remain
+below solver-ready status.
 
 Changing `bow_rake` or `stern_rake` to `0.0` does not by itself make those
 inspection STLs watertight; closed-body readiness must come from the explicit
@@ -259,7 +262,8 @@ The diagnostic artifact always keeps `cfd_ready` false. Synthetic diagnostics
 do not repair geometry, create a volume mesh, or make a watertight solver
 handoff. Generated closed-body construction is a separate evaluation-side path;
 it must still pass closed-volume diagnostics before it can be treated as a
-closed body, and it still does not make a CFD-ready solver handoff.
+closed body. By itself it does not make a CFD-ready solver handoff; the narrow
+RFC 0023 handoff also requires matching fixture volume-mesh evidence.
 
 Generated mesh packages remain open-surface artifacts. Treat their hull and
 deck STLs as inspection and packaging surfaces, not as a closed volume for
@@ -379,8 +383,8 @@ rows plus the target-speed row with `kt`, `Fn`, `Rv N`, `Rw N`, and `Rt N`, and
 keeps the `uncalibrated_comparative` raw comparative warning. Mesh shows
 hull/deck diagnostics, welded-primary counts, raw-count detail, warnings, and
 package/readiness/profile state when available. `watertight-solid` remains
-unavailable for current generated packages unless a future closed-volume and
-volume-mesh RFC lands the required evidence.
+unavailable in the browser for authoring or promotion; use the CLI
+package/dispatch path for the narrow fixture-backed RFC 0023 handoff.
 
 The Export menu lists Hull STL, Deck STL, Hydro JSON, Stability JSON, and Mesh
 package. Hull and Deck STL use the existing local STL behavior. Hydro JSON uses
@@ -452,8 +456,9 @@ does not normalize, validate, or calibrate external solver output.
   filter.
 - CFD dispatch is local job-state plumbing with unavailable or test adapters,
   not real solver execution.
-- Mesh packages are open-surface candidates by default and are not watertight
-  closed solids.
+- Mesh packages are open-surface candidates by default. Only the narrow
+  fixture-backed RFC 0023 evidence path can produce watertight `cfd_ready`;
+  production solver-ready meshing remains roadmap work.
 - High-angle `GZ`, secondary-stability peak, and full capsize-range stability
   are unavailable.
 - Some class/shape parameters are reserved or partially surfaced in frontends

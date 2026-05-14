@@ -1,6 +1,6 @@
 # RFC 0023: Watertight Volume Mesh and `cfd_ready` Handoff
 
-Status: proposed
+Status: landed fixture-handoff
 Date: 2026-05-13
 Context: builds on RFC 0010 mesh readiness, RFC 0015 solver dispatch, RFC
 0016 closed-volume geometry, and the workflow 0027 safe slice that rejects

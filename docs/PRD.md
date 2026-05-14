@@ -32,11 +32,11 @@ This section describes current behavior, not the whole roadmap.
   watertight or `cfd_ready`.
 - Ends taper using a prismatic-coefficient-derived area curve. The centre parallel mid-body fraction is configurable.
 - Class presets (touring sea kayak, performance sea kayak, intermediate surfski, elite surfski) seed a hull at sensible defaults derived from `docs/design/kayak_hull_design_constraints.md`. Users can deviate from the preset; surfaced constraint checks are advisory and still incomplete in the desktop GUI.
-- Hull body and deck are exported as separate binary STL surfaces suitable for inspection, CAD import, or downstream packaging. Current generated mesh packages remain open-surface candidates and are not classified as `cfd_ready`.
+- Hull body and deck are exported as separate binary STL surfaces suitable for inspection, CAD import, or downstream packaging. Default generated mesh packages remain open-surface candidates; only the narrow fixture-backed volume-mesh evidence path can report `cfd_ready`.
 
 ### Evaluation
 
-- **Hydrostatics, computed from the integrated geometry** — not from a formula envelope. Delivered readouts include displaced volume, displaced mass at seawater density, wetted surface area, waterplane area, longitudinal centre of buoyancy, and primary metacentric height GM₀. Upright trim equilibrium exists for explicit component load cases. High-angle GZ / secondary-stability curves are not currently available because the project has not accepted and implemented a closed-volume body model for heeled integration.
+- **Hydrostatics, computed from the integrated geometry** — not from a formula envelope. Delivered readouts include displaced volume, displaced mass at seawater density, wetted surface area, waterplane area, longitudinal centre of buoyancy, and primary metacentric height GM₀. Upright trim equilibrium exists for explicit component load cases. High-angle GZ / secondary-stability curves are not currently available because real heeled integration over the generated closed-body evidence has not landed.
 - **Resistance estimation at user-selected paddling speeds.** Viscous resistance via the ITTC-57 friction line; wave-making resistance via the Michell (thin-ship) integral. This is an exploratory analytical screening filter for comparing candidates, not a calibrated final prediction.
 - **Speed sweep curve** broken into viscous and wave components, plotted against speed in knots and Froude number, with the user's target speed marked.
 - **Local CFD dispatch state.** Current CFD support is job/run/profile plumbing with readiness gates, local artifact directories, unavailable solver state, mock failed-command state, CLI commands, and local web job routes. It does not run OpenFOAM, SU2, hosted workers, Dockerized solvers, or any real CFD adapter.
@@ -52,7 +52,7 @@ This section describes current behavior, not the whole roadmap.
 
 These capabilities remain in scope, but they should not be described as delivered until their RFCs and tests land:
 
-- Watertight, closed-volume hull-plus-deck geometry with exact end-cap semantics and a named readiness profile suitable for real solver dispatch.
+- Production watertight, closed-volume hull-plus-deck meshing with exact end-cap semantics and a named readiness profile suitable for real solver dispatch.
 - Calibrated resistance prediction backed by licensed, relevant kayak-scale validation fixtures.
 - High-angle GZ / secondary-stability curves based on an accepted closed-volume integration model.
 - Real CFD solver adapters, normalized solver outputs, Docker/container execution, hosted workers, and browser job-management beyond the local filesystem route/panel slice.
@@ -88,7 +88,7 @@ What is *not* on this list, and why:
 
 - Hydrostatic readouts in the GUI are computed from the integrated mesh and agree with an independent reference (e.g., Wigley parabolic hull, analytical) within 1%.
 - Resistance estimates at paddling speeds are useful for ranking nearby candidate hulls. Matching published kayak model-test data within 25% across the Fn 0.25–0.50 range remains a calibration-roadmap criterion.
-- High-angle GZ from 0° to 90° heel is computed and rendered only after the closed-volume model and secondary-stability RFC work lands.
+- High-angle GZ from 0° to 90° heel is computed and rendered only after the real heeled-integration and secondary-stability RFC work lands.
 
 ### Frontends
 

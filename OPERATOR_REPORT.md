@@ -64,6 +64,11 @@ Updated: 2026-05-14
   codes, plus two low-risk contract/documentation observations. The accepted
   implementation commit was rebased onto current `main` after workflow 0035
   landed, preserving fast-forward trunk hygiene.
+- 2026-05-14T08:58Z checkpoint: RFC 0023/RFC 0024 status drift was corrected
+  in the RFC files, sequential RFC index, PRD, user guide, and changelog. The
+  docs now describe workflow 0034/0035 as landed conservative handoff slices
+  while keeping production solver readiness and real high-angle GZ claims
+  deferred.
 - 2026-05-14T06:48:42Z checkpoint: workflow 0045 review remediation completed
   on branch `striatum/0045-workspace-ui-follow-up`; artifact
   `art_27fb1b0083f84d3a879c6e4c35f249b8` was published. The packet changes

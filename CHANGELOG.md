@@ -30,6 +30,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   matching generated-body fixture volume-mesh evidence. CLI and JSON dispatch
   surfaces expose structured rejection reasons for missing, stale, synthetic,
   mismatched, and unsafe handoff evidence.
+- Corrected RFC 0023/RFC 0024 status and user-facing docs after the workflow
+  0034/0035 landings so the index now distinguishes fixture-backed
+  `cfd_ready` handoff evidence from production solver readiness and real
+  high-angle GZ stability claims.
 - Added the RFC 0024 high-angle GZ handoff envelope: generated closed-body
   diagnostic validation, structured unavailable results, fixture-only synthetic
   math, provenance-safe GZ fields, and tests that keep unavailable or fixture

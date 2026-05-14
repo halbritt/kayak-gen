@@ -36,8 +36,8 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0020](0020-high-angle-gz-secondary-stability.md) | proposed | High-angle GZ and secondary stability |
 | [0021](0021-closed-volume-self-intersection-diagnostics.md) | landed synthetic-diagnostic | Closed-volume self-intersection diagnostics |
 | [0022](0022-generated-closed-body-construction.md) | proposed | Generated hull-plus-deck closed-body construction |
-| [0023](0023-watertight-volume-mesh-handoff.md) | proposed | Watertight volume mesh and `cfd_ready` handoff |
-| [0024](0024-high-angle-gz-generated-body-handoff.md) | proposed | High-angle GZ generated-body handoff |
+| [0023](0023-watertight-volume-mesh-handoff.md) | landed fixture-handoff | Watertight volume mesh and `cfd_ready` handoff |
+| [0024](0024-high-angle-gz-generated-body-handoff.md) | landed structured-unavailable handoff | High-angle GZ generated-body handoff |
 | [0025](0025-cfd-calibration-claim-gates.md) | proposed | CFD and calibration claim gates |
 | [0026](0026-first-real-cfd-fixture-adapter.md) | landed fixture-local-command | First real CFD fixture adapter |
 | [0027](0027-resistance-calibration-acceptance.md) | proposed | Resistance calibration acceptance |
@@ -91,9 +91,9 @@ solver success, normalized solver outputs, watertight geometry, or
 calibrated/validated CFD claims; all CFD dispatch output remains raw and
 unvalidated.
 
-RFCs 0016-0034 are mostly proposed, not accepted implementation commitments
-except for the explicitly marked landed, partial safe-slice, or accepted
-implementation-target entries. RFCs 0016-0020
+RFCs 0016-0034 mix background proposals with landed or partial safe slices;
+only the status column above is authoritative for what has shipped. RFCs
+0016-0020
 split the major remaining deferrals into broad design documents:
 closed-volume geometry, first real CFD adapter, web CFD job routes, resistance
 calibration fixtures, and high-angle `GZ` / secondary stability. RFCs
@@ -114,7 +114,8 @@ RFC 0021 has landed only for explicit synthetic closed-volume diagnostics: the
 RFC 0016 compatibility profile records `not_checked`, while
 `explicit_synthetic_closed_volume_self_intersection_v1` requires passed
 assembled-body self-intersection evidence. Broad generated-body repair,
-volume meshing, high-angle `GZ`, and `cfd_ready` promotion remain deferred.
+production volume meshing, real high-angle `GZ`, and real-solver `cfd_ready`
+promotion remain deferred.
 
 RFC 0028 has landed as a partial safe slice: `Hull` now carries independent
 `bow_rake` and `stern_rake` with legacy `bow_rake`-only input seeding both
@@ -127,10 +128,12 @@ watertight-solid or `cfd_ready`.
 The dependency spine for the closed-volume side is: RFC 0021
 self-intersection diagnostics first, then RFC 0022 generated hull-plus-deck
 closed-body construction, then RFC 0023 watertight volume-mesh handoff and RFC
-0024 high-angle `GZ` handoff. Generated hull-plus-deck closed bodies, any
-`cfd_ready` handoff, high-angle `GZ` enablement, volume meshing, real solver
-readiness, calibrated drag, and final design fitness remain deferred until the
-upstream evidence exists.
+0024 high-angle `GZ` handoff. That spine has now landed only as conservative
+handoff evidence: generated bodies stay below real solver readiness unless
+matching fixture volume-mesh evidence is present, and high-angle `GZ` remains
+structured as unavailable or fixture-only rather than a real kayak stability
+claim. Production volume meshing, real solver readiness, calibrated drag, and
+final design fitness remain deferred until the upstream evidence exists.
 
 RFC 0031 supersedes RFC 0029 as the implementation target for design-constraint
 surfacing. It keeps RFC 0029's structured validity direction, but narrows the
@@ -154,11 +157,12 @@ documentation slice, with explicit workflow revision routing for first-pass
 browser-review `needs_revision` verdicts.
 
 Hosted demo deployment, full plot/dashboard parity, remaining legacy RFC
-deferrals, high-angle `GZ` stability, resistance calibration, watertight solid
-geometry, and real CFD solver dispatch remain queued in
+deferrals, real high-angle `GZ` stability, resistance calibration, production
+watertight solid meshing, and real CFD solver dispatch remain queued in
 `docs/workflows/0018-deferred-backlog/QUEUE.md`. High-angle `GZ` remains
-unavailable because a generated closed-volume body for heeled integration is
-not defined.
+unavailable for real kayak claims because the heeled integration model is not
+implemented; fixture-only synthetic math is labeled and kept out of user-facing
+stability claims.
 
 For current user-facing commands and limitations, start with
 [`docs/USER_GUIDE.md`](../USER_GUIDE.md).
