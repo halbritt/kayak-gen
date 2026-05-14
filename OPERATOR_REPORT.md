@@ -8,6 +8,21 @@ Updated: 2026-05-14
   must be performed by Striatum-assigned agents, with this session limited to
   orchestration, artifact handling, report updates, trunk hygiene, and branch
   cleanup.
+- 2026-05-14T08:24:35Z checkpoint: workflows 0034 and 0035 first-pass review
+  ledgers are complete and published. Workflow 0034 ledger artifact
+  `art_b4dcf8d2ad3f4972a1b00b2b904a2c80` gates RFC 0023 implementation to an
+  evidence-bound volume-mesh handoff slice; workflow 0035 ledger artifact
+  `art_78b2248f646b4779bdd42ebe95eb303c` gates RFC 0024 implementation to a
+  generated-body validation and structured-unavailable GZ handoff slice. Both
+  workflow branches were committed, pushed, and fast-forwarded to `main`; trunk
+  is current at `6a8d993`.
+- 2026-05-14T08:24:35Z checkpoint: Striatum reports exactly two queued build
+  jobs for the active backlog pair:
+  `job_run_ef025ef630ec470e8d138821225783a2_implement_findings` and
+  `job_run_cc879e1c30fa48d79fc1112669eb623c_implement_findings`. Final-review
+  jobs are blocked behind those implementation jobs. Next action is to claim
+  both Codex implementation lanes in parallel and require maximal useful
+  sub-agent fanout within each lane.
 - 2026-05-14T06:48:42Z checkpoint: workflow 0045 review remediation completed
   on branch `striatum/0045-workspace-ui-follow-up`; artifact
   `art_27fb1b0083f84d3a879c6e4c35f249b8` was published. The packet changes

@@ -18,6 +18,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   high-angle `GZ`, hosted/cloud CFD, real solver adapters, web-side
   mesh-package authoring, watertight `cfd_ready`, and desktop parity rewrite
   remain deferred.
+- Published workflow 0034 and 0035 findings ledgers, clearing both backlog
+  workflows for conservative Codex implementation lanes: RFC 0023 remains
+  evidence-bound on generated-body-derived volume-mesh diagnostics before any
+  `cfd_ready` promotion, and RFC 0024 remains limited to generated-body GZ
+  handoff contracts, structured unavailable results, fixture-only labeling,
+  claim guards, and tests before any real high-angle stability claims.
 - Added RFC 0034 and workflow 0045 for the workspace UI follow-up slice:
   dynamic web class presets, dynamic validity badge, resistance and mesh
   read-model wiring, export-menu completion, and broader forbidden-copy
