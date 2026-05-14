@@ -1,0 +1,514 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0048-successor-rfc-backlog",
+  "workflow_version": "2026-05-14",
+  "name": "0048 - Successor RFC backlog",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0048-successor-rfc-backlog",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "coordinator",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": [
+        "claude",
+        "--model",
+        "opus",
+        "-p"
+      ],
+      "capabilities": [
+        "review",
+        "synthesis"
+      ]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "-"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": [
+        "gemini",
+        "--model",
+        "gemini-3.1-pro-preview"
+      ],
+      "capabilities": [
+        "review"
+      ]
+    }
+  },
+  "roles": {
+    "coordinator": {
+      "definition_path": "roles/coordinator.md"
+    },
+    "rfc_scoper": {
+      "definition_path": "roles/rfc_scoper.md"
+    },
+    "reviewer_traceability": {
+      "definition_path": "roles/reviewer_traceability.md"
+    },
+    "reviewer_no_claims": {
+      "definition_path": "roles/reviewer_no_claims.md"
+    },
+    "reviewer_ergonomics_design": {
+      "definition_path": "roles/reviewer_ergonomics_design.md"
+    },
+    "reviewer_ops": {
+      "definition_path": "roles/reviewer_ops.md"
+    },
+    "integrator": {
+      "definition_path": "roles/integrator.md"
+    },
+    "final_reviewer": {
+      "definition_path": "roles/final_reviewer.md"
+    }
+  },
+  "context_docs": [
+    {
+      "path": "AGENTS.md",
+      "required": true
+    },
+    {
+      "path": "docs/PRD.md",
+      "required": true
+    },
+    {
+      "path": "docs/USER_GUIDE.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/README.md",
+      "required": true
+    },
+    {
+      "path": "docs/workflows/0018-deferred-backlog/QUEUE.md",
+      "required": true
+    },
+    {
+      "path": "striatum/0047-ui-follow-up-cleanup/final/FINAL_REVIEW.md",
+      "required": true
+    },
+    {
+      "path": "striatum/0047-ui-follow-up-cleanup/ledger/FINDINGS.md",
+      "required": true
+    }
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 5,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "rfc_scope_ui",
+      "type": "synthesis",
+      "title": "Draft UI successor RFCs",
+      "role_id": "rfc_scoper",
+      "lane_id": "codex",
+      "parallel_group": "rfc_drafting",
+      "fresh_session_required": true,
+      "objective": "Draft proposed RFCs 0036-0039 from workflow 0047 UI successor findings without implementing runtime behavior.",
+      "task_prompt": {
+        "path": "prompts/rfc_scope_ui.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/rfcs/0036-trame-seed-listener-proof.md",
+          "docs/rfcs/0037-export-row-schema-consolidation.md",
+          "docs/rfcs/0038-export-menu-disabled-copy-polish.md",
+          "docs/rfcs/0039-web-snapshot-schema-unification.md",
+          "striatum/0048-successor-rfc-backlog/rfc_ui/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "rfc_scope_ui",
+          "kind": "synthesis",
+          "path": "striatum/0048-successor-rfc-backlog/rfc_ui/RFC_SCOPE_UI.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "rfc_scope_geometry_solver",
+      "type": "synthesis",
+      "title": "Draft closed-volume and solver successor RFCs",
+      "role_id": "rfc_scoper",
+      "lane_id": "codex",
+      "parallel_group": "rfc_drafting",
+      "fresh_session_required": true,
+      "objective": "Draft proposed RFCs 0040-0041 from the closed-volume/solver readiness and real CFD adapter backlog without implementing runtime behavior.",
+      "task_prompt": {
+        "path": "prompts/rfc_scope_geometry_solver.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/rfcs/0040-closed-volume-solver-readiness-roadmap.md",
+          "docs/rfcs/0041-real-cfd-adapter-successor.md",
+          "striatum/0048-successor-rfc-backlog/rfc_geometry_solver/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "rfc_scope_geometry_solver",
+          "kind": "synthesis",
+          "path": "striatum/0048-successor-rfc-backlog/rfc_geometry_solver/RFC_SCOPE_GEOMETRY_SOLVER.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "rfc_scope_calibration_stability",
+      "type": "synthesis",
+      "title": "Draft calibration and stability successor RFCs",
+      "role_id": "rfc_scoper",
+      "lane_id": "codex",
+      "parallel_group": "rfc_drafting",
+      "fresh_session_required": true,
+      "objective": "Draft proposed RFCs 0042-0043 from the resistance calibration fixture and high-angle GZ backlog without implementing runtime behavior.",
+      "task_prompt": {
+        "path": "prompts/rfc_scope_calibration_stability.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/rfcs/0042-resistance-calibration-fixture-successor.md",
+          "docs/rfcs/0043-high-angle-gz-successor.md",
+          "striatum/0048-successor-rfc-backlog/rfc_calibration_stability/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "rfc_scope_calibration_stability",
+          "kind": "synthesis",
+          "path": "striatum/0048-successor-rfc-backlog/rfc_calibration_stability/RFC_SCOPE_CALIBRATION_STABILITY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review successor RFC traceability",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Verify RFCs 0036-0043 trace to workflow 0047 findings or deferred backlog/RFC sources.",
+      "task_prompt": {
+        "path": "prompts/review_traceability.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0048-successor-rfc-backlog/traceability/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0048-successor-rfc-backlog/traceability/REVIEW_TRACEABILITY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_no_claims",
+      "type": "review",
+      "title": "Review successor RFC no-claims boundaries",
+      "role_id": "reviewer_no_claims",
+      "lane_id": "gemini",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Verify RFCs 0036-0043 do not make premature CFD, calibration, watertight, final-prediction, or stability claims.",
+      "task_prompt": {
+        "path": "prompts/review_no_claims.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0048-successor-rfc-backlog/no_claims/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0048-successor-rfc-backlog/no_claims/REVIEW_NO_CLAIMS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_ergonomics_design",
+      "type": "review",
+      "title": "Review UI successor ergonomics",
+      "role_id": "reviewer_ergonomics_design",
+      "lane_id": "claude",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Verify UI RFCs 0036-0039 are ergonomic, user-facing, and testable.",
+      "task_prompt": {
+        "path": "prompts/review_ergonomics_design.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0048-successor-rfc-backlog/ergonomics/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0048-successor-rfc-backlog/ergonomics/REVIEW_ERGONOMICS_DESIGN.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_ops",
+      "type": "review",
+      "title": "Review successor RFC tests and sequencing",
+      "role_id": "reviewer_ops",
+      "lane_id": "codex",
+      "parallel_group": "reviews",
+      "fresh_session_required": true,
+      "objective": "Verify RFCs 0036-0043 have practical tests, boundaries, and implementation sequencing.",
+      "task_prompt": {
+        "path": "prompts/review_ops.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0048-successor-rfc-backlog/ops/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "striatum/0048-successor-rfc-backlog/ops/REVIEW_OPS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "rfc_integrate",
+      "type": "build",
+      "title": "Integrate successor RFCs and index",
+      "role_id": "integrator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Integrate review findings into RFCs 0036-0043 and update the RFC index, changelog, and workflow operator report without implementing runtime behavior.",
+      "task_prompt": {
+        "path": "prompts/rfc_integrate.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/rfcs/0036-trame-seed-listener-proof.md",
+          "docs/rfcs/0037-export-row-schema-consolidation.md",
+          "docs/rfcs/0038-export-menu-disabled-copy-polish.md",
+          "docs/rfcs/0039-web-snapshot-schema-unification.md",
+          "docs/rfcs/0040-closed-volume-solver-readiness-roadmap.md",
+          "docs/rfcs/0041-real-cfd-adapter-successor.md",
+          "docs/rfcs/0042-resistance-calibration-fixture-successor.md",
+          "docs/rfcs/0043-high-angle-gz-successor.md",
+          "docs/rfcs/README.md",
+          "CHANGELOG.md",
+          "docs/workflows/0048-successor-rfc-backlog/OPERATOR_REPORT.md",
+          "striatum/0048-successor-rfc-backlog/integration/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "striatum/0048-successor-rfc-backlog/integration/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final review successor RFC set",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify RFCs 0036-0043, index, changelog, and workflow report are coherent and bounded.",
+      "task_prompt": {
+        "path": "prompts/final_review.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/0048-successor-rfc-backlog/final/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "final_review",
+          "kind": "finding",
+          "path": "striatum/0048-successor-rfc-backlog/final/FINAL_REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "rfc_scope_ui",
+      "to": "review_traceability",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope_geometry_solver",
+      "to": "review_traceability",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope_calibration_stability",
+      "to": "review_traceability",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope_ui",
+      "to": "review_no_claims",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope_geometry_solver",
+      "to": "review_no_claims",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope_calibration_stability",
+      "to": "review_no_claims",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope_ui",
+      "to": "review_ergonomics_design",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope_geometry_solver",
+      "to": "review_ergonomics_design",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope_calibration_stability",
+      "to": "review_ergonomics_design",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope_ui",
+      "to": "review_ops",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope_geometry_solver",
+      "to": "review_ops",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_scope_calibration_stability",
+      "to": "review_ops",
+      "on": "completed"
+    },
+    {
+      "from": "review_traceability",
+      "to": "rfc_integrate",
+      "on": "completed"
+    },
+    {
+      "from": "review_no_claims",
+      "to": "rfc_integrate",
+      "on": "completed"
+    },
+    {
+      "from": "review_ergonomics_design",
+      "to": "rfc_integrate",
+      "on": "completed"
+    },
+    {
+      "from": "review_ops",
+      "to": "rfc_integrate",
+      "on": "completed"
+    },
+    {
+      "from": "rfc_integrate",
+      "to": "final_review",
+      "on": "completed"
+    }
+  ],
+  "cycles": [
+    {
+      "from": "final_review",
+      "to": "rfc_integrate",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1
+    }
+  ]
+}

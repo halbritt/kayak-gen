@@ -807,3 +807,10 @@ Updated: 2026-05-14
   `striatum/0047-ui-follow-up-cleanup` locally and remotely.
 - 2026-05-14T11:23Z: corrected RFC 0035 and the RFC index from `proposed`
   to `landed safe-slice` after the completed workflow was fast-forwarded.
+
+## Workflow 0048 Successor RFC Backlog
+
+- 2026-05-14T11:38Z: started operator scaffolding for successor RFC workflow
+  0048. Scope requested: RFCs for workflow 0047 successor findings plus the
+  named deferred backlog items around closed-volume/solver readiness, real CFD
+  adapter work, resistance calibration fixtures, and high-angle `GZ`.

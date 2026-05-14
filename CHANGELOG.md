@@ -8,6 +8,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Scaffolded workflow 0048 as a docs-only successor RFC backlog workflow with
+  parallel Codex RFC drafting lanes for UI follow-up findings, closed-volume/
+  solver readiness, real CFD adapter work, resistance calibration fixtures,
+  and high-angle `GZ`, followed by traceability, no-claims, ergonomics/design,
+  ops/test, integration, and final-review gates.
 - Landed workflow 0047's RFC 0035 UI cleanup slice: web validity badges now
   classify the current hull against canonical web class envelopes before custom
   fallback, preset edit behavior is documented and test-pinned, export-menu
