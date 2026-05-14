@@ -17,7 +17,14 @@ from kayakgen.ui.web.controllers import (
     resistance_table_view_model,
     validity_badge_from_state,
 )
-from kayakgen.ui.web.state import state_dict_from_hull
+from kayakgen.ui.web.state import (
+    CFD_PAYLOAD_ALIASES,
+    CFD_STATUS_ALIASES,
+    CFD_STATUS_LINE_ALIASES,
+    MESH_PACKAGE_REF_ALIASES,
+    STATE_SNAPSHOT_KEYS,
+    state_dict_from_hull,
+)
 
 
 def _state(hull: Hull | None = None, **overrides: object) -> dict[str, object]:
@@ -133,24 +140,32 @@ def test_evaluation_summary_exposes_structured_design_advisories() -> None:
 
 
 def test_evaluation_summary_preserves_cfd_status_aliases() -> None:
-    assert evaluation_summary(_state(cfd_status="queued"))["cfd_status"] == "queued"
-    assert evaluation_summary(_state(status="failed"))["cfd_status"] == "failed"
-    assert (
-        evaluation_summary(_state(cfd_job_payload={"run": {"status": "running"}}))[
+    for key in CFD_STATUS_ALIASES:
+        assert key in STATE_SNAPSHOT_KEYS
+        assert evaluation_summary(_state(**{key: "queued"}))["cfd_status"] == "queued"
+
+    for key in CFD_PAYLOAD_ALIASES:
+        assert key in STATE_SNAPSHOT_KEYS
+        assert (
+            evaluation_summary(_state(**{key: {"run": {"status": "running"}}}))[
+                "cfd_status"
+            ]
+            == "running"
+        )
+        assert evaluation_summary(_state(**{key: {"status": "succeeded"}}))[
             "cfd_status"
-        ]
-        == "running"
-    )
-    assert (
-        evaluation_summary(_state(cfd_last_payload={"status": "succeeded"}))["cfd_status"]
-        == "succeeded"
-    )
-    assert (
-        evaluation_summary(_state(cfd_status_lines=["CFD local job", "Status: unavailable"]))[
-            "cfd_status"
-        ]
-        == "unavailable"
-    )
+        ] == "succeeded"
+
+    for key in CFD_STATUS_LINE_ALIASES:
+        assert key in STATE_SNAPSHOT_KEYS
+        assert (
+            evaluation_summary(_state(**{key: ["CFD local job", "Status: unavailable"]}))[
+                "cfd_status"
+            ]
+            == "unavailable"
+        )
+
+    assert set(MESH_PACKAGE_REF_ALIASES).issubset(STATE_SNAPSHOT_KEYS)
 
 
 def test_mesh_diagnostics_lines_make_welded_counts_primary() -> None:

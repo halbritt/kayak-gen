@@ -38,8 +38,14 @@ from kayakgen.model.classes import CLASSES, KayakClass, list_classes
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import evaluate_design_validity
 from kayakgen.search.compare import ComparisonReport
-from kayakgen.ui.web.state import HULL_STATE_FIELDS
-from kayakgen.ui.web.state import hull_from_state_dict
+from kayakgen.ui.web.state import (
+    CFD_PAYLOAD_ALIASES,
+    CFD_STATUS_ALIASES,
+    CFD_STATUS_LINE_ALIASES,
+    HULL_STATE_FIELDS,
+    MESH_PACKAGE_REF_ALIASES,
+    hull_from_state_dict,
+)
 
 DISPLAY_CURVE_SPEEDS_KT: tuple[float, ...] = (2.0, 3.0, 4.0, 5.0, 6.0)
 CLASS_PRESET_HULL_FIELDS: tuple[str, ...] = (
@@ -319,6 +325,14 @@ def resistance_table_view_model(
     }
 
 
+def _first_truthy_alias(state: dict[str, Any], aliases: tuple[str, ...]) -> Any:
+    for key in aliases:
+        value = state.get(key)
+        if value:
+            return value
+    return None
+
+
 def evaluation_summary(state: dict[str, Any]) -> dict[str, Any]:
     """Status-bar read model for package, readiness, resistance, CFD, advisories."""
     hull = hull_from_web_state(state)
@@ -330,7 +344,7 @@ def evaluation_summary(state: dict[str, Any]) -> dict[str, Any]:
     )
     resistance_claim = ResistanceMetadata()
 
-    package_ref = str(state.get("mesh_package_ref") or state.get("cfd_mesh_package_ref") or "")
+    package_ref = str(_first_truthy_alias(state, MESH_PACKAGE_REF_ALIASES) or "")
     package_model = mesh_package_view_model(package_ref) if package_ref else None
     if package_model:
         package = package_model["profile"]
@@ -1081,12 +1095,12 @@ def _mesh_diagnostics_counts(diagnostics: MeshDiagnostics) -> dict[str, dict[str
 
 
 def _cfd_status_from_state(state: dict[str, Any]) -> str:
-    for key in ("cfd_status", "status"):
+    for key in CFD_STATUS_ALIASES:
         status = state.get(key)
         if status:
             return str(status)
 
-    for key in ("cfd_payload", "cfd_job_payload", "cfd_last_payload"):
+    for key in CFD_PAYLOAD_ALIASES:
         payload = state.get(key)
         if not isinstance(payload, dict):
             continue
@@ -1096,8 +1110,10 @@ def _cfd_status_from_state(state: dict[str, Any]) -> str:
         if payload.get("status"):
             return str(payload["status"])
 
-    lines = state.get("cfd_status_lines")
-    if isinstance(lines, list):
+    for key in CFD_STATUS_LINE_ALIASES:
+        lines = state.get(key)
+        if not isinstance(lines, list):
+            continue
         for line in lines:
             text = str(line)
             if text.startswith("Status:"):

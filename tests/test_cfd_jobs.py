@@ -12,11 +12,21 @@ from pydantic import ValidationError
 from kayakgen.eval.cfd.jobs import (
     CfdDispatchError,
     CfdJobSpec,
+    CfdOpenFoamForceDatResult,
+    CfdOpenFoamForceDatSample,
+    CfdOpenFoamRawResult,
     CfdRunRecord,
+    OPENFOAM_CASE_ROOT,
+    OPENFOAM_CASE_TEMPLATE_VERSION,
+    OPENFOAM_FORCE_DAT_OUTPUT,
+    OPENFOAM_PROFILE_NAME,
+    OPENFOAM_RAW_RESULT,
     SolverRawResult,
     load_cfd_run_record,
     load_run_record,
     mock_failing_local_command_profile,
+    openfoam_v2512_interfoam_local_profile,
+    parse_openfoam_force_dat,
     prepare_cfd_job,
     prepare_local_job,
     read_local_status,
@@ -47,6 +57,8 @@ from kayakgen.model.hull import Hull
 FIXTURE_PROFILE_NAME = "fixture-local-command"
 FIXTURE_RAW_RESULT = "raw-result.json"
 FIXTURE_WARNING_FRAGMENT = "not calibrated, validated, or final design fitness"
+OPENFOAM_FORCE_FIXTURE = Path(__file__).parent / "fixtures" / "openfoam" / "force.dat"
+OPENFOAM_WARNING_FRAGMENT = "not calibrated, validated, or final design fitness"
 
 
 def _prepare_fixture_job(tmp_path: Path, *, speed_mps: float = 2.4):
@@ -61,12 +73,39 @@ def _prepare_fixture_job(tmp_path: Path, *, speed_mps: float = 2.4):
     )
 
 
+def _prepare_openfoam_job(tmp_path: Path, *, speed_mps: float = 2.4):
+    mesh_dir = tmp_path / "mesh"
+    jobs_dir = tmp_path / "jobs"
+    write_watertight_volume_mesh_handoff_package(
+        Hull(name="openfoam-skeleton"),
+        mesh_dir,
+        stations=8,
+        closed_body_stations=8,
+        include_fixture_volume_mesh=True,
+    )
+    return prepare_cfd_job(
+        mesh_dir,
+        jobs_dir,
+        solver_profile_name=OPENFOAM_PROFILE_NAME,
+        speed_mps=speed_mps,
+    )
+
+
 def _set_fixture_command(job_dir: Path, command_template: list[str]) -> None:
     profile_path = job_dir / "profile.json"
     profile = json.loads(profile_path.read_text())
     assert profile["name"] == FIXTURE_PROFILE_NAME
     assert profile["adapter_name"] == "fixture_local_command"
     profile["command_template"] = command_template
+    profile_path.write_text(json.dumps(profile, indent=2, sort_keys=True) + "\n")
+
+
+def _set_openfoam_profile_fields(job_dir: Path, **updates: object) -> None:
+    profile_path = job_dir / "profile.json"
+    profile = json.loads(profile_path.read_text())
+    assert profile["name"] == OPENFOAM_PROFILE_NAME
+    assert profile["adapter_name"] == "openfoam_local"
+    profile.update(updates)
     profile_path.write_text(json.dumps(profile, indent=2, sort_keys=True) + "\n")
 
 
@@ -213,6 +252,28 @@ def test_fixture_local_command_profile_contract_is_listed() -> None:
     assert profile.accepted_uses == []
 
 
+def test_openfoam_v2512_interfoam_profile_contract_is_listed() -> None:
+    profile = solver_profile_by_name(OPENFOAM_PROFILE_NAME)
+
+    assert OPENFOAM_PROFILE_NAME in solver_profile_names()
+    assert solver_profile_by_name("openfoam_v2512_interfoam_local_v1") == profile
+    assert openfoam_v2512_interfoam_local_profile() == profile
+    assert profile.name == OPENFOAM_PROFILE_NAME
+    assert profile.required_mesh_readiness == "cfd_ready"
+    assert profile.required_mesh_profile == "watertight_solid_resistance_v1"
+    assert profile.adapter_name == "openfoam_local"
+    assert profile.solver_name == "OpenFOAM.com OpenFOAM-v2512 interFoam"
+    assert profile.solver_version_command == ["foamVersion"]
+    assert profile.required_solver_version == "v2512"
+    assert profile.case_template_version == OPENFOAM_CASE_TEMPLATE_VERSION
+    assert profile.expected_raw_outputs == [OPENFOAM_FORCE_DAT_OUTPUT]
+    assert profile.timeout_seconds is not None
+    assert profile.log_limit_bytes is not None
+    assert profile.result_semantics == "raw_unvalidated"
+    assert profile.claim_state == "raw_unvalidated"
+    assert profile.accepted_uses == []
+
+
 def test_fixture_prepare_writes_deterministic_case_files(tmp_path: Path) -> None:
     mesh_dir = tmp_path / "mesh"
     jobs_dir = tmp_path / "jobs"
@@ -255,6 +316,64 @@ def test_fixture_prepare_writes_deterministic_case_files(tmp_path: Path) -> None
     assert command_spec["case_input"] == "case/fixture-case.json"
     assert command_spec["raw_output"] == FIXTURE_RAW_RESULT
     assert command_spec["result_semantics"] == "raw_unvalidated"
+
+
+def test_openfoam_prepare_writes_deterministic_case_files(tmp_path: Path) -> None:
+    mesh_dir = tmp_path / "mesh"
+    jobs_dir = tmp_path / "jobs"
+    manifest = write_watertight_volume_mesh_handoff_package(
+        Hull(name="openfoam-deterministic-case"),
+        mesh_dir,
+        stations=8,
+        closed_body_stations=8,
+        include_fixture_volume_mesh=True,
+    )
+    profile = solver_profile_by_name(OPENFOAM_PROFILE_NAME)
+
+    first = prepare_local_job(
+        mesh_dir,
+        jobs_dir,
+        profile,
+        speed_mps=2.4,
+        created_at="2026-05-13T00:00:00Z",
+    )
+    first_case_files = _case_file_texts(first.job_dir)
+    second = prepare_local_job(
+        mesh_dir,
+        jobs_dir,
+        profile,
+        speed_mps=2.4,
+        created_at="2026-05-13T00:00:00Z",
+    )
+
+    assert second.job_dir == first.job_dir
+    assert {
+        "case/openfoam/kayakgen-case.json",
+        "case/openfoam/kayakgen-command.json",
+        "case/openfoam/system/controlDict",
+        "case/openfoam/constant/transportProperties",
+        "case/openfoam/0/U",
+    } <= set(first_case_files)
+    assert _case_file_texts(second.job_dir) == first_case_files
+
+    case_input = json.loads(first_case_files["case/openfoam/kayakgen-case.json"])
+    assert case_input["job_id"] == first.job_spec.job_id
+    assert case_input["solver_profile"] == OPENFOAM_PROFILE_NAME
+    assert case_input["case_template_version"] == OPENFOAM_CASE_TEMPLATE_VERSION
+    assert case_input["speed_mps"] == pytest.approx(2.4)
+    assert case_input["expected_raw_outputs"] == [OPENFOAM_FORCE_DAT_OUTPUT]
+    assert case_input["mesh"]["hull_hash"] == manifest.hull_hash
+    assert case_input["mesh"]["readiness"] == "cfd_ready"
+    assert case_input["mesh"]["solver_profile"] == "watertight_solid_resistance_v1"
+    assert case_input["mesh"]["volume_mesh_artifacts"]
+    assert case_input["result_semantics"] == "raw_unvalidated"
+
+    command_spec = json.loads(first_case_files["case/openfoam/kayakgen-command.json"])
+    assert command_spec["command"] == first.solver_profile.command_template
+    assert command_spec["version_command"] == ["foamVersion"]
+    assert command_spec["expected_raw_outputs"] == [OPENFOAM_FORCE_DAT_OUTPUT]
+    assert command_spec["result_semantics"] == "raw_unvalidated"
+    assert "application interFoam;" in first_case_files["case/openfoam/system/controlDict"]
 
 
 def test_prepare_rejects_watertight_profile_below_cfd_ready(tmp_path: Path) -> None:
@@ -904,3 +1023,339 @@ def test_fixture_malformed_raw_output_persists_failed_record(tmp_path: Path) -> 
     assert "malformed" in (record.error_message or "")
     assert record.output_manifest is None
     assert load_run_record(job.job_dir / "run.json") == record
+
+
+def test_openfoam_missing_version_command_persists_unavailable_record(
+    tmp_path: Path,
+) -> None:
+    job = _prepare_openfoam_job(tmp_path)
+    missing_command = job.job_dir / "bin" / "missing-foamVersion"
+    _set_openfoam_profile_fields(
+        job.job_dir,
+        solver_version_command=[str(missing_command)],
+    )
+
+    record = run_cfd_job(job.job_dir)
+
+    assert record.status == "unavailable"
+    assert record.error_kind == "solver_unavailable"
+    assert "version command unavailable" in (record.error_message or "")
+    assert str(missing_command) in record.error_message
+    assert record.logs == {
+        "version_stdout": "logs/version_stdout.log",
+        "version_stderr": "logs/version_stderr.log",
+    }
+    assert record.result_semantics == "raw_unvalidated"
+    assert load_run_record(job.job_dir / "run.json") == record
+
+
+def test_openfoam_version_mismatch_persists_unavailable_record(tmp_path: Path) -> None:
+    job = _prepare_openfoam_job(tmp_path)
+    _set_openfoam_profile_fields(
+        job.job_dir,
+        solver_version_command=[
+            sys.executable,
+            "-c",
+            "print('OpenFOAM-v2306')",
+        ],
+    )
+
+    record = run_cfd_job(job.job_dir)
+
+    assert record.status == "unavailable"
+    assert record.error_kind == "version_mismatch"
+    assert "required 'v2512'" in (record.error_message or "")
+    assert record.raw_records["solver_version"] == "OpenFOAM-v2306"
+    assert record.result_semantics == "raw_unvalidated"
+    assert load_run_record(job.job_dir / "run.json") == record
+
+
+def test_openfoam_nonzero_solver_command_persists_failed_record_and_capped_logs(
+    tmp_path: Path,
+) -> None:
+    job = _prepare_openfoam_job(tmp_path)
+    _set_openfoam_profile_fields(
+        job.job_dir,
+        solver_version_command=[
+            sys.executable,
+            "-c",
+            "print('OpenFOAM-v2512')",
+        ],
+        command_template=[
+            sys.executable,
+            "-c",
+            (
+                "import sys; "
+                "sys.stdout.write('x' * 120); "
+                "sys.stderr.write('interFoam failed intentionally\\n'); "
+                "sys.exit(6)"
+            ),
+        ],
+        log_limit_bytes=40,
+    )
+
+    record = run_cfd_job(job.job_dir)
+
+    assert record.status == "failed"
+    assert record.error_kind == "command_failed"
+    assert "exited with code 6" in (record.error_message or "")
+    assert record.raw_records["returncode"] == 6
+    assert record.raw_records["solver_version"] == "OpenFOAM-v2512"
+    assert record.logs == {
+        "version_stdout": "logs/version_stdout.log",
+        "version_stderr": "logs/version_stderr.log",
+        "stdout": "logs/stdout.log",
+        "stderr": "logs/stderr.log",
+    }
+    assert "[truncated" in (job.job_dir / "logs" / "stdout.log").read_text()
+    assert (
+        job.job_dir / "logs" / "stderr.log"
+    ).read_text() == "interFoam failed intentionally\n"
+    assert load_run_record(job.job_dir / "run.json") == record
+
+
+def test_openfoam_solver_timeout_persists_failed_record(tmp_path: Path) -> None:
+    job = _prepare_openfoam_job(tmp_path)
+    _set_openfoam_profile_fields(
+        job.job_dir,
+        solver_version_command=[
+            sys.executable,
+            "-c",
+            "print('OpenFOAM-v2512')",
+        ],
+        command_template=[
+            sys.executable,
+            "-c",
+            "import time; time.sleep(1)",
+        ],
+        timeout_seconds=0.05,
+    )
+
+    record = run_cfd_job(job.job_dir)
+
+    assert record.status == "failed"
+    assert record.error_kind == "timeout"
+    assert "timed out" in (record.error_message or "")
+    assert record.raw_records["solver_version"] == "OpenFOAM-v2512"
+    assert record.result_semantics == "raw_unvalidated"
+    assert load_run_record(job.job_dir / "run.json") == record
+
+
+def test_openfoam_clean_command_with_missing_force_dat_persists_failed_record(
+    tmp_path: Path,
+) -> None:
+    job = _prepare_openfoam_job(tmp_path)
+    _set_openfoam_profile_fields(
+        job.job_dir,
+        solver_version_command=[
+            sys.executable,
+            "-c",
+            "print('OpenFOAM-v2512')",
+        ],
+        command_template=[
+            sys.executable,
+            "-c",
+            "print('fake interFoam completed without force output')",
+        ],
+    )
+
+    record = run_cfd_job(job.job_dir)
+
+    assert record.status == "failed"
+    assert record.error_kind == "missing_output"
+    assert OPENFOAM_FORCE_DAT_OUTPUT in (record.error_message or "")
+    assert record.output_manifest is None
+    assert record.raw_records["returncode"] == 0
+    assert load_run_record(job.job_dir / "run.json") == record
+
+
+def test_openfoam_malformed_force_dat_persists_failed_record(tmp_path: Path) -> None:
+    job = _prepare_openfoam_job(tmp_path)
+    _set_openfoam_profile_fields(
+        job.job_dir,
+        solver_version_command=[
+            sys.executable,
+            "-c",
+            "print('OpenFOAM-v2512')",
+        ],
+        command_template=[
+            sys.executable,
+            "-c",
+            (
+                "from pathlib import Path; "
+                "p=Path('case/openfoam/postProcessing/forces/0/force.dat'); "
+                "p.parent.mkdir(parents=True, exist_ok=True); "
+                "p.write_text('not enough numeric fields\\n')"
+            ),
+        ],
+    )
+
+    record = run_cfd_job(job.job_dir)
+
+    assert record.status == "failed"
+    assert record.error_kind == "malformed_output"
+    assert "malformed" in (record.error_message or "")
+    assert record.output_manifest is None
+    assert load_run_record(job.job_dir / "run.json") == record
+
+
+def test_openfoam_parser_readable_force_dat_does_not_enable_succeeded_path(
+    tmp_path: Path,
+) -> None:
+    job = _prepare_openfoam_job(tmp_path)
+    _set_openfoam_profile_fields(
+        job.job_dir,
+        solver_version_command=[
+            sys.executable,
+            "-c",
+            "print('OpenFOAM-v2512')",
+        ],
+        command_template=[
+            sys.executable,
+            "-c",
+            (
+                "from pathlib import Path; "
+                "p=Path('case/openfoam/postProcessing/forces/0/force.dat'); "
+                "p.parent.mkdir(parents=True, exist_ok=True); "
+                "p.write_text("
+                "'# Time forces(pressure viscous porous) moment(pressure viscous porous)\\n"
+                "0.0 ((1 0 0) (2 0 0) (0.5 0 0)) "
+                "((0 0 0) (0 0 0) (0 0 0))\\n'"
+                "); "
+                "print('fake interFoam completed')"
+            ),
+        ],
+    )
+
+    record = run_cfd_job(job.job_dir)
+
+    assert record.status == "failed"
+    assert record.error_kind == "solver_success_blocked"
+    assert record.output_manifest == OPENFOAM_RAW_RESULT
+    assert record.raw_records["drag_force_n"] == pytest.approx(3.5)
+    assert record.raw_records["claim_state"] == "raw_unvalidated"
+    assert record.raw_records["accepted_uses"] == []
+    assert OPENFOAM_WARNING_FRAGMENT in _fixture_warning_text(record.raw_records)
+    assert load_run_record(job.job_dir / "run.json") == record
+
+
+def test_openfoam_rerun_ignores_stale_force_dat_and_raw_result(
+    tmp_path: Path,
+) -> None:
+    job = _prepare_openfoam_job(tmp_path)
+    _set_openfoam_profile_fields(
+        job.job_dir,
+        solver_version_command=[
+            sys.executable,
+            "-c",
+            "print('OpenFOAM-v2512')",
+        ],
+        command_template=[
+            sys.executable,
+            "-c",
+            (
+                "from pathlib import Path; "
+                "p=Path('case/openfoam/postProcessing/forces/0/force.dat'); "
+                "p.parent.mkdir(parents=True, exist_ok=True); "
+                "p.write_text("
+                "'# Time forces(pressure viscous porous) moment(pressure viscous porous)\\n"
+                "0.0 ((1 0 0) (2 0 0) (0.5 0 0)) "
+                "((0 0 0) (0 0 0) (0 0 0))\\n'"
+                "); "
+                "print('first fake interFoam completed')"
+            ),
+        ],
+    )
+
+    first = run_cfd_job(job.job_dir)
+
+    assert first.status == "failed"
+    assert first.error_kind == "solver_success_blocked"
+    assert first.output_manifest == OPENFOAM_RAW_RESULT
+    assert first.raw_records["drag_force_n"] == pytest.approx(3.5)
+    assert (job.job_dir / OPENFOAM_RAW_RESULT).is_file()
+
+    _set_openfoam_profile_fields(
+        job.job_dir,
+        command_template=[
+            sys.executable,
+            "-c",
+            "print('second fake interFoam completed without force output')",
+        ],
+    )
+
+    second = run_cfd_job(job.job_dir)
+
+    assert second.status == "failed"
+    assert second.error_kind == "missing_output"
+    assert second.output_manifest is None
+    assert "drag_force_n" not in second.raw_records
+    assert not (job.job_dir / OPENFOAM_RAW_RESULT).exists()
+    force_path = job.job_dir / OPENFOAM_CASE_ROOT / OPENFOAM_FORCE_DAT_OUTPUT
+    assert not force_path.exists()
+    assert load_run_record(job.job_dir / "run.json") == second
+
+
+def test_openfoam_force_dat_parser_reads_checked_in_fixture() -> None:
+    parsed = parse_openfoam_force_dat(
+        OPENFOAM_FORCE_FIXTURE,
+        source_ref="fixtures/openfoam/force.dat",
+    )
+
+    assert parsed.source_ref == "fixtures/openfoam/force.dat"
+    assert parsed.sample_count == 3
+    assert parsed.last_sample.time_s == pytest.approx(1.0)
+    assert parsed.last_sample.pressure_force_n == pytest.approx((3.0, 0.0, 0.0))
+    assert parsed.last_sample.viscous_force_n == pytest.approx((1.25, 0.0, 0.0))
+    assert parsed.last_sample.porous_force_n == pytest.approx((0.0, 0.0, 0.0))
+    assert parsed.last_sample.total_force_n == pytest.approx((4.25, 0.0, 0.0))
+    assert parsed.last_sample.drag_force_n == pytest.approx(4.25)
+    assert parsed.claim_state == "raw_unvalidated"
+    assert parsed.accepted_uses == []
+
+
+def test_openfoam_force_dat_parser_rejects_malformed_fixture(tmp_path: Path) -> None:
+    malformed = tmp_path / "force.dat"
+    malformed.write_text("# no samples\n")
+
+    with pytest.raises(CfdDispatchError) as excinfo:
+        parse_openfoam_force_dat(malformed)
+
+    assert excinfo.value.code == "malformed_output"
+
+
+def test_openfoam_raw_models_reject_validated_or_calibrated_promotion() -> None:
+    sample = CfdOpenFoamForceDatSample(
+        time_s=1.0,
+        pressure_force_n=(1.0, 0.0, 0.0),
+        viscous_force_n=(2.0, 0.0, 0.0),
+        porous_force_n=(0.0, 0.0, 0.0),
+        total_force_n=(3.0, 0.0, 0.0),
+        drag_force_n=3.0,
+    )
+
+    with pytest.raises(ValidationError, match="accepted uses"):
+        CfdOpenFoamForceDatResult(
+            source_ref="force.dat",
+            sample_count=1,
+            last_sample=sample,
+            accepted_uses=["final_prediction"],
+        )
+
+    with pytest.raises(ValidationError, match="raw_unvalidated"):
+        CfdOpenFoamRawResult(
+            job_id="cfd-openfoam",
+            solver_name="OpenFOAM.com OpenFOAM-v2512 interFoam",
+            solver_version="OpenFOAM-v2512",
+            speed_mps=2.4,
+            seawater_density_kg_m3=1025.0,
+            kinematic_viscosity_m2_s=1.19e-6,
+            mesh_profile="watertight_solid_resistance_v1",
+            mesh_readiness="cfd_ready",
+            drag_force_n=3.0,
+            raw_output_refs=["postProcessing/forces/0/force.dat"],
+            command=["interFoam", "-case", "case/openfoam"],
+            version_command=["foamVersion"],
+            returncode=0,
+            claim_state="calibrated_model",
+        )

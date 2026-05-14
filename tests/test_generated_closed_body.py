@@ -20,6 +20,7 @@ from kayakgen.eval.generated_closed_body import (
 )
 from kayakgen.eval.mesh_diagnostics import diagnose_mesh
 from kayakgen.eval.mesh_package import write_mesh_package
+from kayakgen.model.classes import CLASSES
 from kayakgen.model.geometry import LoftedHullGeometry
 from kayakgen.model.hull import Hull
 
@@ -112,6 +113,35 @@ def test_generated_body_closes_when_waterline_beam_differs_from_overall_beam() -
     assert diagnostics.welded_nonmanifold_edges == 0
     assert diagnostics.degenerate_faces == 0
     assert diagnostics.self_intersection_status == "passed"
+
+
+@pytest.mark.parametrize(
+    ("case_name", "hull"),
+    [
+        ("touring-preset", CLASSES["touring"].default_hull()),
+        ("elite-surfski-preset", CLASSES["surfski_elite"].default_hull()),
+        ("plumb-bow-raked-stern", Hull(bow_rake=0.0, stern_rake=1.0)),
+        ("raked-bow-plumb-stern", Hull(bow_rake=1.0, stern_rake=0.0)),
+        (
+            "beam-waterline-not-overall",
+            Hull(beam_oa_m=0.62, beam_wl_m=0.46, bow_rake=0.0),
+        ),
+        ("low-draft-envelope", Hull(draft_m=0.10)),
+        ("high-draft-envelope", Hull(draft_m=0.14)),
+        ("low-cp-envelope", Hull(Cp=0.50)),
+        ("high-cp-envelope", Hull(Cp=0.60)),
+        ("low-cm-envelope", Hull(Cm=0.70)),
+        ("high-cm-envelope", Hull(Cm=0.95)),
+    ],
+)
+def test_generated_closed_body_hardening_matrix_cases_close(
+    case_name: str,
+    hull: Hull,
+) -> None:
+    diagnostics = diagnose_closed_volume_body(_generated_body(hull, stations=10))
+
+    _assert_closed_generated_body(diagnostics)
+    assert diagnostics.source_hull_hash == hull.hash(), case_name
 
 
 def test_open_plumb_stl_surface_remains_inspection_mesh_not_closed_body() -> None:

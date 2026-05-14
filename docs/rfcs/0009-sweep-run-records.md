@@ -1,16 +1,30 @@
 # RFC 0009: Sweep and Candidate Run Records
 
-Status: proposed
+Status: partial landed sweep-run-record slice
 Date: 2026-05-13
 Context: builds on RFC 0007 package/CLI extraction, RFC 0005 resistance
 filtering, RFC 0006 class constraints, and the `kayakgen.search` namespace.
 
+Status note (2026-05-14): The deterministic JSON sweep runner and candidate
+run-record slice has landed. Current `kayakgen sweep` writes `spec.json`,
+`run.json`, `summary.csv`, `failures.jsonl`, and per-candidate
+record/hull/evaluation artifacts; supports `--resume` by marking existing
+completed candidates as `skipped`; records invalid candidate attempts as
+`failed`; and can add optional resistance, stability summaries, and mesh
+diagnostics to candidate records. This is not full RFC 0009 closure: the
+planned `pending` record state is not serialized by the current runner, the
+sweep `stl` evaluator flag is reserved rather than a landed sweep-side STL
+artifact path, and objective metadata/search remains future work. Raw
+resistance stays an uncalibrated comparative filter, and sweep/comparison
+records are not optimizer or design-fitness claims.
+
 ## Problem
 
 `kayakgen evaluate` can score one hull, but the generative pipeline described
-in RFC 0007 needs reproducible candidate sets. Today there is no sweep spec, no
-stable run directory layout, no candidate manifest, and no record tying a
-generated hull to evaluation settings, failures, timings, and output files.
+in RFC 0007 needs reproducible candidate sets. At proposal time there was no
+sweep spec, no stable run directory layout, no candidate manifest, and no
+record tying a generated hull to evaluation settings, failures, timings, and
+output files.
 
 Without those records, a future optimizer or CFD worker cannot resume work,
 compare runs, audit why a candidate was rejected, or reproduce a promising hull.
@@ -102,7 +116,10 @@ kayakgen sweep sweep.json --out runs/touring-001
 kayakgen sweep sweep.json --out runs/touring-001 --resume
 ```
 
-Candidate statuses are `pending`, `complete`, `failed`, and `skipped`.
+Candidate statuses were proposed as `pending`, `complete`, `failed`, and
+`skipped`. The landed partial slice serializes `complete`, `failed`, and
+`skipped`; `pending` remains a planned state for a future queued or optimizer
+workflow, not current output.
 
 ## Acceptance Criteria
 
@@ -126,11 +143,30 @@ Candidate statuses are `pending`, `complete`, `failed`, and `skipped`.
 - Tests cover deterministic expansion, resume behavior, failure records, and
   CLI output.
 
+## Landed Slice And Remaining Deltas
+
+The landed slice covers deterministic `values` and `linspace` expansion,
+`kayakgen sweep`, run/spec/summary/failure files, per-candidate
+record/hull/evaluation artifacts, invalid-candidate failure records,
+resume-skip behavior, optional resistance and stability summary fields, and
+optional mesh-diagnostic artifacts.
+
+Remaining RFC 0009 deltas are intentionally narrow:
+
+- `pending` is still a planned record state rather than a serialized candidate
+  status.
+- The sweep-side `stl` evaluator flag is reserved and does not currently
+  produce per-candidate STL artifacts.
+- Objective metadata and any optimizer/search loop remain future work.
+- Raw resistance remains an explicit exploratory comparison input, not a
+  default objective, calibrated prediction, or design-fitness metric.
+
 ## Open Questions
 
 - Should v1 add random or Latin-hypercube sampling, or stay grid-only until
   optimizer requirements are clearer?
-- Which summary/ranking metrics become canonical defaults?
+- Which objective metadata fields and non-default objective roles become
+  canonical before optimizer/search work?
 - Should YAML support be added now, or should JSON remain the only v1 format?
 
 ## Implementation Path

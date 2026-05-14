@@ -8,7 +8,14 @@ from pathlib import Path
 import pytest
 
 from kayakgen.model.hull import Hull
-from kayakgen.ui.web.state import HULL_STATE_FIELDS
+from kayakgen.ui.web.state import (
+    CFD_PAYLOAD_ALIASES,
+    CFD_STATUS_ALIASES,
+    CFD_STATUS_LINE_ALIASES,
+    HULL_STATE_FIELDS,
+    MESH_PACKAGE_REF_ALIASES,
+    WEB_STATE_SCHEMA,
+)
 
 
 pytest.importorskip("trame", reason="kayakgen[web] not installed")
@@ -165,7 +172,7 @@ def test_export_menu_rows_are_single_honest_menu_contract() -> None:
         "Deck STL",
         "Hydro JSON",
         "Stability JSON",
-        "Mesh package...",
+        "Mesh package (CLI only)",
     ]
     assert [row["status"] for row in web_app.EXPORT_MENU_ROWS] == [
         "enabled",
@@ -209,8 +216,20 @@ def test_export_menu_rows_are_single_honest_menu_contract() -> None:
         "",
         "",
     ]
-    assert "kayakgen stability" in web_app.EXPORT_MENU_ROWS[3]["description"]
-    assert "kayakgen mesh-package" in web_app.EXPORT_MENU_ROWS[4]["description"]
+    assert all("description" not in row for row in web_app.EXPORT_MENU_ROWS)
+    assert all(
+        set(row) == {
+            "key",
+            "label",
+            "status",
+            "available",
+            "disabled",
+            "row_class",
+            "action_key",
+            "subtitle",
+        }
+        for row in web_app.EXPORT_MENU_ROWS
+    )
     assert "for row in EXPORT_MENU_ROWS:" in app_source
     assert 'title="Hull STL"' not in app_source
     assert 'subtitle="Current open hull inspection surface"' not in app_source
@@ -232,6 +251,15 @@ def test_state_snapshot_schema_preserves_current_and_legacy_alias_keys() -> None
         "cfd_status_lines",
     )
     assert web_app.STATE_SNAPSHOT_KEYS == expected_keys
+    assert web_app.STATE_SNAPSHOT_KEYS == WEB_STATE_SCHEMA.snapshot_keys
+    assert WEB_STATE_SCHEMA.mesh_package_ref_aliases == MESH_PACKAGE_REF_ALIASES
+    assert WEB_STATE_SCHEMA.cfd_status_aliases == CFD_STATUS_ALIASES
+    assert WEB_STATE_SCHEMA.cfd_payload_aliases == CFD_PAYLOAD_ALIASES
+    assert WEB_STATE_SCHEMA.cfd_status_line_aliases == CFD_STATUS_LINE_ALIASES
+    assert set(MESH_PACKAGE_REF_ALIASES).issubset(web_app.STATE_SNAPSHOT_KEYS)
+    assert set(CFD_STATUS_ALIASES).issubset(web_app.STATE_SNAPSHOT_KEYS)
+    assert set(CFD_PAYLOAD_ALIASES).issubset(web_app.STATE_SNAPSHOT_KEYS)
+    assert set(CFD_STATUS_LINE_ALIASES).issubset(web_app.STATE_SNAPSHOT_KEYS)
 
     web = web_app.create_app(initial_hull=Hull())
     snapshot = web._state_snapshot()

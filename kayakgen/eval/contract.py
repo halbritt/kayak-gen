@@ -106,6 +106,38 @@ class ResistanceCurve(BaseModel):
     metadata: ResistanceMetadata = Field(default_factory=ResistanceMetadata)
 
 
+class GZHeelPointMetadata(BaseModel):
+    """Per-heel convergence and clipping metadata for generated-body GZ."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    heel_deg: float
+    status: Literal["computed", "non_converged", "skipped"]
+    sinkage_m: float | None = None
+    displaced_mass_kg: float | None = None
+    displacement_residual_kg: float | None = None
+    displacement_iterations: int = Field(ge=0)
+    displacement_max_iterations: int = Field(ge=0)
+    trim_angle_deg: float = 0.0
+    longitudinal_moment_residual_kg_m: float | None = None
+    clipping_status: Literal["computed", "failed", "skipped"]
+    warnings: list[str] = Field(default_factory=list)
+
+    @field_validator(
+        "heel_deg",
+        "sinkage_m",
+        "displaced_mass_kg",
+        "displacement_residual_kg",
+        "trim_angle_deg",
+        "longitudinal_moment_residual_kg_m",
+    )
+    @classmethod
+    def _finite_or_none(cls, value: float | None) -> float | None:
+        if value is not None and not math.isfinite(value):
+            raise ValueError("GZ heel metadata values must be finite when present")
+        return value
+
+
 class GZCurve(BaseModel):
     """RFC 0024 high-angle GZ read model with explicit availability state.
 
@@ -118,9 +150,11 @@ class GZCurve(BaseModel):
 
     schema_version: Literal["1"] = "1"
     status: Literal["unavailable", "computed"] = "unavailable"
-    method: Literal["generated_body_handoff", "fixture_only_math"] = (
-        "generated_body_handoff"
-    )
+    method: Literal[
+        "generated_body_handoff",
+        "fixture_only_math",
+        "fixed_trim_generated_body_v1",
+    ] = "generated_body_handoff"
     fixture_only: bool = False
     body_ref: str | None = None
     body_type: str | None = None
@@ -135,6 +169,9 @@ class GZCurve(BaseModel):
     area_under_positive_gz_m_deg: float | None = None
     assumptions: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    heel_point_metadata: list[GZHeelPointMetadata] = Field(default_factory=list)
+    summary_semantics: Literal["grid_bounded"] | None = None
+    result_semantics: Literal["unvalidated_hydrostatic_comparison"] | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -196,6 +233,12 @@ class GZCurve(BaseModel):
                 raise ValueError("computed GZ results must contain at least one heel point")
             if self.body_type == "explicit_synthetic_triangle_mesh" and not self.fixture_only:
                 raise ValueError("synthetic GZ results must be marked fixture_only")
+            if self.method == "fixed_trim_generated_body_v1" and len(
+                self.heel_point_metadata
+            ) != len(self.heel_deg):
+                raise ValueError(
+                    "computed generated-body GZ metadata must align with heel_deg"
+                )
         return self
 
 

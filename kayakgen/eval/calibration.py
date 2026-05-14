@@ -17,6 +17,60 @@ SourceUse = Literal[
     "calibration_fixture_candidate",
     "calibration_fixture",
 ]
+SourceReviewVerdict = Literal[
+    "citation_only",
+    "validation_candidate",
+    "validation_fixture",
+    "calibration_fixture_candidate",
+    "calibration_fixture",
+    "rejected",
+]
+SourceReviewStageLabel = Literal[
+    "candidate_source",
+    "validation_fixture",
+    "calibration_fixture",
+    "rejected_review",
+]
+SourceReviewEvidenceStatus = Literal["accepted", "incomplete", "missing", "not_applicable"]
+
+SOURCE_REVIEW_CHECKLIST_FIELDS = (
+    "rights",
+    "extraction",
+    "measured_quantity",
+    "units",
+    "hull_envelope",
+    "speed_froude_range",
+    "uncertainty",
+)
+SOURCE_USE_BY_REVIEW_VERDICT: dict[SourceReviewVerdict, SourceUse | None] = {
+    "citation_only": "citation_only",
+    "validation_candidate": "validation_candidate",
+    "validation_fixture": "validation_fixture",
+    "calibration_fixture_candidate": "calibration_fixture_candidate",
+    "calibration_fixture": "calibration_fixture",
+    "rejected": None,
+}
+STAGE_LABEL_BY_REVIEW_VERDICT: dict[SourceReviewVerdict, SourceReviewStageLabel] = {
+    "citation_only": "candidate_source",
+    "validation_candidate": "candidate_source",
+    "calibration_fixture_candidate": "candidate_source",
+    "validation_fixture": "validation_fixture",
+    "calibration_fixture": "calibration_fixture",
+    "rejected": "rejected_review",
+}
+
+
+def source_use_for_review_verdict(verdict: SourceReviewVerdict) -> SourceUse | None:
+    """Map an RFC 0042 review verdict onto the existing runtime source-use value.
+
+    ``rejected`` is intentionally review-only and therefore maps to ``None``.
+    """
+    return SOURCE_USE_BY_REVIEW_VERDICT[verdict]
+
+
+def stage_label_for_review_verdict(verdict: SourceReviewVerdict) -> SourceReviewStageLabel:
+    """Return the RFC 0027 grouping for a source-review verdict."""
+    return STAGE_LABEL_BY_REVIEW_VERDICT[verdict]
 
 
 def _metadata_value_missing(value: Any) -> bool:
@@ -102,6 +156,107 @@ class ResistanceSourceRecord(BaseModel):
                 "validation_fixture requires reproducible fixture metadata: "
                 + ", ".join(missing)
             )
+
+
+class ResistanceSourceReviewEvidence(BaseModel):
+    """One checklist item in an RFC 0042 source-review packet."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: SourceReviewEvidenceStatus
+    summary: str = Field(min_length=1)
+    refs: list[str] = Field(default_factory=list)
+
+
+class ResistanceSourceReviewPacket(BaseModel):
+    """Review packet for deciding whether a candidate source may be promoted."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_id: str
+    title: str
+    citation: str
+    locator: str
+    source_type: str
+    measured_data: bool
+    hull_class: str
+    rights: ResistanceSourceReviewEvidence
+    extraction: ResistanceSourceReviewEvidence
+    measured_quantity: ResistanceSourceReviewEvidence
+    units: ResistanceSourceReviewEvidence
+    hull_envelope: ResistanceSourceReviewEvidence
+    speed_froude_range: ResistanceSourceReviewEvidence
+    uncertainty: ResistanceSourceReviewEvidence
+    reviewer: str
+    review_date: str
+    review_verdict: SourceReviewVerdict
+    reasons: list[str] = Field(default_factory=list)
+    non_promotion_reasons: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    fixture_id: str | None = None
+    fixture_version: str | None = None
+    accepted_uses: list[str] = Field(default_factory=list)
+    validity_envelope: dict[str, Any] | None = None
+
+    @property
+    def source_use(self) -> SourceUse | None:
+        """Runtime source-use mapping, or ``None`` for rejected review outcomes."""
+        return source_use_for_review_verdict(self.review_verdict)
+
+    @property
+    def stage_label(self) -> SourceReviewStageLabel:
+        """RFC 0027 stage grouping derived from the review verdict."""
+        return stage_label_for_review_verdict(self.review_verdict)
+
+    def checklist(self) -> dict[str, ResistanceSourceReviewEvidence]:
+        """Return the evidence checklist fields that gate fixture promotion."""
+        return {name: getattr(self, name) for name in SOURCE_REVIEW_CHECKLIST_FIELDS}
+
+    def incomplete_evidence_fields(self) -> list[str]:
+        """Checklist fields that are not accepted for fixture promotion."""
+        return [
+            name
+            for name, evidence in self.checklist().items()
+            if evidence.status != "accepted"
+        ]
+
+    @model_validator(mode="after")
+    def _review_verdict_controls_promotion_metadata(
+        self,
+    ) -> "ResistanceSourceReviewPacket":
+        if self.review_verdict == "rejected":
+            if self.fixture_id or self.fixture_version or self.accepted_uses:
+                raise ValueError("rejected source reviews cannot declare fixture metadata")
+            if self.validity_envelope is not None:
+                raise ValueError("rejected source reviews cannot declare validity envelopes")
+            if not self.non_promotion_reasons:
+                raise ValueError("rejected source reviews require non-promotion reasons")
+            return self
+
+        if self.stage_label == "candidate_source":
+            if self.fixture_id or self.fixture_version or self.accepted_uses:
+                raise ValueError("candidate source reviews cannot declare fixture metadata")
+            if self.validity_envelope is not None:
+                raise ValueError("candidate source reviews cannot declare validity envelopes")
+            if not self.non_promotion_reasons:
+                raise ValueError("candidate source reviews require non-promotion reasons")
+            return self
+
+        incomplete = self.incomplete_evidence_fields()
+        if incomplete:
+            raise ValueError(
+                f"{self.review_verdict} requires complete source-review evidence: "
+                + ", ".join(incomplete)
+            )
+        if not self.measured_data:
+            raise ValueError(f"{self.review_verdict} requires measured source data")
+        if not self.fixture_id or not self.fixture_version:
+            raise ValueError(f"{self.review_verdict} requires fixture ID and version")
+        if self.non_promotion_reasons:
+            raise ValueError(f"{self.review_verdict} cannot carry non-promotion reasons")
+        if self.review_verdict == "calibration_fixture" and self.validity_envelope is None:
+            raise ValueError("calibration_fixture requires a validity envelope")
+        return self
 
 
 def default_resistance_source_registry() -> tuple[ResistanceSourceRecord, ...]:
@@ -198,5 +353,98 @@ def default_resistance_source_registry() -> tuple[ResistanceSourceRecord, ...]:
                 "but it does not provide primary calibration fixture data."
             ),
             warnings=["not_primary_resistance_dataset"],
+        ),
+    )
+
+
+def default_resistance_source_review_packets() -> tuple[ResistanceSourceReviewPacket, ...]:
+    """Return applied RFC 0042 source-review packets.
+
+    Edinburgh is reviewed only as a validation candidate. The packet records
+    why it is not promoted to a validation fixture or calibration fixture.
+    """
+    return (
+        ResistanceSourceReviewPacket(
+            source_id="edinburgh_pacific_canoe_hydrodynamics",
+            title="Hydrodynamics of Three Slender Models Resembling Pacific Canoe Hulls",
+            citation=(
+                "University of Edinburgh DataShare dataset, Hydrodynamics of "
+                "Three Slender Models Resembling Pacific Canoe Hulls, "
+                "DOI 10.7488/ds/3785"
+            ),
+            locator="https://datashare.ed.ac.uk/handle/10283/4772",
+            source_type="open_measured_towing_tank_dataset",
+            measured_data=True,
+            hull_class="pacific_canoe_like_slender_hulls",
+            rights=ResistanceSourceReviewEvidence(
+                status="accepted",
+                summary=(
+                    "Registry and workflow 0050 research record the dataset as "
+                    "CC BY 4.0; this covers dataset evidence, not article prose."
+                ),
+                refs=["doi:10.7488/ds/3785"],
+            ),
+            extraction=ResistanceSourceReviewEvidence(
+                status="incomplete",
+                summary=(
+                    "No checked-in extraction schema, source-file checksum binding, "
+                    "sheet/row filter, unit-normalization script, or row manifest "
+                    "has landed."
+                ),
+            ),
+            measured_quantity=ResistanceSourceReviewEvidence(
+                status="accepted",
+                summary=(
+                    "Workflow 0050 research identifies measured hydrodynamic force "
+                    "and resistance fields in the DataShare workbook."
+                ),
+            ),
+            units=ResistanceSourceReviewEvidence(
+                status="incomplete",
+                summary=(
+                    "Source units are identified in research, but kayakgen has no "
+                    "accepted normalized row schema or conversion manifest."
+                ),
+            ),
+            hull_envelope=ResistanceSourceReviewEvidence(
+                status="accepted",
+                summary=(
+                    "The source covers Pacific-canoe-like slender hull models at "
+                    "fixed sink and trim, outside the sea-kayak calibration envelope."
+                ),
+            ),
+            speed_froude_range=ResistanceSourceReviewEvidence(
+                status="accepted",
+                summary=(
+                    "Workflow 0050 research records model speeds around 0.4-1.6 m/s "
+                    "and Fn about 0.117-0.466; length basis remains part of the "
+                    "future extraction manifest."
+                ),
+            ),
+            uncertainty=ResistanceSourceReviewEvidence(
+                status="incomplete",
+                summary=(
+                    "No accepted uncertainty treatment, repeatability summary, or "
+                    "digitization/Type B uncertainty note is bound to fixture rows."
+                ),
+            ),
+            reviewer="workflow-0051-implementation-burndown-stage1",
+            review_date="2026-05-14",
+            review_verdict="validation_candidate",
+            reasons=[
+                "open_measured_dataset",
+                "validation_source_context_only",
+            ],
+            non_promotion_reasons=[
+                "extraction_schema_missing",
+                "unit_normalized_rows_not_checked_in",
+                "uncertainty_treatment_missing",
+                "outside_sea_kayak_calibration_envelope",
+            ],
+            warnings=[
+                "validation_not_calibration",
+                "pacific_canoe_not_sea_kayak",
+                "fixture_promotion_deferred",
+            ],
         ),
     )

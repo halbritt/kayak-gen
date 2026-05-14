@@ -16,16 +16,18 @@ from kayakgen.eval.claims import (
 )
 from kayakgen.eval.contract import EvaluationResult
 from kayakgen.model.validity import DesignValidityReport
+from kayakgen.search.objectives import (
+    ObjectiveMetadata,
+    default_objectives,
+    objective_metadata_for,
+    objective_requires_accepted_use,
+)
 from kayakgen.search.pareto import CandidatePoint, Direction, Objective, pareto_front
 from kayakgen.search.sweep import CandidateRecord, SweepRunRecord
 
 ReportKind = Literal["pareto_frontier", "exploratory_frontier"]
 
-DEFAULT_OBJECTIVE_CANDIDATES: tuple[Objective, ...] = (
-    Objective(metric="GM0_m", direction="max"),
-    Objective(metric="displacement_error_kg", direction="min"),
-    Objective(metric="mesh_problem_count", direction="min"),
-)
+DEFAULT_OBJECTIVE_CANDIDATES: tuple[Objective, ...] = default_objectives()
 
 
 class CandidateSummary(BaseModel):
@@ -65,6 +67,7 @@ class ComparisonReport(BaseModel):
     spec_hash: str
     report_kind: ReportKind
     objectives: list[Objective]
+    objective_metadata: dict[str, ObjectiveMetadata] = Field(default_factory=dict)
     pareto_front_keys: list[str]
     candidate_summaries: list[CandidateSummary]
     warnings: list[str] = Field(default_factory=list)
@@ -177,11 +180,17 @@ def build_comparison_report(
     if any(_is_design_fitness_metric(objective.metric) for objective in selected_objectives):
         report_warnings.append("exploratory frontier includes final design-fitness objective")
 
+    objective_metadata = {
+        objective.metric: objective_metadata_for(objective)
+        for objective in selected_objectives
+    }
+
     return ComparisonReport(
         run_name=run.name,
         spec_hash=run.spec_hash,
         report_kind=report_kind,
         objectives=selected_objectives,
+        objective_metadata=objective_metadata,
         pareto_front_keys=[point.id for point in front],
         candidate_summaries=candidate_summaries,
         warnings=report_warnings,
@@ -327,7 +336,10 @@ def _default_objectives(summaries: list[CandidateSummary]) -> list[Objective]:
 def _normalize_objectives(objectives: list[Objective]) -> list[Objective]:
     normalized: list[Objective] = []
     for objective in objectives:
-        if _is_claim_gated_metric(objective.metric) and not objective.accepted_use_required:
+        if (
+            (_is_claim_gated_metric(objective.metric) or objective_requires_accepted_use(objective))
+            and not objective.accepted_use_required
+        ):
             normalized.append(objective.model_copy(update={"accepted_use_required": True}))
         else:
             normalized.append(objective)

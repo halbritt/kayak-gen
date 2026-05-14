@@ -56,6 +56,8 @@ from kayakgen.ui.web.controllers import (
 )
 from kayakgen.ui.web.state import (
     HULL_STATE_FIELDS,
+    MESH_PACKAGE_REF_ALIASES,
+    STATE_SNAPSHOT_KEYS,
     decode_hull_query,
     encode_hull_query,
     hull_from_query_string,
@@ -111,7 +113,6 @@ EXPORT_MENU_ROWS: tuple[dict[str, Any], ...] = (
         "row_class": "kg-export-row kg-export-hull-stl",
         "action_key": "export_hull_stl",
         "subtitle": "Current open hull inspection surface",
-        "description": "Download the current open hull inspection surface.",
     },
     {
         "key": "deck_stl",
@@ -122,7 +123,6 @@ EXPORT_MENU_ROWS: tuple[dict[str, Any], ...] = (
         "row_class": "kg-export-row kg-export-deck-stl",
         "action_key": "export_deck_stl",
         "subtitle": "Current open deck inspection surface",
-        "description": "Download the current open deck inspection surface.",
     },
     {
         "key": "hydro_json",
@@ -133,7 +133,6 @@ EXPORT_MENU_ROWS: tuple[dict[str, Any], ...] = (
         "row_class": "kg-export-row kg-export-hydro-json",
         "action_key": "export_hydro_json",
         "subtitle": "Current local evaluation data",
-        "description": "Download current local evaluation data as JSON.",
     },
     {
         "key": "stability_json",
@@ -144,21 +143,16 @@ EXPORT_MENU_ROWS: tuple[dict[str, Any], ...] = (
         "row_class": "kg-export-row kg-export-stability-json",
         "action_key": "",
         "subtitle": "Use kayakgen stability for current initial-stability JSON.",
-        "description": "Use kayakgen stability for current initial-stability JSON.",
     },
     {
         "key": "mesh_package",
-        "label": "Mesh package...",
+        "label": "Mesh package (CLI only)",
         "status": "unavailable",
         "available": False,
         "disabled": True,
         "row_class": "kg-export-row kg-export-mesh-package",
         "action_key": "",
         "subtitle": (
-            "Mesh package authoring is not enabled in the browser; "
-            "use kayakgen mesh-package."
-        ),
-        "description": (
             "Mesh package authoring is not enabled in the browser; "
             "use kayakgen mesh-package."
         ),
@@ -236,21 +230,6 @@ PARAMETER_RAIL_CSS = (
     "overflow: hidden; "
     "text-overflow: ellipsis; "
     "}"
-)
-
-STATE_SNAPSHOT_KEYS: tuple[str, ...] = (
-    *HULL_STATE_FIELDS,
-    "name",
-    "target_speed_kt",
-    "class_preset",
-    "mesh_package_ref",
-    "cfd_mesh_package_ref",
-    "cfd_status",
-    "status",
-    "cfd_payload",
-    "cfd_job_payload",
-    "cfd_last_payload",
-    "cfd_status_lines",
 )
 
 RAW_COMPARATIVE_CAPTION = "Raw comparative filter; not final prediction."
@@ -674,7 +653,7 @@ class KayakgenApp:
             self.state.mesh_deck_diagnostics_lines = ["Deck diagnostics unavailable", *messages]
 
         package_ref = str(
-            state.get("mesh_package_ref") or state.get("cfd_mesh_package_ref") or ""
+            next((state.get(key) for key in MESH_PACKAGE_REF_ALIASES if state.get(key)), "")
         )
         model = mesh_package_view_model(package_ref) if package_ref else None
         if model is None:
@@ -755,7 +734,7 @@ class KayakgenApp:
     def _on_hull_param_change(self, **_kwargs: Any) -> None:
         if self._applying_class_preset:
             return
-        if not self._applying_class_preset and self.state.class_preset != "custom":
+        if self.state.class_preset != "custom":
             if self._state_matches_preset_seed(str(self.state.class_preset)):
                 self._apply_slider_bounds(str(self.state.class_preset))
                 self._refresh_current_hull_surface()

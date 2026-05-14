@@ -182,6 +182,14 @@ def test_watertight_fixture_handoff_manifest_records_hash_bound_evidence(
         "volume_mesh_diagnostic",
         "volume_mesh_artifacts.volume_mesh",
     } <= set(manifest.evidence_hashes)
+    assert set(manifest.evidence_hash_algorithms) == set(manifest.evidence_hashes)
+    assert set(manifest.evidence_hash_algorithms.values()) == {"sha256"}
+    assert manifest.evidence_hash_algorithm == "sha256"
+    assert manifest.volume_mesh_boundary_patches[0].name == "generated_hull_plus_deck"
+    assert (
+        manifest.volume_mesh_boundary_markers["generated_hull_plus_deck"]
+        == "wall:generated_hull_plus_deck"
+    )
     for ref in [
         manifest.closed_volume_diagnostic,
         manifest.self_intersection_diagnostic,

@@ -122,6 +122,22 @@ def test_default_comparison_report_is_deterministic(tmp_path: Path) -> None:
     assert all("GM0_m" in summary.objective_values for summary in first.candidate_summaries)
 
 
+def test_default_objective_metadata_is_conservative(tmp_path: Path) -> None:
+    run_sweep(_spec(), tmp_path)
+
+    report = build_comparison_report(tmp_path)
+
+    metadata = report.objective_metadata["GM0_m"]
+    assert metadata.label == "Initial metacentric height"
+    assert metadata.unit == "m"
+    assert metadata.direction == "max"
+    assert metadata.source_evaluator == "hydrostatics"
+    assert metadata.claim_state_required is None
+    assert metadata.accepted_use_required is None
+    assert metadata.role == "default_conservative"
+    assert "Rt_N_last" not in report.objective_metadata
+
+
 def test_default_comparison_excludes_raw_resistance_metric(tmp_path: Path) -> None:
     run = run_sweep(_spec(), tmp_path)
     for record in run.candidates:
@@ -290,6 +306,13 @@ def test_raw_resistance_objective_is_exploratory_and_requires_provenance(tmp_pat
         "metric requires accepted-use provenance: Rt_N_last" in summary.warnings
         for summary in report.candidate_summaries
     )
+    metadata = report.objective_metadata["Rt_N_last"]
+    assert metadata.label == "Total resistance at last sweep speed"
+    assert metadata.unit == "N"
+    assert metadata.source_evaluator == "resistance"
+    assert metadata.claim_state_required == "calibrated_model"
+    assert metadata.accepted_use_required == "final_prediction"
+    assert metadata.role == "explicit_exploratory"
 
 
 def test_forged_legacy_final_prediction_metadata_is_not_accepted(tmp_path: Path) -> None:
@@ -443,6 +466,27 @@ def test_calibrated_resistance_is_not_final_design_fitness(tmp_path: Path) -> No
     assert summary.provenance["design_fitness"]["claim_state"] == "calibrated_model"
     assert "metric requires accepted-use provenance: design_fitness" in summary.warnings
     assert "exploratory frontier includes final design-fitness objective" in report.warnings
+    metadata = report.objective_metadata["design_fitness"]
+    assert metadata.source_evaluator == "reserved_claim_gate"
+    assert metadata.claim_state_required == "validated_design_fitness"
+    assert metadata.accepted_use_required == "final_design_fitness"
+    assert metadata.role == "claim_gated_reserved"
+
+
+def test_unsupported_objective_metadata_is_explicit(tmp_path: Path) -> None:
+    run_sweep(_spec(), tmp_path)
+
+    report = build_comparison_report(
+        tmp_path,
+        objectives=[Objective(metric="not_a_metric", direction="min")],
+    )
+
+    metadata = report.objective_metadata["not_a_metric"]
+    assert metadata.label == "not_a_metric"
+    assert metadata.unit == "unknown"
+    assert metadata.direction == "min"
+    assert metadata.source_evaluator == "unknown"
+    assert metadata.role == "unsupported"
 
 
 def test_write_comparison_report_round_trips(tmp_path: Path) -> None:

@@ -9,6 +9,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -27,13 +29,36 @@ from kayakgen.eval.volume_mesh import (
 )
 
 CfdRunStatus = Literal["queued", "running", "succeeded", "failed", "unavailable"]
-CfdAdapterName = Literal["unavailable", "mock_local_command", "fixture_local_command"]
+CfdAdapterName = Literal[
+    "unavailable",
+    "mock_local_command",
+    "fixture_local_command",
+    "openfoam_local",
+]
 CFD_RAW_RESULTS_WARNING = "CFD results are raw and unvalidated."
 CFD_FIXTURE_RESULTS_WARNING = (
     "Fixture CFD output is not calibrated, validated, or final design fitness."
 )
 FIXTURE_CASE_TEMPLATE_VERSION = "fixture-local-command-v1"
 FIXTURE_RAW_OUTPUT = "raw-result.json"
+OPENFOAM_PROFILE_NAME = "openfoam-v2512-interfoam-local"
+OPENFOAM_SOLVER_NAME = "OpenFOAM.com OpenFOAM-v2512 interFoam"
+OPENFOAM_REQUIRED_VERSION = "v2512"
+OPENFOAM_CASE_TEMPLATE_VERSION = "openfoam-v2512-interfoam-dtchull-v1"
+OPENFOAM_CASE_ROOT = "case/openfoam"
+OPENFOAM_CASE_INPUT = "case/openfoam/kayakgen-case.json"
+OPENFOAM_COMMAND_SPEC = "case/openfoam/kayakgen-command.json"
+OPENFOAM_FORCE_DAT_OUTPUT = "postProcessing/forces/0/force.dat"
+OPENFOAM_RAW_RESULT = "openfoam-raw-result.json"
+OPENFOAM_COMMAND_TIMEOUT_SECONDS = 60.0
+OPENFOAM_LOG_LIMIT_BYTES = 65536
+CFD_OPENFOAM_RESULTS_WARNING = (
+    "OpenFOAM adapter skeleton output is not calibrated, validated, or final design fitness."
+)
+OPENFOAM_SUCCESS_BLOCKED_WARNING = (
+    "OpenFOAM command output is parser-readable but this skeleton does not enable "
+    "a real succeeded path; raw output remains unvalidated."
+)
 
 READINESS_ORDER: dict[ReadinessLevel, int] = {
     "invalid": 0,
@@ -67,6 +92,18 @@ class SolverProfile(RawUnvalidatedClaimFields):
     adapter_name: CfdAdapterName
     container_image: str | None = None
     command_template: list[str] = Field(default_factory=list)
+    solver_name: str | None = None
+    solver_version_command: list[str] = Field(default_factory=list)
+    required_solver_version: str | None = None
+    case_template_version: str | None = None
+    supported_platforms: list[str] = Field(default_factory=list)
+    supported_speed_range_mps: tuple[float, float] | None = None
+    supported_fluid_model: str | None = None
+    expected_raw_outputs: list[str] = Field(default_factory=list)
+    install_notes: str | None = None
+    known_limitations: list[str] = Field(default_factory=list)
+    timeout_seconds: float | None = Field(default=None, gt=0)
+    log_limit_bytes: int | None = Field(default=None, gt=0)
     required_mesh_profile: str | None = None
     result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
 
@@ -254,6 +291,120 @@ class CfdFixtureRawResult(RawUnvalidatedClaimFields):
     result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
 
 
+class CfdOpenFoamMeshSummary(BaseModel):
+    """Stable mesh metadata written into deterministic OpenFOAM skeleton cases."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    manifest_ref: str
+    mesh_package_ref: str
+    hull_hash: str
+    body_ref: str | None = None
+    units: str
+    readiness: ReadinessLevel
+    solver_profile: str
+    parts: list[str]
+    quality_reports: dict[str, str]
+    surfaces: dict[str, str]
+    volume_mesh_diagnostic: str | None = None
+    volume_mesh_artifacts: dict[str, str] = Field(default_factory=dict)
+    evidence_hashes: dict[str, str] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class CfdOpenFoamCaseInput(BaseModel):
+    """Deterministic metadata for the OpenFOAM v2512 interFoam skeleton case."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    case_template_version: Literal["openfoam-v2512-interfoam-dtchull-v1"] = (
+        OPENFOAM_CASE_TEMPLATE_VERSION
+    )
+    job_id: str
+    solver_profile: str
+    solver_name: str
+    required_solver_version: str
+    speed_mps: float = Field(gt=0)
+    seawater_density_kg_m3: float = Field(gt=0)
+    kinematic_viscosity_m2_s: float = Field(gt=0)
+    expected_raw_outputs: list[str]
+    mesh: CfdOpenFoamMeshSummary
+    limitations: list[str]
+    warnings: list[str] = Field(default_factory=list)
+    result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
+
+
+class CfdOpenFoamCommandSpec(BaseModel):
+    """Deterministic command metadata written next to OpenFOAM skeleton cases."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    command: list[str]
+    version_command: list[str]
+    timeout_seconds: float = Field(gt=0)
+    log_limit_bytes: int = Field(gt=0)
+    expected_raw_outputs: list[str]
+    result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
+
+
+class CfdOpenFoamForceDatSample(BaseModel):
+    """One parsed OpenFOAM force.dat sample."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    time_s: float
+    pressure_force_n: tuple[float, float, float]
+    viscous_force_n: tuple[float, float, float]
+    porous_force_n: tuple[float, float, float]
+    total_force_n: tuple[float, float, float]
+    drag_force_n: float
+
+
+class CfdOpenFoamForceDatResult(RawUnvalidatedClaimFields):
+    """Parsed raw force.dat values from the selected OpenFOAM adapter scope."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    source_ref: str
+    sample_count: int = Field(ge=1)
+    last_sample: CfdOpenFoamForceDatSample
+    result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
+
+
+class CfdOpenFoamRawResult(RawUnvalidatedClaimFields):
+    """Normalized raw OpenFOAM skeleton output.
+
+    This model is available for parser fixtures and blocked local runs only.
+    The adapter intentionally does not return a succeeded run record yet.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    job_id: str
+    solver_name: str
+    solver_version: str
+    case_template_version: Literal["openfoam-v2512-interfoam-dtchull-v1"] = (
+        OPENFOAM_CASE_TEMPLATE_VERSION
+    )
+    speed_mps: float = Field(gt=0)
+    seawater_density_kg_m3: float = Field(gt=0)
+    kinematic_viscosity_m2_s: float = Field(gt=0)
+    mesh_profile: str
+    mesh_readiness: ReadinessLevel
+    drag_force_n: float | None = None
+    residual_summary: dict[str, float] = Field(default_factory=dict)
+    raw_output_refs: list[str] = Field(default_factory=list)
+    command: list[str]
+    version_command: list[str]
+    returncode: int
+    warnings: list[str] = Field(default_factory=list)
+    result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
+
+
 class SolverAdapter(Protocol):
     """Narrow boundary for local solver adapters."""
 
@@ -323,6 +474,44 @@ def fixture_local_command_profile() -> SolverProfile:
             FIXTURE_RAW_OUTPUT,
         ],
         required_mesh_profile="open_wetted_surface_resistance_v1",
+    )
+
+
+def openfoam_v2512_interfoam_local_profile() -> SolverProfile:
+    """Return the first external-solver skeleton profile selected by D004."""
+    return SolverProfile(
+        name=OPENFOAM_PROFILE_NAME,
+        required_mesh_readiness="cfd_ready",
+        adapter_name="openfoam_local",
+        command_template=[
+            "interFoam",
+            "-case",
+            OPENFOAM_CASE_ROOT,
+        ],
+        solver_name=OPENFOAM_SOLVER_NAME,
+        solver_version_command=["foamVersion"],
+        required_solver_version=OPENFOAM_REQUIRED_VERSION,
+        case_template_version=OPENFOAM_CASE_TEMPLATE_VERSION,
+        supported_platforms=[
+            "Linux primary local install",
+            "macOS optional Docker/source route",
+            "Windows optional WSL/Docker route",
+        ],
+        supported_speed_range_mps=(0.1, 6.0),
+        supported_fluid_model="local incompressible two-phase water/air interFoam skeleton",
+        expected_raw_outputs=[OPENFOAM_FORCE_DAT_OUTPUT],
+        install_notes=(
+            "Requires OpenFOAM.com OpenFOAM-v2512 on PATH; required CI uses "
+            "fake commands and parser fixtures instead of an installed solver."
+        ),
+        known_limitations=[
+            "No production OpenFOAM-readable volume mesh evidence is accepted yet.",
+            "No real OpenFOAM succeeded run record is enabled in this skeleton.",
+            "Any parsed force.dat value is raw_unvalidated and not calibrated CFD.",
+        ],
+        timeout_seconds=OPENFOAM_COMMAND_TIMEOUT_SECONDS,
+        log_limit_bytes=OPENFOAM_LOG_LIMIT_BYTES,
+        required_mesh_profile="watertight_solid_resistance_v1",
     )
 
 
@@ -435,7 +624,7 @@ def prepare_local_job(
     _write_json(job_dir / "job.json", job_spec)
     _write_json(job_dir / "run.json", run_record)
 
-    if solver_profile.adapter_name == "fixture_local_command":
+    if solver_profile.adapter_name in {"fixture_local_command", "openfoam_local"}:
         prepared_case = PreparedSolverCase(
             job_dir=job_dir,
             job_spec=job_spec,
@@ -731,6 +920,649 @@ class FixtureLocalCommandAdapter:
             started_at=_utc_now(),
             finished_at=_utc_now(),
         )
+
+
+class OpenFoamLocalAdapter:
+    """OpenFOAM.com v2512 interFoam skeleton adapter.
+
+    The adapter prepares deterministic case files and records dependency,
+    command, timeout, and parser failures. It intentionally does not report a
+    real ``succeeded`` state in this slice.
+    """
+
+    def prepare(self, case: PreparedSolverCase) -> PreparedSolverCase:
+        case_root = case.job_dir / OPENFOAM_CASE_ROOT
+        logs_dir = case.job_dir / "logs"
+        for path in (
+            case_root / "0",
+            case_root / "constant",
+            case_root / "system",
+            logs_dir,
+        ):
+            path.mkdir(parents=True, exist_ok=True)
+
+        openfoam_case = CfdOpenFoamCaseInput(
+            job_id=case.job_spec.job_id,
+            solver_profile=case.job_spec.solver_profile,
+            solver_name=case.solver_profile.solver_name or OPENFOAM_SOLVER_NAME,
+            required_solver_version=(
+                case.solver_profile.required_solver_version or OPENFOAM_REQUIRED_VERSION
+            ),
+            speed_mps=case.job_spec.speed_mps,
+            seawater_density_kg_m3=case.job_spec.seawater_density_kg_m3,
+            kinematic_viscosity_m2_s=case.job_spec.kinematic_viscosity_m2_s,
+            expected_raw_outputs=list(case.solver_profile.expected_raw_outputs),
+            mesh=CfdOpenFoamMeshSummary(
+                manifest_ref=case.job_spec.input_manifest,
+                mesh_package_ref=case.job_spec.mesh_package_ref,
+                hull_hash=case.mesh_manifest.hull_hash,
+                body_ref=case.mesh_manifest.body_ref,
+                units=case.mesh_manifest.units,
+                readiness=case.mesh_manifest.readiness.level,
+                solver_profile=case.mesh_manifest.solver_profile.profile_name,
+                parts=list(case.mesh_manifest.parts),
+                quality_reports={
+                    key: value
+                    for key, value in sorted(case.mesh_manifest.quality_reports.items())
+                },
+                surfaces={
+                    key: value for key, value in sorted(case.mesh_manifest.surfaces.items())
+                },
+                volume_mesh_diagnostic=case.mesh_manifest.volume_mesh_diagnostic,
+                volume_mesh_artifacts=dict(
+                    sorted(case.mesh_manifest.volume_mesh_artifacts.items())
+                ),
+                evidence_hashes=dict(sorted(case.mesh_manifest.evidence_hashes.items())),
+                warnings=list(case.mesh_manifest.warnings),
+            ),
+            limitations=list(case.solver_profile.known_limitations),
+            warnings=_openfoam_warnings(),
+        )
+        command_spec = CfdOpenFoamCommandSpec(
+            command=list(case.solver_profile.command_template),
+            version_command=list(case.solver_profile.solver_version_command),
+            timeout_seconds=_openfoam_timeout_seconds(case.solver_profile),
+            log_limit_bytes=_openfoam_log_limit_bytes(case.solver_profile),
+            expected_raw_outputs=list(case.solver_profile.expected_raw_outputs),
+        )
+        _write_json(case.job_dir / OPENFOAM_CASE_INPUT, openfoam_case)
+        _write_json(case.job_dir / OPENFOAM_COMMAND_SPEC, command_spec)
+        _write_text(case_root / "system" / "controlDict", _openfoam_control_dict(case))
+        _write_text(
+            case_root / "constant" / "transportProperties",
+            _openfoam_transport_properties(case),
+        )
+        _write_text(case_root / "constant" / "g", _openfoam_gravity_dict())
+        _write_text(
+            case_root / "constant" / "turbulenceProperties",
+            _openfoam_turbulence_properties(),
+        )
+        _write_text(case_root / "system" / "fvSchemes", _openfoam_fv_schemes())
+        _write_text(case_root / "system" / "fvSolution", _openfoam_fv_solution())
+        _write_text(case_root / "0" / "U", _openfoam_velocity_field(case))
+        _write_text(case_root / "0" / "p_rgh", _openfoam_pressure_field())
+        _write_text(case_root / "0" / "alpha.water", _openfoam_alpha_field())
+        _write_text(case_root / "README.kayakgen.txt", _openfoam_readme())
+        return case
+
+    def run(self, case: PreparedSolverCase) -> SolverRawResult:
+        version, version_logs, version_error = _probe_openfoam_version(case)
+        if version_error is not None:
+            return version_error
+
+        try:
+            _clear_openfoam_run_outputs(case)
+        except OSError as exc:
+            return SolverRawResult(
+                status="failed",
+                error_kind="output_cleanup_failed",
+                error_message=f"OpenFOAM stale output cleanup failed: {exc}",
+                logs=version_logs,
+                raw_records={
+                    "command": list(case.solver_profile.command_template),
+                    "solver_version": version,
+                },
+                warnings=_openfoam_warnings(),
+            )
+
+        try:
+            completed = subprocess.run(
+                case.solver_profile.command_template,
+                cwd=case.job_dir,
+                capture_output=True,
+                check=False,
+                text=True,
+                timeout=_openfoam_timeout_seconds(case.solver_profile),
+            )
+        except (FileNotFoundError, PermissionError) as exc:
+            completed = subprocess.CompletedProcess(
+                args=case.solver_profile.command_template,
+                returncode=127,
+                stdout="",
+                stderr=str(exc),
+            )
+            command_logs = _write_command_logs(
+                case.job_dir,
+                completed,
+                max_chars=_openfoam_log_limit_bytes(case.solver_profile),
+            )
+            return SolverRawResult(
+                status="unavailable",
+                error_kind="solver_unavailable",
+                error_message=f"OpenFOAM solver command unavailable: {exc}",
+                logs={**version_logs, **command_logs},
+                raw_records={
+                    "command": list(case.solver_profile.command_template),
+                    "solver_version": version,
+                },
+                warnings=_openfoam_warnings(),
+            )
+        except subprocess.TimeoutExpired as exc:
+            completed = _completed_from_timeout(
+                case.solver_profile.command_template,
+                exc,
+            )
+            command_logs = _write_command_logs(
+                case.job_dir,
+                completed,
+                max_chars=_openfoam_log_limit_bytes(case.solver_profile),
+            )
+            return SolverRawResult(
+                status="failed",
+                error_kind="timeout",
+                error_message=(
+                    "OpenFOAM solver command timed out after "
+                    f"{_openfoam_timeout_seconds(case.solver_profile):g}s; "
+                    "raw solver output is unvalidated"
+                ),
+                logs={**version_logs, **command_logs},
+                raw_records={
+                    "command": list(case.solver_profile.command_template),
+                    "solver_version": version,
+                },
+                warnings=_openfoam_warnings(),
+            )
+
+        command_logs = _write_command_logs(
+            case.job_dir,
+            completed,
+            max_chars=_openfoam_log_limit_bytes(case.solver_profile),
+        )
+        logs = {**version_logs, **command_logs}
+        if completed.returncode != 0:
+            message = (
+                f"OpenFOAM solver command exited with code {completed.returncode}; "
+                "raw solver output is unvalidated"
+            )
+            if completed.stderr.strip():
+                message = f"{message}: {_cap_text(completed.stderr.strip(), 500)}"
+            return SolverRawResult(
+                status="failed",
+                error_kind="command_failed",
+                error_message=message,
+                logs=logs,
+                raw_records={
+                    "returncode": completed.returncode,
+                    "solver_version": version,
+                },
+                warnings=_openfoam_warnings(),
+            )
+
+        force_path = case.job_dir / OPENFOAM_CASE_ROOT / OPENFOAM_FORCE_DAT_OUTPUT
+        if not force_path.is_file():
+            return SolverRawResult(
+                status="failed",
+                error_kind="missing_output",
+                error_message=(
+                    "OpenFOAM solver command did not write required "
+                    f"{OPENFOAM_FORCE_DAT_OUTPUT}"
+                ),
+                logs=logs,
+                raw_records={
+                    "returncode": completed.returncode,
+                    "solver_version": version,
+                },
+                warnings=_openfoam_warnings(),
+            )
+
+        try:
+            force_result = parse_openfoam_force_dat(
+                force_path,
+                source_ref=_relative_ref(force_path, case.job_dir),
+            )
+        except CfdDispatchError as exc:
+            return SolverRawResult(
+                status="failed",
+                error_kind=exc.code,
+                error_message=f"{OPENFOAM_FORCE_DAT_OUTPUT} is malformed: {exc}",
+                logs=logs,
+                raw_records={
+                    "returncode": completed.returncode,
+                    "solver_version": version,
+                },
+                warnings=_openfoam_warnings(),
+            )
+
+        normalized = CfdOpenFoamRawResult(
+            job_id=case.job_spec.job_id,
+            solver_name=case.solver_profile.solver_name or OPENFOAM_SOLVER_NAME,
+            solver_version=version or "",
+            speed_mps=case.job_spec.speed_mps,
+            seawater_density_kg_m3=case.job_spec.seawater_density_kg_m3,
+            kinematic_viscosity_m2_s=case.job_spec.kinematic_viscosity_m2_s,
+            mesh_profile=case.mesh_manifest.solver_profile.profile_name,
+            mesh_readiness=case.mesh_manifest.readiness.level,
+            drag_force_n=force_result.last_sample.drag_force_n,
+            raw_output_refs=[force_result.source_ref],
+            command=list(case.solver_profile.command_template),
+            version_command=list(case.solver_profile.solver_version_command),
+            returncode=completed.returncode,
+            warnings=[*_openfoam_warnings(), OPENFOAM_SUCCESS_BLOCKED_WARNING],
+        )
+        _write_json(case.job_dir / OPENFOAM_RAW_RESULT, normalized)
+        return SolverRawResult(
+            status="failed",
+            output_manifest=OPENFOAM_RAW_RESULT,
+            error_kind="solver_success_blocked",
+            error_message=(
+                "OpenFOAM command completed and force.dat parsed, but this skeleton "
+                "does not enable real succeeded records until OpenFOAM-readable "
+                "volume-mesh evidence is accepted"
+            ),
+            logs=logs,
+            raw_records=normalized.model_dump(mode="python"),
+            warnings=list(normalized.warnings),
+        )
+
+    def collect(self, case: PreparedSolverCase, result: SolverRawResult) -> CfdRunRecord:
+        return _run_record_from_result(
+            case.job_spec,
+            result,
+            started_at=_utc_now(),
+            finished_at=_utc_now(),
+        )
+
+
+_FLOAT_RE = re.compile(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?")
+
+
+def parse_openfoam_force_dat(
+    path: str | Path,
+    *,
+    source_ref: str | None = None,
+) -> CfdOpenFoamForceDatResult:
+    """Parse the accepted OpenFOAM ``postProcessing/forces/**/force.dat`` shape."""
+    force_path = Path(path)
+    try:
+        lines = force_path.read_text().splitlines()
+    except FileNotFoundError as exc:
+        raise CfdDispatchError(
+            f"OpenFOAM force.dat not found: {force_path}",
+            code="missing_output",
+        ) from exc
+
+    samples: list[CfdOpenFoamForceDatSample] = []
+    for line_number, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        samples.append(_parse_openfoam_force_dat_line(stripped, line_number=line_number))
+
+    if not samples:
+        raise CfdDispatchError(
+            f"OpenFOAM force.dat contains no data rows: {force_path}",
+            code="malformed_output",
+        )
+
+    return CfdOpenFoamForceDatResult(
+        source_ref=source_ref or force_path.as_posix(),
+        sample_count=len(samples),
+        last_sample=samples[-1],
+        warnings=_openfoam_warnings(),
+    )
+
+
+def _parse_openfoam_force_dat_line(
+    line: str,
+    *,
+    line_number: int,
+) -> CfdOpenFoamForceDatSample:
+    values = [float(match.group(0)) for match in _FLOAT_RE.finditer(line)]
+    if len(values) < 10:
+        raise CfdDispatchError(
+            f"OpenFOAM force.dat line {line_number} has too few numeric fields",
+            code="malformed_output",
+        )
+
+    pressure = _vector3(values[1:4])
+    viscous = _vector3(values[4:7])
+    porous = _vector3(values[7:10])
+    total = tuple(pressure[index] + viscous[index] + porous[index] for index in range(3))
+    return CfdOpenFoamForceDatSample(
+        time_s=values[0],
+        pressure_force_n=pressure,
+        viscous_force_n=viscous,
+        porous_force_n=porous,
+        total_force_n=total,
+        drag_force_n=total[0],
+    )
+
+
+def _vector3(values: list[float]) -> tuple[float, float, float]:
+    return (values[0], values[1], values[2])
+
+
+def _probe_openfoam_version(
+    case: PreparedSolverCase,
+) -> tuple[str | None, dict[str, str], SolverRawResult | None]:
+    version_command = list(case.solver_profile.solver_version_command)
+    if not version_command:
+        return (
+            None,
+            {},
+            SolverRawResult(
+                status="unavailable",
+                error_kind="solver_unavailable",
+                error_message="OpenFOAM solver version command is not configured",
+                raw_records={"version_command": version_command},
+                warnings=_openfoam_warnings(),
+            ),
+        )
+
+    try:
+        completed = subprocess.run(
+            version_command,
+            cwd=case.job_dir,
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=_openfoam_timeout_seconds(case.solver_profile),
+        )
+    except (FileNotFoundError, PermissionError) as exc:
+        completed = subprocess.CompletedProcess(
+            args=version_command,
+            returncode=127,
+            stdout="",
+            stderr=str(exc),
+        )
+        logs = _write_command_logs(
+            case.job_dir,
+            completed,
+            stdout_name="version_stdout.log",
+            stderr_name="version_stderr.log",
+            max_chars=_openfoam_log_limit_bytes(case.solver_profile),
+        )
+        return (
+            None,
+            logs,
+            SolverRawResult(
+                status="unavailable",
+                error_kind="solver_unavailable",
+                error_message=f"OpenFOAM version command unavailable: {exc}",
+                logs=logs,
+                raw_records={"version_command": version_command},
+                warnings=_openfoam_warnings(),
+            ),
+        )
+    except subprocess.TimeoutExpired as exc:
+        completed = _completed_from_timeout(version_command, exc)
+        logs = _write_command_logs(
+            case.job_dir,
+            completed,
+            stdout_name="version_stdout.log",
+            stderr_name="version_stderr.log",
+            max_chars=_openfoam_log_limit_bytes(case.solver_profile),
+        )
+        return (
+            None,
+            logs,
+            SolverRawResult(
+                status="unavailable",
+                error_kind="version_check_timeout",
+                error_message=(
+                    "OpenFOAM version command timed out after "
+                    f"{_openfoam_timeout_seconds(case.solver_profile):g}s"
+                ),
+                logs=logs,
+                raw_records={"version_command": version_command},
+                warnings=_openfoam_warnings(),
+            ),
+        )
+
+    logs = _write_command_logs(
+        case.job_dir,
+        completed,
+        stdout_name="version_stdout.log",
+        stderr_name="version_stderr.log",
+        max_chars=_openfoam_log_limit_bytes(case.solver_profile),
+    )
+    version_text = "\n".join(
+        part for part in (completed.stdout.strip(), completed.stderr.strip()) if part
+    )
+    version = _first_nonempty_line(version_text)
+    if completed.returncode != 0:
+        return (
+            version,
+            logs,
+            SolverRawResult(
+                status="unavailable",
+                error_kind="version_check_failed",
+                error_message=(
+                    f"OpenFOAM version command exited with code {completed.returncode}"
+                ),
+                logs=logs,
+                raw_records={
+                    "version_command": version_command,
+                    "returncode": completed.returncode,
+                    "solver_version": version,
+                },
+                warnings=_openfoam_warnings(),
+            ),
+        )
+
+    required = case.solver_profile.required_solver_version
+    if required and required not in version_text:
+        return (
+            version,
+            logs,
+            SolverRawResult(
+                status="unavailable",
+                error_kind="version_mismatch",
+                error_message=(
+                    f"OpenFOAM version output did not include required {required!r}"
+                ),
+                logs=logs,
+                raw_records={
+                    "version_command": version_command,
+                    "solver_version": version,
+                    "required_solver_version": required,
+                },
+                warnings=_openfoam_warnings(),
+            ),
+        )
+
+    return version, logs, None
+
+
+def _openfoam_timeout_seconds(profile: SolverProfile) -> float:
+    return profile.timeout_seconds or OPENFOAM_COMMAND_TIMEOUT_SECONDS
+
+
+def _openfoam_log_limit_bytes(profile: SolverProfile) -> int:
+    return profile.log_limit_bytes or OPENFOAM_LOG_LIMIT_BYTES
+
+
+def _clear_openfoam_run_outputs(case: PreparedSolverCase) -> None:
+    case_root = case.job_dir / OPENFOAM_CASE_ROOT
+    stale_paths = [
+        case.job_dir / OPENFOAM_RAW_RESULT,
+        case_root / "postProcessing" / "forces",
+    ]
+    for path in stale_paths:
+        if path.is_dir():
+            shutil.rmtree(path)
+        elif path.exists():
+            path.unlink()
+
+
+def _openfoam_warnings() -> list[str]:
+    return [WARNING_RAW_CFD_UNVALIDATED, CFD_OPENFOAM_RESULTS_WARNING]
+
+
+def _first_nonempty_line(text: str) -> str | None:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped:
+            return stripped
+    return None
+
+
+def _completed_from_timeout(
+    args: list[str],
+    exc: subprocess.TimeoutExpired,
+) -> subprocess.CompletedProcess[str]:
+    stdout = _process_text(exc.stdout)
+    stderr = _process_text(exc.stderr)
+    if stderr:
+        stderr = f"{stderr}\n"
+    stderr = f"{stderr}timeout after {exc.timeout:g}s\n"
+    return subprocess.CompletedProcess(
+        args=args,
+        returncode=124,
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+
+def _process_text(value: str | bytes | None) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
+def _cap_text(text: str, max_chars: int) -> str:
+    if len(text) <= max_chars:
+        return text
+    omitted = len(text) - max_chars
+    return f"{text[:max_chars]}\n[truncated {omitted} chars]\n"
+
+
+def _openfoam_control_dict(case: PreparedSolverCase) -> str:
+    density = case.job_spec.seawater_density_kg_m3
+    return (
+        "/* kayakgen deterministic OpenFOAM skeleton controlDict */\n"
+        f"// case_template_version {OPENFOAM_CASE_TEMPLATE_VERSION}\n"
+        "application interFoam;\n"
+        "startFrom startTime;\n"
+        "startTime 0;\n"
+        "stopAt endTime;\n"
+        "endTime 1;\n"
+        "deltaT 1;\n"
+        "writeControl timeStep;\n"
+        "writeInterval 1;\n"
+        "purgeWrite 0;\n"
+        "functions\n"
+        "{\n"
+        "    forces\n"
+        "    {\n"
+        "        type forces;\n"
+        "        libs (\"libforces.so\");\n"
+        "        patches (hull);\n"
+        f"        rhoInf {_format_float(density)};\n"
+        "        CofR (0 0 0);\n"
+        "        writeControl timeStep;\n"
+        "        writeInterval 1;\n"
+        "    }\n"
+        "}\n"
+    )
+
+
+def _openfoam_transport_properties(case: PreparedSolverCase) -> str:
+    nu = case.job_spec.kinematic_viscosity_m2_s
+    return (
+        "/* kayakgen deterministic OpenFOAM skeleton transportProperties */\n"
+        f"// case_template_version {OPENFOAM_CASE_TEMPLATE_VERSION}\n"
+        f"nu [0 2 -1 0 0 0 0] {_format_float(nu)};\n"
+    )
+
+
+def _openfoam_gravity_dict() -> str:
+    return (
+        "/* kayakgen deterministic OpenFOAM skeleton gravity */\n"
+        "dimensions [0 1 -2 0 0 0 0];\n"
+        "value (0 0 -9.80665);\n"
+    )
+
+
+def _openfoam_turbulence_properties() -> str:
+    return (
+        "/* kayakgen deterministic OpenFOAM skeleton turbulenceProperties */\n"
+        "simulationType laminar;\n"
+    )
+
+
+def _openfoam_fv_schemes() -> str:
+    return (
+        "/* kayakgen deterministic OpenFOAM skeleton fvSchemes */\n"
+        "ddtSchemes { default Euler; }\n"
+        "gradSchemes { default Gauss linear; }\n"
+        "divSchemes { default none; }\n"
+        "laplacianSchemes { default Gauss linear corrected; }\n"
+        "interpolationSchemes { default linear; }\n"
+        "snGradSchemes { default corrected; }\n"
+    )
+
+
+def _openfoam_fv_solution() -> str:
+    return (
+        "/* kayakgen deterministic OpenFOAM skeleton fvSolution */\n"
+        "solvers { }\n"
+        "PIMPLE { nCorrectors 1; nNonOrthogonalCorrectors 0; }\n"
+    )
+
+
+def _openfoam_velocity_field(case: PreparedSolverCase) -> str:
+    speed = case.job_spec.speed_mps
+    return (
+        "/* kayakgen deterministic OpenFOAM skeleton U field */\n"
+        "dimensions [0 1 -1 0 0 0 0];\n"
+        f"internalField uniform ({_format_float(speed)} 0 0);\n"
+        "boundaryField { }\n"
+    )
+
+
+def _openfoam_pressure_field() -> str:
+    return (
+        "/* kayakgen deterministic OpenFOAM skeleton p_rgh field */\n"
+        "dimensions [1 -1 -2 0 0 0 0];\n"
+        "internalField uniform 0;\n"
+        "boundaryField { }\n"
+    )
+
+
+def _openfoam_alpha_field() -> str:
+    return (
+        "/* kayakgen deterministic OpenFOAM skeleton alpha.water field */\n"
+        "dimensions [0 0 0 0 0 0 0];\n"
+        "internalField uniform 1;\n"
+        "boundaryField { }\n"
+    )
+
+
+def _openfoam_readme() -> str:
+    return (
+        "kayakgen OpenFOAM skeleton case\n"
+        f"case_template_version: {OPENFOAM_CASE_TEMPLATE_VERSION}\n"
+        "This is deterministic adapter scaffolding, not a validated CFD setup.\n"
+        "Required CI uses fake commands and parser fixtures; OpenFOAM is not required.\n"
+        "A real succeeded OpenFOAM run record is intentionally blocked in this slice.\n"
+    )
+
+
+def _format_float(value: float) -> str:
+    return f"{value:.12g}"
 
 
 def _load_mesh_manifest(mesh_dir: Path) -> MeshPackageManifest:
@@ -1237,6 +2069,8 @@ def _adapter_for(solver_profile: SolverProfile) -> SolverAdapter:
         return MockFailingLocalCommandAdapter()
     if solver_profile.adapter_name == "fixture_local_command":
         return FixtureLocalCommandAdapter()
+    if solver_profile.adapter_name == "openfoam_local":
+        return OpenFoamLocalAdapter()
     raise CfdDispatchError(f"unsupported solver adapter: {solver_profile.adapter_name}")
 
 
@@ -1246,6 +2080,7 @@ def _solver_profiles() -> dict[str, SolverProfile]:
         unavailable_watertight_solid_profile(),
         mock_failing_local_command_profile(),
         fixture_local_command_profile(),
+        openfoam_v2512_interfoam_local_profile(),
     )
     return {profile.name: profile for profile in profiles}
 
@@ -1257,6 +2092,7 @@ def _solver_profile_by_name(name: str) -> SolverProfile:
         "unavailable_watertight_solid_v1": "unavailable-watertight-solid",
         "mock_failing_local_command_v1": "mock-failing-local-command",
         "fixture_local_command_v1": "fixture-local-command",
+        "openfoam_v2512_interfoam_local_v1": OPENFOAM_PROFILE_NAME,
     }
     name = aliases.get(name, name)
     try:
@@ -1343,18 +2179,34 @@ def _fixture_command_env() -> dict[str, str]:
 def _write_command_logs(
     job_dir: Path,
     completed: subprocess.CompletedProcess[str],
+    *,
+    stdout_name: str = "stdout.log",
+    stderr_name: str = "stderr.log",
+    max_chars: int | None = None,
 ) -> dict[str, str]:
     logs_dir = job_dir / "logs"
     logs_dir.mkdir(exist_ok=True)
-    stdout = logs_dir / "stdout.log"
-    stderr = logs_dir / "stderr.log"
-    stdout.write_text(completed.stdout)
-    stderr.write_text(completed.stderr)
-    return {"stdout": _relative_ref(stdout, job_dir), "stderr": _relative_ref(stderr, job_dir)}
+    stdout = logs_dir / stdout_name
+    stderr = logs_dir / stderr_name
+    stdout_text = completed.stdout
+    stderr_text = completed.stderr
+    if max_chars is not None:
+        stdout_text = _cap_text(stdout_text, max_chars)
+        stderr_text = _cap_text(stderr_text, max_chars)
+    stdout.write_text(stdout_text)
+    stderr.write_text(stderr_text)
+    return {
+        Path(stdout_name).stem: _relative_ref(stdout, job_dir),
+        Path(stderr_name).stem: _relative_ref(stderr, job_dir),
+    }
 
 
 def _write_json(path: Path, model: BaseModel) -> None:
     path.write_text(model.model_dump_json(indent=2) + "\n")
+
+
+def _write_text(path: Path, text: str) -> None:
+    path.write_text(text)
 
 
 def _relative_ref(path: Path, start: Path) -> str:

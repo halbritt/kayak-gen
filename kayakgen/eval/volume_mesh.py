@@ -18,8 +18,19 @@ from kayakgen.eval.closed_volume import ClosedVolumeDiagnostics
 WATERTIGHT_SOLID_PROFILE_NAME = "watertight_solid_resistance_v1"
 FIXTURE_VOLUME_MESHER_NAME = "kayakgen-fixture-volume-mesher"
 FIXTURE_VOLUME_MESHER_VERSION = "rfc0023-fixture-v1"
+HASH_ALGORITHM_SHA256 = "sha256"
 
 VolumeMeshReadinessLevel = Literal["invalid", "cfd_ready"]
+HashAlgorithm = Literal["sha256"]
+BoundaryPatchRole = Literal[
+    "wetted_body",
+    "farfield",
+    "free_surface",
+    "inlet",
+    "outlet",
+    "symmetry",
+    "other",
+]
 VolumeMeshReasonCode = Literal[
     "passed",
     "missing_volume_mesh",
@@ -74,11 +85,23 @@ class VolumeMeshArtifactRef(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     ref: str
+    hash_algorithm: HashAlgorithm = HASH_ALGORITHM_SHA256
     sha256: str
     artifact_role: Literal["volume_mesh", "boundary_surface", "case_metadata"] = (
         "volume_mesh"
     )
     media_type: str = "application/json"
+
+
+class VolumeMeshBoundaryPatch(BaseModel):
+    """Solver-facing boundary patch and marker metadata."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1)
+    marker: str = Field(min_length=1)
+    role: BoundaryPatchRole = "wetted_body"
+    face_count: int = Field(ge=0)
 
 
 class VolumeMeshDiagnostic(BaseModel):
@@ -88,14 +111,19 @@ class VolumeMeshDiagnostic(BaseModel):
 
     schema_version: Literal["1"] = "1"
     profile_name: str = WATERTIGHT_SOLID_PROFILE_NAME
+    hash_algorithm: HashAlgorithm = HASH_ALGORITHM_SHA256
     body_ref: str
     body_type: str
     source_hull_hash: str
+    closed_volume_diagnostic_hash_algorithm: HashAlgorithm = HASH_ALGORITHM_SHA256
     closed_volume_diagnostic_hash: str
+    self_intersection_diagnostic_hash_algorithm: HashAlgorithm = HASH_ALGORITHM_SHA256
     self_intersection_diagnostic_hash: str
+    closed_volume_tolerances_hash_algorithm: HashAlgorithm = HASH_ALGORITHM_SHA256
     closed_volume_tolerances_hash: str
     mesher_name: str
     mesher_version: str
+    mesher_config_digest_algorithm: HashAlgorithm = HASH_ALGORITHM_SHA256
     mesher_config_digest: str
     deterministic_inputs: dict[str, str] = Field(default_factory=dict)
     output_artifacts: dict[str, VolumeMeshArtifactRef]
@@ -106,6 +134,8 @@ class VolumeMeshDiagnostic(BaseModel):
     cell_count: int = Field(ge=0)
     boundary_face_count: int = Field(ge=0)
     boundary_patch_names: list[str] = Field(default_factory=list)
+    boundary_patches: list[VolumeMeshBoundaryPatch] = Field(default_factory=list)
+    boundary_markers: dict[str, str] = Field(default_factory=dict)
     exterior_surface_id: str
     invalid_cell_count: int = Field(ge=0)
     inverted_cell_count: int = Field(ge=0)
@@ -144,6 +174,20 @@ class VolumeMeshDiagnostic(BaseModel):
             blockers.append("body_surface_matches_diagnostic")
         if not self.output_artifacts:
             blockers.append("output_artifacts")
+        if not self.boundary_patch_names:
+            blockers.append("boundary_patch_names")
+        if not self.boundary_patches:
+            blockers.append("boundary_patches")
+        patch_names = [patch.name for patch in self.boundary_patches]
+        if sorted(patch_names) != sorted(self.boundary_patch_names):
+            blockers.append("boundary_patch_metadata")
+        if sum(patch.face_count for patch in self.boundary_patches) != self.boundary_face_count:
+            blockers.append("boundary_patch_face_count")
+        if any(
+            self.boundary_markers.get(patch.name) != patch.marker
+            for patch in self.boundary_patches
+        ):
+            blockers.append("boundary_markers")
         if blockers:
             raise ValueError(
                 "cfd_ready volume mesh diagnostic has blocking field(s): "
@@ -234,6 +278,7 @@ def fixture_volume_mesh_diagnostic(
             "closed_volume_diagnostic_hash": closed_volume_diagnostic_hash,
             "self_intersection_diagnostic_hash": self_intersection_diagnostic_hash,
             "closed_volume_tolerances_hash": tolerances_hash,
+            "hash_algorithm": HASH_ALGORITHM_SHA256,
             "profile_name": WATERTIGHT_SOLID_PROFILE_NAME,
         },
         output_artifacts={
@@ -249,6 +294,17 @@ def fixture_volume_mesh_diagnostic(
         cell_count=max(1, diagnostics.face_count * 2),
         boundary_face_count=diagnostics.face_count,
         boundary_patch_names=["generated_hull_plus_deck"],
+        boundary_patches=[
+            VolumeMeshBoundaryPatch(
+                name="generated_hull_plus_deck",
+                marker="wall:generated_hull_plus_deck",
+                role="wetted_body",
+                face_count=diagnostics.face_count,
+            )
+        ],
+        boundary_markers={
+            "generated_hull_plus_deck": "wall:generated_hull_plus_deck"
+        },
         exterior_surface_id=diagnostics.body_id,
         invalid_cell_count=0,
         inverted_cell_count=0,

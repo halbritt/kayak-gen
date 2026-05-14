@@ -8,6 +8,19 @@ Updated: 2026-05-14
   must be performed by Striatum-assigned agents, with this session limited to
   orchestration, artifact handling, report updates, trunk hygiene, and branch
   cleanup.
+- 2026-05-14T16:01Z checkpoint: workflow 0051 remediation lane fixed the two
+  must-fix findings from the ledger. OpenFOAM local reruns now clear expected
+  raw outputs before command execution, preventing stale `force.dat` and
+  `openfoam-raw-result.json` reuse; generated-body GZ v1 metadata now
+  round-trips through the canonical stability contract. Focused and file-level
+  CFD/stability tests passed, followed by clean `git diff --check`,
+  `python -m compileall -q kayakgen tests`, and full-suite validation
+  (`383 passed in 118.87s`). No real OpenFOAM `succeeded` path, calibrated
+  output, production solver-readiness promotion, safety/seaworthiness claim, or
+  design-fitness claim was added.
+- 2026-05-14T16:04Z checkpoint: workflow 0051 remediation patch summary
+  published as `art_fbd43556a54e4817a969c3f4e472bf89` with the recorded
+  apply-patch provenance override for the workflow-local artifact path.
 - 2026-05-14T10:40Z checkpoint: scaffolded workflow 0049
   (`roadmap-reconciliation`) to have Codex author/integrate a contributor-facing
   `docs/ROADMAP.md`, three independent review lanes for backlog completeness,
@@ -913,3 +926,42 @@ Updated: 2026-05-14
   items remain blocked: calibrated fit, validation/calibration fixture
   promotion, real OpenFOAM success, hosted CFD, and public production hosting
   are outside this stage.
+- 2026-05-14T15:18Z: prepared run
+  `run_c6989300a86c4c6cb66e44555bb19067`, confirmed branch
+  `striatum/0051-implementation-burndown-stage1`, and started the run.
+  Seven implementation packets are claimable next.
+- 2026-05-14T15:19Z: launched all seven first-step Codex implementation lanes
+  concurrently under supervised sessions:
+  `implement_docs_status`, `implement_high_angle_v1`,
+  `implement_openfoam_skeleton`, `implement_readiness_report`,
+  `implement_resistance_source_review`, `implement_sweep_objectives`, and
+  `implement_ui_successors`.
+- 2026-05-14T15:34Z: all seven implementation lanes completed and published
+  patch summaries. `git diff --check` passes on the combined worktree. Review
+  lanes are claimable next: Claude traceability, Gemini claims/no-overclaim,
+  and Codex ops/tests.
+- 2026-05-14T15:35Z: launched the three review lanes concurrently under
+  supervised sessions: `review_traceability` (Claude),
+  `review_claims` (Gemini), and `review_ops_tests` (Codex).
+- 2026-05-14T15:48Z: reviews completed. Traceability and ops/tests returned
+  `accept_with_findings`; claims returned `accept`. The Gemini claims adapter
+  exited nonzero, so the operator recovered by running Gemini directly,
+  publishing the Gemini-authored artifact, and recording its stated verdict.
+  `findings_ledger` is claimable next.
+- 2026-05-14T15:54Z: Codex findings ledger completed. Must-fix remediation:
+  OpenFOAM reruns must not parse stale raw output, and generated-body GZ
+  metadata must round-trip through the canonical stability contract.
+  Non-blocking successors: profile-neutral web CFD status copy and optional
+  decision-log bookkeeping for RFC 0009 reconciliation.
+- 2026-05-14T16:07Z: Codex remediation completed both must-fix findings and
+  published `striatum/0051-implementation-burndown-stage1/remediation/PATCH_SUMMARY.md`.
+  Reported validation includes focused CFD/stability tests, full
+  `python -m pytest -q` (`383 passed`), `git diff --check`, and compileall.
+  Final review is claimable next.
+- 2026-05-14T16:15Z: Claude final review completed workflow 0051 with
+  `accept`. Striatum marks `run_c6989300a86c4c6cb66e44555bb19067`
+  completed with no open blockers and no non-accepting review verdicts.
+  The final review accepted the two remediations and preserved the remaining
+  non-blocking successor items: profile-neutral web CFD status copy and
+  optional RFC 0009 decision-log bookkeeping. Future design-only decision
+  workflows must include research for each decision before panel voting.

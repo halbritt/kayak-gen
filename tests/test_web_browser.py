@@ -481,9 +481,13 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 _assert_parameter_slider_accessibility(page)
                 _assert_nonblank_3d(page)
 
-                page.locator(
+                elite_preset = page.locator(
                     ".kg-class-preset-radio input[type='radio'][value='surfski_elite']"
-                ).check(force=True)
+                )
+                custom_preset = page.locator(
+                    ".kg-class-preset-radio input[type='radio'][value='custom']"
+                )
+                elite_preset.check(force=True)
                 page.wait_for_function(
                     """
                     () => Math.abs(parseFloat(
@@ -498,6 +502,25 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 assert abs(_slider_number(page, "beam_wl_m", "aria-valuemin") - 0.38) < 1e-6
                 assert abs(_slider_number(page, "beam_wl_m", "aria-valuemax") - 0.43) < 1e-6
                 page.get_by_text("In Elite surfski envelope").first.wait_for(timeout=10_000)
+                # Selecting the preset fires same-seed hull updates through Trame; this
+                # assertion pins the retained listener guard without private-helper calls.
+                assert elite_preset.is_checked()
+                assert not custom_preset.is_checked()
+
+                # Reselecting the same preset must also keep preset bounds until an
+                # actual hull edit flips the selector to custom.
+                elite_preset.check(force=True)
+                page.wait_for_function(
+                    """
+                    () => document.querySelector(
+                      ".kg-class-preset-radio input[type='radio'][value='surfski_elite']"
+                    )?.checked === true
+                    """,
+                    timeout=10_000,
+                )
+                assert abs(_slider_number(page, "length_m", "aria-valuemin") - 5.8) < 1e-6
+                assert abs(_slider_number(page, "length_m", "aria-valuemax") - 6.4) < 1e-6
+                assert not custom_preset.is_checked()
 
                 page.locator(".kg-param-length_m [role='slider']").first.focus()
                 page.keyboard.press("ArrowRight")
@@ -539,7 +562,7 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 page.get_by_text("Deck STL").first.wait_for(timeout=10_000)
                 page.get_by_text("Hydro JSON").first.wait_for(timeout=10_000)
                 page.get_by_text("Stability JSON").first.wait_for(timeout=10_000)
-                page.get_by_text("Mesh package...").first.wait_for(timeout=10_000)
+                page.get_by_text("Mesh package (CLI only)").first.wait_for(timeout=10_000)
                 page.get_by_text("use kayakgen mesh-package").first.wait_for(timeout=10_000)
 
                 page.get_by_role("button", name="Share").click()

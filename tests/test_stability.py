@@ -17,10 +17,12 @@ from kayakgen.eval.contract import (
     GZCurve,
     LoadCase,
     LongitudinalLoadComponent,
+    StabilityResult,
 )
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval import stability as stability_eval
 from kayakgen.eval.stability import (
+    GeneratedBodyGZCurve,
     evaluate_gz_curve,
     evaluate_initial_stability,
 )
@@ -272,26 +274,98 @@ def test_fixture_only_open_body_returns_unavailable_without_values() -> None:
     assert "closed_volume_readiness_not_closed" in result.warnings
 
 
-def test_generated_body_gate_passes_but_real_curve_remains_unavailable() -> None:
+def test_generated_body_v1_computes_after_generated_body_gates_pass() -> None:
     hull = Hull(name="gz-generated-pass", bow_rake=0.0, stern_rake=0.0)
-    body = generated_hull_plus_deck_body(hull, stations=4)
+    body = generated_hull_plus_deck_body(hull, stations=8)
+    diagnostics = diagnose_closed_volume_body(body)
+    grid = [0.0, 5.0, 10.0, 15.0]
+
+    result = evaluate_gz_curve(
+        hull,
+        LoadCase(),
+        heel_grid_deg=grid,
+        body_ref=body,
+        body_diagnostics=diagnostics,
+    )
+
+    assert isinstance(result, GeneratedBodyGZCurve)
+    assert result.status == "computed"
+    assert result.method == "fixed_trim_generated_body_v1"
+    assert result.fixture_only is False
+    assert result.body_ref == body.body_id
+    assert result.body_type == "generated_hull_plus_deck_closed_body"
+    assert result.heel_grid_deg == grid
+    assert result.heel_deg == grid
+    assert len(result.gz_m) == len(grid)
+    assert len(result.righting_moment_nm) == len(grid)
+    assert result.gz_m[1] > result.gz_m[0]
+    assert result.max_gz_m == pytest.approx(max(result.gz_m))
+    assert result.heel_at_max_gz_deg in result.heel_grid_deg
+    assert result.summary_semantics == "grid_bounded"
+    assert result.result_semantics == "unvalidated_hydrostatic_comparison"
+    assert len(result.heel_point_metadata) == len(grid)
+    assert all(point.status == "computed" for point in result.heel_point_metadata)
+    assert all(point.clipping_status == "computed" for point in result.heel_point_metadata)
+    assert all(
+        point.displacement_residual_kg is not None
+        and abs(point.displacement_residual_kg) <= 1.0
+        for point in result.heel_point_metadata
+    )
+    assert all(
+        0 < point.displacement_iterations <= point.displacement_max_iterations
+        for point in result.heel_point_metadata
+    )
+    assert all(
+        point.longitudinal_moment_residual_kg_m is not None
+        for point in result.heel_point_metadata
+    )
+    assert "generated_closed_body_diagnostic_gate_passed" in result.assumptions
+    assert "fixed_upright_trim_generated_body_v1" in result.assumptions
+    assert "grid_bounded_summary_metrics" in result.assumptions
+    assert "sealed_deck_profile_no_cockpit_opening" in result.warnings
+    assert "deck_immersion_assumption" in result.warnings
+    assert "flooding_not_modeled" in result.warnings
+    assert "downflooding_not_modeled" in result.warnings
+    assert "not_safety_or_seaworthiness_claim" in result.warnings
+
+
+def test_generated_body_v1_metadata_round_trips_through_canonical_contract() -> None:
+    hull = Hull(name="gz-canonical-contract", bow_rake=0.0, stern_rake=0.0)
+    body = generated_hull_plus_deck_body(hull, stations=6)
     diagnostics = diagnose_closed_volume_body(body)
 
     result = evaluate_gz_curve(
         hull,
         LoadCase(),
-        heel_grid_deg=[0.0, 5.0, 10.0],
+        heel_grid_deg=[0.0, 10.0],
         body_ref=body,
         body_diagnostics=diagnostics,
     )
 
-    assert result.status == "unavailable"
-    assert result.body_ref == body.body_id
-    assert result.body_type == "generated_hull_plus_deck_closed_body"
-    assert result.gz_m == []
-    assert result.max_gz_m is None
-    assert "generated_closed_body_diagnostic_gate_passed" in result.assumptions
-    assert "high_angle_gz_generated_body_solver_not_implemented" in result.warnings
+    assert isinstance(result, GZCurve)
+    assert isinstance(result, GeneratedBodyGZCurve)
+    assert "heel_point_metadata" in result.model_dump()
+
+    canonical = GZCurve.model_validate(result.model_dump())
+    assert canonical.method == "fixed_trim_generated_body_v1"
+    assert canonical.summary_semantics == "grid_bounded"
+    assert canonical.result_semantics == "unvalidated_hydrostatic_comparison"
+    assert len(canonical.heel_point_metadata) == len(result.heel_deg)
+    assert canonical.heel_point_metadata[0].status == "computed"
+
+    wrapped = StabilityResult(
+        load_case=LoadCase(),
+        load_mass_kg=100.0,
+        displaced_mass_kg=100.0,
+        displacement_error_kg=0.0,
+        gz_curve=canonical,
+    )
+    loaded = StabilityResult.model_validate(wrapped.model_dump())
+
+    assert loaded.gz_curve is not None
+    assert loaded.gz_curve.method == "fixed_trim_generated_body_v1"
+    assert len(loaded.gz_curve.heel_point_metadata) == len(result.heel_deg)
+    assert loaded.gz_curve.heel_point_metadata[0].clipping_status == "computed"
 
 
 def test_generated_body_hull_hash_mismatch_returns_unavailable() -> None:
@@ -311,6 +385,12 @@ def test_generated_body_hull_hash_mismatch_returns_unavailable() -> None:
     assert result.gz_m == []
     assert "generated_closed_body_not_available" in result.warnings
     assert "source_hull_hash_mismatch" in result.warnings
+    assert isinstance(result, GeneratedBodyGZCurve)
+    assert all(point.status == "skipped" for point in result.heel_point_metadata)
+    assert all(
+        "generated_body_gate_failed" in point.warnings
+        for point in result.heel_point_metadata
+    )
 
 
 def test_generated_body_failed_diagnostics_returns_unavailable() -> None:
@@ -337,6 +417,8 @@ def test_generated_body_failed_diagnostics_returns_unavailable() -> None:
     assert result.max_gz_m is None
     assert "closed_volume_readiness_not_closed" in result.warnings
     assert "closed_volume_readiness_reasons_present" in result.warnings
+    assert isinstance(result, GeneratedBodyGZCurve)
+    assert all(point.status == "skipped" for point in result.heel_point_metadata)
 
 
 @pytest.mark.parametrize(
@@ -345,11 +427,22 @@ def test_generated_body_failed_diagnostics_returns_unavailable() -> None:
         [],
         [0.0, 10.0, 10.0],
         [0.0, float("nan")],
+        [0.0, float("inf")],
+        [-1.0, 10.0],
+        [0.0, 95.0],
     ],
 )
 def test_high_angle_gz_validates_heel_grid(grid: list[float]) -> None:
     with pytest.raises(ValueError, match="heel_grid_deg"):
         evaluate_gz_curve(Hull(), LoadCase(), heel_grid_deg=grid)
+
+
+def test_high_angle_gz_default_and_custom_heel_grids_are_echoed() -> None:
+    default = evaluate_gz_curve(Hull(), LoadCase())
+    custom = evaluate_gz_curve(Hull(), LoadCase(), heel_grid_deg=[0.0, 7.5, 42.0])
+
+    assert default.heel_grid_deg == [float(angle) for angle in range(0, 95, 5)]
+    assert custom.heel_grid_deg == [0.0, 7.5, 42.0]
 
 
 def test_gz_curve_rejects_legacy_minimal_payload_without_provenance() -> None:

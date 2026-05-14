@@ -175,6 +175,11 @@ Minimal sweep spec:
 
 The run directory contains `run.json`, `summary.csv`, `failures.jsonl`, the
 copied `spec.json`, and per-candidate artifacts under `candidates/`.
+Current sweep record statuses are `complete`, `failed`, and `skipped` on
+resume. RFC 0009's planned `pending` state and sweep-side STL artifact emission
+remain deltas; keep `stl` false in sweep specs and run `kayakgen generate` or
+`kayakgen mesh-package` separately when surface or package artifacts are
+needed.
 
 ### `compare`
 
@@ -188,6 +193,10 @@ kayakgen compare runs/demo --out runs/demo/compare.json \
 
 Resistance metrics can be named as objectives, but reports that include them
 remain exploratory because resistance is a raw comparative filter.
+The default objective set is built only from conservative metrics that are
+present in the current records: `GM0_m`, `displacement_error_kg`, and
+`mesh_problem_count`. Comparison reports are for candidate review; objective
+metadata for optimizer/search workflows remains roadmap work.
 
 ### `mesh-check`
 

@@ -287,11 +287,22 @@ def test_rfc0023_fixture_volume_mesh_diagnostic_round_trips(tmp_path) -> None:
     assert loaded.body_ref == closed_diagnostics.body_id
     assert loaded.source_hull_hash == hull.hash()
     assert loaded.closed_volume_diagnostic_hash == closed_hash
+    assert loaded.closed_volume_diagnostic_hash_algorithm == "sha256"
     assert loaded.self_intersection_diagnostic_hash == closed_hash
+    assert loaded.self_intersection_diagnostic_hash_algorithm == "sha256"
+    assert loaded.closed_volume_tolerances_hash_algorithm == "sha256"
+    assert loaded.mesher_config_digest_algorithm == "sha256"
     assert loaded.deterministic_inputs["closed_volume_diagnostic_hash"] == closed_hash
+    assert loaded.deterministic_inputs["hash_algorithm"] == "sha256"
+    assert loaded.output_artifacts["volume_mesh"].hash_algorithm == "sha256"
     assert loaded.output_artifacts["volume_mesh"].sha256 == sha256_file(artifact)
     assert loaded.cell_count > 0
     assert loaded.boundary_face_count == closed_diagnostics.face_count
+    assert loaded.boundary_patch_names == ["generated_hull_plus_deck"]
+    assert loaded.boundary_patches[0].marker == "wall:generated_hull_plus_deck"
+    assert loaded.boundary_markers == {
+        "generated_hull_plus_deck": "wall:generated_hull_plus_deck"
+    }
     assert loaded.body_surface_matches_diagnostic is True
     assert loaded.readiness.level == "cfd_ready"
     assert loaded.readiness.reasons[0].code == "passed"

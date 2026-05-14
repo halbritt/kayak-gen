@@ -11,8 +11,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 import math
+from typing import Literal
 
 import numpy as np
+from pydantic import Field, model_validator
 
 from kayakgen.eval.closed_volume import (
     GENERATED_CLOSED_BODY_PART_NAME,
@@ -23,7 +25,12 @@ from kayakgen.eval.closed_volume import (
     ClosedVolumeDiagnostics,
     diagnose_closed_volume_body,
 )
-from kayakgen.eval.contract import GZCurve, LoadCase, StabilityResult
+from kayakgen.eval.contract import (
+    GZCurve,
+    GZHeelPointMetadata,
+    LoadCase,
+    StabilityResult,
+)
 from kayakgen.eval.hydrostatics import Hydrostatics, evaluate as evaluate_hydrostatics
 from kayakgen.model.hull import Hull
 
@@ -36,11 +43,32 @@ DEFAULT_MAX_TRIM_ANGLE_DEG = 8.0
 TRIM_STATIONS = 61
 TRIM_DRAFT_TOLERANCE_M = 1e-5
 DEFAULT_GZ_HEEL_GRID_DEG: tuple[float, ...] = tuple(float(angle) for angle in range(0, 95, 5))
+GZ_HEEL_GRID_MIN_DEG = 0.0
+GZ_HEEL_GRID_MAX_DEG = 90.0
+GZ_SINKAGE_TOLERANCE_KG = 1.0
+GZ_SINKAGE_MAX_ITERATIONS = 60
+GZ_SINKAGE_WATERLINE_TOLERANCE_M = 1e-8
 GZ_UNAVAILABLE_ASSUMPTIONS: tuple[str, ...] = (
     "cg_model_fixed_to_hull_coordinates_unresolved_for_real_gz",
     "trim_policy_at_heel_unresolved_for_real_gz",
     "deck_immersion_and_flooding_not_modeled",
     "secondary_stability_metrics_hidden_until_generated_body_handoff_passes",
+)
+GZ_GENERATED_BODY_ASSUMPTIONS: tuple[str, ...] = (
+    "fixed_upright_trim_generated_body_v1",
+    "hull_fixed_passive_cg",
+    "per_heel_sinkage_displacement_solve",
+    "closed_waterline_clipping_capping_v1",
+    "grid_bounded_summary_metrics",
+    "unvalidated_hydrostatic_comparison_curve",
+)
+GZ_GENERATED_BODY_WARNINGS: tuple[str, ...] = (
+    "sealed_deck_profile_no_cockpit_opening",
+    "deck_immersion_assumption",
+    "flooding_not_modeled",
+    "downflooding_not_modeled",
+    "active_paddler_response_not_modeled",
+    "not_safety_or_seaworthiness_claim",
 )
 GZ_FIXTURE_ASSUMPTIONS: tuple[str, ...] = (
     "fixture_only_synthetic_righting_arm_math",
@@ -52,6 +80,34 @@ GZ_FIXTURE_ASSUMPTIONS: tuple[str, ...] = (
 
 class GZNotImplementedError(NotImplementedError):
     """Raised when high-angle stability is requested before its RFC lands."""
+
+
+class GeneratedBodyGZCurve(GZCurve):
+    """RFC 0043 fixed-trim generated-body result subtype.
+
+    The canonical ``GZCurve`` contract owns the additive generated-body
+    metadata fields so this subtype can round-trip through public stability
+    result serialization.
+    """
+
+    method: Literal[
+        "generated_body_handoff",
+        "fixture_only_math",
+        "fixed_trim_generated_body_v1",
+    ] = "fixed_trim_generated_body_v1"
+    heel_point_metadata: list[GZHeelPointMetadata] = Field(default_factory=list)
+    summary_semantics: Literal["grid_bounded"] = "grid_bounded"
+    result_semantics: Literal["unvalidated_hydrostatic_comparison"] = (
+        "unvalidated_hydrostatic_comparison"
+    )
+
+    @model_validator(mode="after")
+    def _metadata_matches_availability(self) -> "GeneratedBodyGZCurve":
+        if self.status == "computed" and len(self.heel_point_metadata) != len(
+            self.heel_deg
+        ):
+            raise ValueError("computed generated-body GZ metadata must align with heel_deg")
+        return self
 
 
 def _gm0_for_load_case(hydro_gm0_m: float | None, kg_above_keel_m: float) -> float | None:
@@ -99,6 +155,54 @@ def _clipped_section_area(section: np.ndarray, waterline_z: float) -> float:
     if not clipped:
         return 0.0
     return _polygon_area(np.array(clipped))
+
+
+def _clip_section_to_waterline(section: np.ndarray, waterline_z: float) -> np.ndarray:
+    if len(section) < 3:
+        return np.empty((0, 2), dtype=float)
+    if waterline_z >= float(section[:, 1].max()):
+        return section.copy()
+    if waterline_z <= float(section[:, 1].min()):
+        return np.empty((0, 2), dtype=float)
+
+    clipped: list[np.ndarray] = []
+    for i, current in enumerate(section):
+        previous = section[i - 1]
+        current_inside = current[1] <= waterline_z
+        previous_inside = previous[1] <= waterline_z
+
+        if current_inside != previous_inside:
+            dz = current[1] - previous[1]
+            if abs(dz) > 1e-12:
+                ratio = (waterline_z - previous[1]) / dz
+                clipped.append(previous + ratio * (current - previous))
+        if current_inside:
+            clipped.append(current)
+
+    if not clipped:
+        return np.empty((0, 2), dtype=float)
+    return np.asarray(clipped, dtype=float)
+
+
+def _section_area_centroid(section: np.ndarray) -> tuple[float, float, float]:
+    if len(section) < 3:
+        return 0.0, 0.0, 0.0
+    y = section[:, 0]
+    z = section[:, 1]
+    cross = y * np.roll(z, -1) - np.roll(y, -1) * z
+    signed_area = float(0.5 * cross.sum())
+    if abs(signed_area) <= 1e-14:
+        return 0.0, 0.0, 0.0
+    centroid_y = float(np.sum((y + np.roll(y, -1)) * cross) / (6.0 * signed_area))
+    centroid_z = float(np.sum((z + np.roll(z, -1)) * cross) / (6.0 * signed_area))
+    return abs(signed_area), centroid_y, centroid_z
+
+
+def _clipped_section_properties(
+    section: np.ndarray,
+    waterline_z: float,
+) -> tuple[float, float, float]:
+    return _section_area_centroid(_clip_section_to_waterline(section, waterline_z))
 
 
 def _trim_hydrostatic_state(
@@ -616,11 +720,18 @@ def evaluate_gz_curve(
 
     generated_warnings = _generated_body_gz_gate_warnings(hull, body, diagnostics)
     if diagnostic_warnings or generated_warnings:
-        return _unavailable_gz_curve(
+        return _unavailable_generated_body_gz_curve(
             heel_grid,
-            body_ref=body.body_id,
-            body_type=body.body_type,
-            body_diagnostic_ref=diagnostic_ref,
+            body=body,
+            diagnostics=diagnostics,
+            heel_point_metadata=_skipped_heel_metadata(
+                heel_grid,
+                warnings=[
+                    "generated_body_gate_failed",
+                    *diagnostic_warnings,
+                    *generated_warnings,
+                ],
+            ),
             warnings=[
                 "generated_closed_body_not_available",
                 *diagnostic_warnings,
@@ -628,16 +739,13 @@ def evaluate_gz_curve(
             ],
         )
 
-    return _unavailable_gz_curve(
+    assert diagnostics is not None
+    return _generated_body_gz_curve(
         heel_grid,
-        body_ref=body.body_id,
-        body_type=body.body_type,
-        body_diagnostic_ref=diagnostic_ref,
-        assumptions=["generated_closed_body_diagnostic_gate_passed"],
-        warnings=[
-            "high_angle_gz_generated_body_solver_not_implemented",
-            "secondary_stability_metrics_hidden_until_generated_body_solver_lands",
-        ],
+        hull=hull,
+        body=body,
+        diagnostics=diagnostics,
+        load_case=load_case,
     )
 
 
@@ -652,6 +760,8 @@ def _normalize_heel_grid(heel_grid_deg: Sequence[float] | None) -> list[float]:
     for value in grid:
         if not math.isfinite(value):
             raise ValueError("heel_grid_deg must contain only finite values")
+        if value < GZ_HEEL_GRID_MIN_DEG or value > GZ_HEEL_GRID_MAX_DEG:
+            raise ValueError("heel_grid_deg values must be between 0 and 90 degrees")
     for left, right in zip(grid, grid[1:], strict=False):
         if right <= left:
             raise ValueError("heel_grid_deg must be strictly increasing")
@@ -812,6 +922,338 @@ def _closed_volume_readiness_warnings(
     if diagnostics.cfd_ready is not False:
         warnings.append("closed_volume_diagnostic_must_not_claim_cfd_ready")
     return warnings
+
+
+def _generated_body_station_sections(
+    body: ClosedVolumeBody,
+) -> list[tuple[float, np.ndarray]]:
+    if len(body.parts) != 1:
+        raise ValueError("generated GZ v1 requires a single closed body part")
+    vertices = np.asarray(body.parts[0].vertices, dtype=float)
+    if vertices.ndim != 2 or vertices.shape[1] != 3 or len(vertices) == 0:
+        raise ValueError("generated GZ v1 body vertices must be Nx3")
+
+    x_values = sorted(float(value) for value in np.unique(vertices[:, 0]))
+    grouped = [
+        (x, vertices[np.isclose(vertices[:, 0], x, atol=1e-10), 1:3])
+        for x in x_values
+    ]
+    ring_counts = [len(section) for _x, section in grouped if len(section) >= 4]
+    if not ring_counts:
+        raise ValueError("generated GZ v1 body has no station rings")
+    ring_count = min(ring_counts)
+
+    sections: list[tuple[float, np.ndarray]] = []
+    for x, section in grouped:
+        if len(section) >= 4:
+            # Plumb-stem endpoint cap centers share the station x-coordinate.
+            # The ring vertices are emitted first; cap centers are interior
+            # helper vertices and are not part of the 2-D waterline clip.
+            section = section[:ring_count]
+        sections.append((x, np.asarray(section, dtype=float)))
+    return sections
+
+
+def _heel_section(section: np.ndarray, heel_deg: float) -> np.ndarray:
+    if len(section) == 0:
+        return section.copy()
+    radians = math.radians(heel_deg)
+    cos_heel = math.cos(radians)
+    sin_heel = math.sin(radians)
+    y = section[:, 0] * cos_heel - section[:, 1] * sin_heel
+    z = section[:, 0] * sin_heel + section[:, 1] * cos_heel
+    return np.column_stack((y, z))
+
+
+def _heeled_displacement_state(
+    sections: list[tuple[float, np.ndarray]],
+    *,
+    heel_deg: float,
+    sinkage_m: float,
+    density_kg_m3: float,
+) -> tuple[float, float, float, bool]:
+    xs = np.array([sample[0] for sample in sections], dtype=float)
+    area_by_station = np.zeros_like(xs)
+    y_moment_by_station = np.zeros_like(xs)
+    for i, (_x, section) in enumerate(sections):
+        heeled = _heel_section(section, heel_deg)
+        area, centroid_y, _centroid_z = _clipped_section_properties(
+            heeled,
+            sinkage_m,
+        )
+        area_by_station[i] = area
+        y_moment_by_station[i] = area * centroid_y
+
+    volume = float(np.trapezoid(area_by_station, xs))
+    if volume <= 0.0:
+        return 0.0, 0.0, 0.0, True
+    displaced_mass_kg = volume * density_kg_m3
+    cb_y_m = float(np.trapezoid(y_moment_by_station, xs) / volume)
+    lcb_m = float(np.trapezoid(area_by_station * xs, xs) / volume)
+    return displaced_mass_kg, cb_y_m, lcb_m, True
+
+
+def _heeled_z_bounds(
+    sections: list[tuple[float, np.ndarray]],
+    heel_deg: float,
+) -> tuple[float, float]:
+    z_values: list[float] = []
+    for _x, section in sections:
+        if len(section) == 0:
+            continue
+        heeled = _heel_section(section, heel_deg)
+        z_values.extend(float(value) for value in heeled[:, 1])
+    if not z_values:
+        raise ValueError("generated GZ v1 body has no heeled section vertices")
+    return min(z_values), max(z_values)
+
+
+def _load_cg_for_gz(hull: Hull, load_case: LoadCase) -> tuple[float, float]:
+    if load_case.uses_longitudinal_components:
+        return (
+            load_case.load_lcg_m_for_draft(hull.draft_m),
+            load_case.load_kg_above_keel_m_for_draft(hull.draft_m),
+        )
+    return 0.0, load_case.kg_above_keel_for_draft(hull.draft_m)
+
+
+def _solve_generated_body_heel_point(
+    sections: list[tuple[float, np.ndarray]],
+    *,
+    hull: Hull,
+    load_case: LoadCase,
+    heel_deg: float,
+    tolerance_kg: float = GZ_SINKAGE_TOLERANCE_KG,
+    max_iterations: int = GZ_SINKAGE_MAX_ITERATIONS,
+) -> tuple[float | None, float | None, GZHeelPointMetadata]:
+    target_mass_kg = load_case.total_mass_kg
+    load_lcg_m, kg_above_keel_m = _load_cg_for_gz(hull, load_case)
+    cg_z_m = -hull.draft_m + kg_above_keel_m
+    cg_y_m = -cg_z_m * math.sin(math.radians(heel_deg))
+
+    low_z, high_z = _heeled_z_bounds(sections, heel_deg)
+    low = low_z - GZ_SINKAGE_WATERLINE_TOLERANCE_M
+    high = high_z + GZ_SINKAGE_WATERLINE_TOLERANCE_M
+    high_mass, _high_cb_y, _high_lcb, clipping_ok = _heeled_displacement_state(
+        sections,
+        heel_deg=heel_deg,
+        sinkage_m=high,
+        density_kg_m3=load_case.seawater_density_kg_m3,
+    )
+    if not clipping_ok:
+        return None, None, GZHeelPointMetadata(
+            heel_deg=heel_deg,
+            status="skipped",
+            displacement_iterations=0,
+            displacement_max_iterations=max_iterations,
+            clipping_status="failed",
+            warnings=["waterline_clipping_failed"],
+        )
+    if target_mass_kg > high_mass:
+        return None, None, GZHeelPointMetadata(
+            heel_deg=heel_deg,
+            status="skipped",
+            displaced_mass_kg=high_mass,
+            displacement_residual_kg=high_mass - target_mass_kg,
+            displacement_iterations=0,
+            displacement_max_iterations=max_iterations,
+            clipping_status="computed",
+            warnings=[
+                "heel_point_non_converged",
+                "displacement_mass_out_of_bracket",
+            ],
+        )
+
+    best_sinkage = high
+    best_mass = high_mass
+    best_cb_y = 0.0
+    best_lcb = 0.0
+    converged = False
+    iterations = 0
+    for iterations in range(1, max_iterations + 1):
+        sinkage = (low + high) / 2.0
+        mass, cb_y, lcb, clipping_ok = _heeled_displacement_state(
+            sections,
+            heel_deg=heel_deg,
+            sinkage_m=sinkage,
+            density_kg_m3=load_case.seawater_density_kg_m3,
+        )
+        if not clipping_ok:
+            return None, None, GZHeelPointMetadata(
+                heel_deg=heel_deg,
+                status="skipped",
+                displacement_iterations=iterations,
+                displacement_max_iterations=max_iterations,
+                clipping_status="failed",
+                warnings=["waterline_clipping_failed"],
+            )
+        best_sinkage = sinkage
+        best_mass = mass
+        best_cb_y = cb_y
+        best_lcb = lcb
+        error = mass - target_mass_kg
+        if abs(error) <= tolerance_kg:
+            converged = True
+            break
+        if error < 0.0:
+            low = sinkage
+        else:
+            high = sinkage
+
+    residual_kg = best_mass - target_mass_kg
+    moment_residual_kg_m = best_mass * best_lcb - target_mass_kg * load_lcg_m
+    warnings = ["fixed_trim_longitudinal_moment_not_solved"]
+    status: Literal["computed", "non_converged"] = "computed"
+    if not converged:
+        status = "non_converged"
+        warnings.extend(["heel_point_non_converged", "max_iterations_exceeded"])
+    metadata = GZHeelPointMetadata(
+        heel_deg=heel_deg,
+        status=status,
+        sinkage_m=best_sinkage,
+        displaced_mass_kg=best_mass,
+        displacement_residual_kg=residual_kg,
+        displacement_iterations=iterations,
+        displacement_max_iterations=max_iterations,
+        trim_angle_deg=0.0,
+        longitudinal_moment_residual_kg_m=moment_residual_kg_m,
+        clipping_status="computed",
+        warnings=warnings,
+    )
+    if not converged:
+        return None, None, metadata
+    gz_m = cg_y_m - best_cb_y
+    return gz_m, target_mass_kg * GRAVITY_M_S2 * gz_m, metadata
+
+
+def _generated_body_gz_curve(
+    heel_grid_deg: list[float],
+    *,
+    hull: Hull,
+    body: ClosedVolumeBody,
+    diagnostics: ClosedVolumeDiagnostics,
+    load_case: LoadCase,
+) -> GeneratedBodyGZCurve:
+    try:
+        sections = _generated_body_station_sections(body)
+    except ValueError as exc:
+        metadata = _skipped_heel_metadata(
+            heel_grid_deg,
+            warnings=[f"generated_body_section_reconstruction_failed: {exc}"],
+        )
+        return _unavailable_generated_body_gz_curve(
+            heel_grid_deg,
+            body=body,
+            diagnostics=diagnostics,
+            heel_point_metadata=metadata,
+            assumptions=["generated_closed_body_diagnostic_gate_passed"],
+            warnings=[
+                "heeled_integration_model_unavailable_for_body",
+                "waterline_clipping_failed",
+            ],
+        )
+
+    heel_deg: list[float] = []
+    gz_m: list[float] = []
+    righting_moment_nm: list[float] = []
+    heel_metadata: list[GZHeelPointMetadata] = []
+    for heel in heel_grid_deg:
+        gz, moment, metadata = _solve_generated_body_heel_point(
+            sections,
+            hull=hull,
+            load_case=load_case,
+            heel_deg=heel,
+        )
+        heel_metadata.append(metadata)
+        if gz is not None and moment is not None and metadata.status == "computed":
+            heel_deg.append(heel)
+            gz_m.append(gz)
+            righting_moment_nm.append(moment)
+
+    if len(heel_deg) != len(heel_grid_deg):
+        return _unavailable_generated_body_gz_curve(
+            heel_grid_deg,
+            body=body,
+            diagnostics=diagnostics,
+            heel_point_metadata=heel_metadata,
+            assumptions=["generated_closed_body_diagnostic_gate_passed"],
+            warnings=[
+                "heel_point_non_converged",
+                "secondary_stability_metrics_hidden_until_all_heel_points_converge",
+            ],
+        )
+
+    warnings = list(GZ_GENERATED_BODY_WARNINGS)
+    if load_case.kg_reference_value_m is not None and load_case.kg_reference != "keel":
+        warnings.append("kg_reference_normalized_to_keel")
+    return GeneratedBodyGZCurve(
+        status="computed",
+        method="fixed_trim_generated_body_v1",
+        fixture_only=False,
+        body_ref=body.body_id,
+        body_type=body.body_type,
+        body_diagnostic_ref=_body_diagnostic_ref(diagnostics),
+        heel_grid_deg=list(heel_grid_deg),
+        heel_deg=heel_deg,
+        gz_m=gz_m,
+        righting_moment_nm=righting_moment_nm,
+        assumptions=_dedupe(
+            [
+                *GZ_GENERATED_BODY_ASSUMPTIONS,
+                "generated_closed_body_diagnostic_gate_passed",
+            ]
+        ),
+        warnings=_dedupe(warnings),
+        heel_point_metadata=heel_metadata,
+        **_gz_summary_metrics(heel_deg, gz_m),
+    )
+
+
+def _skipped_heel_metadata(
+    heel_grid_deg: list[float],
+    *,
+    warnings: Sequence[str],
+) -> list[GZHeelPointMetadata]:
+    return [
+        GZHeelPointMetadata(
+            heel_deg=heel,
+            status="skipped",
+            displacement_iterations=0,
+            displacement_max_iterations=GZ_SINKAGE_MAX_ITERATIONS,
+            clipping_status="skipped",
+            warnings=list(warnings),
+        )
+        for heel in heel_grid_deg
+    ]
+
+
+def _unavailable_generated_body_gz_curve(
+    heel_grid_deg: list[float],
+    *,
+    body: ClosedVolumeBody,
+    diagnostics: ClosedVolumeDiagnostics | None,
+    heel_point_metadata: list[GZHeelPointMetadata],
+    assumptions: Sequence[str] = (),
+    warnings: Sequence[str] = (),
+) -> GeneratedBodyGZCurve:
+    return GeneratedBodyGZCurve(
+        status="unavailable",
+        method="fixed_trim_generated_body_v1",
+        fixture_only=False,
+        body_ref=body.body_id,
+        body_type=body.body_type,
+        body_diagnostic_ref=_body_diagnostic_ref(diagnostics) if diagnostics else None,
+        heel_grid_deg=list(heel_grid_deg),
+        assumptions=_dedupe(
+            [
+                *GZ_UNAVAILABLE_ASSUMPTIONS,
+                *GZ_GENERATED_BODY_ASSUMPTIONS,
+                *assumptions,
+            ]
+        ),
+        warnings=_dedupe([*warnings, *GZ_GENERATED_BODY_WARNINGS]),
+        heel_point_metadata=heel_point_metadata,
+    )
 
 
 def _fixture_gz_curve(

@@ -91,8 +91,8 @@ runtime capability:
   export, and no-claim/status maintenance; full native parity is not a goal.
 - Sweep/comparison defaults remain `GM0_m`, `displacement_error_kg`, and
   `mesh_problem_count` when present. Raw resistance is explicit exploratory
-  comparison only, and optimizer work waits for RFC 0009 reconciliation plus
-  objective metadata.
+  comparison only, and optimizer work waits for RFC 0009's remaining deltas
+  plus objective metadata.
 
 ## Dependency Tracks
 
@@ -105,7 +105,7 @@ runtime capability:
 | CFD dispatch and real adapter | RFC 0015 local dispatch, RFC 0018 local web routes, and RFC 0026 fixture-local-command have landed. Workflow 0050 selected OpenFOAM.com v2512 `interFoam` as the first external solver target. | `ready-now` / `evidence-gated` | Implement only the OpenFOAM profile metadata, dependency detection, deterministic case rendering, unavailable/failed states, and raw `forces` parser fixtures first. A real `succeeded` path remains gated on matching OpenFOAM-readable volume-mesh evidence and stays `raw_unvalidated`. |
 | Resistance evidence and calibration | RFC 0005 landed only as raw filter; RFC 0025/0027 landed claim gates. Workflow 0050 chose source-review-first and preserved the calibrated-resistance no-promotion gate. | `evidence-gated` | Add source-review packets and source-use mapping tests before any fixture promotion. Promote validation or calibration fixtures only with accepted review metadata; fitting and calibrated wording require a later accepted-fit workflow. |
 | Stability and high-angle `GZ` | RFC 0011 landed load cases; RFC 0014 landed upright trim slice; RFC 0024 landed structured unavailable/fixture-only handoff. Workflow 0050 selected fixed-trim generated-body v1 as the first model design. | `ready-now` / `evidence-gated` | Implement the v1 model behind RFC 0024 generated-body gates: per-heel clipping/capping diagnostics, sinkage residuals, unsolved longitudinal-moment residuals, grid-bounded summaries, and sealed-body/flooding warnings. Real kayak curves remain unavailable until those gates land. |
-| Sweeps, comparison, and search | `kayakgen sweep` and `compare` are user-facing, while RFC 0009 is still indexed as proposed and RFC 0013 has a landed report/web slice. Workflow 0050 accepted the current conservative admissibility split. | `partial` | Reconcile RFC 0009 status against delivered sweep behavior and add objective metadata before optimizer work. Keep defaults to `GM0_m`, `displacement_error_kg`, and `mesh_problem_count`; raw resistance remains explicit exploratory only. |
+| Sweeps, comparison, and search | `kayakgen sweep` and `compare` are user-facing. RFC 0009 is now indexed as a partial landed sweep-run-record slice, and RFC 0013 has a landed report/web slice. Workflow 0050 accepted the current conservative admissibility split. | `partial` | Add objective metadata before optimizer work. Keep defaults to `GM0_m`, `displacement_error_kg`, and `mesh_problem_count`; raw resistance remains explicit exploratory only. Leave `pending` and sweep-side STL emission as recorded RFC 0009 deltas until a later workflow implements them. |
 
 ## Future Striatum Batches
 
@@ -279,10 +279,10 @@ Status: `partial`
 
 Scope: RFC 0009, RFC 0013, future search/optimization RFCs.
 
-First step: reconcile RFC 0009 with the current user-facing sweep command and
-run-record behavior. Record that the safe slice has landed while `pending`
-status, the `stl` evaluator option, and objective metadata remain deltas. Then
-add an objective registry before any optimizer work: metric label, unit,
+RFC 0009 is now reconciled with the current user-facing sweep command and
+run-record behavior: the safe slice has landed while `pending` status, the
+sweep-side `stl` evaluator artifact path, and objective metadata remain deltas.
+Next, add an objective registry before any optimizer work: metric label, unit,
 direction, source evaluator, availability rule, claim-state requirement,
 accepted-use requirement, and role (`default_objective`,
 `explicit_exploratory_objective`, `constraint_or_filter`, `display_only`,
@@ -303,7 +303,7 @@ comparison only.
 | 0005, 0012, 0019, 0025, 0027, 0042 | Raw analytical resistance landed; source registries and claim gates exist; workflow 0050 chose source-review-first and preserved the calibrated-resistance no-promotion gate. | `evidence-gated` |
 | 0006, 0029, 0031 | Canonical constraints, presets, validity metadata, and surfacing slices landed. RFC 0029 is background superseded by RFC 0031. Future shape parameters and any remaining desktop/manual surfacing stay open only as focused follow-ups. | `partial` / `background` |
 | 0008, 0030, 0032, 0033 | Local Trame shell, compact analysis, comparison loading, local browser acceptance, hosted-demo docs, and workspace safe slices landed. Workflow 0050 selected a narrow server-backed exploratory public-demo posture, while richer dashboards and any desktop shell remain separate work. | `partial` / `blocked` |
-| 0009, 0013 | Comparison report/web slice landed; sweep behavior is user-facing but RFC 0009 is still indexed proposed. Workflow 0050 accepted the conservative default objective whitelist and made RFC 0009 status reconciliation/objective metadata prerequisites to search. | `partial` |
+| 0009, 0013 | RFC 0009 is indexed as a partial landed sweep-run-record slice, and the RFC 0013 comparison report/web slice landed. Workflow 0050 accepted the conservative default objective whitelist and keeps objective metadata plus the recorded RFC 0009 deltas as prerequisites to search. | `partial` |
 | 0011, 0014, 0020, 0024, 0043 | Load cases and upright trim landed; high-angle `GZ` is structured unavailable or fixture-only. Workflow 0050 selected fixed-trim generated-body v1 as the first model design, but real curves remain unavailable until implementation gates pass. | `ready-now` / `evidence-gated` |
 | 0015, 0017, 0018, 0026, 0041 | Local dispatch, local web routes, unavailable/mock states, and fixture-local-command landed. Workflow 0050 selected OpenFOAM.com v2512 `interFoam` as the first external solver target; real success remains evidence-gated. | `ready-now` / `evidence-gated` |
 | 0010, 0016, 0021, 0022, 0023, 0040 | Mesh packages, synthetic diagnostics, self-intersection checks, generated body construction, and fixture handoff landed. Workflow 0050 selected the readiness-report-first evidence contract for production solver readiness. | `evidence-gated` |

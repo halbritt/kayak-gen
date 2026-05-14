@@ -6,6 +6,16 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
+### Fixed
+
+- Remediated workflow 0051 must-fix review findings: OpenFOAM local adapter
+  reruns now clear stale per-run raw outputs before command execution, and the
+  canonical `GZCurve`/`StabilityResult` contract now round-trips
+  fixed-trim generated-body v1 heel metadata. The OpenFOAM path remains
+  failed/raw-unvalidated with no real `succeeded` solver path enabled, and
+  generated-body high-angle stability output remains an unvalidated
+  hydrostatic comparison behind the existing evidence gates.
+
 ### Added
 
 - Scaffolded workflow 0051 as the first implementation burn-down after the

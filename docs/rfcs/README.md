@@ -22,7 +22,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0006](0006-design-constraints.md) | partial safe-slice | Hull design constraints — canonical parameter space and class presets |
 | [0007](0007-architectural-revisit.md) | landed | Architectural revisit — extract `kayakgen` package before more parameters land |
 | [0008](0008-web-frontend.md) | partial web-analysis | Portable web frontend via Trame |
-| [0009](0009-sweep-run-records.md) | proposed | Sweep and candidate run records |
+| [0009](0009-sweep-run-records.md) | partial landed sweep-run-record slice | Sweep and candidate run records |
 | [0010](0010-cfd-ready-mesh-contract.md) | landed package/profile | CFD-ready mesh contract |
 | [0011](0011-hydrostatic-stability-load-cases.md) | landed equilibrium-sinkage + trim-slice | Hydrostatic stability and load cases |
 | [0012](0012-resistance-model-calibration.md) | proposed | Resistance model calibration |
@@ -78,9 +78,16 @@ hosted-demo documentation, while hosted public demo operation, full plot parity,
 and larger dashboard work remain open.
 
 RFCs 0009-0020 cover the pivot from single-hull generation to a reproducible
-generative and evaluation pipeline. RFC 0010's mesh package/profile slice, RFC
-0011's load-case plus equilibrium-sinkage slice, RFC 0013's report/CLI and
-compact web inspection slices, and RFC 0014's partial trim slice have landed.
+generative and evaluation pipeline. RFC 0009 has landed as a partial
+sweep-run-record slice: deterministic JSON sweep expansion, `kayakgen sweep`,
+run/spec/summary/failure/candidate records, resume skip behavior, invalid
+candidate failure records, and optional resistance, stability, and
+mesh-diagnostic record fields are user-facing. Remaining RFC 0009 deltas are
+the planned `pending` record state, sweep-side `stl` artifact generation,
+objective metadata, and later optimizer/search scope. RFC 0010's mesh
+package/profile slice, RFC 0011's load-case plus equilibrium-sinkage slice, RFC
+0013's report/CLI and compact web inspection slices, and RFC 0014's partial
+trim slice have landed.
 The RFC 0014 slice includes compatible longitudinal load components, bounded
 fixed-body upright trim equilibrium for explicit component load cases, additive
 trim result fields, and CLI/sweep summaries. RFC 0012 has an open measured
