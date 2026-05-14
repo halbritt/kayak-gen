@@ -136,6 +136,13 @@ def test_forbidden_claim_copy_has_only_documented_negations_in_render_surfaces()
     for forbidden in (
         "GZ_max",
         "heel_angle_max_deg",
+        "max_gz_m",
+        "heel_at_max_gz_deg",
+        "range_positive_stability_deg",
+        "area_under_positive_gz_m_deg",
+        "righting_moment_nm",
+        "gz_m",
+        "fixture_only",
         "OpenFOAM",
         "SU2",
         "worker queue",

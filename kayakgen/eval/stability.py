@@ -1,29 +1,53 @@
 """Initial stability and load-case helpers.
 
-Full high-angle GZ requires a human decision about heeled volume semantics.
 This module exposes design-waterline initial stability, the legacy centered
 sinkage-equilibrium mode, and a bounded fixed-body upright trim slice for
-explicit longitudinal load components. High-angle GZ remains reserved until
-its closed-volume contract lands.
+explicit longitudinal load components. The high-angle GZ boundary now returns
+an RFC 0024 result envelope, but real kayak curves remain unavailable unless a
+generated closed body passes diagnostics and a later heeled-volume solver lands.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 import math
 
 import numpy as np
 
-from kayakgen.eval.contract import LoadCase, StabilityResult
+from kayakgen.eval.closed_volume import (
+    GENERATED_CLOSED_BODY_PART_NAME,
+    GENERATED_CLOSED_BODY_TYPE,
+    RFC0022_GENERATED_PROFILE_NAME,
+    SELF_INTERSECTION_ALGORITHM,
+    ClosedVolumeBody,
+    ClosedVolumeDiagnostics,
+    diagnose_closed_volume_body,
+)
+from kayakgen.eval.contract import GZCurve, LoadCase, StabilityResult
 from kayakgen.eval.hydrostatics import Hydrostatics, evaluate as evaluate_hydrostatics
 from kayakgen.model.hull import Hull
 
 COMPAT_KG_ABOVE_KEEL_M = 0.25
+GRAVITY_M_S2 = 9.80665
 DEFAULT_EQUILIBRIUM_TOLERANCE_KG = 1.0
 DEFAULT_EQUILIBRIUM_MAX_ITERATIONS = 60
 EQUILIBRIUM_DRAFT_TOLERANCE_M = 1e-9
 DEFAULT_MAX_TRIM_ANGLE_DEG = 8.0
 TRIM_STATIONS = 61
 TRIM_DRAFT_TOLERANCE_M = 1e-5
+DEFAULT_GZ_HEEL_GRID_DEG: tuple[float, ...] = tuple(float(angle) for angle in range(0, 95, 5))
+GZ_UNAVAILABLE_ASSUMPTIONS: tuple[str, ...] = (
+    "cg_model_fixed_to_hull_coordinates_unresolved_for_real_gz",
+    "trim_policy_at_heel_unresolved_for_real_gz",
+    "deck_immersion_and_flooding_not_modeled",
+    "secondary_stability_metrics_hidden_until_generated_body_handoff_passes",
+)
+GZ_FIXTURE_ASSUMPTIONS: tuple[str, ...] = (
+    "fixture_only_synthetic_righting_arm_math",
+    "cg_fixed_to_hull_coordinates_fixture",
+    "fixed_upright_trim_fixture",
+    "not_kayak_stability_evidence",
+)
 
 
 class GZNotImplementedError(NotImplementedError):
@@ -498,7 +522,356 @@ def evaluate_equilibrium_stability(
     )
 
 
-def evaluate_gz_curve(*_args: object, **_kwargs: object) -> None:
-    raise GZNotImplementedError(
-        "high-angle GZ is reserved until closed_volume_body_not_defined is resolved"
+def evaluate_gz_curve(
+    hull: Hull,
+    load_case: LoadCase | None = None,
+    heel_grid_deg: Sequence[float] | None = None,
+    body_ref: object | None = None,
+    body_diagnostics: object | None = None,
+    *,
+    fixture_only: bool = False,
+) -> GZCurve:
+    """Return an RFC 0024 GZ result envelope.
+
+    Real kayak GZ values are still unavailable in this slice. Generated closed
+    bodies are validated so callers get specific unavailable diagnostics, while
+    synthetic explicit bodies can exercise deterministic math only when
+    ``fixture_only`` is explicitly set.
+    """
+
+    load_case = load_case or LoadCase()
+    if load_case.total_mass_kg <= 0:
+        raise ValueError("load case total mass must be positive")
+    heel_grid = _normalize_heel_grid(heel_grid_deg)
+
+    if body_ref is None:
+        return _unavailable_gz_curve(
+            heel_grid,
+            warnings=["generated_closed_body_not_available", "body_ref_missing"],
+        )
+
+    if isinstance(body_ref, str):
+        return _unavailable_gz_curve(
+            heel_grid,
+            body_ref=body_ref,
+            body_type="unresolved",
+            warnings=[
+                "generated_closed_body_not_available",
+                "body_ref_unresolved",
+                "body_ref_must_be_generated_closed_volume_body",
+            ],
+        )
+
+    try:
+        body = ClosedVolumeBody.model_validate(body_ref)
+    except Exception:
+        return _unavailable_gz_curve(
+            heel_grid,
+            body_ref=str(body_ref),
+            body_type="unsupported",
+            warnings=[
+                "generated_closed_body_not_available",
+                "body_ref_not_closed_volume_body",
+            ],
+        )
+
+    diagnostics, diagnostic_warnings = _diagnostics_for_body(body, body_diagnostics)
+    diagnostic_ref = _body_diagnostic_ref(diagnostics) if diagnostics else None
+
+    if body.body_type == "explicit_synthetic_triangle_mesh":
+        if not fixture_only:
+            return _unavailable_gz_curve(
+                heel_grid,
+                body_ref=body.body_id,
+                body_type=body.body_type,
+                body_diagnostic_ref=diagnostic_ref,
+                warnings=[
+                    "generated_closed_body_not_available",
+                    "synthetic_body_not_allowed_for_real_gz",
+                    *diagnostic_warnings,
+                ],
+            )
+        fixture_warnings = _closed_body_fixture_warnings(body, diagnostics)
+        if diagnostic_warnings or fixture_warnings:
+            return _unavailable_gz_curve(
+                heel_grid,
+                body_ref=body.body_id,
+                body_type=body.body_type,
+                body_diagnostic_ref=diagnostic_ref,
+                fixture_only=True,
+                warnings=[
+                    "fixture_only",
+                    "fixture_closed_body_diagnostic_failed",
+                    *diagnostic_warnings,
+                    *fixture_warnings,
+                ],
+            )
+        assert diagnostics is not None
+        return _fixture_gz_curve(
+            heel_grid,
+            body=body,
+            diagnostics=diagnostics,
+            load_case=load_case,
+        )
+
+    generated_warnings = _generated_body_gz_gate_warnings(hull, body, diagnostics)
+    if diagnostic_warnings or generated_warnings:
+        return _unavailable_gz_curve(
+            heel_grid,
+            body_ref=body.body_id,
+            body_type=body.body_type,
+            body_diagnostic_ref=diagnostic_ref,
+            warnings=[
+                "generated_closed_body_not_available",
+                *diagnostic_warnings,
+                *generated_warnings,
+            ],
+        )
+
+    return _unavailable_gz_curve(
+        heel_grid,
+        body_ref=body.body_id,
+        body_type=body.body_type,
+        body_diagnostic_ref=diagnostic_ref,
+        assumptions=["generated_closed_body_diagnostic_gate_passed"],
+        warnings=[
+            "high_angle_gz_generated_body_solver_not_implemented",
+            "secondary_stability_metrics_hidden_until_generated_body_solver_lands",
+        ],
     )
+
+
+def _normalize_heel_grid(heel_grid_deg: Sequence[float] | None) -> list[float]:
+    grid = (
+        list(DEFAULT_GZ_HEEL_GRID_DEG)
+        if heel_grid_deg is None
+        else [float(value) for value in heel_grid_deg]
+    )
+    if not grid:
+        raise ValueError("heel_grid_deg must contain at least one angle")
+    for value in grid:
+        if not math.isfinite(value):
+            raise ValueError("heel_grid_deg must contain only finite values")
+    for left, right in zip(grid, grid[1:], strict=False):
+        if right <= left:
+            raise ValueError("heel_grid_deg must be strictly increasing")
+    return grid
+
+
+def _diagnostics_for_body(
+    body: ClosedVolumeBody,
+    body_diagnostics: object | None,
+) -> tuple[ClosedVolumeDiagnostics | None, list[str]]:
+    if body_diagnostics is None:
+        try:
+            return diagnose_closed_volume_body(body), []
+        except Exception as exc:
+            return None, [f"closed_volume_diagnostic_unavailable: {exc}"]
+    try:
+        diagnostics = ClosedVolumeDiagnostics.model_validate(body_diagnostics)
+    except Exception as exc:
+        return None, [f"closed_volume_diagnostic_invalid: {exc}"]
+    return diagnostics, []
+
+
+def _unavailable_gz_curve(
+    heel_grid_deg: list[float],
+    *,
+    body_ref: str | None = None,
+    body_type: str | None = None,
+    body_diagnostic_ref: str | None = None,
+    fixture_only: bool = False,
+    assumptions: Sequence[str] = (),
+    warnings: Sequence[str] = (),
+) -> GZCurve:
+    return GZCurve(
+        status="unavailable",
+        method="fixture_only_math" if fixture_only else "generated_body_handoff",
+        fixture_only=fixture_only,
+        body_ref=body_ref,
+        body_type=body_type,
+        body_diagnostic_ref=body_diagnostic_ref,
+        heel_grid_deg=list(heel_grid_deg),
+        assumptions=_dedupe([*GZ_UNAVAILABLE_ASSUMPTIONS, *assumptions]),
+        warnings=_dedupe(warnings),
+    )
+
+
+def _body_diagnostic_ref(diagnostics: ClosedVolumeDiagnostics) -> str:
+    return f"closed_volume_diagnostics:{diagnostics.body_id}:{diagnostics.profile_name}"
+
+
+def _closed_body_fixture_warnings(
+    body: ClosedVolumeBody,
+    diagnostics: ClosedVolumeDiagnostics | None,
+) -> list[str]:
+    if diagnostics is None:
+        return ["closed_volume_diagnostic_missing"]
+    warnings = _closed_volume_readiness_warnings(diagnostics)
+    if diagnostics.body_id != body.body_id:
+        warnings.append("body_diagnostic_ref_mismatch")
+    if diagnostics.body_type != body.body_type:
+        warnings.append("body_diagnostic_type_mismatch")
+    return warnings
+
+
+def _generated_body_gz_gate_warnings(
+    hull: Hull,
+    body: ClosedVolumeBody,
+    diagnostics: ClosedVolumeDiagnostics | None,
+) -> list[str]:
+    warnings: list[str] = []
+    if body.body_type != GENERATED_CLOSED_BODY_TYPE:
+        warnings.append("body_type_not_generated_hull_plus_deck_closed_body")
+    if body.policy.profile_name != RFC0022_GENERATED_PROFILE_NAME:
+        warnings.append("generated_body_profile_mismatch")
+    if body.policy.body_type != GENERATED_CLOSED_BODY_TYPE:
+        warnings.append("generated_body_policy_type_mismatch")
+    if body.policy.cap_policy != "explicit_bow_stern_endpoint_ring_caps":
+        warnings.append("generated_body_cap_policy_mismatch")
+    if body.policy.deck_join_policy != "exact_shared_vertices_topside_sheerline_strip":
+        warnings.append("generated_body_deck_join_policy_mismatch")
+    if body.policy.self_intersection_policy != "required_rfc0021_conservative":
+        warnings.append("generated_body_self_intersection_policy_mismatch")
+    if body.policy.normal_orientation != "outward_positive_signed_volume":
+        warnings.append("generated_body_normal_orientation_mismatch")
+    if body.policy.waterline_semantics != "metadata_only":
+        warnings.append("generated_body_waterline_semantics_mismatch")
+    if len(body.parts) != 1 or body.parts[0].name != GENERATED_CLOSED_BODY_PART_NAME:
+        warnings.append("generated_body_part_identity_mismatch")
+    if body.source_hull_hash != hull.hash():
+        warnings.append("source_hull_hash_mismatch")
+
+    if diagnostics is None:
+        warnings.append("closed_volume_diagnostic_missing")
+        return warnings
+
+    warnings.extend(_closed_volume_readiness_warnings(diagnostics))
+    if diagnostics.body_id != body.body_id:
+        warnings.append("body_diagnostic_ref_mismatch")
+    if diagnostics.body_type != body.body_type:
+        warnings.append("body_diagnostic_type_mismatch")
+    if diagnostics.profile_name != body.policy.profile_name:
+        warnings.append("body_diagnostic_profile_mismatch")
+    if diagnostics.source_hull_hash != body.source_hull_hash:
+        warnings.append("body_diagnostic_source_hull_hash_mismatch")
+    if diagnostics.units != body.units:
+        warnings.append("body_diagnostic_units_mismatch")
+    if diagnostics.coordinate_system != body.coordinate_system:
+        warnings.append("body_diagnostic_coordinate_system_mismatch")
+    if diagnostics.waterline_z_m != body.waterline_z_m:
+        warnings.append("body_diagnostic_waterline_mismatch")
+    if diagnostics.waterline_metadata != body.waterline_metadata:
+        warnings.append("body_diagnostic_waterline_metadata_mismatch")
+    if diagnostics.policy != body.policy:
+        warnings.append("body_diagnostic_policy_mismatch")
+    if diagnostics.self_intersection_algorithm != SELF_INTERSECTION_ALGORITHM:
+        warnings.append("self_intersection_algorithm_mismatch")
+    if diagnostics.self_intersection_pair_count != 0:
+        warnings.append("self_intersection_pairs_present")
+    if diagnostics.part_diagnostics and len(diagnostics.part_diagnostics) == len(body.parts):
+        for part, report in zip(body.parts, diagnostics.part_diagnostics, strict=True):
+            if report.name != part.name:
+                warnings.append("part_diagnostic_name_mismatch")
+            if report.vertex_count != len(part.vertices):
+                warnings.append("part_diagnostic_vertex_count_mismatch")
+            if report.face_count != len(part.faces):
+                warnings.append("part_diagnostic_face_count_mismatch")
+    else:
+        warnings.append("part_diagnostic_count_mismatch")
+    return warnings
+
+
+def _closed_volume_readiness_warnings(
+    diagnostics: ClosedVolumeDiagnostics,
+) -> list[str]:
+    warnings: list[str] = []
+    if diagnostics.readiness.level != "closed_volume":
+        warnings.append("closed_volume_readiness_not_closed")
+    if diagnostics.readiness.reasons:
+        warnings.append("closed_volume_readiness_reasons_present")
+    for field_name in (
+        "raw_boundary_edges",
+        "welded_boundary_edges",
+        "raw_nonmanifold_edges",
+        "welded_nonmanifold_edges",
+        "degenerate_faces",
+        "nonfinite_vertices",
+        "nonfinite_faces",
+        "invalid_face_indices",
+    ):
+        if getattr(diagnostics, field_name) != 0:
+            warnings.append(f"{field_name}_nonzero")
+    if (
+        diagnostics.signed_volume_m3
+        <= diagnostics.policy.tolerances.signed_volume_tolerance_m3
+    ):
+        warnings.append("signed_volume_not_positive_above_tolerance")
+    if diagnostics.self_intersection_status != "passed":
+        warnings.append(f"self_intersection_status_{diagnostics.self_intersection_status}")
+    if diagnostics.cfd_ready is not False:
+        warnings.append("closed_volume_diagnostic_must_not_claim_cfd_ready")
+    return warnings
+
+
+def _fixture_gz_curve(
+    heel_grid_deg: list[float],
+    *,
+    body: ClosedVolumeBody,
+    diagnostics: ClosedVolumeDiagnostics,
+    load_case: LoadCase,
+) -> GZCurve:
+    heel_deg = list(heel_grid_deg)
+    gz_m = [0.08 * math.sin(math.radians(2.0 * heel)) for heel in heel_deg]
+    righting_moment_nm = [
+        load_case.total_mass_kg * GRAVITY_M_S2 * gz for gz in gz_m
+    ]
+    summaries = _gz_summary_metrics(heel_deg, gz_m)
+    return GZCurve(
+        status="computed",
+        method="fixture_only_math",
+        fixture_only=True,
+        body_ref=body.body_id,
+        body_type=body.body_type,
+        body_diagnostic_ref=_body_diagnostic_ref(diagnostics),
+        heel_grid_deg=list(heel_grid_deg),
+        heel_deg=heel_deg,
+        gz_m=gz_m,
+        righting_moment_nm=righting_moment_nm,
+        assumptions=list(GZ_FIXTURE_ASSUMPTIONS),
+        warnings=[
+            "fixture_only",
+            "synthetic_closed_body_not_generated_kayak",
+            "not_user_facing_secondary_stability",
+        ],
+        **summaries,
+    )
+
+
+def _gz_summary_metrics(heel_deg: list[float], gz_m: list[float]) -> dict[str, float | None]:
+    if not gz_m:
+        return {
+            "max_gz_m": None,
+            "heel_at_max_gz_deg": None,
+            "range_positive_stability_deg": None,
+            "area_under_positive_gz_m_deg": None,
+        }
+    max_index = max(range(len(gz_m)), key=lambda index: gz_m[index])
+    positive_indices = [index for index, value in enumerate(gz_m) if value > 1e-12]
+    positive_gz = [max(value, 0.0) for value in gz_m]
+    return {
+        "max_gz_m": gz_m[max_index],
+        "heel_at_max_gz_deg": heel_deg[max_index],
+        "range_positive_stability_deg": (
+            heel_deg[positive_indices[-1]] if positive_indices else None
+        ),
+        "area_under_positive_gz_m_deg": float(np.trapezoid(positive_gz, heel_deg)),
+    }
+
+
+def _dedupe(values: Sequence[str]) -> list[str]:
+    result: list[str] = []
+    for value in values:
+        if value not in result:
+            result.append(value)
+    return result

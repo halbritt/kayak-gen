@@ -3,12 +3,24 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
-from kayakgen.eval.contract import EvaluationResult, LoadCase, LongitudinalLoadComponent
+from kayakgen.eval.closed_volume import (
+    ClosedVolumeReadiness,
+    diagnose_closed_volume_body,
+    explicit_synthetic_body,
+    explicit_synthetic_self_intersection_policy,
+    generated_hull_plus_deck_body,
+)
+from kayakgen.eval.contract import (
+    EvaluationResult,
+    GZCurve,
+    LoadCase,
+    LongitudinalLoadComponent,
+)
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval import stability as stability_eval
 from kayakgen.eval.stability import (
-    GZNotImplementedError,
     evaluate_gz_curve,
     evaluate_initial_stability,
 )
@@ -29,6 +41,22 @@ def _load_for_equilibrium_draft(
         cargo_mass_kg=0.0,
         seawater_density_kg_m3=seawater_density_kg_m3,
     )
+
+
+def _tetrahedron() -> tuple[list[list[float]], list[list[int]]]:
+    vertices = [
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+    ]
+    faces = [
+        [0, 2, 1],
+        [0, 1, 3],
+        [1, 2, 3],
+        [2, 0, 3],
+    ]
+    return vertices, faces
 
 
 def test_load_case_total_mass_and_round_trip() -> None:
@@ -128,9 +156,230 @@ def test_evaluation_result_carries_stability_result() -> None:
     assert loaded.stability.load_case.name == "default"
 
 
-def test_high_angle_gz_is_explicitly_not_implemented() -> None:
-    with pytest.raises(GZNotImplementedError, match="closed_volume_body_not_defined"):
-        evaluate_gz_curve(Hull(), LoadCase())
+def test_high_angle_gz_missing_body_ref_returns_structured_unavailable() -> None:
+    result = evaluate_gz_curve(Hull(), LoadCase(), heel_grid_deg=[0.0, 10.0, 20.0])
+
+    assert result.status == "unavailable"
+    assert result.fixture_only is False
+    assert result.heel_grid_deg == [0.0, 10.0, 20.0]
+    assert result.heel_deg == []
+    assert result.gz_m == []
+    assert result.righting_moment_nm == []
+    assert result.max_gz_m is None
+    assert result.heel_at_max_gz_deg is None
+    assert result.range_positive_stability_deg is None
+    assert result.area_under_positive_gz_m_deg is None
+    assert "generated_closed_body_not_available" in result.warnings
+    assert "body_ref_missing" in result.warnings
+
+
+def test_high_angle_gz_unresolved_body_ref_does_not_claim_values() -> None:
+    result = evaluate_gz_curve(
+        Hull(),
+        LoadCase(),
+        heel_grid_deg=[0.0, 5.0],
+        body_ref="mesh-package/open-wetted-surface",
+    )
+
+    assert result.status == "unavailable"
+    assert result.body_ref == "mesh-package/open-wetted-surface"
+    assert result.body_type == "unresolved"
+    assert result.gz_m == []
+    assert "body_ref_unresolved" in result.warnings
+
+
+def test_high_angle_gz_rejects_synthetic_body_as_real_kayak_gz() -> None:
+    vertices, faces = _tetrahedron()
+    body = explicit_synthetic_body(
+        vertices,
+        faces,
+        body_id="synthetic-fixture",
+        policy=explicit_synthetic_self_intersection_policy(),
+    )
+
+    result = evaluate_gz_curve(
+        Hull(),
+        LoadCase(),
+        heel_grid_deg=[0.0, 10.0, 20.0],
+        body_ref=body,
+    )
+
+    assert result.status == "unavailable"
+    assert result.fixture_only is False
+    assert result.body_type == "explicit_synthetic_triangle_mesh"
+    assert result.gz_m == []
+    assert "synthetic_body_not_allowed_for_real_gz" in result.warnings
+
+
+def test_fixture_only_gz_curve_round_trips_and_derives_summaries() -> None:
+    vertices, faces = _tetrahedron()
+    body = explicit_synthetic_body(
+        vertices,
+        faces,
+        body_id="fixture-tetrahedron",
+        policy=explicit_synthetic_self_intersection_policy(),
+    )
+    diagnostics = diagnose_closed_volume_body(body)
+    grid = [0.0, 30.0, 60.0, 90.0]
+
+    result = evaluate_gz_curve(
+        Hull(),
+        LoadCase(paddler_mass_kg=82.0),
+        heel_grid_deg=grid,
+        body_ref=body,
+        body_diagnostics=diagnostics,
+        fixture_only=True,
+    )
+    loaded = GZCurve.model_validate_json(result.model_dump_json())
+
+    assert loaded == result
+    assert result.status == "computed"
+    assert result.fixture_only is True
+    assert result.heel_grid_deg == grid
+    assert result.heel_deg == grid
+    assert len(result.gz_m) == len(grid)
+    assert len(result.righting_moment_nm) == len(grid)
+    assert result.max_gz_m == pytest.approx(max(result.gz_m))
+    assert result.heel_at_max_gz_deg == pytest.approx(30.0)
+    assert result.area_under_positive_gz_m_deg is not None
+    assert result.area_under_positive_gz_m_deg > 0.0
+    assert "fixture_only" in result.warnings
+    assert "not_kayak_stability_evidence" in result.assumptions
+
+
+def test_fixture_only_open_body_returns_unavailable_without_values() -> None:
+    vertices, faces = _tetrahedron()
+    body = explicit_synthetic_body(
+        vertices,
+        faces[:-1],
+        body_id="open-fixture",
+        policy=explicit_synthetic_self_intersection_policy(),
+    )
+
+    result = evaluate_gz_curve(
+        Hull(),
+        LoadCase(),
+        heel_grid_deg=[0.0, 15.0],
+        body_ref=body,
+        fixture_only=True,
+    )
+
+    assert result.status == "unavailable"
+    assert result.fixture_only is True
+    assert result.gz_m == []
+    assert result.max_gz_m is None
+    assert "fixture_closed_body_diagnostic_failed" in result.warnings
+    assert "closed_volume_readiness_not_closed" in result.warnings
+
+
+def test_generated_body_gate_passes_but_real_curve_remains_unavailable() -> None:
+    hull = Hull(name="gz-generated-pass", bow_rake=0.0, stern_rake=0.0)
+    body = generated_hull_plus_deck_body(hull, stations=4)
+    diagnostics = diagnose_closed_volume_body(body)
+
+    result = evaluate_gz_curve(
+        hull,
+        LoadCase(),
+        heel_grid_deg=[0.0, 5.0, 10.0],
+        body_ref=body,
+        body_diagnostics=diagnostics,
+    )
+
+    assert result.status == "unavailable"
+    assert result.body_ref == body.body_id
+    assert result.body_type == "generated_hull_plus_deck_closed_body"
+    assert result.gz_m == []
+    assert result.max_gz_m is None
+    assert "generated_closed_body_diagnostic_gate_passed" in result.assumptions
+    assert "high_angle_gz_generated_body_solver_not_implemented" in result.warnings
+
+
+def test_generated_body_hull_hash_mismatch_returns_unavailable() -> None:
+    body_hull = Hull(name="body-source")
+    request_hull = Hull(name="different-source")
+    body = generated_hull_plus_deck_body(body_hull, stations=4)
+    diagnostics = diagnose_closed_volume_body(body)
+
+    result = evaluate_gz_curve(
+        request_hull,
+        LoadCase(),
+        body_ref=body,
+        body_diagnostics=diagnostics,
+    )
+
+    assert result.status == "unavailable"
+    assert result.gz_m == []
+    assert "generated_closed_body_not_available" in result.warnings
+    assert "source_hull_hash_mismatch" in result.warnings
+
+
+def test_generated_body_failed_diagnostics_returns_unavailable() -> None:
+    hull = Hull(name="failed-diagnostics")
+    body = generated_hull_plus_deck_body(hull, stations=4)
+    diagnostics = diagnose_closed_volume_body(body).model_copy(
+        update={
+            "readiness": ClosedVolumeReadiness(
+                level="invalid",
+                reasons=["forced test failure"],
+            )
+        }
+    )
+
+    result = evaluate_gz_curve(
+        hull,
+        LoadCase(),
+        body_ref=body,
+        body_diagnostics=diagnostics,
+    )
+
+    assert result.status == "unavailable"
+    assert result.gz_m == []
+    assert result.max_gz_m is None
+    assert "closed_volume_readiness_not_closed" in result.warnings
+    assert "closed_volume_readiness_reasons_present" in result.warnings
+
+
+@pytest.mark.parametrize(
+    "grid",
+    [
+        [],
+        [0.0, 10.0, 10.0],
+        [0.0, float("nan")],
+    ],
+)
+def test_high_angle_gz_validates_heel_grid(grid: list[float]) -> None:
+    with pytest.raises(ValueError, match="heel_grid_deg"):
+        evaluate_gz_curve(Hull(), LoadCase(), heel_grid_deg=grid)
+
+
+def test_gz_curve_rejects_legacy_minimal_payload_without_provenance() -> None:
+    with pytest.raises(ValidationError, match="legacy GZCurve"):
+        GZCurve.model_validate({"angles_deg": [0.0], "gz_m": [0.0]})
+
+
+def test_gz_curve_rejects_unavailable_payload_with_values() -> None:
+    with pytest.raises(ValidationError, match="unavailable GZ results"):
+        GZCurve(
+            status="unavailable",
+            heel_grid_deg=[0.0],
+            heel_deg=[0.0],
+            gz_m=[0.0],
+            righting_moment_nm=[0.0],
+        )
+
+
+def test_legacy_hydrostatics_null_gz_curve_still_round_trips() -> None:
+    hull = Hull()
+    result = EvaluationResult(
+        hull_hash=hull.hash(),
+        hydrostatics=evaluate_hydrostatics(hull),
+    )
+    payload = result.model_dump(mode="json")
+    payload["hydrostatics"]["gz_curve"] = None
+
+    loaded = EvaluationResult.model_validate(payload)
+
+    assert loaded.hydrostatics.gz_curve is None
 
 
 def test_equilibrium_converges_to_mass_balance_within_tolerance() -> None:

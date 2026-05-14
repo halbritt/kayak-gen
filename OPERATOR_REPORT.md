@@ -50,6 +50,13 @@ Updated: 2026-05-14
   Workflow 0034 final review is running under Striatum session
   `sess_79f47bf1b31149b29522e8ad037dc400`, lease
   `lease_798233907a7e43159f269517c6786cfb`, local exec session `56948`.
+- 2026-05-14T08:51:59Z checkpoint: workflow 0035 final review accepted the
+  generated-body high-angle GZ handoff. Final review artifact
+  `art_2bc46d81f5c84f0e8767658ded87663a` recorded no blocking findings;
+  lingering low/medium items are a deferred compare negative test, legacy
+  tuple validation cleanup, raw diagnostic exception text, and brittle
+  fixture-only warning text. Operator `git diff --check` and forbidden
+  attribution scans passed before commit.
 - 2026-05-14T06:48:42Z checkpoint: workflow 0045 review remediation completed
   on branch `striatum/0045-workspace-ui-follow-up`; artifact
   `art_27fb1b0083f84d3a879c6e4c35f249b8` was published. The packet changes

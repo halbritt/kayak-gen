@@ -107,12 +107,96 @@ class ResistanceCurve(BaseModel):
 
 
 class GZCurve(BaseModel):
-    """Reserved for a future stability evaluator."""
+    """RFC 0024 high-angle GZ read model with explicit availability state.
+
+    Legacy two-field curves are intentionally not accepted here: a GZ curve
+    without body provenance can be a plotting artifact, but it is not kayak
+    secondary-stability evidence.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
-    angles_deg: list[float]
-    gz_m: list[float]
+    schema_version: Literal["1"] = "1"
+    status: Literal["unavailable", "computed"] = "unavailable"
+    method: Literal["generated_body_handoff", "fixture_only_math"] = (
+        "generated_body_handoff"
+    )
+    fixture_only: bool = False
+    body_ref: str | None = None
+    body_type: str | None = None
+    body_diagnostic_ref: str | None = None
+    heel_grid_deg: list[float] = Field(default_factory=list)
+    heel_deg: list[float] = Field(default_factory=list)
+    gz_m: list[float] = Field(default_factory=list)
+    righting_moment_nm: list[float] = Field(default_factory=list)
+    max_gz_m: float | None = None
+    heel_at_max_gz_deg: float | None = None
+    range_positive_stability_deg: float | None = None
+    area_under_positive_gz_m_deg: float | None = None
+    assumptions: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_legacy_minimal_curve(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "angles_deg" in data:
+            raise ValueError(
+                "legacy GZCurve angles_deg/gz_m data lacks RFC 0024 body provenance"
+            )
+        return data
+
+    @field_validator(
+        "heel_grid_deg",
+        "heel_deg",
+        "gz_m",
+        "righting_moment_nm",
+    )
+    @classmethod
+    def _curve_values_must_be_finite(cls, values: list[float]) -> list[float]:
+        for value in values:
+            if not math.isfinite(value):
+                raise ValueError("GZ curve arrays must contain only finite values")
+        return values
+
+    @field_validator(
+        "max_gz_m",
+        "heel_at_max_gz_deg",
+        "range_positive_stability_deg",
+        "area_under_positive_gz_m_deg",
+    )
+    @classmethod
+    def _summary_values_must_be_finite_or_none(
+        cls,
+        value: float | None,
+    ) -> float | None:
+        if value is not None and not math.isfinite(value):
+            raise ValueError("GZ summary metrics must be finite when present")
+        return value
+
+    @model_validator(mode="after")
+    def _availability_matches_payload(self) -> "GZCurve":
+        if len(self.heel_deg) != len(self.gz_m) or len(self.gz_m) != len(
+            self.righting_moment_nm
+        ):
+            raise ValueError("heel_deg, gz_m, and righting_moment_nm must align")
+
+        summary_values = (
+            self.max_gz_m,
+            self.heel_at_max_gz_deg,
+            self.range_positive_stability_deg,
+            self.area_under_positive_gz_m_deg,
+        )
+        if self.status == "unavailable":
+            if self.heel_deg or self.gz_m or self.righting_moment_nm:
+                raise ValueError("unavailable GZ results must not contain curve values")
+            if any(value is not None for value in summary_values):
+                raise ValueError("unavailable GZ results must not contain summary metrics")
+        else:
+            if not self.heel_deg:
+                raise ValueError("computed GZ results must contain at least one heel point")
+            if self.body_type == "explicit_synthetic_triangle_mesh" and not self.fixture_only:
+                raise ValueError("synthetic GZ results must be marked fixture_only")
+        return self
 
 
 class LongitudinalLoadComponent(BaseModel):

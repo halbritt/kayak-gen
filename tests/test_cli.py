@@ -385,7 +385,18 @@ def test_stability_writes_initial_result(tmp_path) -> None:
     out = tmp_path / "stability.json"
     result = CliRunner().invoke(app, ["stability", str(hull), "--out", str(out)])
     assert result.exit_code == 0
-    assert "design_waterline_initial" in out.read_text()
+    data = json.loads(out.read_text())
+    assert data["method"] == "design_waterline_initial"
+    assert data["gz_curve"] is None
+    assert "high_angle_gz_not_implemented" in data["warnings"]
+    forbidden = {
+        "max_gz_m",
+        "heel_at_max_gz_deg",
+        "righting_moment_nm",
+        "range_positive_stability_deg",
+        "area_under_positive_gz_m_deg",
+    }
+    assert forbidden.isdisjoint(data)
 
 
 def test_stability_equilibrium_flag_writes_equilibrium_result(tmp_path) -> None:

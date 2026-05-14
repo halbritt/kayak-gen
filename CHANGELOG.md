@@ -24,6 +24,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   `cfd_ready` promotion, and RFC 0024 remains limited to generated-body GZ
   handoff contracts, structured unavailable results, fixture-only labeling,
   claim guards, and tests before any real high-angle stability claims.
+- Added the RFC 0024 high-angle GZ handoff envelope: generated closed-body
+  diagnostic validation, structured unavailable results, fixture-only synthetic
+  math, provenance-safe GZ fields, and tests that keep unavailable or fixture
+  curves out of CLI, web, and generated sweep secondary-stability claims.
 - Added RFC 0034 and workflow 0045 for the workspace UI follow-up slice:
   dynamic web class presets, dynamic validity badge, resistance and mesh
   read-model wiring, export-menu completion, and broader forbidden-copy

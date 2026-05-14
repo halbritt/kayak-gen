@@ -144,3 +144,12 @@ def test_stability_is_optional_candidate_artifact_and_summary(tmp_path: Path) ->
     assert abs(record.summary["moment_error_kg_m"]) <= 0.2
     assert "trim_angle_deg" in summary_header
     assert "moment_error_kg_m" in summary_header
+    forbidden_gz = {
+        "max_gz_m",
+        "heel_at_max_gz_deg",
+        "righting_moment_nm",
+        "range_positive_stability_deg",
+        "area_under_positive_gz_m_deg",
+    }
+    assert forbidden_gz.isdisjoint(record.summary)
+    assert not any(field in summary_header for field in forbidden_gz)
