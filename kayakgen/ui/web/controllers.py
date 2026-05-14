@@ -128,9 +128,9 @@ def class_preset_read_model(preset: str) -> dict[str, Any]:
 def validity_badge_from_state(state: dict[str, Any]) -> str:
     """Return the exact RFC 0033/0034 web validity badge string."""
     hull = hull_from_web_state(state)
-    selected_class = str(state.get("class_preset") or "custom")
-    if selected_class in CLASSES and _hull_in_kayak_class(hull, CLASSES[selected_class]):
-        return f"In {CLASSES[selected_class].label} envelope"
+    matching_class = _matching_kayak_class(hull)
+    if matching_class is not None:
+        return f"In {matching_class.label} envelope"
 
     beam_wl = hull.beam_wl_m or hull.beam_oa_m
     l_over_bwl = hull.length_m / beam_wl

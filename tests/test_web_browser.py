@@ -423,6 +423,36 @@ def _assert_parameter_slider_label_geometry(page) -> None:
     assert failures == [], "parameter slider label geometry failures:\n" + "\n".join(failures)
 
 
+def _assert_parameter_slider_accessibility(page) -> None:
+    expected = {
+        "length_m": "Length (m)",
+        "beam_oa_m": "Beam OA (m)",
+        "beam_wl_m": "Beam WL (m)",
+        "draft_m": "Draft (m)",
+        "deck_height_m": "Deck Height (m)",
+        "Cp": "Prismatic Cp",
+        "Cm": "Midship Cm",
+        "deck_flatness": "Deck Flatness",
+        "center_box_ratio": "Parallel Mid-Body",
+        "bow_rake": "Bow Rake (1=raked)",
+        "stern_rake": "Stern Rake (1=raked)",
+        "target_speed_kt": "Target Speed (kt)",
+    }
+
+    assert page.locator(".kg-param-slider[role='group'][aria-label]").count() == len(expected)
+    for key, expected_label in expected.items():
+        row = page.locator(f".kg-param-{key}")
+        assert row.count() == 1
+        assert row.get_attribute("role") == "group"
+        assert row.get_attribute("aria-label") == expected_label
+        assert row.locator("[role='group']").count() == 0
+        assert row.locator("[role='slider']").count() == 1
+
+        visible_label = row.locator(".v-slider__label").first.text_content()
+        assert visible_label == expected_label
+        assert page.get_by_role("group", name=visible_label, exact=True).count() == 1
+
+
 @pytest.mark.browser_acceptance
 def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> None:
     playwright_api = _load_playwright(request)
@@ -448,6 +478,7 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 page.get_by_text("uncalibrated_comparative").first.wait_for(timeout=10_000)
                 page.get_by_text("Comparison").first.wait_for(timeout=10_000)
                 _assert_parameter_slider_label_geometry(page)
+                _assert_parameter_slider_accessibility(page)
                 _assert_nonblank_3d(page)
 
                 page.locator(
@@ -478,7 +509,7 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                     """,
                     timeout=10_000,
                 )
-                page.get_by_text("Custom (L/B_wl=15.4)").first.wait_for(timeout=10_000)
+                page.get_by_text("In Elite surfski envelope").first.wait_for(timeout=10_000)
 
                 before = _metrics_text(page)
                 sliders = page.get_by_role("slider")

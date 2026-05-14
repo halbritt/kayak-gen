@@ -48,6 +48,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0032](0032-web-hosted-browser-acceptance-revision.md) | landed local-browser-docs | Web hosted browser acceptance revision |
 | [0033](0033-workspace-ui-rework.md) | partial landed safe-slice | Workspace UI rework — three-region web shell, semantic theme, claim/readiness/status chips |
 | [0034](0034-workspace-ui-follow-up.md) | landed safe-slice | Workspace UI follow-up — dynamic presets, review-card wiring, export menu, and forbidden-copy tests |
+| [0035](0035-ui-follow-up-cleanup.md) | proposed | UI follow-up cleanup — validity semantics, export/state hygiene, slider-label maintenance |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
@@ -109,6 +110,13 @@ narrowing, dynamic validity badge, resistance and mesh read-model wiring,
 export menu completion, and broader forbidden-copy tests. The remaining UI
 work is successor scope: desktop parity rewrite, richer comparison/plot
 surfaces, and any export behavior that requires new backend capability.
+RFC 0035 is proposed as the narrow cleanup successor for workflow 0045 and
+0046 final-review findings: validity-badge/class semantics, preset edit
+wording, export-menu and web-state hygiene, slider-label CSS/accessibility
+maintenance, desktop slider fallback cleanup, and focused tests/docs. It does
+not reopen desktop parity, hosted CFD, real solvers, calibrated drag, final
+prediction, high-angle `GZ`, web-side mesh-package authoring beyond existing
+safe entries, or watertight `cfd_ready` promotion.
 
 RFC 0021 has landed only for explicit synthetic closed-volume diagnostics: the
 RFC 0016 compatibility profile records `not_checked`, while

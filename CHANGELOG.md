@@ -8,6 +8,16 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed workflow 0047's RFC 0035 UI cleanup slice: web validity badges now
+  classify the current hull against canonical web class envelopes before custom
+  fallback, preset edit behavior is documented and test-pinned, export-menu
+  rows and web state snapshots use declared source-of-truth schemas,
+  slider-label CSS/accessibility checks preserve existing tokens and canonical
+  labels, and the desktop Matplotlib slider fallback records its removal
+  condition. This is maintenance cleanup only; no backend capability, REST
+  payload shape, hosted CFD, real solver, calibration, final prediction,
+  high-angle `GZ`, web-side mesh-package authoring, watertight `cfd_ready`
+  promotion, or desktop parity rewrite landed.
 - Landed workflow 0045's RFC 0034 workspace UI follow-up safe slice: web class
   presets reseed canonical hull sliders and narrow ranges, manual hull edits
   return the preset selector to `custom`, the validity badge derives from
@@ -41,6 +51,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   RFC/scope lane, traceability/no-claims/ergonomics-design/ops first-pass
   reviews, a Codex implementation lane requiring maximal useful sub-agent
   fanout, and a Claude final-review gate.
+- Added proposed RFC 0035 through workflow 0047's RFC/scope lane, limiting
+  the next UI cleanup pass to workflow 0045 and 0046 final-review findings:
+  validity-badge/class semantics, preset edit wording, export/state hygiene,
+  slider-label CSS/accessibility maintenance, desktop slider fallback cleanup,
+  and focused tests/docs. No runtime product code or new backend, CFD,
+  stability, calibration, mesh-readiness, or hosted capability was changed.
 - Fixed workflow 0046's desktop and web slider-label visibility issue: desktop
   hull-parameter labels and value text now render legibly without overlapping
   adjacent rows, and web parameter-rail slider labels no longer sit under

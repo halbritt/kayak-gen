@@ -44,6 +44,7 @@ from kayakgen.ui.gui_params import hull_from_gui_params as _hull_from_gui_params
 
 matplotlib.rcParams.update(theme.matplotlib_rc_params())
 
+# Remove when the Matplotlib floor supports Slider(label_location=...).
 _SLIDER_SUPPORTS_LABEL_LOCATION = (
     "label_location" in inspect.signature(widgets.Slider.__init__).parameters
 )

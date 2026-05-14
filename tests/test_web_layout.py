@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -91,6 +92,7 @@ def test_parameter_slider_labels_spacing_and_accessibility_contract() -> None:
 
 def test_parameter_slider_label_css_uses_existing_tokens() -> None:
     css = web_app.PARAMETER_RAIL_CSS
+    app_source = Path(web_app.__file__).read_text()
 
     assert ".kg-param-slider .v-slider__label {" in css
     assert "font: var(--type-label);" in css
@@ -98,9 +100,20 @@ def test_parameter_slider_label_css_uses_existing_tokens() -> None:
     assert "white-space: nowrap;" in css
     assert "overflow: hidden;" in css
     assert "text-overflow: ellipsis;" in css
-    assert "--type-label:" in css
-    assert "--text-secondary:" in css
-    assert "--surface-rail:" in css
+    assert ":root" not in css
+    assert "--type-label:" not in css
+    assert "--text-secondary:" not in css
+    assert "--surface-rail:" not in css
+    assert set(re.findall(r"var\((--[^)]+)\)", css)) == {
+        "--type-label",
+        "--text-secondary",
+    }
+    assert web_app.ROOT_THEME_CSS.count(":root") == 1
+    assert "--type-label:" in web_app.ROOT_THEME_CSS
+    assert "--text-secondary:" in web_app.ROOT_THEME_CSS
+    assert "--surface-rail:" in web_app.ROOT_THEME_CSS
+    assert app_source.count("html_widgets.Style(ROOT_THEME_CSS)") == 1
+    assert app_source.count("html_widgets.Style(PARAMETER_RAIL_CSS)") == 1
 
 
 def test_review_tabs_and_status_segments_match_workspace_contract() -> None:
@@ -145,6 +158,8 @@ def test_persistent_claim_readiness_and_cfd_copy_is_static_and_exact() -> None:
 
 
 def test_export_menu_rows_are_single_honest_menu_contract() -> None:
+    app_source = Path(web_app.__file__).read_text()
+
     assert [row["label"] for row in web_app.EXPORT_MENU_ROWS] == [
         "Hull STL",
         "Deck STL",
@@ -159,8 +174,87 @@ def test_export_menu_rows_are_single_honest_menu_contract() -> None:
         "unavailable",
         "unavailable",
     ]
+    assert [row["available"] for row in web_app.EXPORT_MENU_ROWS] == [
+        True,
+        True,
+        True,
+        False,
+        False,
+    ]
+    assert [row["disabled"] for row in web_app.EXPORT_MENU_ROWS] == [
+        False,
+        False,
+        False,
+        True,
+        True,
+    ]
+    assert [row["subtitle"] for row in web_app.EXPORT_MENU_ROWS] == [
+        "Current open hull inspection surface",
+        "Current open deck inspection surface",
+        "Current local evaluation data",
+        "Use kayakgen stability for current initial-stability JSON.",
+        "Mesh package authoring is not enabled in the browser; use kayakgen mesh-package.",
+    ]
+    assert [row["row_class"] for row in web_app.EXPORT_MENU_ROWS] == [
+        "kg-export-row kg-export-hull-stl",
+        "kg-export-row kg-export-deck-stl",
+        "kg-export-row kg-export-hydro-json",
+        "kg-export-row kg-export-stability-json",
+        "kg-export-row kg-export-mesh-package",
+    ]
+    assert [row["action_key"] for row in web_app.EXPORT_MENU_ROWS] == [
+        "export_hull_stl",
+        "export_deck_stl",
+        "export_hydro_json",
+        "",
+        "",
+    ]
     assert "kayakgen stability" in web_app.EXPORT_MENU_ROWS[3]["description"]
     assert "kayakgen mesh-package" in web_app.EXPORT_MENU_ROWS[4]["description"]
+    assert "for row in EXPORT_MENU_ROWS:" in app_source
+    assert 'title="Hull STL"' not in app_source
+    assert 'subtitle="Current open hull inspection surface"' not in app_source
+
+
+def test_state_snapshot_schema_preserves_current_and_legacy_alias_keys() -> None:
+    expected_keys = (
+        *HULL_STATE_FIELDS,
+        "name",
+        "target_speed_kt",
+        "class_preset",
+        "mesh_package_ref",
+        "cfd_mesh_package_ref",
+        "cfd_status",
+        "status",
+        "cfd_payload",
+        "cfd_job_payload",
+        "cfd_last_payload",
+        "cfd_status_lines",
+    )
+    assert web_app.STATE_SNAPSHOT_KEYS == expected_keys
+
+    web = web_app.create_app(initial_hull=Hull())
+    snapshot = web._state_snapshot()
+
+    assert snapshot["mesh_package_ref"] is None
+    assert snapshot["cfd_status"] is None
+    assert snapshot["status"] is None
+    assert snapshot["cfd_payload"] is None
+    assert snapshot["cfd_job_payload"] is None
+    assert snapshot["cfd_last_payload"] is None
+    assert snapshot["cfd_mesh_package_ref"] == ""
+    web.state.mesh_package_ref = "build/mesh-package"
+    web.state.cfd_status = "queued"
+    web.state.cfd_payload = {"run": {"status": "running"}}
+
+    snapshot = web._state_snapshot()
+    assert snapshot["mesh_package_ref"] == "build/mesh-package"
+    assert snapshot["cfd_status"] == "queued"
+    assert snapshot["cfd_payload"] == {"run": {"status": "running"}}
+
+    web.state.mesh_package_ref = None
+    web.state.cfd_status = None
+    web.state.cfd_payload = None
 
 
 def test_forbidden_claim_copy_has_only_documented_negations_in_render_surfaces() -> None:
@@ -237,8 +331,18 @@ def test_class_preset_reseeds_bounds_and_manual_hull_edit_flips_custom() -> None
     assert web.state.Cp == 0.58
     assert web.state.length_m_min == 5.8
     assert web.state.length_m_max == 6.4
+    assert web.state.beam_oa_m_min == 0.42
+    assert web.state.beam_oa_m_max == 0.46
     assert web.state.beam_wl_m_min == 0.38
     assert web.state.beam_wl_m_max == 0.43
+    assert web.state.draft_m_min == 0.09
+    assert web.state.draft_m_max == 0.12
+    assert web.state.Cp_min == 0.56
+    assert web.state.Cp_max == 0.60
+    assert web.state.deck_height_m_min == 0.15
+    assert web.state.deck_height_m_max == 0.40
+    assert web.state.Cm_min == 0.65
+    assert web.state.Cm_max == 0.95
     assert web.state.target_speed_kt_min == 1.0
     assert web.state.target_speed_kt_max == 6.0
     assert web.state.validity_badge == "In Elite surfski envelope"
@@ -249,7 +353,39 @@ def test_class_preset_reseeds_bounds_and_manual_hull_edit_flips_custom() -> None
     assert web.state.class_preset == "custom"
     assert web.state.length_m_min == 2.0
     assert web.state.length_m_max == 6.5
-    assert web.state.validity_badge == "Custom (L/B_wl=15.4)"
+    assert web.state.validity_badge == "In Elite surfski envelope"
+
+
+def test_non_canonical_hull_edit_flips_custom_without_reseeding() -> None:
+    web = web_app.create_app(initial_hull=Hull())
+    web.state.class_preset = "performance"
+    web._apply_class_preset("performance")
+
+    web.state.deck_height_m = 0.24
+    web._on_hull_param_change()
+
+    assert web.state.class_preset == "custom"
+    assert web.state.length_m == 5.2
+    assert web.state.deck_height_m == 0.24
+    assert web.state.length_m_min == 2.0
+    assert web.state.length_m_max == 6.5
+
+
+def test_preset_seed_listener_reapplies_bounds_without_custom_flip() -> None:
+    web = web_app.create_app(initial_hull=Hull())
+    web.state.class_preset = "surfski_elite"
+    web._apply_class_preset("surfski_elite")
+
+    web.state.length_m_min = 2.0
+    web.state.length_m_max = 6.5
+    assert web._state_matches_preset_seed("surfski_elite") is True
+
+    web._on_hull_param_change()
+
+    assert web.state.class_preset == "surfski_elite"
+    assert web.state.length_m_min == 5.8
+    assert web.state.length_m_max == 6.4
+    assert web.state.validity_badge == "In Elite surfski envelope"
 
 
 def test_target_speed_edit_does_not_flip_class_preset() -> None:
@@ -262,6 +398,9 @@ def test_target_speed_edit_does_not_flip_class_preset() -> None:
 
     assert web.state.class_preset == "touring"
     assert web.state.target_speed_kt == 4.0
+    assert web.state.length_m_min == 4.3
+    assert web.state.length_m_max == 5.5
+    assert web.state.validity_badge == "In Touring sea kayak envelope"
 
 
 def test_resistance_mesh_and_export_render_contract_is_present() -> None:

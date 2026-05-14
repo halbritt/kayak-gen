@@ -106,30 +106,58 @@ EXPORT_MENU_ROWS: tuple[dict[str, Any], ...] = (
         "key": "hull_stl",
         "label": "Hull STL",
         "status": "enabled",
+        "available": True,
+        "disabled": False,
+        "row_class": "kg-export-row kg-export-hull-stl",
+        "action_key": "export_hull_stl",
+        "subtitle": "Current open hull inspection surface",
         "description": "Download the current open hull inspection surface.",
     },
     {
         "key": "deck_stl",
         "label": "Deck STL",
         "status": "enabled",
+        "available": True,
+        "disabled": False,
+        "row_class": "kg-export-row kg-export-deck-stl",
+        "action_key": "export_deck_stl",
+        "subtitle": "Current open deck inspection surface",
         "description": "Download the current open deck inspection surface.",
     },
     {
         "key": "hydro_json",
         "label": "Hydro JSON",
         "status": "enabled",
+        "available": True,
+        "disabled": False,
+        "row_class": "kg-export-row kg-export-hydro-json",
+        "action_key": "export_hydro_json",
+        "subtitle": "Current local evaluation data",
         "description": "Download current local evaluation data as JSON.",
     },
     {
         "key": "stability_json",
         "label": "Stability JSON",
         "status": "unavailable",
+        "available": False,
+        "disabled": True,
+        "row_class": "kg-export-row kg-export-stability-json",
+        "action_key": "",
+        "subtitle": "Use kayakgen stability for current initial-stability JSON.",
         "description": "Use kayakgen stability for current initial-stability JSON.",
     },
     {
         "key": "mesh_package",
         "label": "Mesh package...",
         "status": "unavailable",
+        "available": False,
+        "disabled": True,
+        "row_class": "kg-export-row kg-export-mesh-package",
+        "action_key": "",
+        "subtitle": (
+            "Mesh package authoring is not enabled in the browser; "
+            "use kayakgen mesh-package."
+        ),
         "description": (
             "Mesh package authoring is not enabled in the browser; "
             "use kayakgen mesh-package."
@@ -198,8 +226,9 @@ RESPONSIVE_CLASS_HOOKS: tuple[str, ...] = (
     "kg-status-wrap-under-960",
 )
 
+ROOT_THEME_CSS = theme.css_root_block()
+
 PARAMETER_RAIL_CSS = (
-    f"{theme.css_root_block()}\n"
     ".kg-param-slider .v-slider__label { "
     "font: var(--type-label); "
     "color: var(--text-secondary); "
@@ -207,6 +236,21 @@ PARAMETER_RAIL_CSS = (
     "overflow: hidden; "
     "text-overflow: ellipsis; "
     "}"
+)
+
+STATE_SNAPSHOT_KEYS: tuple[str, ...] = (
+    *HULL_STATE_FIELDS,
+    "name",
+    "target_speed_kt",
+    "class_preset",
+    "mesh_package_ref",
+    "cfd_mesh_package_ref",
+    "cfd_status",
+    "status",
+    "cfd_payload",
+    "cfd_job_payload",
+    "cfd_last_payload",
+    "cfd_status_lines",
 )
 
 RAW_COMPARATIVE_CAPTION = "Raw comparative filter; not final prediction."
@@ -350,6 +394,8 @@ class KayakgenApp:
         self.state.validity_badge_aria_label = "Design validity badge: unavailable"
         self._init_slider_bounds()
         self._applying_class_preset = False
+        self._active_preset_seed_name = ""
+        self._active_preset_seed_snapshot: dict[str, Any] = {}
         self.state.export_menu_rows = [dict(row) for row in EXPORT_MENU_ROWS]
         self.state.export_status = ""
         self.state.mesh_profile_label = MESH_PROFILE_LABEL
@@ -454,6 +500,8 @@ class KayakgenApp:
         model = class_preset_read_model(str(preset or "custom"))
         if model["preset"] == "custom":
             self.state.class_preset = "custom"
+            self._active_preset_seed_name = ""
+            self._active_preset_seed_snapshot = {}
             self._apply_slider_bounds("custom")
             self._refresh_current_hull_surface()
             return
@@ -469,15 +517,25 @@ class KayakgenApp:
                     if key in values
                 }
             )
+            self._active_preset_seed_name = str(model["preset"])
+            self._active_preset_seed_snapshot = {
+                key: getattr(self.state, key)
+                for key in HULL_STATE_FIELDS
+            }
         finally:
             self._applying_class_preset = False
         self._refresh_current_hull_surface()
 
     def _state_matches_preset_seed(self, preset: str) -> bool:
         model = class_preset_read_model(preset)
-        if model["preset"] == "custom":
+        if model["preset"] == "custom" or preset != self._active_preset_seed_name:
             return False
         snapshot = self._state_snapshot()
+        if any(
+            abs(float(snapshot.get(key, 0.0)) - float(value)) > 1e-9
+            for key, value in self._active_preset_seed_snapshot.items()
+        ):
+            return False
         return all(
             abs(float(snapshot.get(key, 0.0)) - float(value)) <= 1e-9
             for key, value in model["values"].items()
@@ -516,23 +574,9 @@ class KayakgenApp:
         return hull_from_web_state(self._state_snapshot())
 
     def _state_snapshot(self) -> dict[str, Any]:
-        keys = [
-            *HULL_STATE_FIELDS,
-            "name",
-            "target_speed_kt",
-            "class_preset",
-            "mesh_package_ref",
-            "cfd_mesh_package_ref",
-            "cfd_status",
-            "status",
-            "cfd_payload",
-            "cfd_job_payload",
-            "cfd_last_payload",
-            "cfd_status_lines",
-        ]
         return {
             key: getattr(self.state, key)
-            for key in keys
+            for key in STATE_SNAPSHOT_KEYS
             if hasattr(self.state, key)
         }
 
@@ -717,6 +761,8 @@ class KayakgenApp:
                 self._refresh_current_hull_surface()
                 return
             self.state.class_preset = "custom"
+            self._active_preset_seed_name = ""
+            self._active_preset_seed_snapshot = {}
             self._apply_slider_bounds("custom")
             self._refresh_current_hull_surface()
             return
@@ -916,6 +962,7 @@ class KayakgenApp:
 
     def _build_layout(self) -> None:
         with SinglePageWithDrawerLayout(self.server) as layout:
+            html_widgets.Style(ROOT_THEME_CSS)
             html_widgets.Style(PARAMETER_RAIL_CSS)
             layout.title.set_text("kayakgen")
 
@@ -1069,41 +1116,27 @@ class KayakgenApp:
                     **{"aria-label": "Export menu"},
                 )
             with v3.VList(classes="kg-export-menu-list", density="compact"):
-                v3.VListItem(
-                    title="Hull STL",
-                    subtitle="Current open hull inspection surface",
-                    click=lambda: self.ctrl.export_stl("hull"),
-                    classes="kg-export-row kg-export-hull-stl",
-                )
-                v3.VListItem(
-                    title="Deck STL",
-                    subtitle="Current open deck inspection surface",
-                    click=lambda: self.ctrl.export_stl("deck"),
-                    classes="kg-export-row kg-export-deck-stl",
-                )
-                v3.VListItem(
-                    title="Hydro JSON",
-                    subtitle="Current local evaluation data",
-                    click=self.ctrl.export_hydro_json,
-                    classes="kg-export-row kg-export-hydro-json",
-                )
-                v3.VListItem(
-                    title="Stability JSON",
-                    subtitle="Use kayakgen stability for current initial-stability JSON.",
-                    disabled=True,
-                    classes="kg-export-row kg-export-stability-json",
-                    **{"aria-disabled": "true"},
-                )
-                v3.VListItem(
-                    title="Mesh package...",
-                    subtitle=(
-                        "Mesh package authoring is not enabled in the browser; "
-                        "use kayakgen mesh-package."
-                    ),
-                    disabled=True,
-                    classes="kg-export-row kg-export-mesh-package",
-                    **{"aria-disabled": "true"},
-                )
+                for row in EXPORT_MENU_ROWS:
+                    attrs: dict[str, Any] = {
+                        "title": row["label"],
+                        "subtitle": row["subtitle"],
+                        "disabled": row["disabled"],
+                        "classes": row["row_class"],
+                    }
+                    if row["disabled"]:
+                        attrs["aria-disabled"] = "true"
+                    else:
+                        attrs["click"] = self._export_menu_action(str(row["action_key"]))
+                    v3.VListItem(**attrs)
+
+    def _export_menu_action(self, action_key: str) -> Any:
+        if action_key == "export_hull_stl":
+            return lambda: self.ctrl.export_stl("hull")
+        if action_key == "export_deck_stl":
+            return lambda: self.ctrl.export_stl("deck")
+        if action_key == "export_hydro_json":
+            return self.ctrl.export_hydro_json
+        raise ValueError(f"unknown export menu action: {action_key}")
 
     def _render_hydro_tab(self) -> None:
         with v3.VWindowItem(value="analysis"):

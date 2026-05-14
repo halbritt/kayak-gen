@@ -53,6 +53,16 @@ def test_class_preset_read_model_custom_and_unknown_do_not_reseed() -> None:
 
 
 def test_validity_badge_uses_exact_allowed_strings() -> None:
+    preset_labels = {
+        option["value"]: option["label"]
+        for option in class_preset_options()
+        if option["value"] != "custom"
+    }
+    for preset, label in preset_labels.items():
+        assert validity_badge_from_state(
+            _state(class_preset="custom", **class_preset_read_model(preset)["values"])
+        ) == f"In {label} envelope"
+
     assert validity_badge_from_state(
         _state(class_preset="touring", **class_preset_read_model("touring")["values"])
     ) == "In Touring sea kayak envelope"
@@ -65,6 +75,21 @@ def test_validity_badge_uses_exact_allowed_strings() -> None:
     assert validity_badge_from_state(
         _state(Hull(length_m=6.4, beam_oa_m=0.39, beam_wl_m=0.38, draft_m=0.14, Cp=0.62))
     ) == "Custom — beyond elite"
+
+
+def test_validity_badge_uses_web_canonical_five_field_envelope() -> None:
+    assert validity_badge_from_state(
+        _state(
+            Hull(
+                length_m=5.0,
+                beam_oa_m=0.58,
+                beam_wl_m=0.53,
+                draft_m=0.18,
+                Cp=0.54,
+            ),
+            class_preset="custom",
+        )
+    ) == "Custom (L/B_wl=9.4)"
 
 
 def test_evaluation_summary_uses_manifest_profile_readiness_and_cfd_status(
@@ -105,6 +130,27 @@ def test_evaluation_summary_exposes_structured_design_advisories() -> None:
             "field_refs": ["length_m", "beam_wl_m"],
         }
     ]
+
+
+def test_evaluation_summary_preserves_cfd_status_aliases() -> None:
+    assert evaluation_summary(_state(cfd_status="queued"))["cfd_status"] == "queued"
+    assert evaluation_summary(_state(status="failed"))["cfd_status"] == "failed"
+    assert (
+        evaluation_summary(_state(cfd_job_payload={"run": {"status": "running"}}))[
+            "cfd_status"
+        ]
+        == "running"
+    )
+    assert (
+        evaluation_summary(_state(cfd_last_payload={"status": "succeeded"}))["cfd_status"]
+        == "succeeded"
+    )
+    assert (
+        evaluation_summary(_state(cfd_status_lines=["CFD local job", "Status: unavailable"]))[
+            "cfd_status"
+        ]
+        == "unavailable"
+    )
 
 
 def test_mesh_diagnostics_lines_make_welded_counts_primary() -> None:

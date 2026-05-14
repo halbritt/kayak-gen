@@ -369,12 +369,15 @@ authentication, and real solver adapters are not complete.
 The web workspace class selector now reseeds `length_m`, `beam_oa_m`,
 `beam_wl_m`, `draft_m`, and `Cp` for the touring, performance,
 intermediate-surfski, and elite-surfski presets, and narrows those slider ranges
-to the selected class envelope. Editing a hull slider returns the selector to
-`custom`; target speed remains view state and is not written to `Hull` JSON.
+to the selected class envelope. Class presets seed and narrow only those five
+fields; editing any hull-shaping slider returns the selector to `custom`, while
+target speed stays view state, does not switch the preset, and is not written to
+`Hull` JSON.
 
 The rail validity badge is advisory. It reports one of
 `In <class> envelope`, `Custom — sub-touring`, `Custom — beyond elite`, or
-`Custom (L/B_wl=X.X)` from the current hull and selected class state. It is not
+`Custom (L/B_wl=X.X)` from the current hull against the canonical web class
+envelopes before custom fallback. It is not
 proof of seaworthiness, calibrated performance, design fitness, or solver
 readiness.
 

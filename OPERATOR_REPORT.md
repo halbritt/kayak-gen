@@ -19,6 +19,23 @@ Updated: 2026-05-14
   lanes including ergonomics/design, Codex ledger and implementation lanes, and
   Claude final review. `workflow validate`, `workflow plan`, and `git diff
   --check` passed before commit. No runtime behavior changed in the scaffold.
+- 2026-05-14T10:18Z checkpoint: workflow 0047 run
+  `run_489eb28aa3e0453b916113addacd02e3` is running on branch
+  `striatum/0047-ui-follow-up-cleanup`. The Codex RFC/scope lane drafted
+  proposed RFC 0035, updated the RFC index, changelog, and workflow-local
+  report, and published synthesis artifact
+  `art_d4d245a9812944b2871a52adb789badc`. Operator reran repo-venv workflow
+  validation successfully after the lane's global Striatum validation hit an
+  unavailable daemon socket. Next action is to complete `rfc_scope` and launch
+  the four first-pass review lanes in parallel.
+- 2026-05-14T10:22Z checkpoint: workflow 0047 `rfc_scope` completed. Four
+  first-pass review lanes are running in parallel: traceability
+  (`sess_67b861e6f1ed459c865ea208b3dc39ce`), no-claims
+  (`sess_8750edcc7c8044e1860550819ca3679b`), ergonomics/design
+  (`sess_55481239cca440b1bdb67a8c64e2710d`), and ops/test
+  (`sess_c8b5fd59b70a48eba5a4c21c946eb8e8`). Each prompt forbids Striatum
+  mutation, commit/push, product implementation, and false attribution, and
+  writes only its workflow-local review artifact.
 - 2026-05-14T08:24:35Z checkpoint: workflows 0034 and 0035 first-pass review
   ledgers are complete and published. Workflow 0034 ledger artifact
   `art_b4dcf8d2ad3f4972a1b00b2b904a2c80` gates RFC 0023 implementation to an
@@ -755,3 +772,33 @@ Updated: 2026-05-14
   0034 and 0035 worktrees with the scaffold clarification, rerun affected
   review artifacts, publish valid first-pass reviews, then continue to the
   ledgers and implementation lanes with maximum parallelism.
+
+## Workflow 0047 UI Follow-Up Cleanup
+
+- 2026-05-14T09:20Z: scaffolded workflow 0047 from workflow 0045 and 0046
+  final-review findings, drafted proposed RFC 0035, corrected RFC status/index
+  drift, and pushed the scaffold to `main` as commit `5289866`.
+- 2026-05-14T09:31Z: first-pass reviews were completed and published:
+  traceability `accept_with_findings`, no-claims `accept` using Gemini Flash
+  after Gemini Pro quota exhaustion, ergonomics/design `accept_with_findings`,
+  and ops/test `accept_with_findings`.
+- 2026-05-14T10:29Z: Codex findings ledger published
+  (`art_969b235b3f90429c8bffc0398df00a61`) and completed with
+  `accept_with_findings`. The ledger deduplicates the review set to six
+  safe-now UI cleanup findings and keeps backend/solver/calibration/stability/
+  watertight-readiness/desktop-parity work deferred.
+- 2026-05-14T11:12Z: Codex implementation lane completed the six
+  ledger-approved cleanup findings. Patch summary artifact
+  `art_d52d985faa104cc2919fac590fca90f5` was published and the
+  implementation job was completed in Striatum.
+- Implementation validation reported: `git diff --check` passed; focused
+  web/static/theme tests `39 passed`; browser acceptance `1 passed`;
+  desktop bbox/gui tests `4 passed`; full non-browser suite `333 passed`.
+- 2026-05-14T11:17Z: Claude final review published artifact
+  `art_9c3ef4165cb64c0a98b6b8452f565823` and completed with
+  `accept_with_findings`; Striatum marks run
+  `run_489eb28aa3e0453b916113addacd02e3` completed.
+- Non-blocking successor findings recorded by final review: stronger Trame
+  browser proof or removal for the retained preset seed-listener branch,
+  export-row `subtitle`/`description` schema consolidation, optional
+  `Mesh package...` ellipsis polish, and future snapshot-schema unification.
