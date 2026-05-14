@@ -1,6 +1,6 @@
 # Operator Report
 
-Updated: 2026-05-13
+Updated: 2026-05-14
 
 ## Current State
 
@@ -96,6 +96,17 @@ Updated: 2026-05-13
   `claimable_jobs` field still shows stale claimable summaries for the canceled
   runs, but `list jobs --state queued` and the jobs summary show only completed
   or canceled work.
+- 2026-05-14 checkpoint: repaired the repo venv Striatum install without
+  editing the dirty `/home/halbritt/git/striatum` source tree. Reinstalled the
+  existing source into `.venv`, yielding `striatum 1.47.0`; refreshed
+  `claude_code` and `codex` skill bundles plus the Codex plugin bundle; and
+  confirmed `striatum doctor --json` is clean.
+- 2026-05-14 checkpoint: corrected RFC 0033 from `proposed` to
+  `partial landed safe-slice`, added RFC 0034 as the accepted implementation
+  target for workflow 0044 follow-up findings, and scaffolded validated
+  workflow `0045-workspace-ui-follow-up` with traceability, domain/no-claims,
+  ergonomics/design, ops/test, ledger, Codex implementation, and final-review
+  lanes.
 - Next maximum-parallel batch queued from the ready backlog: workflows 0033,
   0037, 0038, 0039, 0040, and 0041. Workflows 0034 and 0035 remain queued until
   0033 lands because they depend on generated closed-body evidence.

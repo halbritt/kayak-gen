@@ -8,6 +8,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Added RFC 0034 and workflow 0045 for the workspace UI follow-up slice:
+  dynamic web class presets, dynamic validity badge, resistance and mesh
+  read-model wiring, export-menu completion, and broader forbidden-copy
+  tests. This successor keeps RFC 0033's no-new-backend-capability boundary
+  and leaves calibrated drag, final prediction, high-angle GZ, hosted CFD, and
+  watertight `cfd_ready` deferred.
 - Added RFC 0033 and workflow 0044 as the workspace UI rework: a single
   three-region desktop/web shell (parameters, geometry, review), a shared
   semantic theme module, claim/readiness/CFD status chips wired to existing

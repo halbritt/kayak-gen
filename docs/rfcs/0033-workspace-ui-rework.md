@@ -1,6 +1,6 @@
 # RFC 0033: Workspace UI Rework
 
-Status: proposed
+Status: partial landed safe-slice
 Date: 2026-05-13
 Context: distills the Claude Design "UI Rework Handoff" bundle for
 `kayak-gen`. Companion to RFC 0008 (web frontend), RFC 0013 (Pareto
@@ -10,7 +10,11 @@ policy are captured in `docs/workflows/0044-workspace-ui-rework/SOURCES.md`;
 because the handoff bundle itself is not stored in the repo, this RFC
 is canonical for scope, copy, and acceptance criteria. See
 `striatum/0044-workspace-ui-rework/` for run artifacts once the
-workflow lands.
+workflow lands. Workflow 0044 landed the conservative safe slice:
+shared theme tokens, structured advisory records, three-region web
+workspace shell, claim/readiness/status copy, desktop `Cm`/Export STLs
+touch-ups, and regression tests. RFC 0034 carries the dynamic follow-up
+items from the 0044 final review.
 
 ## Problem
 
