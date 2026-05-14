@@ -965,3 +965,12 @@ Updated: 2026-05-14
   non-blocking successor items: profile-neutral web CFD status copy and
   optional RFC 0009 decision-log bookkeeping. Future design-only decision
   workflows must include research for each decision before panel voting.
+
+## Workflow 0052 Successor Decision Research
+
+- 2026-05-14T16:15Z: started scaffold for a design-only successor decision
+  workflow on branch `striatum/0052-successor-decision-research`. The workflow
+  makes per-decision research mandatory before each three-lane panel vote and
+  covers remaining post-0051 decisions: volume-mesh production path, OpenFOAM
+  success gate, first resistance source candidate, high-angle product surface,
+  public demo operations, and the next sweep/search delta.
