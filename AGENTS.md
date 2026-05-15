@@ -50,8 +50,6 @@ subject:
   still mostly TODO. Read them to understand the *framework* the
   project follows; do not read them expecting current content.
   Filling these in is its own future RFC.
-- **`docs/DECISION_LOG.md`** — only `D001` is a real decision today.
-  The rest of the file is template guidance.
 - **`docs/workflows/*.json`** — striatum workflow definitions, not
   documents. Touch only when authoring or editing a workflow.
 - **`scripts/codex-striatum-adapter.sh`** — adapter, not project
@@ -76,15 +74,26 @@ subject:
 
 ## Current direction (one paragraph)
 
-The project is mid-pivot from "single-paddler desktop hull
-generator" (the PRD scope) to "generative CFD pipeline with desktop
-and web frontends" (the RFC 0005-0008 scope). RFC 0007 has now
-mostly landed: `kayakgen/`, the CLI, compatibility shims, evaluators,
-and golden tests exist. Current cleanup is about closing the gap
-between RFC acceptance criteria and implementation reality: RFC 0004
-exact plumb-stem/watertight semantics need a design decision, RFC 0005
-resistance is an exploratory fast-filter tier rather than fully
-accepted physics, RFC 0006 class constraints are only partly surfaced
-in the GUI, and RFC 0008 has a Trame shell but incomplete REST/browser
-acceptance. If you are picking up open work, start with workflow 0010's
-findings ledger and patch summary.
+The pivot from "single-paddler desktop hull generator" to "generative
+CFD pipeline with desktop and web frontends" is now mostly landed.
+`kayakgen/` ships a CLI, compat shims, evaluators, golden tests, a Trame
+web workspace, hydrostatics, raw-comparative-filter resistance, a
+generated closed-body construction with parameter-matrix hardening, a
+local CFD dispatch layer, a real OpenFOAM-v2512 `interFoam` succeeded
+path behind opt-in env knobs (RFC 0041 / D012; `claim_state` stays
+`raw_unvalidated`), a real `snappyHexMesh` evidence harness (RFC 0040
+stage 2), the Edinburgh DataShare Pacific-canoe extractor and
+validation-fixture-ready packet (RFC 0042 / D018; calibration still
+envelope-blocked), staged opt-in high-angle GZ surfacing across CLI,
+sweep, comparison, and web (RFC 0043 stages 1-3, stage 4 desktop
+intentionally minimal per D021), the `pending` candidate lifecycle and
+sweep-side STL artifacts (RFC 0009 partial), and a proposed RFC 0044
+NSGA-II active hull-design search. The hosted public demo is deferred
+indefinitely per D023; restoring it requires a successor decision.
+Genuinely open work: an in-envelope measured kayak resistance source
+(D006, requires author outreach — see
+`docs/research/CALIBRATION_DATA_FINDINGS_2026-05-16.md`), measured kayak
+GZ-vs-heel data (D007 / D014, requires a commissioned measurement
+campaign), and a measured-validation workflow that would let
+`uncalibrated_comparative` and `unvalidated_hydrostatic_comparison`
+labels evolve.

@@ -371,12 +371,42 @@ Run the selected local adapter state:
 kayakgen cfd run runs/cfd/cfd-xxxxxxxxxxxxxxxx
 ```
 
-No real OpenFOAM, SU2, hosted worker, Docker solver, or calibrated CFD result
-is available in the current CLI. The unavailable profiles report
+No real SU2, hosted worker, Docker solver, or calibrated CFD result is
+available in the current CLI. The unavailable profiles report
 `solver_unavailable`; the mock local-command profile deliberately fails for
 dispatch testing. The fixture local-command profile can produce a deterministic
-successful raw fixture record for tests. All CFD run records are raw and
-unvalidated.
+successful raw fixture record for tests.
+
+The `openfoam-v2512-interfoam-local` profile has a real local-execution path
+behind two opt-in environment variables. Both must be set, and an installed
+OpenFOAM-v2512 toolchain must be sourceable:
+
+```bash
+export KAYAKGEN_OPENFOAM_LOCAL_RUN=1
+export KAYAKGEN_OPENFOAM_SMOKE=1         # required only for the smoke test surface
+# optional override: where to source OpenFOAM from
+export KAYAKGEN_OPENFOAM_BASHRC=/usr/lib/openfoam/openfoam2512/etc/bashrc
+```
+
+With both knobs set, `kayakgen cfd run` against an
+`openfoam-v2512-interfoam-local` job calls
+`kayakgen.eval.cfd.openfoam_v2512_interfoam.render_case`, runs
+`blockMesh + surfaceFeatureExtract + snappyHexMesh -overwrite + checkMesh`
+(meshing stage) and `setFields + interFoam` (solve stage) under the sourced
+OpenFOAM environment, parses the resulting `postProcessing/forces/0/force.dat`,
+and writes a `CfdRunRecord` with `status="succeeded"` and a `CfdOpenFoamRawResult`
+payload. The payload preserves
+`case_template_version="openfoam-v2512-interfoam-dtchull-v1"`,
+`claim_state="raw_unvalidated"`, and empty `accepted_uses`. Without the env
+knobs the adapter still reports `error_kind="solver_success_blocked"`.
+
+Real-binary smoke wall-clock on a default `kayakgen init` hull: ~7 s meshing
+plus ~2 s solve. All output remains raw and unvalidated: it is not a
+calibration result, a validated CFD result, a final prediction, a
+design-fitness signal, or a safety/seaworthiness claim.
+
+All other CFD run records (unavailable, mock, fixture, or OpenFOAM without the
+env knobs) remain raw and unvalidated.
 
 ### `view`
 
