@@ -205,6 +205,17 @@ without regeneration. Sweep STLs are open hull/deck inspection surfaces and do
 not prepare mesh packages or promote any candidate to watertight readiness;
 run `kayakgen mesh-package` separately when a package is needed.
 
+Set `evaluators.high_angle_gz: true` (and optionally
+`evaluators.high_angle_gz_heel_grid_deg: [0, 5, 15, ...]`) to emit a per-candidate
+opt-in `candidates/<key>/high_angle_gz.json` artifact alongside the standard
+record. Each `complete` candidate's record gains a `high_angle_gz_artifact`
+block with `{path, bytes, sha256}`. Failed and pending candidates skip emission;
+resume preserves existing artifacts byte-for-byte. The block content is the same
+shape that `kayakgen stability --high-angle-gz` emits and remains
+`unvalidated_hydrostatic_comparison`. High-angle GZ metrics do NOT enter
+`summary.csv` columns and are NOT selectable as Pareto objectives — they are
+display-only.
+
 ### `compare`
 
 Build a Pareto-style comparison report from a sweep run:
@@ -223,6 +234,16 @@ present in the current records: `GM0_m`, `displacement_error_kg`, and
 candidates remain visible in the report but are not eligible for the Pareto
 frontier. Objective metadata for optimizer/search workflows remains roadmap
 work.
+
+When per-candidate `high_angle_gz.json` artifacts are present (see the sweep
+`high_angle_gz` evaluator above), the comparison report adds a top-level
+`high_angle_gz_columns: true` flag and attaches a `high_angle_gz_display` block
+to each row with body/load/trim provenance, the summary metrics (`max_gz_m`,
+`heel_at_max_gz_deg`, `range_positive_stability_deg` — null unless every
+heeled point converged), warnings, assumptions, and any `unavailable_reason`.
+This is display-only: high-angle GZ metrics are refused as Pareto objectives
+(token `RFC_0043_HIGH_ANGLE_GZ_DISPLAY_ONLY`), so passing `-o max_gz_m:max`
+errors. Frontier eligibility is unchanged.
 
 ### `mesh-check`
 

@@ -10,6 +10,57 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Direction = Literal["min", "max"]
 
+#: Per RFC 0043 stage 3 (workflow 0052 staged surfacing): high-angle GZ values
+#: are display-only. Until a future RFC explicitly promotes them to objectives,
+#: any caller that tries to drive Pareto comparison from these keys is rejected
+#: with this token so the refusal stays machine-grep-able.
+HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN = "RFC_0043_HIGH_ANGLE_GZ_DISPLAY_ONLY"
+
+#: Metric keys that mirror the high-angle GZ artifact summary. These are
+#: surfaced as display columns by the comparison report but MUST NOT be
+#: selectable as Pareto objectives.
+HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS: frozenset[str] = frozenset(
+    {
+        "max_gz_m",
+        "heel_at_max_gz_deg",
+        "range_positive_stability_deg",
+    }
+)
+
+
+class HighAngleGzObjectiveRefusedError(ValueError):
+    """Raised when a caller selects a high-angle GZ key as a Pareto objective.
+
+    Carries a structured ``reason`` payload with the offending metric and the
+    refusal token so callers can surface a stable, machine-readable error.
+    """
+
+    def __init__(self, metric: str) -> None:
+        self.metric = metric
+        self.reason = {
+            "code": "high_angle_gz_display_only",
+            "token": HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN,
+            "metric": metric,
+            "detail": (
+                f"high-angle GZ metric {metric!r} is display-only per "
+                f"{HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN}; not selectable as a Pareto objective"
+            ),
+        }
+        super().__init__(self.reason["detail"])
+
+
+def ensure_objectives_not_high_angle_gz(objectives: list["Objective"]) -> None:
+    """Refuse high-angle GZ display-only metrics as Pareto objectives.
+
+    Raises :class:`HighAngleGzObjectiveRefusedError` for the first offending
+    objective. Callers wanting to soften this gate must land a future, explicit
+    RFC that supersedes :data:`HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN`.
+    """
+
+    for objective in objectives:
+        if objective.metric in HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS:
+            raise HighAngleGzObjectiveRefusedError(objective.metric)
+
 
 class Objective(BaseModel):
     """A metric and its optimisation direction."""

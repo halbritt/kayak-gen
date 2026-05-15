@@ -42,6 +42,34 @@ Updated: 2026-05-15
     solver success path, calibration promotion, hosted operation, real
     high-angle GZ claim, or production watertight readiness was introduced;
     all new behavior remains behind the existing evidence gates.
+- 2026-05-15T22:30Z checkpoint: extended the cowboy session with three
+  follow-on subagent landings.
+  - RFC 0040 stage 2 (`kayakgen/eval/snappy_hex_mesh.py`,
+    `tests/test_snappy_hex_mesh_harness.py`): locked `snappyHexMesh`
+    case-template `openfoam-v2512-snappyhexmesh-watertight-v1`,
+    `SnappyHexMeshEvidence` Pydantic record, deterministic dict scaffolds
+    (`controlDict`, `snappyHexMeshDict`, `meshQualityDict`,
+    `surfaceFeatureExtractDict`, `blockMeshDict`), `CheckMeshSummary`, partial-
+    evidence-safe diagnostic translator that returns `None` until every gate
+    binds. No new `cfd_ready` promotion path.
+  - RFC 0043 stage 2 (`kayakgen/search/sweep.py`,
+    `kayakgen/eval/sweep_artifacts.py`): `evaluators.high_angle_gz` writes
+    per-candidate `high_angle_gz.json` artifacts with
+    `high_angle_gz_artifact: {path, bytes, sha256}` records. Failed and
+    pending candidates skip emission; resume preserves artifacts. No high-angle
+    key enters `summary.csv` or default Pareto objectives.
+  - RFC 0043 stage 3 (`kayakgen/search/compare.py`,
+    `kayakgen/search/pareto.py`): comparison report attaches a
+    `high_angle_gz_display` block when artifacts are present;
+    `HighAngleGzObjectiveRefusedError` with token
+    `RFC_0043_HIGH_ANGLE_GZ_DISPLAY_ONLY` refuses high-angle GZ metrics as
+    Pareto objectives. Frontier eligibility, default objectives, and resolved
+    metadata are unchanged.
+  - DECISION_LOG entries D017 (RFC 0036 retain outcome), D018 (RFC 0042
+    extractor-stub pattern), D019 (RFC 0043 stage 1 CLI JSON shape) recorded.
+  - Full test suite: 512 passed (random and stable ordering); no new solver
+    success path, calibration promotion, hosted operation, real high-angle GZ
+    claim, or production watertight readiness was introduced.
 - 2026-05-14T19:35Z checkpoint: scaffolded workflow 0053
   (`implementation-burndown-stage2`) to burn down the remaining roadmap
   backlog in parallel. The new workflow fans out six disjoint Codex

@@ -2,7 +2,18 @@
 
 from __future__ import annotations
 
-from kayakgen.search.pareto import CandidatePoint, Objective, dominates, pareto_front
+import pytest
+
+from kayakgen.search.pareto import (
+    HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS,
+    HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN,
+    CandidatePoint,
+    HighAngleGzObjectiveRefusedError,
+    Objective,
+    dominates,
+    ensure_objectives_not_high_angle_gz,
+    pareto_front,
+)
 
 
 def test_dominates_requires_no_worse_and_one_strictly_better() -> None:
@@ -107,3 +118,25 @@ def test_accepted_use_can_be_attached_to_metric_provenance() -> None:
 
     assert dominates(faster, slower, objectives)
     assert [candidate.id for candidate in pareto_front([faster, slower], objectives)] == ["faster"]
+
+
+@pytest.mark.parametrize("metric", sorted(HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS))
+def test_high_angle_gz_metrics_are_refused_as_objectives(metric: str) -> None:
+    """RFC 0043 stage 3: high-angle GZ keys cannot drive Pareto ranking."""
+    with pytest.raises(HighAngleGzObjectiveRefusedError) as exc:
+        ensure_objectives_not_high_angle_gz([Objective(metric=metric, direction="max")])
+
+    assert exc.value.metric == metric
+    assert exc.value.reason["token"] == HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN
+    assert exc.value.reason["code"] == "high_angle_gz_display_only"
+
+
+def test_ensure_objectives_not_high_angle_gz_allows_normal_metrics() -> None:
+    """The gate is a no-op for every non-display-only metric."""
+    ensure_objectives_not_high_angle_gz(
+        [
+            Objective(metric="GM0_m", direction="max"),
+            Objective(metric="displacement_error_kg", direction="min"),
+            Objective(metric="mesh_problem_count", direction="min"),
+        ]
+    )

@@ -53,10 +53,10 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0037](0037-export-row-schema-consolidation.md) | landed subtitle-only-schema | Export row schema consolidation |
 | [0038](0038-export-menu-disabled-copy-polish.md) | landed disabled-copy-polish | Export menu disabled copy polish |
 | [0039](0039-web-snapshot-schema-unification.md) | landed shared-schema-unification | Web snapshot schema unification |
-| [0040](0040-closed-volume-solver-readiness-roadmap.md) | partial landed generated-body-hardening | Closed-volume solver readiness roadmap |
+| [0040](0040-closed-volume-solver-readiness-roadmap.md) | partial landed generated-body-hardening + snappyHexMesh-evidence-harness-contract | Closed-volume solver readiness roadmap |
 | [0041](0041-real-cfd-adapter-successor.md) | partial landed case-template-lock + provenance-probe + v2512-parser; succeeded still blocked | Real CFD adapter successor |
 | [0042](0042-resistance-calibration-fixture-successor.md) | partial landed source-review-packet-validators; data acquisition pending | Resistance calibration fixture successor |
-| [0043](0043-high-angle-gz-successor.md) | partial landed CLI-JSON-opt-in surfacing (stage 1) | High-angle GZ successor |
+| [0043](0043-high-angle-gz-successor.md) | partial landed staged surfacing (stages 1-3) | High-angle GZ successor |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw

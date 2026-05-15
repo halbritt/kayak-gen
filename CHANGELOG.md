@@ -22,6 +22,38 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed RFC 0040 stage 2 `snappyHexMesh` evidence-harness contract in
+  `kayakgen/eval/snappy_hex_mesh.py`: locked
+  `SNAPPYHEXMESH_CASE_TEMPLATE_VERSION = "openfoam-v2512-snappyhexmesh-watertight-v1"`,
+  `SnappyHexMeshEvidence` Pydantic record with required dictionary-hash set
+  (`controlDict`, `snappyHexMeshDict`, `meshQualityDict`,
+  `surfaceFeatureExtractDict`, `blockMeshDict`), deterministic scaffold builder
+  hashed off the generated body identity, patch metadata, `CheckMeshSummary`,
+  artifact checksums, and `OpenFoamProvenanceProbe`. A new
+  `snappy_hex_mesh_volume_mesh_diagnostic` translator returns `None` for
+  partial evidence and hands off into the existing watertight readiness gate;
+  no new `cfd_ready` promotion path is opened. +15 tests in
+  `tests/test_snappy_hex_mesh_harness.py`. No real `snappyHexMesh` execution.
+- Landed RFC 0043 stage 2 (opt-in sweep evaluator) and stage 3 (display-only
+  comparison) for high-angle GZ:
+  - Sweep: `evaluators.high_angle_gz: bool` (+ optional
+    `evaluators.high_angle_gz_heel_grid_deg`) writes per-candidate
+    `candidates/<key>/high_angle_gz.json` via the existing stage-1 block
+    builder. Records `high_angle_gz_artifact: {path, bytes, sha256}` on the
+    candidate. Failed and pending candidates skip emission; resume preserves
+    artifacts byte-for-byte. No high-angle key enters `summary.csv` or
+    default Pareto objectives.
+  - Comparison: `kayakgen compare` reads per-candidate `high_angle_gz.json`
+    when present and attaches a `high_angle_gz_display` block to each row
+    (body/load/trim provenance, `max_gz_m`, `heel_at_max_gz_deg`,
+    `range_positive_stability_deg`, warnings, assumptions,
+    `unavailable_reason`). Report adds a `high_angle_gz_columns: bool` flag
+    (true only when at least one row has the block). Pareto frontier
+    eligibility, default objectives, and resolved metadata are unchanged; a
+    new `HighAngleGzObjectiveRefusedError` (token
+    `RFC_0043_HIGH_ANGLE_GZ_DISPLAY_ONLY`) refuses any high-angle metric as a
+    Pareto objective. +19 tests across `tests/test_sweep.py`,
+    `tests/test_compare.py`, `tests/test_pareto.py`.
 - Landed RFC 0040 generated-body parameter-matrix hardening: a new 55-case
   parametrized test surface (`tests/test_generated_closed_body_hardening.py`,
   11 hull cases × 5 invariant assertions) pins generated closed-body

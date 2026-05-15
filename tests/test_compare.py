@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
-from kayakgen.eval.contract import EvaluationResult, ResistanceCurve, ResistanceMetadata
+from kayakgen.cli.high_angle_gz import build_high_angle_gz_block
+from kayakgen.eval.contract import EvaluationResult, LoadCase, ResistanceCurve, ResistanceMetadata
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
+from kayakgen.eval.sweep_artifacts import HighAngleGzArtifact
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import CODE_L_BWL_LOW
 from kayakgen.search.compare import (
@@ -15,7 +18,11 @@ from kayakgen.search.compare import (
     build_comparison_report,
     write_comparison_report,
 )
-from kayakgen.search.pareto import Objective
+from kayakgen.search.pareto import (
+    HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN,
+    HighAngleGzObjectiveRefusedError,
+    Objective,
+)
 from kayakgen.search.sweep import CandidateRecord, SweepRunRecord, SweepSpec, run_sweep
 
 
@@ -564,3 +571,305 @@ def test_write_comparison_report_round_trips(tmp_path: Path) -> None:
 
     assert loaded == report
     assert loaded.run_name == "compare-tiny"
+
+
+# ---------------------------------------------------------------------------
+# RFC 0043 stage 3 (display-only) high-angle GZ comparison surfacing.
+# ---------------------------------------------------------------------------
+
+
+HIGH_ANGLE_KEYS = (
+    "max_gz_m",
+    "heel_at_max_gz_deg",
+    "range_positive_stability_deg",
+)
+
+
+def _build_two_candidate_run(
+    root: Path,
+    *,
+    attach_high_angle_to: set[str] | None = None,
+    high_angle_blocks: dict[str, dict] | None = None,
+) -> SweepRunRecord:
+    """Build a minimal sweep run with two completed candidates.
+
+    When ``attach_high_angle_to`` includes a candidate key, a per-candidate
+    ``high_angle_gz.json`` artifact is written under ``candidates/<key>/``
+    and the candidate record is updated to point at it. Callers may pass
+    ``high_angle_blocks`` to override the artifact JSON for a specific key
+    (e.g. to fabricate an "unavailable" block).
+    """
+
+    attach_high_angle_to = attach_high_angle_to or set()
+    high_angle_blocks = high_angle_blocks or {}
+    candidates_dir = root / "candidates"
+    candidates_dir.mkdir(parents=True, exist_ok=True)
+    hull = Hull()
+    hydro = evaluate_hydrostatics(hull)
+
+    records: list[CandidateRecord] = []
+    for index, key in enumerate(("candidate-a", "candidate-b")):
+        evaluation = EvaluationResult(hull_hash=hull.hash(), hydrostatics=hydro)
+        eval_path = candidates_dir / f"{key}.eval.json"
+        eval_path.write_text(evaluation.model_dump_json(indent=2))
+
+        artifacts = {"evaluation": str(eval_path.relative_to(root))}
+        high_angle_artifact: HighAngleGzArtifact | None = None
+
+        if key in attach_high_angle_to:
+            candidate_dir = candidates_dir / key
+            candidate_dir.mkdir(parents=True, exist_ok=True)
+            block = high_angle_blocks.get(key)
+            if block is None:
+                block = build_high_angle_gz_block(
+                    hull,
+                    LoadCase(),
+                    heel_grid_deg=[0.0, 5.0, 10.0, 15.0, 20.0],
+                )
+            artifact_path = candidate_dir / "high_angle_gz.json"
+            artifact_path.write_text(json.dumps(block, indent=2))
+            data = artifact_path.read_bytes()
+            high_angle_artifact = HighAngleGzArtifact(
+                path=str(artifact_path.relative_to(root)),
+                bytes=len(data),
+                sha256=__import__("hashlib").sha256(data).hexdigest(),
+            )
+            artifacts["high_angle_gz"] = high_angle_artifact.path
+
+        record = CandidateRecord(
+            candidate_index=index,
+            candidate_key=key,
+            parameters={},
+            attempted_hull=hull.model_dump(mode="json"),
+            status="complete",
+            hull_hash=hull.hash(),
+            artifacts=artifacts,
+            summary={
+                "GM0_m": hydro.GM0_m,
+                "displaced_mass_kg": hydro.displaced_mass_kg,
+            },
+            high_angle_gz_artifact=high_angle_artifact,
+        )
+        records.append(record)
+
+    run = SweepRunRecord(
+        name="stage3-fixture",
+        spec_hash="stage3-fixture",
+        candidate_count=len(records),
+        pending_count=0,
+        completed_count=len(records),
+        failed_count=0,
+        skipped_count=0,
+        candidates=records,
+    )
+    (root / "run.json").write_text(run.model_dump_json(indent=2))
+    return run
+
+
+def _unavailable_block_fixture() -> dict:
+    return {
+        "available": False,
+        "result_semantics": "unvalidated_hydrostatic_comparison",
+        "body_profile": "generated_hull_plus_deck_closed_body_v1",
+        "heel_grid_deg": [0.0, 5.0, 10.0],
+        "unavailable_reason": {
+            "code": "synthetic_body_not_allowed_for_real_gz",
+            "detail": "evaluate_gz_curve returned status != computed",
+        },
+        "heel_points": [],
+        "summary": None,
+        "assumptions": ["fixture_assumption"],
+        "warnings": [
+            "deck_immersion_assumption",
+            "flooding_not_modeled",
+            "not_safety_or_seaworthiness_claim",
+            "active_paddler_not_modeled",
+            "sealed_body_assumption",
+        ],
+    }
+
+
+def test_compare_omits_high_angle_keys_when_no_artifacts(tmp_path: Path) -> None:
+    """No high-angle artifacts means no high-angle keys appear (additive shape)."""
+    _build_two_candidate_run(tmp_path)
+
+    report = build_comparison_report(tmp_path)
+
+    assert report.high_angle_gz_columns is False
+    for summary in report.candidate_summaries:
+        assert summary.high_angle_gz_display is None
+
+    # Defaults remain unchanged: no high-angle key may be a Pareto objective.
+    for objective in report.objectives:
+        assert objective.metric not in HIGH_ANGLE_KEYS
+
+
+def test_compare_attaches_high_angle_display_when_artifacts_present(
+    tmp_path: Path,
+) -> None:
+    """Each candidate with an artifact gets a display dict; flag flips on."""
+    _build_two_candidate_run(tmp_path, attach_high_angle_to={"candidate-a"})
+
+    report = build_comparison_report(tmp_path)
+
+    assert report.high_angle_gz_columns is True
+    by_key = {summary.candidate_key: summary for summary in report.candidate_summaries}
+    attached = by_key["candidate-a"].high_angle_gz_display
+    other = by_key["candidate-b"].high_angle_gz_display
+    assert attached is not None
+    assert other is None
+
+    assert attached.body_profile == "generated_hull_plus_deck_closed_body_v1"
+    assert attached.result_semantics == "unvalidated_hydrostatic_comparison"
+    # Body provenance fields travel adjacent to the value.
+    assert attached.method is not None
+    assert attached.body_ref is not None
+    assert attached.body_type is not None
+    # Either fully converged (summary present) or partial (None). Either is
+    # legal — the field still exists on the display dict.
+    if attached.available:
+        # summary may still be None if not every heel point converged.
+        pass
+
+    # Frontier ranking is unchanged by display surfacing.
+    assert set(report.pareto_front_keys).issubset({"candidate-a", "candidate-b"})
+
+
+def test_compare_high_angle_display_carries_warnings_and_assumptions(
+    tmp_path: Path,
+) -> None:
+    """Surface warnings + evaluator assumptions are mirrored verbatim."""
+    block = {
+        "available": True,
+        "result_semantics": "unvalidated_hydrostatic_comparison",
+        "body_profile": "generated_hull_plus_deck_closed_body_v1",
+        "method": "fixed_trim_generated_body_v1",
+        "body_ref": "fixture-body",
+        "body_type": "generated_hull_plus_deck_closed_body_v1",
+        "body_diagnostic_ref": "fixture-diag",
+        "heel_grid_deg": [0.0, 5.0, 10.0],
+        "heel_points": [],
+        "summary": {
+            "max_gz": 0.42,
+            "heel_at_max_gz": 25.0,
+            "range_positive_stability_deg": 55.0,
+        },
+        "assumptions": ["fixed_trim_assumption", "load_case_centered"],
+        "warnings": [
+            "deck_immersion_assumption",
+            "flooding_not_modeled",
+            "not_safety_or_seaworthiness_claim",
+            "active_paddler_not_modeled",
+            "sealed_body_assumption",
+            "evaluator_emitted_extra_warning",
+        ],
+    }
+    _build_two_candidate_run(
+        tmp_path,
+        attach_high_angle_to={"candidate-a"},
+        high_angle_blocks={"candidate-a": block},
+    )
+
+    report = build_comparison_report(tmp_path)
+
+    display = next(
+        summary.high_angle_gz_display
+        for summary in report.candidate_summaries
+        if summary.candidate_key == "candidate-a"
+    )
+    assert display is not None
+    assert display.available is True
+    assert display.max_gz_m == pytest.approx(0.42)
+    assert display.heel_at_max_gz_deg == pytest.approx(25.0)
+    assert display.range_positive_stability_deg == pytest.approx(55.0)
+    assert "evaluator_emitted_extra_warning" in display.warnings
+    assert "deck_immersion_assumption" in display.warnings
+    assert display.assumptions == ["fixed_trim_assumption", "load_case_centered"]
+    # body/load/trim provenance lives adjacent on the same display object.
+    assert display.body_ref == "fixture-body"
+    assert display.body_type == "generated_hull_plus_deck_closed_body_v1"
+    assert display.body_diagnostic_ref == "fixture-diag"
+    assert display.method == "fixed_trim_generated_body_v1"
+
+
+def test_compare_high_angle_unavailable_artifact_renders_unavailable_reason(
+    tmp_path: Path,
+) -> None:
+    """Unavailable artifacts mirror ``unavailable_reason`` and null the summary."""
+    _build_two_candidate_run(
+        tmp_path,
+        attach_high_angle_to={"candidate-a"},
+        high_angle_blocks={"candidate-a": _unavailable_block_fixture()},
+    )
+
+    report = build_comparison_report(tmp_path)
+
+    display = next(
+        summary.high_angle_gz_display
+        for summary in report.candidate_summaries
+        if summary.candidate_key == "candidate-a"
+    )
+    assert display is not None
+    assert display.available is False
+    assert display.max_gz_m is None
+    assert display.heel_at_max_gz_deg is None
+    assert display.range_positive_stability_deg is None
+    assert display.unavailable_reason is not None
+    assert display.unavailable_reason["code"] == "synthetic_body_not_allowed_for_real_gz"
+    assert "sealed_body_assumption" in display.warnings
+
+
+def test_compare_default_objectives_do_not_include_high_angle_keys(
+    tmp_path: Path,
+) -> None:
+    """Defaults remain unchanged whether or not artifacts are present."""
+    _build_two_candidate_run(tmp_path, attach_high_angle_to={"candidate-a"})
+
+    report = build_comparison_report(tmp_path)
+
+    metrics = {objective.metric for objective in report.objectives}
+    assert metrics.isdisjoint(HIGH_ANGLE_KEYS)
+    for metric in HIGH_ANGLE_KEYS:
+        assert metric not in report.objective_metadata
+
+
+def test_compare_refuses_high_angle_objective(tmp_path: Path) -> None:
+    """Caller-supplied ``-o max_gz_m:max`` is rejected with a structured reason."""
+    _build_two_candidate_run(tmp_path, attach_high_angle_to={"candidate-a"})
+
+    with pytest.raises(HighAngleGzObjectiveRefusedError) as exc:
+        build_comparison_report(
+            tmp_path,
+            objectives=[Objective(metric="max_gz_m", direction="max")],
+        )
+
+    assert exc.value.metric == "max_gz_m"
+    assert exc.value.reason["code"] == "high_angle_gz_display_only"
+    assert exc.value.reason["token"] == HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN
+    assert exc.value.reason["metric"] == "max_gz_m"
+    assert HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN in str(exc.value)
+
+
+def test_compare_frontier_membership_independent_of_high_angle_artifacts(
+    tmp_path: Path,
+) -> None:
+    """Pareto frontier ranks identically whether or not the artifact is attached."""
+    bare_root = tmp_path / "bare"
+    attached_root = tmp_path / "attached"
+    bare_root.mkdir()
+    attached_root.mkdir()
+    _build_two_candidate_run(bare_root)
+    _build_two_candidate_run(
+        attached_root, attach_high_angle_to={"candidate-a", "candidate-b"}
+    )
+
+    bare_report = build_comparison_report(bare_root)
+    attached_report = build_comparison_report(attached_root)
+
+    assert bare_report.pareto_front_keys == attached_report.pareto_front_keys
+    assert [obj.metric for obj in bare_report.objectives] == [
+        obj.metric for obj in attached_report.objectives
+    ]
+    # Display surfacing does NOT mutate frontier eligibility.
+    assert attached_report.high_angle_gz_columns is True
+    assert bare_report.high_angle_gz_columns is False

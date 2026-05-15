@@ -22,12 +22,46 @@ from kayakgen.search.objectives import (
     objective_metadata_for,
     objective_requires_accepted_use,
 )
-from kayakgen.search.pareto import CandidatePoint, Direction, Objective, pareto_front
+from kayakgen.search.pareto import (
+    CandidatePoint,
+    Direction,
+    Objective,
+    ensure_objectives_not_high_angle_gz,
+    pareto_front,
+)
 from kayakgen.search.sweep import CandidateRecord, SweepRunRecord
 
 ReportKind = Literal["pareto_frontier", "exploratory_frontier"]
 
 DEFAULT_OBJECTIVE_CANDIDATES: tuple[Objective, ...] = default_objectives()
+
+
+class HighAngleGzDisplay(BaseModel):
+    """Display-only mirror of a candidate's ``high_angle_gz.json`` artifact.
+
+    Per RFC 0043 stage 3 (workflow 0052 staged surfacing), these values are
+    rendered adjacent to body/load/trim provenance and warnings, but are NOT
+    selectable as Pareto objectives. The shape stays additive so the report
+    remains backwards-compatible when no candidate has the artifact.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    available: bool
+    body_profile: str
+    result_semantics: str
+    method: str | None = None
+    body_ref: str | None = None
+    body_type: str | None = None
+    body_diagnostic_ref: str | None = None
+    heel_grid_deg: list[float] = Field(default_factory=list)
+    max_gz_m: float | None = None
+    heel_at_max_gz_deg: float | None = None
+    range_positive_stability_deg: float | None = None
+    warnings: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    unavailable_reason: dict[str, Any] | None = None
+    artifact_path: str | None = None
 
 
 class CandidateSummary(BaseModel):
@@ -49,6 +83,7 @@ class CandidateSummary(BaseModel):
     error: str | None = None
     artifacts: dict[str, str] = Field(default_factory=dict)
     provenance: dict[str, Any] = Field(default_factory=dict)
+    high_angle_gz_display: HighAngleGzDisplay | None = None
 
     @model_validator(mode="after")
     def _sync_design_validity_counts(self) -> "CandidateSummary":
@@ -74,6 +109,10 @@ class ComparisonReport(BaseModel):
     design_validity: dict[str, DesignValidityReport] = Field(default_factory=dict)
     design_warning_count: int = 0
     design_unsupported_count: int = 0
+    # Present (true) when at least one candidate has a high-angle GZ display
+    # artifact. Omitted (false) when no candidates do — keeps the report shape
+    # backwards-compatible by absence. Display-only per RFC 0043 stage 3.
+    high_angle_gz_columns: bool = False
 
     @model_validator(mode="after")
     def _sync_design_validity_counts(self) -> "ComparisonReport":
@@ -119,11 +158,18 @@ def build_comparison_report(
     run = load_sweep_run(root)
     summaries = [_candidate_summary(root, record) for record in run.candidates]
 
+    if objectives is not None:
+        # Refuse high-angle GZ display-only metrics as objectives BEFORE any
+        # work happens so the structured rejection is the only outcome.
+        ensure_objectives_not_high_angle_gz(objectives)
+
     selected_objectives = (
         _normalize_objectives(objectives)
         if objectives is not None
         else _default_objectives(summaries)
     )
+    # Defense-in-depth: defaults must never include a display-only key.
+    ensure_objectives_not_high_angle_gz(selected_objectives)
     report_kind: ReportKind = (
         "exploratory_frontier"
         if any(_is_claim_gated_metric(objective.metric) for objective in selected_objectives)
@@ -185,6 +231,10 @@ def build_comparison_report(
         for objective in selected_objectives
     }
 
+    high_angle_gz_columns = any(
+        summary.high_angle_gz_display is not None for summary in candidate_summaries
+    )
+
     return ComparisonReport(
         run_name=run.name,
         spec_hash=run.spec_hash,
@@ -205,6 +255,7 @@ def build_comparison_report(
         design_unsupported_count=sum(
             summary.design_unsupported_count for summary in candidate_summaries
         ),
+        high_angle_gz_columns=high_angle_gz_columns,
     )
 
 
@@ -292,6 +343,8 @@ def _candidate_summary(root: Path, record: CandidateRecord) -> CandidateSummary:
                 )
             )
 
+    high_angle_gz_display = _load_high_angle_gz_display(root, record)
+
     return CandidateSummary(
         candidate_index=record.candidate_index,
         candidate_key=record.candidate_key,
@@ -306,7 +359,87 @@ def _candidate_summary(root: Path, record: CandidateRecord) -> CandidateSummary:
         error=record.error,
         artifacts=record.artifacts,
         provenance=provenance,
+        high_angle_gz_display=high_angle_gz_display,
     )
+
+
+def _load_high_angle_gz_display(
+    root: Path, record: CandidateRecord
+) -> HighAngleGzDisplay | None:
+    """Read ``high_angle_gz.json`` (if present) into a display-only mirror.
+
+    Per RFC 0043 stage 3 / workflow 0052 staged surfacing, the comparison
+    report surfaces high-angle GZ values plus body/load/trim provenance and
+    warnings ADJACENT to each row, but never as Pareto objectives. Returns
+    ``None`` when no artifact reference exists or the file is missing so the
+    report stays additive.
+    """
+
+    artifact_ref: str | None = None
+    if record.high_angle_gz_artifact is not None:
+        artifact_ref = record.high_angle_gz_artifact.path
+    elif "high_angle_gz" in record.artifacts:
+        artifact_ref = record.artifacts["high_angle_gz"]
+
+    if not artifact_ref:
+        return None
+
+    artifact_path = root / artifact_ref
+    if not artifact_path.exists():
+        return None
+
+    try:
+        block = json.loads(artifact_path.read_text())
+    except (OSError, ValueError):
+        return None
+    if not isinstance(block, dict):
+        return None
+
+    summary = block.get("summary") if isinstance(block.get("summary"), dict) else None
+    unavailable_reason = (
+        block.get("unavailable_reason")
+        if isinstance(block.get("unavailable_reason"), dict)
+        else None
+    )
+    warnings_raw = block.get("warnings") or []
+    assumptions_raw = block.get("assumptions") or []
+    heel_grid_raw = block.get("heel_grid_deg") or []
+
+    return HighAngleGzDisplay(
+        available=bool(block.get("available", False)),
+        body_profile=str(block.get("body_profile", "")),
+        result_semantics=str(block.get("result_semantics", "")),
+        method=_optional_str(block.get("method")),
+        body_ref=_optional_str(block.get("body_ref")),
+        body_type=_optional_str(block.get("body_type")),
+        body_diagnostic_ref=_optional_str(block.get("body_diagnostic_ref")),
+        heel_grid_deg=[float(angle) for angle in heel_grid_raw if isinstance(angle, (int, float))],
+        max_gz_m=_optional_float(summary.get("max_gz")) if summary else None,
+        heel_at_max_gz_deg=_optional_float(summary.get("heel_at_max_gz")) if summary else None,
+        range_positive_stability_deg=(
+            _optional_float(summary.get("range_positive_stability_deg")) if summary else None
+        ),
+        warnings=[str(warning) for warning in warnings_raw],
+        assumptions=[str(assumption) for assumption in assumptions_raw],
+        unavailable_reason=unavailable_reason,
+        artifact_path=artifact_ref,
+    )
+
+
+def _optional_str(value: Any) -> str | None:
+    if value is None:
+        return None
+    return str(value)
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)) and math.isfinite(float(value)):
+        return float(value)
+    return None
 
 
 def _load_evaluation(root: Path, record: CandidateRecord) -> EvaluationResult | None:

@@ -328,3 +328,24 @@ def fixture_volume_mesh_diagnostic(
             "fixture volume mesh handoff evidence only; CFD outputs remain raw and unvalidated"
         ],
     )
+
+
+def snappy_hex_mesh_volume_mesh_diagnostic(
+    evidence: object,
+) -> VolumeMeshDiagnostic | None:
+    """Translate ``SnappyHexMeshEvidence`` into a volume-mesh diagnostic.
+
+    This thin wrapper re-exports the snappy-hex-mesh harness translation so
+    callers depending on ``kayakgen.eval.volume_mesh`` can opt into harness
+    evidence without importing the harness module directly. Returns ``None``
+    when the evidence is not fully bound; the readiness report MUST NOT
+    promote ordinary packages to ``cfd_ready`` via this function.
+    """
+
+    # Imported lazily to avoid a circular import (the harness module imports
+    # from ``volume_mesh``).
+    from kayakgen.eval.snappy_hex_mesh import (
+        snappy_hex_mesh_volume_mesh_diagnostic as _translate,
+    )
+
+    return _translate(evidence)  # type: ignore[arg-type]

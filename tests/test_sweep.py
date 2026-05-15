@@ -9,6 +9,7 @@ from pathlib import Path
 from kayakgen.io.stl import write_stl
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import CODE_L_BWL_LOW
+from kayakgen.search.objectives import DEFAULT_OBJECTIVE_METRICS
 from kayakgen.search.sweep import CandidateRecord, SweepSpec, expand_candidates, run_sweep
 
 
@@ -280,6 +281,169 @@ def test_sweep_stl_pending_candidate_skips_artifacts(tmp_path: Path) -> None:
     assert pending_record.stl_artifacts is None
     assert not (candidate_dir / "hull.stl").exists()
     assert not (candidate_dir / "deck.stl").exists()
+
+
+def _high_angle_gz_spec(*, heel_grid_deg: list[float] | None = None) -> SweepSpec:
+    evaluators: dict[str, object] = {
+        "hydrostatics": True,
+        "resistance": False,
+        "stl": False,
+        "high_angle_gz": True,
+    }
+    if heel_grid_deg is not None:
+        evaluators["high_angle_gz_heel_grid_deg"] = heel_grid_deg
+    return SweepSpec(
+        name="hagz",
+        base_hull={"beam_oa_m": 0.60},
+        variables={
+            "beam_wl_m": {"kind": "values", "values": [0.50, 0.55]},
+            "Cp": {"kind": "values", "values": [0.54]},
+        },
+        evaluators=evaluators,
+    )
+
+
+def test_sweep_high_angle_gz_off_writes_no_artifact(tmp_path: Path) -> None:
+    run = run_sweep(_spec(), tmp_path)
+    for record in run.candidates:
+        assert record.high_angle_gz_artifact is None
+        candidate_dir = tmp_path / "candidates" / record.candidate_key
+        assert not (candidate_dir / "high_angle_gz.json").exists()
+        assert "high_angle_gz" not in record.artifacts
+    assert list((tmp_path / "candidates").rglob("high_angle_gz.json")) == []
+
+
+def test_sweep_high_angle_gz_on_writes_per_candidate_artifact(tmp_path: Path) -> None:
+    run = run_sweep(_high_angle_gz_spec(), tmp_path)
+    assert run.completed_count == 2
+    for record in run.candidates:
+        assert record.status == "complete"
+        assert record.high_angle_gz_artifact is not None
+        rel = record.high_angle_gz_artifact.path
+        assert rel == f"candidates/{record.candidate_key}/high_angle_gz.json"
+        artifact_path = tmp_path / rel
+        assert artifact_path.exists()
+        payload = json.loads(artifact_path.read_text())
+        # Block shape matches the CLI surface (RFC 0043 stage 1).
+        for key in (
+            "available",
+            "result_semantics",
+            "body_profile",
+            "heel_grid_deg",
+            "heel_points",
+            "summary",
+            "assumptions",
+            "warnings",
+        ):
+            assert key in payload
+        assert payload["heel_grid_deg"][0] == 0.0
+        assert payload["heel_grid_deg"][-1] == 90.0
+        assert len(payload["heel_grid_deg"]) == 19
+
+
+def test_sweep_high_angle_gz_records_artifact_hashes(tmp_path: Path) -> None:
+    run = run_sweep(_high_angle_gz_spec(), tmp_path)
+    for record in run.candidates:
+        artifact = record.high_angle_gz_artifact
+        assert artifact is not None
+        path = tmp_path / artifact.path
+        data = path.read_bytes()
+        assert artifact.bytes == len(data)
+        assert artifact.sha256 == hashlib.sha256(data).hexdigest()
+        assert len(artifact.sha256) == 64
+        assert artifact.path.endswith("high_angle_gz.json")
+
+
+def test_sweep_high_angle_gz_failed_candidate_skips_artifact(tmp_path: Path) -> None:
+    spec = SweepSpec(
+        name="failed-hagz",
+        base_hull={"beam_oa_m": 0.55},
+        variables={"beam_wl_m": {"kind": "values", "values": [0.60]}},
+        evaluators={"hydrostatics": True, "resistance": False, "high_angle_gz": True},
+    )
+    run = run_sweep(spec, tmp_path)
+    assert run.failed_count == 1
+    record = run.candidates[0]
+    assert record.status == "failed"
+    assert record.high_angle_gz_artifact is None
+    candidate_dir = tmp_path / "candidates" / record.candidate_key
+    assert not (candidate_dir / "high_angle_gz.json").exists()
+
+
+def test_sweep_high_angle_gz_pending_candidate_skips_artifact(tmp_path: Path) -> None:
+    spec = _high_angle_gz_spec()
+    run = run_sweep(spec, tmp_path)
+    target = run.candidates[0]
+    record_path = tmp_path / "candidates" / f"{target.candidate_key}.record.json"
+    candidate_dir = tmp_path / "candidates" / target.candidate_key
+    if candidate_dir.exists():
+        for stale in candidate_dir.glob("high_angle_gz.json"):
+            stale.unlink()
+    pending = target.model_copy(update={"status": "pending", "high_angle_gz_artifact": None})
+    record_path.write_text(pending.model_dump_json(indent=2))
+
+    resumed = run_sweep(spec, tmp_path, resume=True)
+
+    pending_record = next(r for r in resumed.candidates if r.candidate_key == target.candidate_key)
+    assert pending_record.status == "pending"
+    assert pending_record.high_angle_gz_artifact is None
+    assert not (candidate_dir / "high_angle_gz.json").exists()
+
+
+def test_sweep_high_angle_gz_resume_preserves_existing_artifact(tmp_path: Path) -> None:
+    spec = _high_angle_gz_spec()
+    run = run_sweep(spec, tmp_path)
+    fingerprints: dict[str, tuple[bytes, float]] = {}
+    for record in run.candidates:
+        assert record.high_angle_gz_artifact is not None
+        artifact_path = tmp_path / record.high_angle_gz_artifact.path
+        fingerprints[record.candidate_key] = (
+            artifact_path.read_bytes(),
+            artifact_path.stat().st_mtime,
+        )
+
+    resumed = run_sweep(spec, tmp_path, resume=True)
+    assert resumed.skipped_count == 2
+    assert resumed.completed_count == 0
+    for record in resumed.candidates:
+        assert record.status == "skipped"
+        assert record.high_angle_gz_artifact is not None
+        artifact_path = tmp_path / record.high_angle_gz_artifact.path
+        prior_bytes, prior_mtime = fingerprints[record.candidate_key]
+        assert artifact_path.read_bytes() == prior_bytes
+        # Byte-for-byte preserved; no regeneration.
+        assert artifact_path.stat().st_mtime == prior_mtime
+
+
+def test_sweep_high_angle_gz_does_not_appear_in_summary_csv_columns(tmp_path: Path) -> None:
+    run = run_sweep(_high_angle_gz_spec(), tmp_path)
+    assert run.completed_count == 2
+    summary_text = (tmp_path / "summary.csv").read_text()
+    header = summary_text.splitlines()[0]
+    forbidden = (
+        "high_angle_gz",
+        "max_gz",
+        "heel_at_max_gz",
+        "range_positive_stability_deg",
+    )
+    for token in forbidden:
+        assert token not in header
+    # And no high-angle keys leak into the candidate summary scoring fields.
+    for record in run.candidates:
+        for key in record.summary:
+            assert "high_angle" not in key
+            assert "gz" not in key.lower() or key in {"GM0_m", "initial_GM0_m"}
+
+
+def test_sweep_high_angle_gz_is_not_in_default_pareto_objectives() -> None:
+    # RFC 0043 stage 2 must not change the default Pareto objectives.
+    assert DEFAULT_OBJECTIVE_METRICS == (
+        "GM0_m",
+        "displacement_error_kg",
+        "mesh_problem_count",
+    )
+    assert "high_angle_gz" not in DEFAULT_OBJECTIVE_METRICS
+    assert not any("gz" in metric.lower() and metric != "GM0_m" for metric in DEFAULT_OBJECTIVE_METRICS)
 
 
 def test_sweep_stl_resume_preserves_existing_artifacts(tmp_path: Path) -> None:
