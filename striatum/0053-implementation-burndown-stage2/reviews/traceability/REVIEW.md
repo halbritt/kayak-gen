@@ -4,7 +4,7 @@ artifact_kind: "finding"
 verdict_intent: "accept"
 ---
 
-author: operator [self-declared: operator-0053-review-traceability]
+author: operator [self-declared: operator-0053-review-traceability-repair]
 schema_version: striatum.finding.v1
 kind: finding
 logical_name: review

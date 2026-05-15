@@ -38,3 +38,8 @@ Started: 2026-05-14
   concern for older sweep `run.json` files. The ledger note should be treated
   as superseded policy rather than a live remediation target. No runtime or
   test changes were requested for this decision.
+- 2026-05-15T01:58Z: workflow 0053 was completed in Striatum after the review
+  verdicts were reattached on fresh leases, the findings ledger was published,
+  remediation was recorded as a no-op summary, and final review accepted the
+  run. No additional code changes were needed for the waived compatibility
+  note.

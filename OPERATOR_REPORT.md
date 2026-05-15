@@ -48,6 +48,13 @@ Updated: 2026-05-15
   not an open remediation item. No code changes were requested for that
   decision; the remaining workflow state is about reflecting the waiver and
   unblocking the ledger/final-review path if Striatum still expects it.
+- 2026-05-15T01:58Z checkpoint: workflow 0053 was driven to completion on
+  `striatum/0053-implementation-burndown-stage2`. The review verdicts were
+  reattached on fresh leases, the findings ledger was published, a no-op
+  remediation summary was recorded because the lone finding was waived, and
+  final review accepted the run. The live Striatum run now reports `completed`;
+  the remaining claimable jobs shown by `status` are legacy advisory entries,
+  not open blockers on this run.
 - 2026-05-14T17:06Z checkpoint: workflow 0052
   (`successor-decision-research`) remains design-only and research-first. All
   six decision questions now have separate cited research artifacts under

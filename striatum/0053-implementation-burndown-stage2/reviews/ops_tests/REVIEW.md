@@ -4,7 +4,7 @@ artifact_kind: "finding"
 verdict_intent: "accept_with_findings"
 ---
 
-author: operator [self-declared: operator-0053-review-ops]
+author: operator [self-declared: operator-0053-review-ops-repair]
 schema_version: striatum.finding.v1
 kind: finding
 logical_name: review

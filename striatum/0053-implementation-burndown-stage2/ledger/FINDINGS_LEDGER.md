@@ -4,7 +4,7 @@ artifact_kind: "findings_ledger"
 summary_count: 0
 ---
 
-author: findings-ledger-codex-gpt-5.5-0053-stage2
+author: operator [self-declared: operator-0053-findings-ledger-repair]
 schema_version: striatum.findings_ledger.v1
 kind: findings_ledger
 logical_name: findings_ledger

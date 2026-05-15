@@ -4,7 +4,7 @@ artifact_kind: "finding"
 verdict_intent: "accept"
 ---
 
-author: operator [self-declared: operator-0053-review-claims]
+author: operator [self-declared: operator-0053-review-claims-repair]
 date: 2026-05-14
 session: sess_6db4ed71a34b4302a4e1d533cb9dd656
 job: review_claims
