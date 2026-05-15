@@ -1,0 +1,29 @@
+{
+  "schema_version": "1",
+  "name": "touring-sea-kayak-pareto-example",
+  "base_hull": {
+    "length_m": 5.2,
+    "beam_oa_m": 0.55,
+    "draft_m": 0.12
+  },
+  "search_space": {
+    "length_m": {"kind": "uniform", "min": 4.4, "max": 5.6},
+    "beam_wl_m": {"kind": "uniform", "min": 0.46, "max": 0.58},
+    "Cp": {"kind": "uniform", "min": 0.50, "max": 0.62}
+  },
+  "algorithm": {
+    "kind": "nsga2",
+    "population_size": 12,
+    "generations": 4,
+    "seed": 1234
+  },
+  "evaluators": {
+    "hydrostatics": true,
+    "mesh_diagnostics": true,
+    "stability": true
+  },
+  "budget": {
+    "max_evaluations": 64,
+    "wall_clock_seconds": 600
+  }
+}
