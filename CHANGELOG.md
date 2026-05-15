@@ -18,6 +18,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed workflow 0053 stage 2: web query bootstrap and slider-safe state
+  handling, sweep pending lifecycle reporting, high-angle stability summary
+  semantics, and the accompanying roadmap/user-guide/RFC index and workflow
+  report updates. This was a workflow and documentation landing; no new solver,
+  calibration, or hosted execution capability changed.
 - Scaffolded workflow 0053 as the next implementation burn-down stage for the
   remaining roadmap backlog: browser parity, geometry evidence harness,
   OpenFOAM adapter gate, resistance source evidence, high-angle GZ surfacing,
