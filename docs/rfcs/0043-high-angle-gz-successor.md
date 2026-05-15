@@ -1,6 +1,6 @@
 # RFC 0043: High-Angle GZ Successor
 
-Status: partial landed staged surfacing (stage 1 CLI JSON, stage 2 opt-in sweep artifacts, stage 3 display-only comparison)
+Status: partial landed staged surfacing (stages 1-3 CLI + sweep artifacts + comparison + web read model; stage 4 desktop intentionally minimal)
 Date: 2026-05-14
 Context: successor to RFC 0020 and RFC 0024, using the generated closed-body
 handoff work from RFC 0022 and preserving the unavailable-result boundary for

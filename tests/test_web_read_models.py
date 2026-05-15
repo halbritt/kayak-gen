@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import json
 
+from kayakgen.cli.high_angle_gz import build_high_angle_gz_block
+from kayakgen.eval.contract import LoadCase
 from kayakgen.eval.mesh_diagnostics import diagnose_mesh
 from kayakgen.eval.mesh_package import watertight_solid_profile, write_mesh_package
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import CODE_L_BWL_LOW
+from kayakgen.search.compare import (
+    CandidateSummary,
+    ComparisonReport,
+    HighAngleGzDisplay,
+)
 from kayakgen.ui.web.controllers import (
     MESH_PROFILE_LABEL_TO_ID,
     WATERTIGHT_SOLID_DISABLED_TOOLTIP,
@@ -17,6 +24,14 @@ from kayakgen.ui.web.controllers import (
     resistance_table_view_model,
     validity_badge_from_state,
 )
+from kayakgen.ui.web.read_models import (
+    HIGH_ANGLE_GZ_SECTION_CAPTION,
+    HIGH_ANGLE_GZ_SECTION_HEADING,
+    web_high_angle_gz_rows,
+    web_high_angle_gz_section_html,
+    web_high_angle_gz_view_model,
+    web_high_angle_gz_view_model_from_json,
+)
 from kayakgen.ui.web.state import (
     CFD_PAYLOAD_ALIASES,
     CFD_STATUS_ALIASES,
@@ -25,6 +40,93 @@ from kayakgen.ui.web.state import (
     STATE_SNAPSHOT_KEYS,
     state_dict_from_hull,
 )
+
+
+def _display_from_block(block: dict[str, object]) -> HighAngleGzDisplay:
+    """Adapt a stage-1 ``build_high_angle_gz_block`` dict to the report mirror."""
+
+    summary = block.get("summary") if isinstance(block.get("summary"), dict) else None
+    heel_grid = block.get("heel_grid_deg") or []
+    return HighAngleGzDisplay(
+        available=bool(block.get("available", False)),
+        body_profile=str(block.get("body_profile", "")),
+        result_semantics=str(block.get("result_semantics", "")),
+        method=block.get("method"),
+        body_ref=block.get("body_ref"),
+        body_type=block.get("body_type"),
+        body_diagnostic_ref=block.get("body_diagnostic_ref"),
+        heel_grid_deg=[float(value) for value in heel_grid if isinstance(value, (int, float))],
+        max_gz_m=summary.get("max_gz") if summary else None,
+        heel_at_max_gz_deg=summary.get("heel_at_max_gz") if summary else None,
+        range_positive_stability_deg=(
+            summary.get("range_positive_stability_deg") if summary else None
+        ),
+        warnings=[str(value) for value in (block.get("warnings") or [])],
+        assumptions=[str(value) for value in (block.get("assumptions") or [])],
+        unavailable_reason=(
+            block.get("unavailable_reason")
+            if isinstance(block.get("unavailable_reason"), dict)
+            else None
+        ),
+    )
+
+
+def _candidate_summary(
+    index: int,
+    key: str,
+    display: HighAngleGzDisplay | None,
+) -> CandidateSummary:
+    return CandidateSummary(
+        candidate_index=index,
+        candidate_key=key,
+        status="complete",
+        hull_hash=Hull().hash(),
+        high_angle_gz_display=display,
+    )
+
+
+def _report_with_high_angle(
+    *,
+    columns: bool,
+    candidates: list[CandidateSummary],
+) -> ComparisonReport:
+    return ComparisonReport(
+        run_name="stage3-web-fixture",
+        spec_hash="stage3-web-fixture",
+        report_kind="exploratory_frontier",
+        objectives=[],
+        pareto_front_keys=[],
+        candidate_summaries=candidates,
+        high_angle_gz_columns=columns,
+    )
+
+
+def _available_display() -> HighAngleGzDisplay:
+    block = build_high_angle_gz_block(
+        Hull(),
+        LoadCase(),
+        heel_grid_deg=[0.0, 5.0, 10.0, 15.0, 20.0],
+    )
+    return _display_from_block(block)
+
+
+def _unavailable_display() -> HighAngleGzDisplay:
+    return HighAngleGzDisplay(
+        available=False,
+        body_profile="generated_hull_plus_deck_closed_body_v1",
+        result_semantics="unvalidated_hydrostatic_comparison",
+        method=None,
+        warnings=[
+            "deck_immersion_assumption",
+            "flooding_not_modeled",
+            "not_safety_or_seaworthiness_claim",
+        ],
+        assumptions=["heel_grid: 0..20 deg"],
+        unavailable_reason={
+            "code": "synthetic_body_not_allowed_for_real_gz",
+            "detail": "evaluate_gz_curve returned status != computed",
+        },
+    )
 
 
 def _state(hull: Hull | None = None, **overrides: object) -> dict[str, object]:
@@ -267,3 +369,193 @@ def test_resistance_table_highlights_fixed_row_when_target_is_within_tolerance()
     assert len(target_rows) == 1
     assert target_rows[0]["speed_kt"] == 3.0
     assert target_rows[0]["source"] == "sweep"
+
+
+# ---------------------------------------------------------------------------
+# RFC 0043 stage 3 web read model: high-angle GZ comparison section.
+# ---------------------------------------------------------------------------
+
+
+def test_web_comparison_hides_high_angle_section_when_columns_false() -> None:
+    report = _report_with_high_angle(
+        columns=False,
+        candidates=[_candidate_summary(0, "cand-a", _available_display())],
+    )
+
+    rows = web_high_angle_gz_rows(report)
+    view = web_high_angle_gz_view_model(report)
+    html_out = web_high_angle_gz_section_html(view)
+
+    assert rows == []
+    assert view["visible"] is False
+    assert view["rows"] == []
+    assert view["heading"] == HIGH_ANGLE_GZ_SECTION_HEADING
+    assert view["caption"] == HIGH_ANGLE_GZ_SECTION_CAPTION
+    # When hidden the rendered HTML is empty so the Trame ``v-show`` binding
+    # collapses without leaving any orphan caption in the DOM.
+    assert html_out == ""
+
+    # Round-trip through JSON to mirror the wire path.
+    view_from_json = web_high_angle_gz_view_model_from_json(report.model_dump_json())
+    assert view_from_json["visible"] is False
+    assert view_from_json["rows"] == []
+
+
+def test_web_comparison_renders_high_angle_rows_when_present() -> None:
+    available = _available_display()
+    unavailable = _unavailable_display()
+    report = _report_with_high_angle(
+        columns=True,
+        candidates=[
+            _candidate_summary(0, "cand-a", available),
+            _candidate_summary(1, "cand-b", unavailable),
+            _candidate_summary(2, "cand-c", None),
+        ],
+    )
+
+    view = web_high_angle_gz_view_model(report)
+    html_out = web_high_angle_gz_section_html(view)
+
+    assert view["visible"] is True
+    assert [row["candidate_key"] for row in view["rows"]] == ["cand-a", "cand-b"]
+    # available_display row carries the artifact's max-GZ value.
+    available_row = view["rows"][0]
+    assert available_row["available"] is True
+    assert available_row["result_semantics"] == "unvalidated_hydrostatic_comparison"
+    assert available_row["max_gz_m"] is not None
+    assert available_row["heel_at_max_gz_deg"] is not None
+    assert available_row["range_positive_stability_deg"] is not None
+    # unavailable row falls through to the reason-rendering path.
+    unavailable_row = view["rows"][1]
+    assert unavailable_row["available"] is False
+    assert unavailable_row["max_gz_m"] is None
+    assert "synthetic_body_not_allowed_for_real_gz" in unavailable_row["unavailable_reason"]
+    # HTML carries the section heading and the fixed caption verbatim.
+    assert HIGH_ANGLE_GZ_SECTION_HEADING in html_out
+    assert HIGH_ANGLE_GZ_SECTION_CAPTION in html_out
+    assert 'data-candidate-key="cand-a"' in html_out
+    assert 'data-candidate-key="cand-b"' in html_out
+
+
+def test_web_high_angle_rows_carry_body_load_trim_provenance() -> None:
+    available = _available_display()
+    report = _report_with_high_angle(
+        columns=True,
+        candidates=[_candidate_summary(0, "cand-a", available)],
+    )
+
+    view = web_high_angle_gz_view_model(report)
+    html_out = web_high_angle_gz_section_html(view)
+    provenance = view["rows"][0]["provenance_label"]
+
+    # Body / load / trim are present as a single combined line.
+    assert provenance.startswith("body: generated_hull_plus_deck_closed_body_v1")
+    assert " | load: " in provenance
+    assert " | trim: " in provenance
+    # Trim slot is the artifact's GZ integration method (encapsulates the
+    # fixed-trim policy used at each heel point).
+    assert "fixed_trim_generated_body_v1" in provenance
+    # The rendered HTML places the provenance line adjacent to the metric
+    # values so no bare summary number is shown without context.
+    provenance_idx = html_out.index(provenance)
+    metrics_idx = html_out.index("max GZ (m)")
+    assert provenance_idx < metrics_idx
+
+
+def test_web_high_angle_rows_show_warnings_and_assumptions() -> None:
+    available = _available_display()
+    # Force a known assumption so the test does not depend on the evaluator
+    # emitting any particular assumption string.
+    augmented = available.model_copy(
+        update={
+            "warnings": [*available.warnings, "deck_immersion_assumption"],
+            "assumptions": ["heel_grid=0..20 deg", "default_load_case"],
+        }
+    )
+    report = _report_with_high_angle(
+        columns=True,
+        candidates=[_candidate_summary(0, "cand-a", augmented)],
+    )
+
+    view = web_high_angle_gz_view_model(report)
+    html_out = web_high_angle_gz_section_html(view)
+    row = view["rows"][0]
+
+    # Warnings / assumptions are preserved on the row exactly.
+    assert "deck_immersion_assumption" in row["warnings"]
+    assert "default_load_case" in row["assumptions"]
+    # They appear in the rendered HTML adjacent to the row's provenance line.
+    assert "warning: deck_immersion_assumption" in html_out
+    assert "assumption: default_load_case" in html_out
+
+
+def test_web_high_angle_rows_show_unavailable_reason_when_unavailable() -> None:
+    unavailable = _unavailable_display()
+    report = _report_with_high_angle(
+        columns=True,
+        candidates=[_candidate_summary(0, "cand-a", unavailable)],
+    )
+
+    view = web_high_angle_gz_view_model(report)
+    html_out = web_high_angle_gz_section_html(view)
+    row = view["rows"][0]
+
+    assert row["available"] is False
+    assert row["max_gz_m"] is None
+    assert row["heel_at_max_gz_deg"] is None
+    assert row["range_positive_stability_deg"] is None
+    assert row["unavailable_reason"] == (
+        "synthetic_body_not_allowed_for_real_gz: "
+        "evaluate_gz_curve returned status != computed"
+    )
+    assert "unavailable: synthetic_body_not_allowed_for_real_gz" in html_out
+    # No bare metric labels are rendered for an unavailable row.
+    assert "max GZ (m)" not in html_out
+
+
+def test_web_high_angle_section_forbidden_claim_copy_absent() -> None:
+    available = _available_display()
+    unavailable = _unavailable_display()
+    report = _report_with_high_angle(
+        columns=True,
+        candidates=[
+            _candidate_summary(0, "cand-a", available),
+            _candidate_summary(1, "cand-b", unavailable),
+        ],
+    )
+
+    view = web_high_angle_gz_view_model(report)
+    html_out = web_high_angle_gz_section_html(view)
+
+    # The fixed caption and the RFC 0024 surface-warning identifiers are
+    # negations -- they explicitly say the result is NOT a safety or
+    # seaworthiness claim, NOT validated, and NOT calibrated. Those phrases
+    # are scrubbed before the forbidden-token sweep so the negation list
+    # itself does not trip the regression. Everything else must be free of
+    # the forbidden claim copy.
+    assert HIGH_ANGLE_GZ_SECTION_CAPTION in html_out
+    allowed_negations = (
+        HIGH_ANGLE_GZ_SECTION_CAPTION,
+        "not_safety_or_seaworthiness_claim",
+        "unvalidated_hydrostatic_comparison",
+    )
+    scrubbed = html_out
+    for phrase in allowed_negations:
+        scrubbed = scrubbed.replace(phrase, "")
+
+    forbidden_tokens = (
+        "safe",
+        "seaworthy",
+        "validated",
+        "calibrated",
+        "final prediction",
+        "design fitness",
+    )
+    lowered = scrubbed.lower()
+    for token in forbidden_tokens:
+        assert token not in lowered, token
+
+    # Lossless display contract: the rendered section asserts the
+    # unvalidated-hydrostatic-comparison semantics in every row.
+    for row in view["rows"]:
+        assert row["result_semantics"] == "unvalidated_hydrostatic_comparison"

@@ -264,6 +264,77 @@ def test_create_app_loads_comparison_and_applies_candidate(tmp_path) -> None:
     assert web.state.comparison_status == "Applied sweep parameters for candidate 0"
     assert web.state.beam_oa_m == 0.60
     assert web.state.beam_wl_m == 0.50
+    # The stage 1/2 sweep run does not attach high-angle GZ artifacts, so the
+    # stage 3 display section stays hidden for a default sweep -- preserving
+    # the "hide by default" contract from RFC 0043 stage 3.
+    assert web.state.high_angle_gz_section_visible is False
+    assert web.state.high_angle_gz_section_html == ""
+
+
+def test_create_app_surfaces_high_angle_gz_section_when_columns_present() -> None:
+    """End-to-end wiring: a stage 3 report drives the Trame state visibly."""
+
+    from kayakgen.cli.high_angle_gz import build_high_angle_gz_block
+    from kayakgen.eval.contract import LoadCase
+    from kayakgen.search.compare import (
+        CandidateSummary,
+        ComparisonReport,
+        HighAngleGzDisplay,
+    )
+    from kayakgen.ui.web.app import create_app
+
+    block = build_high_angle_gz_block(
+        Hull(),
+        LoadCase(),
+        heel_grid_deg=[0.0, 5.0, 10.0, 15.0, 20.0],
+    )
+    summary_block = block.get("summary") or {}
+    display = HighAngleGzDisplay(
+        available=bool(block.get("available")),
+        body_profile=str(block.get("body_profile", "")),
+        result_semantics=str(block.get("result_semantics", "")),
+        method=block.get("method"),
+        body_ref=block.get("body_ref"),
+        body_type=block.get("body_type"),
+        body_diagnostic_ref=block.get("body_diagnostic_ref"),
+        heel_grid_deg=list(block.get("heel_grid_deg", [])),
+        max_gz_m=summary_block.get("max_gz"),
+        heel_at_max_gz_deg=summary_block.get("heel_at_max_gz"),
+        range_positive_stability_deg=summary_block.get("range_positive_stability_deg"),
+        warnings=list(block.get("warnings", [])),
+        assumptions=list(block.get("assumptions", [])),
+    )
+    report = ComparisonReport(
+        run_name="stage3-web-app-fixture",
+        spec_hash="stage3-web-app-fixture",
+        report_kind="exploratory_frontier",
+        objectives=[],
+        pareto_front_keys=[],
+        candidate_summaries=[
+            CandidateSummary(
+                candidate_index=0,
+                candidate_key="cand-a",
+                status="complete",
+                hull_hash=Hull().hash(),
+                high_angle_gz_display=display,
+            )
+        ],
+        high_angle_gz_columns=True,
+    )
+
+    web = create_app(initial_hull=Hull())
+    web.state.comparison_json = report.model_dump_json()
+    web._load_comparison()
+
+    assert web.state.high_angle_gz_section_visible is True
+    section_html = web.state.high_angle_gz_section_html
+    assert "High-angle GZ (display-only)" in section_html
+    assert (
+        "Unvalidated hydrostatic comparison; not safety, seaworthiness, "
+        "calibrated, validated, or final-prediction claim"
+    ) in section_html
+    assert "body: generated_hull_plus_deck_closed_body_v1" in section_html
+    assert "cand-a" in section_html
 
 
 def test_create_app_renders_nonblank_offscreen_scene() -> None:

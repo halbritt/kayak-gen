@@ -70,6 +70,16 @@ Updated: 2026-05-15
   - Full test suite: 512 passed (random and stable ordering); no new solver
     success path, calibration promotion, hosted operation, real high-angle GZ
     claim, or production watertight readiness was introduced.
+- 2026-05-15T23:30Z checkpoint: extended RFC 0043 stage 3 with the web read
+  model (`kayakgen/ui/web/read_models.py`,
+  `kayakgen/ui/web/app.py:_render_comparison_tab`,
+  `tests/test_web_read_models.py`, `tests/test_web.py`). The Trame
+  comparison panel now surfaces a "High-angle GZ (display-only)" section
+  bound to the new `high_angle_gz_section_visible` state key when the loaded
+  report carries the block; otherwise the section is hidden. Decision D020
+  records the RFC 0040 stage 2 contract-only landing rationale; decision
+  D021 records that stage 4 desktop is intentionally minimal in this pass.
+  Full test suite: 519 passed.
 - 2026-05-14T19:35Z checkpoint: scaffolded workflow 0053
   (`implementation-burndown-stage2`) to burn down the remaining roadmap
   backlog in parallel. The new workflow fans out six disjoint Codex

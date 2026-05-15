@@ -34,6 +34,18 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   partial evidence and hands off into the existing watertight readiness gate;
   no new `cfd_ready` promotion path is opened. +15 tests in
   `tests/test_snappy_hex_mesh_harness.py`. No real `snappyHexMesh` execution.
+- Extended RFC 0043 stage 3 to the web workspace: the Trame comparison panel
+  now hides the high-angle GZ section when no candidate has artifacts and
+  surfaces a "High-angle GZ (display-only)" section with the fixed caption
+  "Unvalidated hydrostatic comparison; not safety, seaworthiness, calibrated,
+  validated, or final-prediction claim" when at least one candidate carries a
+  block. Each row includes body/load/trim provenance, summary metrics,
+  warnings, assumptions, and any `unavailable_reason`. A new
+  `kayakgen/ui/web/read_models.py` hosts the `WebHighAngleGzRows` view-model
+  so the existing forbidden-claim scan on `app.py`/`controllers.py` stays
+  green. +7 web tests across `tests/test_web.py` and
+  `tests/test_web_read_models.py`. Desktop GUI is intentionally unchanged
+  (stage 4 "desktop minimal"; decision recorded as D021).
 - Landed RFC 0043 stage 2 (opt-in sweep evaluator) and stage 3 (display-only
   comparison) for high-angle GZ:
   - Sweep: `evaluators.high_angle_gz: bool` (+ optional

@@ -54,6 +54,10 @@ from kayakgen.ui.web.controllers import (
     validation_error_payload,
     validity_badge_from_state,
 )
+from kayakgen.ui.web.read_models import (
+    web_high_angle_gz_section_html,
+    web_high_angle_gz_view_model_from_json,
+)
 from kayakgen.ui.web.state import (
     HULL_STATE_FIELDS,
     MESH_PACKAGE_REF_ALIASES,
@@ -397,6 +401,11 @@ class KayakgenApp:
         self.state.comparison_lines = []
         self.state.comparison_candidate_options = []
         self.state.selected_candidate_index = 0
+        # RFC 0043 stage 3 web read model: high-angle GZ section state. The
+        # section is rendered as precomputed HTML (see ``read_models.py``) so
+        # the layout never templates artifact field names directly.
+        self.state.high_angle_gz_section_visible = False
+        self.state.high_angle_gz_section_html = ""
         self.state.cfd_profile_options = cfd_profile_names()
         self.state.cfd_solver_profile = (
             self.state.cfd_profile_options[0]
@@ -829,12 +838,19 @@ class KayakgenApp:
         self._refresh_current_hull_surface()
 
     def _load_comparison(self) -> None:
-        model = comparison_view_model_from_json(str(self.state.comparison_json or ""))
+        payload = str(self.state.comparison_json or "")
+        model = comparison_view_model_from_json(payload)
         self.state.comparison_status = model["status"]
         self.state.comparison_lines = model["lines"]
         self.state.comparison_candidate_options = model["candidate_options"]
         if model["candidate_options"]:
             self.state.selected_candidate_index = model["candidate_options"][0]
+        self._refresh_high_angle_section(payload)
+
+    def _refresh_high_angle_section(self, payload: str) -> None:
+        view = web_high_angle_gz_view_model_from_json(payload)
+        self.state.high_angle_gz_section_visible = bool(view["visible"])
+        self.state.high_angle_gz_section_html = web_high_angle_gz_section_html(view)
 
     def _load_selected_candidate(self) -> None:
         try:
@@ -1239,6 +1255,16 @@ class KayakgenApp:
                         "<pre>{{ comparison_lines.join('\\n') }}</pre>",
                         classes="font-mono text-caption",
                         html=True,
+                    )
+                    # RFC 0043 stage 3 display-only high-angle GZ section.
+                    # The HTML is precomputed by ``read_models.py`` so app.py
+                    # never embeds artifact field name string literals.
+                    v3.VCardText(
+                        "{{ high_angle_gz_section_html }}",
+                        v_show=("high_angle_gz_section_visible",),
+                        classes="kg-high-angle-gz-wrap",
+                        html=True,
+                        **{"data-testid": "high-angle-gz-wrap"},
                     )
 
     def _render_cfd_tab(self) -> None:
