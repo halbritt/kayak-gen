@@ -199,6 +199,144 @@ def default_snappy_hex_mesh_dict_scaffold(
     return scaffolds
 
 
+def render_snappy_dicts_from_body(
+    body: ClosedVolumeBody,
+    *,
+    padding_x: tuple[float, float] = (3.0, 5.0),
+    padding_y: float = 1.5,
+    padding_below: float = 1.5,
+    padding_above: float = 1.0,
+    hull_refinement_levels: tuple[int, int] = (2, 3),
+    background_cell_size_m: float = 0.25,
+    max_global_cells: int = 800_000,
+) -> dict[str, str]:
+    """Render REAL parameterized OpenFOAM dict strings derived from ``body``.
+
+    The output is keyed by :data:`REQUIRED_DICT_KEYS` and contains valid
+    OpenFOAM v2512 dictionary contents that the OpenFoam case renderer
+    consumes verbatim. The strings are derived deterministically from the
+    body's bounding box and the supplied padding/refinement knobs.
+
+    This helper is separate from :func:`default_snappy_hex_mesh_dict_scaffold`
+    so existing callers continue to receive the deterministic placeholder
+    output; callers that need real dicts opt in explicitly.
+    """
+
+    # Late import to avoid the cfd package importing snappy_hex_mesh (cycle).
+    from kayakgen.eval.cfd.openfoam_v2512_interfoam.case_render import (
+        TEMPLATES_DIR,
+        _fmt,
+    )
+    from string import Template
+
+    bounds = _bounding_box_with_padding(
+        body,
+        padding_x=padding_x,
+        padding_y=padding_y,
+        padding_below=padding_below,
+        padding_above=padding_above,
+    )
+    x_min, x_max, y_min, y_max, z_min, z_max = bounds
+    cell = background_cell_size_m
+    nx = max(1, int(round((x_max - x_min) / cell)))
+    ny = max(1, int(round((y_max - y_min) / cell)))
+    nz = max(1, int(round((z_max - z_min) / cell)))
+
+    substitutions: dict[str, str] = {
+        "case_template_version": "openfoam-v2512-snappyhexmesh-watertight-v1",
+        "x_min": _fmt(x_min),
+        "x_max": _fmt(x_max),
+        "y_min": _fmt(y_min),
+        "y_max": _fmt(y_max),
+        "z_min": _fmt(z_min),
+        "z_max": _fmt(z_max),
+        "nx": str(nx),
+        "ny": str(ny),
+        "nz": str(nz),
+        "refinement_min_x": _fmt(x_min + 0.25 * (x_max - x_min)),
+        "refinement_min_y": _fmt(y_min + 0.35 * (y_max - y_min)),
+        "refinement_min_z": _fmt(z_min + 0.35 * (z_max - z_min)),
+        "refinement_max_x": _fmt(x_min + 0.75 * (x_max - x_min)),
+        "refinement_max_y": _fmt(y_min + 0.65 * (y_max - y_min)),
+        "refinement_max_z": _fmt(z_min + 0.65 * (z_max - z_min)),
+        "surface_level_min": str(int(hull_refinement_levels[0])),
+        "surface_level_max": str(int(hull_refinement_levels[1])),
+        "location_in_mesh_x": _fmt(x_min + 0.05 * (x_max - x_min)),
+        "location_in_mesh_y": _fmt(0.5 * (y_min + y_max)),
+        "location_in_mesh_z": _fmt(z_max - 0.2 * (z_max - z_min)),
+        "max_global_cells": str(int(max_global_cells)),
+        "max_local_cells": str(int(max_global_cells // 4)),
+        "feature_edge_level": str(int(hull_refinement_levels[1])),
+        "included_angle_deg": "150",
+        "end_time": "0.05",
+        "delta_t": "0.01",
+        "write_interval": "0.01",
+        "rho_inf": "1000",
+        "forces_patch_name": "hull",
+        "cofr_x": "0",
+        "cofr_y": "0",
+        "cofr_z": "0",
+        "waterline_z": _fmt(body.waterline_z_m),
+        "water_nu": "1.09e-06",
+        "water_rho": "998.8",
+        "air_nu": "1.48e-05",
+        "air_rho": "1",
+        "inlet_speed_ms": "2",
+    }
+
+    file_map: dict[str, str] = {
+        "controlDict": "system_controlDict_solve.template",
+        "snappyHexMeshDict": "system_snappyHexMeshDict.template",
+        "meshQualityDict": "system_meshQualityDict.template",
+        "surfaceFeatureExtractDict": "system_surfaceFeatureExtractDict.template",
+        "blockMeshDict": "system_blockMeshDict.template",
+    }
+
+    rendered: dict[str, str] = {}
+    for key in REQUIRED_DICT_KEYS:
+        template_filename = file_map[key]
+        raw = (TEMPLATES_DIR / template_filename).read_text()
+        rendered[key] = Template(raw).safe_substitute(substitutions)
+    return rendered
+
+
+def _bounding_box_with_padding(
+    body: ClosedVolumeBody,
+    *,
+    padding_x: tuple[float, float],
+    padding_y: float,
+    padding_below: float,
+    padding_above: float,
+) -> tuple[float, float, float, float, float, float]:
+    min_x = min_y = min_z = float("inf")
+    max_x = max_y = max_z = float("-inf")
+    for part in body.parts:
+        for vertex in part.vertices:
+            vx, vy, vz = (float(c) for c in vertex)
+            if vx < min_x:
+                min_x = vx
+            if vy < min_y:
+                min_y = vy
+            if vz < min_z:
+                min_z = vz
+            if vx > max_x:
+                max_x = vx
+            if vy > max_y:
+                max_y = vy
+            if vz > max_z:
+                max_z = vz
+    if min_x == float("inf"):
+        raise ValueError("ClosedVolumeBody has no vertices to bound")
+    return (
+        min_x - padding_x[0],
+        max_x + padding_x[1],
+        min_y - padding_y,
+        max_y + padding_y,
+        min_z - padding_below,
+        max_z + padding_above,
+    )
+
+
 def compute_dict_hashes(scaffolds: dict[str, str]) -> dict[str, str]:
     """Return a SHA-256 hex digest per scaffold dictionary entry."""
 
@@ -447,6 +585,7 @@ __all__ = [
     "SnappyHexMeshDispatchState",
     "SnappyHexMeshDispatchBlocker",
     "default_snappy_hex_mesh_dict_scaffold",
+    "render_snappy_dicts_from_body",
     "compute_dict_hashes",
     "build_snappy_hex_mesh_evidence",
     "snappy_hex_mesh_volume_mesh_diagnostic",

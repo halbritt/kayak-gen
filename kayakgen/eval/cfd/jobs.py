@@ -60,6 +60,11 @@ OPENFOAM_SUCCESS_BLOCKED_WARNING = (
     "OpenFOAM command output is parser-readable but this skeleton does not enable "
     "a real succeeded path; raw output remains unvalidated."
 )
+OPENFOAM_LOCAL_RUN_ENV_VAR = "KAYAKGEN_OPENFOAM_LOCAL_RUN"
+OPENFOAM_SUCCEEDED_RAW_UNVALIDATED_WARNING = (
+    "OpenFOAM-v2512 interFoam run completed; raw output is unvalidated and not "
+    "calibrated for any design-fitness use."
+)
 
 READINESS_ORDER: dict[ReadinessLevel, int] = {
     "invalid": 0,
@@ -400,7 +405,16 @@ class OpenFoamProvenanceProbe(BaseModel):
 
 
 class CfdOpenFoamForceDatSample(BaseModel):
-    """One parsed OpenFOAM force.dat sample."""
+    """One parsed OpenFOAM v2512 ``forces`` function-object sample.
+
+    The v2512 ``forces`` FO writes a separate ``force.dat`` and ``moment.dat``
+    under ``postProcessing/<name>/<startTime>/``. Each ``force.dat`` data row
+    has 10 numeric fields by default
+    (``time total_x total_y total_z pressure_x pressure_y pressure_z
+    viscous_x viscous_y viscous_z``) and 13 fields when the case has porous
+    zones and the FO is configured to write porous contributions
+    (``... porous_x porous_y porous_z``).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -410,6 +424,7 @@ class CfdOpenFoamForceDatSample(BaseModel):
     porous_force_n: tuple[float, float, float]
     total_force_n: tuple[float, float, float]
     drag_force_n: float
+    porous_recorded: bool = False
 
 
 class CfdOpenFoamForceDatResult(RawUnvalidatedClaimFields):
@@ -1193,6 +1208,36 @@ class OpenFoamLocalAdapter:
                 warnings=_openfoam_warnings(),
             )
 
+        succeeded_path_enabled = _openfoam_succeeded_path_enabled()
+        if succeeded_path_enabled:
+            normalized = CfdOpenFoamRawResult(
+                job_id=case.job_spec.job_id,
+                solver_name=case.solver_profile.solver_name or OPENFOAM_SOLVER_NAME,
+                solver_version=version or "",
+                speed_mps=case.job_spec.speed_mps,
+                seawater_density_kg_m3=case.job_spec.seawater_density_kg_m3,
+                kinematic_viscosity_m2_s=case.job_spec.kinematic_viscosity_m2_s,
+                mesh_profile=case.mesh_manifest.solver_profile.profile_name,
+                mesh_readiness=case.mesh_manifest.readiness.level,
+                drag_force_n=force_result.last_sample.drag_force_n,
+                raw_output_refs=[force_result.source_ref],
+                command=list(case.solver_profile.command_template),
+                version_command=list(case.solver_profile.solver_version_command),
+                returncode=completed.returncode,
+                warnings=[
+                    *_openfoam_warnings(),
+                    OPENFOAM_SUCCEEDED_RAW_UNVALIDATED_WARNING,
+                ],
+            )
+            _write_json(case.job_dir / OPENFOAM_RAW_RESULT, normalized)
+            return SolverRawResult(
+                status="succeeded",
+                output_manifest=OPENFOAM_RAW_RESULT,
+                logs=logs,
+                raw_records=normalized.model_dump(mode="python"),
+                warnings=list(normalized.warnings),
+            )
+
         normalized = CfdOpenFoamRawResult(
             job_id=case.job_spec.job_id,
             solver_name=case.solver_profile.solver_name or OPENFOAM_SOLVER_NAME,
@@ -1235,8 +1280,12 @@ class OpenFoamLocalAdapter:
 
 _FLOAT_RE = re.compile(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?")
 _OPENFOAM_V2512_HEADER_TOKENS = ("forces", "pressure", "viscous", "porous")
-_OPENFOAM_V2512_FORCE_DAT_FIELDS = 19  # 1 time + 9 force comps + 9 moment comps
-_OPENFOAM_PRE2512_FORCE_DAT_FIELDS = 13  # 1 time + 6 force comps + 6 moment comps
+# v2512 ``forces`` FO writes a tabular force.dat. Rows have 10 fields by
+# default (time + total + pressure + viscous components) and 13 fields when
+# porous contributions are written. moments live in a separate moment.dat
+# file and are not parsed by parse_openfoam_force_dat.
+_OPENFOAM_V2512_FORCE_DAT_FIELDS = 10
+_OPENFOAM_V2512_FORCE_DAT_FIELDS_WITH_POROUS = 13
 
 # Probe command names. ``Callable`` injection is used in tests; the real adapter
 # can pass ``subprocess.run``-backed runners.
@@ -1302,13 +1351,22 @@ def parse_openfoam_force_dat(
     *,
     source_ref: str | None = None,
 ) -> CfdOpenFoamForceDatResult:
-    """Parse the accepted OpenFOAM v2512 ``postProcessing/forces/**/force.dat`` shape.
+    """Parse a v2512 ``forces`` function-object ``force.dat`` file.
 
-    The accepted layout is the v2512 ``forces`` function object format with
-    pressure/viscous/porous force triples and matching moment triples
-    (19 numeric fields per data row). Older v2306-style files (no porous
-    column, 13 numeric fields) are rejected with ``code='unsupported_layout'``
-    so a stale solver build is not silently accepted as v2512 evidence.
+    The accepted layout is the tabular v2512 ``forces`` FO format. Each data
+    row carries 10 numeric fields by default
+    (``time total_x total_y total_z pressure_x pressure_y pressure_z
+    viscous_x viscous_y viscous_z``) and 13 numeric fields when the case has
+    porous zones and the FO is configured to write porous contributions
+    (``... porous_x porous_y porous_z``).
+
+    Older Foam-extend / pre-v2306 parenthesised-tuple layouts
+    (``((px py pz) (vx vy vz))``) are rejected with
+    ``code='unsupported_layout'`` so a stale solver build is not silently
+    accepted as v2512 evidence.
+
+    Moments are written to a separate ``moment.dat`` file by the same FO
+    and are not parsed here.
     """
     force_path = Path(path)
     try:
@@ -1322,12 +1380,16 @@ def parse_openfoam_force_dat(
     lines = text.splitlines()
     header_lines = [line for line in lines if line.strip().startswith("#")]
     header_blob = "\n".join(header_lines).lower()
-    # A v2512 header lists "forces(pressure viscous porous)". If a header
-    # mentions ``forces`` but omits ``porous`` it is the legacy v2306-style
-    # layout and must be rejected up front (do not silently accept).
-    if "forces" in header_blob and "porous" not in header_blob:
+    has_tabular_header = "total_x" in header_blob or (
+        "pressure_x" in header_blob and "viscous_x" in header_blob
+    )
+    has_legacy_paren_header = "forces(pressure" in header_blob or "(pressure viscous" in header_blob
+    if has_legacy_paren_header and not has_tabular_header:
         raise CfdDispatchError(
-            f"OpenFOAM force.dat header is not v2512 layout (no 'porous' column): {force_path}",
+            (
+                f"OpenFOAM force.dat header is not v2512 tabular layout "
+                f"(legacy parenthesised-tuple format): {force_path}"
+            ),
             code="unsupported_layout",
         )
 
@@ -1358,28 +1420,29 @@ def _parse_openfoam_force_dat_line(
     line_number: int,
 ) -> CfdOpenFoamForceDatSample:
     values = [float(match.group(0)) for match in _FLOAT_RE.finditer(line)]
-    if len(values) == _OPENFOAM_PRE2512_FORCE_DAT_FIELDS:
+    porous_recorded = False
+    if len(values) == _OPENFOAM_V2512_FORCE_DAT_FIELDS:
+        porous_recorded = False
+    elif len(values) == _OPENFOAM_V2512_FORCE_DAT_FIELDS_WITH_POROUS:
+        porous_recorded = True
+    else:
         raise CfdDispatchError(
             (
                 f"OpenFOAM force.dat line {line_number} has {len(values)} numeric "
-                "fields (legacy v2306-style layout without porous column); "
-                "v2512 interFoam dispatch requires the 19-field forces+moments layout"
-            ),
-            code="unsupported_layout",
-        )
-    if len(values) < _OPENFOAM_V2512_FORCE_DAT_FIELDS:
-        raise CfdDispatchError(
-            (
-                f"OpenFOAM force.dat line {line_number} has {len(values)} numeric "
-                f"fields; v2512 layout requires {_OPENFOAM_V2512_FORCE_DAT_FIELDS}"
+                f"fields; v2512 tabular layout requires "
+                f"{_OPENFOAM_V2512_FORCE_DAT_FIELDS} fields "
+                f"({_OPENFOAM_V2512_FORCE_DAT_FIELDS_WITH_POROUS} with porous)"
             ),
             code="malformed_output",
         )
 
-    pressure = _vector3(values[1:4])
-    viscous = _vector3(values[4:7])
-    porous = _vector3(values[7:10])
-    total = tuple(pressure[index] + viscous[index] + porous[index] for index in range(3))
+    total = _vector3(values[1:4])
+    pressure = _vector3(values[4:7])
+    viscous = _vector3(values[7:10])
+    if porous_recorded:
+        porous = _vector3(values[10:13])
+    else:
+        porous = (0.0, 0.0, 0.0)
     return CfdOpenFoamForceDatSample(
         time_s=values[0],
         pressure_force_n=pressure,
@@ -1387,6 +1450,7 @@ def _parse_openfoam_force_dat_line(
         porous_force_n=porous,
         total_force_n=total,
         drag_force_n=total[0],
+        porous_recorded=porous_recorded,
     )
 
 
@@ -1549,6 +1613,29 @@ def _clear_openfoam_run_outputs(case: PreparedSolverCase) -> None:
 
 def _openfoam_warnings() -> list[str]:
     return [WARNING_RAW_CFD_UNVALIDATED, CFD_OPENFOAM_RESULTS_WARNING]
+
+
+def _openfoam_succeeded_path_enabled() -> bool:
+    """Return True when the operator has opted into the real succeeded path.
+
+    Both the ``KAYAKGEN_OPENFOAM_LOCAL_RUN=1`` env var and a real
+    OpenFOAM-v2512 install (probed via the bashrc-sourced runner) must
+    be present. Tests that do not set the env var see byte-equal
+    historical ``solver_success_blocked`` behavior.
+    """
+
+    if os.environ.get(OPENFOAM_LOCAL_RUN_ENV_VAR) != "1":
+        return False
+    try:
+        from kayakgen.eval.cfd.openfoam_v2512_interfoam.runner import (
+            is_openfoam_available,
+        )
+    except ImportError:
+        return False
+    try:
+        return bool(is_openfoam_available())
+    except Exception:  # pragma: no cover - defensive
+        return False
 
 
 def _first_nonempty_line(text: str) -> str | None:

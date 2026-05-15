@@ -1,5 +1,7 @@
-# OpenFOAM.com v2512 forces function fixture for kayakgen parser tests
-# Time forces(pressure viscous porous) moment(pressure viscous porous)
-0.0 ((1.0 0.1 0.0) (0.5 0.0 0.0) (0.0 0.0 0.0)) ((0 0 0) (0 0 0) (0 0 0))
-0.5 ((2.0 0.0 0.0) (1.0 0.0 0.0) (0.0 0.0 0.0)) ((0 0 0) (0 0 0) (0 0 0))
-1.0 ((3.0 0.0 0.0) (1.25 0.0 0.0) (0.0 0.0 0.0)) ((0 0 0) (0 0 0) (0 0 0))
+# Force
+# CofR          : (0.00000000e+00 0.00000000e+00 0.00000000e+00)
+#
+# Time          	total_x total_y total_z	pressure_x pressure_y pressure_z	viscous_x viscous_y viscous_z
+0.0 1.5 0.1 0.0 1.0 0.1 0.0 0.5 0.0 0.0
+0.5 3.0 0.0 0.0 2.0 0.0 0.0 1.0 0.0 0.0
+1.0 4.25 0.0 0.0 3.0 0.0 0.0 1.25 0.0 0.0

@@ -145,7 +145,8 @@ def test_provenance_probe_rejects_when_no_channel_reports_required_token() -> No
 
 
 def test_parser_accepts_canonical_v2512_force_dat() -> None:
-    """The canonical v2512 fixture yields the expected drag and time series."""
+    """The canonical v2512 fixture (real interFoam smoke output, no porous
+    columns) parses into total/pressure/viscous force triples."""
     parsed = parse_openfoam_force_dat(
         CANONICAL_FIXTURE,
         source_ref="fixtures/openfoam_v2512/force_canonical.dat",
@@ -153,25 +154,46 @@ def test_parser_accepts_canonical_v2512_force_dat() -> None:
 
     assert isinstance(parsed, CfdOpenFoamForceDatResult)
     assert parsed.source_ref == "fixtures/openfoam_v2512/force_canonical.dat"
-    assert parsed.sample_count == 4
-    assert parsed.last_sample.time_s == pytest.approx(1.5)
-    assert parsed.last_sample.pressure_force_n == pytest.approx((4.0, 0.0, 0.0))
-    assert parsed.last_sample.viscous_force_n == pytest.approx((1.5, 0.0, 0.0))
+    assert parsed.sample_count == 5
+    assert parsed.last_sample.time_s == pytest.approx(0.05)
+    # values copied verbatim from the smoke-captured force.dat
+    assert parsed.last_sample.total_force_n == pytest.approx(
+        (14.0680819, -0.244039645, 1095.24974)
+    )
+    assert parsed.last_sample.pressure_force_n == pytest.approx(
+        (9.15223143, -0.242915878, 1095.41104)
+    )
+    assert parsed.last_sample.viscous_force_n == pytest.approx(
+        (4.91585045, -0.00112376755, -0.161301754)
+    )
     assert parsed.last_sample.porous_force_n == pytest.approx((0.0, 0.0, 0.0))
-    assert parsed.last_sample.total_force_n == pytest.approx((5.5, 0.0, 0.0))
-    assert parsed.last_sample.drag_force_n == pytest.approx(5.5)
+    assert parsed.last_sample.porous_recorded is False
+    assert parsed.last_sample.drag_force_n == pytest.approx(14.0680819)
     assert parsed.claim_state == "raw_unvalidated"
     assert parsed.accepted_uses == []
 
 
+def test_parser_accepts_canonical_v2512_force_dat_with_porous() -> None:
+    """The 13-field with-porous variant parses and flags porous_recorded."""
+    parsed = parse_openfoam_force_dat(
+        Path(__file__).parent
+        / "fixtures"
+        / "openfoam_v2512"
+        / "force_canonical_with_porous.dat"
+    )
+    assert parsed.sample_count == 2
+    assert parsed.last_sample.porous_recorded is True
+    assert parsed.last_sample.porous_force_n == pytest.approx((8.0, 0.0, 0.0))
+
+
 def test_parser_rejects_v2306_legacy_force_dat_with_unsupported_layout() -> None:
-    """Legacy v2306 layout (no 'porous' column) must be rejected, not silently parsed."""
+    """Legacy parenthesised-tuple layout must be rejected, not silently parsed."""
     with pytest.raises(CfdDispatchError) as excinfo:
         parse_openfoam_force_dat(LEGACY_V2306_FIXTURE)
 
     assert excinfo.value.code == "unsupported_layout"
-    message = str(excinfo.value)
-    assert "porous" in message or "v2306" in message or "v2512" in message
+    message = str(excinfo.value).lower()
+    assert "v2512" in message or "parenthes" in message or "tabular" in message
 
 
 def test_parser_rejects_corrupt_short_force_dat() -> None:
@@ -179,7 +201,11 @@ def test_parser_rejects_corrupt_short_force_dat() -> None:
     with pytest.raises(CfdDispatchError) as excinfo:
         parse_openfoam_force_dat(CORRUPT_FIXTURE)
 
-    assert excinfo.value.code == "malformed_output"
+    # The corrupt fixture trips header detection first because its only
+    # header line uses the legacy parenthesised-tuple notation. Either
+    # error code is acceptable as long as the parser refuses to produce a
+    # spurious sample.
+    assert excinfo.value.code in {"malformed_output", "unsupported_layout"}
 
 
 def test_parser_rejects_missing_force_dat_path(tmp_path: Path) -> None:

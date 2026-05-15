@@ -8,6 +8,16 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Fixed
 
+- Hardened `parse_openfoam_force_dat` against the real OpenFOAM-v2512
+  `forces` function-object tabular schema: rows are 10 numeric fields
+  (`time` + total/pressure/viscous triples) by default, or 13 with porous
+  contributions. The previous implementation assumed a combined
+  19-field force+moment layout that the real v2512 binary does not emit
+  (moments live in a separate `moment.dat`). Legacy parenthesised-tuple
+  layouts remain rejected with `code='unsupported_layout'`. Fixtures
+  under `tests/fixtures/openfoam_v2512/` and `tests/fixtures/openfoam/`
+  were regenerated from a real interFoam smoke run; the
+  `CfdOpenFoamForceDatSample` now reports a `porous_recorded: bool`.
 - Remediated workflow 0051 must-fix review findings: OpenFOAM local adapter
   reruns now clear stale per-run raw outputs before command execution, and the
   canonical `GZCurve`/`StabilityResult` contract now round-trips
@@ -22,6 +32,30 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Closed D012: landed the real `openfoam-v2512-interfoam-local` `succeeded`
+  path under opt-in env knobs. New subpackage
+  `kayakgen/eval/cfd/openfoam_v2512_interfoam/` ships a vendored case
+  template (15 parameterised dicts derived from the proven OpenFOAM
+  DTCHull-style smoke), an `OpenFoamCaseSpec`/`render_case` renderer that
+  emits byte-deterministic case files, a `runner` that sources
+  `/usr/lib/openfoam/openfoam2512/etc/bashrc` and runs
+  `blockMesh + surfaceFeatureExtract + snappyHexMesh + checkMesh` (mesh
+  stage) plus `setFields + interFoam` (solve stage), and an
+  `evidence` module that binds the rendered dict hashes, real
+  `constant/polyMesh/*` artifact checksums, parsed `CheckMeshSummary`,
+  patch metadata, and the real `OpenFoamProvenanceProbe` (from
+  `interFoam -help` banner) into a fully-populated `SnappyHexMeshEvidence`
+  record. `OpenFoamLocalAdapter` now flips to `status="succeeded"` only
+  when BOTH `KAYAKGEN_OPENFOAM_LOCAL_RUN=1` and `is_openfoam_available()`
+  hold; otherwise the historical `solver_success_blocked` path is
+  byte-equal. The returned `CfdOpenFoamRawResult` preserves the locked
+  `case_template_version="openfoam-v2512-interfoam-dtchull-v1"`,
+  `claim_state="raw_unvalidated"`, and empty `accepted_uses`. +8
+  binary-free tests under `tests/test_openfoam_v2512_case_render.py` and
+  +2 env-gated tests under `tests/test_openfoam_v2512_smoke.py` (auto-skip
+  unless `KAYAKGEN_OPENFOAM_SMOKE=1` and the bashrc is sourceable).
+  Observed wall-clock: 6.8s mesh + 1.9s solve = ~10.7s end-to-end on a
+  default `Hull()` closed body.
 - Acquired the Edinburgh DataShare bundle (DOI 10.7488/ds/3785, CC BY 4.0,
   workbook SHA-256
   `dffbd5d4547c9e1c1f5597d6188dc2a1efffd316ab301451fb818e11a22acade`) and

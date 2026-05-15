@@ -1,0 +1,6 @@
+# Force
+# CofR          : (0.00000000e+00 0.00000000e+00 0.00000000e+00)
+#
+# Time          	total_x total_y total_z	pressure_x pressure_y pressure_z	viscous_x viscous_y viscous_z	porous_x porous_y porous_z
+0.01             1.00e+02 0.00e+00 0.00e+00 8.00e+01 0.00e+00 0.00e+00 1.50e+01 0.00e+00 0.00e+00 5.00e+00 0.00e+00 0.00e+00
+0.02             1.10e+02 0.00e+00 0.00e+00 8.50e+01 0.00e+00 0.00e+00 1.70e+01 0.00e+00 0.00e+00 8.00e+00 0.00e+00 0.00e+00

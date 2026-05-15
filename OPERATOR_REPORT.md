@@ -109,6 +109,39 @@ Updated: 2026-05-15
   - Full test suite: 523 passed; `is_validation_fixture_ready()` now
     returns True; calibration promotion remains blocked by envelope reason
     plus the still-required accepted-fit workflow (D006).
+- 2026-05-16T01:30Z checkpoint: closed D012 by landing the real
+  `openfoam-v2512-interfoam-local` `succeeded` path against the installed
+  OpenFOAM-v2512 binaries.
+  - Verified the toolchain end-to-end manually first: generated a default
+    `Hull()` closed-body STL, ran `blockMesh + surfaceFeatureExtract +
+    snappyHexMesh -overwrite + checkMesh + setFields + interFoam`, parsed
+    the resulting `postProcessing/forces/0/force.dat`. Real wall-clock
+    ~7s (mesh 6.2s, solve 1.5s).
+  - Discovery: the real v2512 `forces` FO writes a tabular force.dat with
+    10 fields per row (time + total/pressure/viscous triples) and 13 with
+    porous; moments are in a separate moment.dat. The earlier "19-field
+    combined" parser assumption was wrong. Fixed
+    `parse_openfoam_force_dat` to accept the real layout and regenerated
+    test fixtures under `tests/fixtures/openfoam_v2512/` and
+    `tests/fixtures/openfoam/` from the captured run.
+  - New subpackage `kayakgen/eval/cfd/openfoam_v2512_interfoam/` ships 15
+    parameterised case templates derived verbatim from the proven case,
+    plus `case_render.py` (OpenFoamCaseSpec + byte-deterministic render),
+    `runner.py` (bashrc-sourced subprocess helper, meshing/solve stages,
+    checkMesh parse), and `evidence.py` (bind dict hashes + polyMesh
+    artifact checksums + CheckMeshSummary + provenance into
+    `SnappyHexMeshEvidence(dispatch_state="evidence_recorded")`).
+  - `OpenFoamLocalAdapter` flips to `status="succeeded"` only when both
+    `KAYAKGEN_OPENFOAM_LOCAL_RUN=1` and `is_openfoam_available()` hold.
+    Default behavior is byte-equal to the historical
+    `solver_success_blocked` path. `claim_state` stays `raw_unvalidated`;
+    `accepted_uses` stays `[]`; `case_template_version` stays
+    `openfoam-v2512-interfoam-dtchull-v1`.
+  - +8 binary-free renderer tests, +2 env-gated integration tests
+    (`tests/test_openfoam_v2512_smoke.py`, auto-skip unless
+    `KAYAKGEN_OPENFOAM_SMOKE=1`). Full suite: 532 passed, 2 skipped (the
+    smoke). Env-gated smoke: 2 passed in 10.75s.
+  - DECISION_LOG D022 records the env-gated landing.
 - 2026-05-14T19:35Z checkpoint: scaffolded workflow 0053
   (`implementation-burndown-stage2`) to burn down the remaining roadmap
   backlog in parallel. The new workflow fans out six disjoint Codex

@@ -1,0 +1,121 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2512                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      snappyHexMeshDict;
+}
+
+// case_template_version ${case_template_version}
+
+castellatedMesh true;
+snap            true;
+addLayers       false;
+
+geometry
+{
+    hull
+    {
+        type triSurfaceMesh;
+        file "hull.stl";
+    }
+
+    refinementBox
+    {
+        type searchableBox;
+        min  (${refinement_min_x} ${refinement_min_y} ${refinement_min_z});
+        max  (${refinement_max_x} ${refinement_max_y} ${refinement_max_z});
+    }
+};
+
+castellatedMeshControls
+{
+    maxLocalCells       ${max_local_cells};
+    maxGlobalCells      ${max_global_cells};
+    minRefinementCells  10;
+    nCellsBetweenLevels 3;
+    maxLoadUnbalance    0.10;
+    resolveFeatureAngle 30;
+    allowFreeStandingZoneFaces true;
+
+    features
+    (
+        { file "hull.eMesh"; level ${feature_edge_level}; }
+    );
+
+    refinementSurfaces
+    {
+        hull
+        {
+            level (${surface_level_min} ${surface_level_max});
+            patchInfo { type wall; }
+        }
+    }
+
+    refinementRegions
+    {
+        refinementBox
+        {
+            mode inside;
+            levels ((1E15 1));
+        }
+    }
+
+    locationInMesh  (${location_in_mesh_x} ${location_in_mesh_y} ${location_in_mesh_z});
+};
+
+snapControls
+{
+    nSmoothPatch        3;
+    tolerance           2.0;
+    nSolveIter          30;
+    nRelaxIter          5;
+    nFeatureSnapIter    10;
+    implicitFeatureSnap false;
+    explicitFeatureSnap true;
+    multiRegionFeatureSnap false;
+};
+
+addLayersControls
+{
+    relativeSizes       true;
+    layers              {}
+    expansionRatio      1.2;
+    finalLayerThickness 0.3;
+    minThickness        0.1;
+    nGrow               0;
+    featureAngle        60;
+    nRelaxIter          5;
+    nSmoothSurfaceNormals 1;
+    nSmoothNormals      3;
+    nSmoothThickness    10;
+    maxFaceThicknessRatio 0.5;
+    maxThicknessToMedialRatio 0.3;
+    minMedianAxisAngle  90;
+    nBufferCellsNoExtrude 0;
+    nLayerIter          50;
+};
+
+meshQualityControls
+{
+    #include "meshQualityDict"
+
+    nSmoothScale        4;
+    errorReduction      0.75;
+};
+
+writeFlags
+(
+    scalarLevels
+    layerSets
+    layerFields
+);
+
+mergeTolerance 1E-6;
