@@ -57,6 +57,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0041](0041-real-cfd-adapter-successor.md) | landed real openfoam-v2512-interfoam-local succeeded path (opt-in env-gated); claim_state stays raw_unvalidated | Real CFD adapter successor |
 | [0042](0042-resistance-calibration-fixture-successor.md) | partial landed source-review-packet-validators + Edinburgh acquisition + extractor; validation-fixture-ready, calibration still blocked by envelope | Resistance calibration fixture successor |
 | [0043](0043-high-angle-gz-successor.md) | partial landed staged surfacing (stages 1-3 + web read model; stage 4 desktop intentionally minimal) | High-angle GZ successor |
+| [0044](0044-active-hull-design-search.md) | proposed | Active hull-design search (NSGA-II opt-in, additive to RFC 0009 sweep) |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
