@@ -142,6 +142,28 @@ Updated: 2026-05-15
     `KAYAKGEN_OPENFOAM_SMOKE=1`). Full suite: 532 passed, 2 skipped (the
     smoke). Env-gated smoke: 2 passed in 10.75s.
   - DECISION_LOG D022 records the env-gated landing.
+- 2026-05-16T02:30Z checkpoint: landed RFC 0044 v1 active hull-design search.
+  - `kayakgen/search/active/` ships `spec.py` (Pydantic schemas),
+    `nsga2.py` (vendored pure-Python NSGA-II: SBX eta=15, polynomial
+    mutation eta=20, binary tournament selection, feasibility-precedence
+    non-dominated sort), `constraints.py` (constraint violation
+    evaluation), `runner.py` (orchestrator that reuses the RFC 0009
+    candidate-record writer + `pending` lifecycle), and `__init__.py`.
+  - `ensure_objectives_claim_admissible_for_search` lives in
+    `kayakgen/search/pareto.py` with token
+    `RFC_0044_SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY`; refuses
+    `raw_unvalidated` and `uncalibrated_comparative` objectives unless
+    `objectives_explicit_exploratory: true`; the existing RFC 0043
+    high-angle-GZ gate always wins.
+  - New `kayakgen search` Typer subcommand prints run name, seed,
+    resolved objectives, exploratory banner if applicable, and the
+    realized budget at exit.
+  - +32 tests across
+    `tests/test_active_search_{spec,nsga2,runner,cli,pareto_gate}.py`.
+    Full suite: 564 passed, 2 skipped (the env-gated OpenFOAM smoke).
+    Default `kayakgen sweep` and `kayakgen compare` behavior is
+    byte-equal to today; the only sweep-side change is one literal
+    extension of `CandidateStatus` to admit `"constraint_failed"`.
 - 2026-05-14T19:35Z checkpoint: scaffolded workflow 0053
   (`implementation-burndown-stage2`) to burn down the remaining roadmap
   backlog in parallel. The new workflow fans out six disjoint Codex

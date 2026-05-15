@@ -431,6 +431,56 @@ def sweep(
 
 
 @app.command()
+def search(
+    spec_path: Path = typer.Argument(
+        ...,
+        exists=True,
+        dir_okay=False,
+        help="Active-search spec JSON (RFC 0044).",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Output directory for the search run (will be created if missing).",
+    ),
+    resume: bool = typer.Option(
+        False,
+        "--resume",
+        help="Resume from a previously persisted state.json checkpoint.",
+    ),
+) -> None:
+    """Run an opt-in NSGA-II active hull-design search (RFC 0044)."""
+    from kayakgen.search.active.runner import load_search_spec, resolve_objectives, run_search
+
+    try:
+        spec = load_search_spec(spec_path)
+        objectives = resolve_objectives(spec)
+        typer.echo(f"search: {spec.name} (seed={spec.algorithm.seed})")
+        objective_line = ", ".join(f"{o.metric}:{o.direction}" for o in objectives)
+        typer.echo(f"objectives: {objective_line}")
+        if spec.objectives_explicit_exploratory:
+            typer.echo(
+                "exploratory: search_class=exploratory; frontier rows are tagged "
+                "exploratory and remain frontier-ineligible under the conservative view"
+            )
+        if spec.budget.max_evaluations is not None:
+            typer.echo(f"budget_max_evaluations: {spec.budget.max_evaluations}")
+        if spec.budget.wall_clock_seconds is not None:
+            typer.echo(f"budget_wall_clock_seconds: {spec.budget.wall_clock_seconds}")
+        result = run_search(spec_path, out, resume=resume)
+    except Exception as exc:
+        typer.echo(f"search failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(
+        f"wrote {result.run_dir} ({result.completed_count} complete, "
+        f"{result.failed_count} failed, {result.constraint_failed_count} "
+        f"constraint_failed, {result.pending_count} pending; "
+        f"realized_evaluations={result.search_metadata.realized_evaluations}, "
+        f"termination_reason={result.search_metadata.termination_reason})"
+    )
+
+
+@app.command()
 def compare(
     run_dir: Path = typer.Argument(..., exists=True, file_okay=False, help="Sweep run directory."),
     out: Path = typer.Option(..., "--out", help="Where to write comparison report JSON."),

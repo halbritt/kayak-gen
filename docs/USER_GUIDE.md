@@ -245,6 +245,72 @@ This is display-only: high-angle GZ metrics are refused as Pareto objectives
 (token `RFC_0043_HIGH_ANGLE_GZ_DISPLAY_ONLY`), so passing `-o max_gz_m:max`
 errors. Frontier eligibility is unchanged.
 
+### `search`
+
+Run an active multi-objective hull-design search (RFC 0044 v1, NSGA-II):
+
+```bash
+kayakgen search search.json --out runs/touring-pareto
+kayakgen search search.json --out runs/touring-pareto --resume
+```
+
+Minimal search spec:
+
+```json
+{
+  "schema_version": "1",
+  "name": "touring-sea-kayak-pareto",
+  "base_hull": {"length_m": 5.2, "beam_oa_m": 0.55, "draft_m": 0.12},
+  "search_space": {
+    "length_m":  {"kind": "uniform", "min": 4.4, "max": 5.6},
+    "beam_wl_m": {"kind": "uniform", "min": 0.46, "max": 0.58},
+    "Cp":        {"kind": "uniform", "min": 0.50, "max": 0.62}
+  },
+  "algorithm": {
+    "kind": "nsga2",
+    "population_size": 24,
+    "generations": 8,
+    "seed": 1234
+  },
+  "evaluators": {"hydrostatics": true, "mesh_diagnostics": true, "stability": true},
+  "budget": {"max_evaluations": 192, "wall_clock_seconds": 600}
+}
+```
+
+When the spec omits `objectives`, the conservative defaults
+(`GM0_m:max`, `displacement_error_kg:min`, `mesh_problem_count:min`)
+are resolved automatically. Optional `constraints` (each with a `metric`
+plus `min` and/or `max`) hard-reject candidates that fail any bound;
+those rows are recorded with `status="constraint_failed"` and stay
+frontier-ineligible.
+
+Active search is additive on top of `kayakgen sweep` and reuses the
+same run directory layout: `run.json`, `summary.csv`,
+`failures.jsonl`, the copied `spec.json`, and per-candidate artifacts
+under `candidates/`. The `run.json` adds a `search_metadata` block with
+the resolved algorithm, seed, objectives, constraints, realized budget,
+termination reason, and a per-generation history trail (population
+size, frontier size, best/median/worst on each objective).
+
+Determinism is seed-preserving. A spec with a fixed `algorithm.seed`
+produces byte-identical `candidates/<key>/record.json` across
+independent invocations and across resume.
+
+Objective admissibility is strictly gated. Active search refuses any
+metric whose claim state is `raw_unvalidated` (raw OpenFOAM forces) or
+`uncalibrated_comparative` (the analytical resistance filter) unless the
+spec sets `"objectives_explicit_exploratory": true`. Even then the
+high-angle-GZ display-only token from RFC 0043 still refuses
+`max_gz_m`, `heel_at_max_gz_deg`, and `range_positive_stability_deg`
+as objectives. Exploratory runs tag the run record with
+`search_class: "exploratory"` and print a banner; the resulting
+frontier is still frontier-ineligible under the conservative
+comparison view.
+
+`kayakgen search` does not run real CFD by itself. To use the
+OpenFOAM-v2512 succeeded path inside the loop, set the env knobs
+documented under `cfd run` above.
+
 ### `mesh-check`
 
 Diagnose the generated surface mesh for one part:

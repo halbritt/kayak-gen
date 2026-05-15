@@ -29,7 +29,7 @@ from kayakgen.model.hull import Hull
 from kayakgen.model.validity import DesignValidityReport, evaluate_design_validity
 
 ParameterKind = Literal["values", "linspace"]
-CandidateStatus = Literal["pending", "complete", "failed", "skipped"]
+CandidateStatus = Literal["pending", "complete", "failed", "skipped", "constraint_failed"]
 
 
 class ParameterSweep(BaseModel):

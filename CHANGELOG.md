@@ -32,6 +32,31 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed RFC 0044 v1: additive opt-in `kayakgen search` CLI with a vendored
+  NSGA-II multi-objective evolutionary algorithm (pure Python, no external
+  optimization-library dependency). New subpackage
+  `kayakgen/search/active/` ships `SearchSpec`/`SearchAlgorithmSpec`/
+  `SearchConstraint`/`SearchBudget`/`SearchLimits`/`SearchVariable`/
+  `ObjectiveSpec`/`SearchMetadata` Pydantic records (`spec.py`), the
+  vendored NSGA-II implementation with SBX crossover (eta=15) and
+  polynomial mutation (eta=20, per-gene probability `1/n_vars`) and binary
+  tournament selection (`nsga2.py`), constraint enforcement
+  (`constraints.py`), and an orchestrator that reuses the RFC 0009
+  candidate-record writer and `pending` lifecycle (`runner.py`). A new
+  `ensure_objectives_claim_admissible_for_search` gate in
+  `kayakgen/search/pareto.py` (token
+  `RFC_0044_SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY`) refuses
+  `raw_unvalidated` and `uncalibrated_comparative` objectives unless
+  `objectives_explicit_exploratory: true` is set; the existing
+  `ensure_objectives_not_high_angle_gz` gate always wins. Constraint
+  violations produce `status="constraint_failed"` candidate records that
+  stay frontier-ineligible. Seeded determinism is enforced by threading a
+  single `random.Random(seed)` through every operator; two independent
+  invocations of the same spec produce byte-identical
+  `candidates/<key>/record.json`. +32 tests across
+  `tests/test_active_search_{spec,nsga2,runner,cli,pareto_gate}.py`.
+  Default `kayakgen sweep` and `kayakgen compare` behavior is unchanged
+  (single one-line literal extension of `CandidateStatus`).
 - Closed D012: landed the real `openfoam-v2512-interfoam-local` `succeeded`
   path under opt-in env knobs. New subpackage
   `kayakgen/eval/cfd/openfoam_v2512_interfoam/` ships a vendored case

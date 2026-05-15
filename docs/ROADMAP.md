@@ -138,7 +138,7 @@ runtime capability:
 | CFD dispatch and real adapter | All of D012 has landed: RFC 0015 local dispatch, RFC 0018 local web routes, RFC 0026 fixture-local-command, the workflow 0051 OpenFOAM skeleton, the cowboy 2026-05-15 case-template lock + provenance probe + parser, AND the real `openfoam-v2512-interfoam-local` `succeeded` path under opt-in env knobs (`KAYAKGEN_OPENFOAM_LOCAL_RUN=1`). `kayakgen/eval/cfd/openfoam_v2512_interfoam/` renders the case from `OpenFoamCaseSpec`; `runner` executes mesh + solve via the OpenFOAM bashrc; `evidence` binds dict hashes, polyMesh artifact checksums, real `CheckMeshSummary`, patches, and `OpenFoamProvenanceProbe` into a `SnappyHexMeshEvidence(dispatch_state="evidence_recorded")`. End-to-end smoke takes ~10.7s on a default hull. | `partial` | `claim_state` stays `raw_unvalidated`; defaults are unchanged. Measured validation, calibration, drag-convergence sanity, and hosted execution remain later workflows. |
 | Resistance evidence and calibration | RFC 0005 landed only as raw filter; RFC 0025/0027 landed claim gates; workflows 0050 and 0052 preserve the calibration no-promotion gate; cowboy 2026-05-15 landed RFC 0042 source-review packet validators, downloaded and vendored the Edinburgh DataShare bundle (DOI 10.7488/ds/3785, CC BY 4.0) under `tests/fixtures/calibration/edinburgh/`, and rewrote the extractor against the real workbook schema. The Edinburgh packet now binds the workbook SHA-256 and reports `is_validation_fixture_ready() = True`. | `partial` / `evidence-gated` | Calibration fixture promotion still waits for an in-envelope measured kayak/surfski source plus an accepted-fit workflow per decision D006. Edinburgh remains capped at validation-fixture eligibility by `outside_sea_kayak_calibration_envelope`. |
 | Stability and high-angle `GZ` | RFC 0011 landed load cases; RFC 0014 landed upright trim; RFC 0024 landed structured unavailable/fixture-only handoff; workflow 0051 landed generated-body v1 evaluator plumbing; cowboy 2026-05-15 landed RFC 0043 stages 1-3 (CLI JSON opt-in, sweep `high_angle_gz` evaluator and artifacts, comparison-side display-only read model with `HighAngleGzObjectiveRefusedError` gate, and Trame web comparison surface). Stage 4 desktop is intentionally minimal (D021). | `partial` / `evidence-gated` | Defaults, frontiers, and objectives stay on the current conservative posture; high-angle GZ remains `unvalidated_hydrostatic_comparison` until measured validation lands. |
-| Sweeps, comparison, and search | `kayakgen sweep` and `compare` are user-facing. RFC 0009 is partial landed, RFC 0013 has a landed report/web slice, workflow 0051 added objective metadata, workflow 0053 landed `pending` candidate lifecycle, and cowboy 2026-05-15 landed sweep-side STL artifact emission with `stl_artifacts` records. | `partial` | Active optimizer/search remains later work and is still gated on objective-metadata provenance plus the no-claims rules above. |
+| Sweeps, comparison, and search | `kayakgen sweep` and `compare` are user-facing. RFC 0009 is partial landed, RFC 0013 has a landed report/web slice, workflow 0051 added objective metadata, workflow 0053 landed `pending` candidate lifecycle, cowboy 2026-05-15 landed sweep-side STL artifact emission, and cowboy 2026-05-16 landed RFC 0044 v1 (vendored NSGA-II + `kayakgen search` CLI) with a hard claim-admissibility gate that refuses `raw_unvalidated`, `uncalibrated_comparative`, and high-angle-GZ-display-only metrics as Pareto objectives. | `landed` | Future RFCs cover successor algorithms (Bayesian optimization with GP surrogates, EHVI hypervolume improvement, MOEA/D) and any objective-metadata changes. |
 
 ## Future Striatum Batches
 
@@ -330,7 +330,7 @@ solver-readiness claims.
 
 ### Batch H: Sweep, Comparison, And Optimization
 
-Status: `partial` (pending lifecycle and sweep-side STL artifacts landed; optimizer/search remain later work)
+Status: `landed` (pending lifecycle, sweep-side STL artifacts, and RFC 0044 v1 NSGA-II active search all landed; successor algorithms remain future-RFC scope)
 
 Scope: RFC 0009, RFC 0013, future search/optimization RFCs.
 
@@ -339,8 +339,14 @@ run-record behavior. Workflow 0053 landed the `pending` candidate lifecycle:
 candidate records for planned work, additive `pending_count`, explicit
 transition/resume semantics, and visible-but-frontier-ineligible pending rows.
 The 2026-05-15 cowboy session landed sweep-side STL artifact emission with
-`stl_artifacts` records (path/bytes/sha256). Active optimizer/search expansion
-remains deferred to a later RFC.
+`stl_artifacts` records (path/bytes/sha256). The 2026-05-16 cowboy session
+landed RFC 0044 v1 active search: a `kayakgen search` CLI subcommand
+backed by a vendored NSGA-II implementation in `kayakgen/search/active/`,
+seeded determinism, exploratory-mode tagging, and a hard
+claim-admissibility gate (token
+`RFC_0044_SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY`). Successor algorithms
+(Bayesian optimization with GP surrogates, EHVI, MOEA/D) require a future
+RFC; v1 is multi-objective NSGA-II only.
 
 Exit criteria: candidate comparison can use only metrics whose claim state and
 availability are explicit. Optimization must not silently treat raw resistance,

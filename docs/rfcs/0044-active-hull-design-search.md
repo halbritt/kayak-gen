@@ -1,6 +1,6 @@
 # RFC 0044: Active Hull-Design Search
 
-Status: proposed
+Status: landed v1 NSGA-II + kayakgen search CLI (additive opt-in; defaults unchanged)
 Date: 2026-05-16
 Context: successor to RFC 0009 (sweep records, `pending` lifecycle, sweep-side
 STL and high-angle GZ artifacts) and RFC 0013 (Pareto frontier and comparison
