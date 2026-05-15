@@ -245,7 +245,10 @@ def test_fixture_only_gz_curve_round_trips_and_derives_summaries() -> None:
     assert result.heel_at_max_gz_deg == pytest.approx(30.0)
     assert result.area_under_positive_gz_m_deg is not None
     assert result.area_under_positive_gz_m_deg > 0.0
+    assert result.summary_semantics == "grid_bounded"
+    assert result.result_semantics == "unvalidated_hydrostatic_comparison"
     assert "fixture_only" in result.warnings
+    assert "grid_bounded_summary_metrics" in result.assumptions
     assert "not_kayak_stability_evidence" in result.assumptions
 
 

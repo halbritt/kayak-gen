@@ -74,6 +74,7 @@ GZ_FIXTURE_ASSUMPTIONS: tuple[str, ...] = (
     "fixture_only_synthetic_righting_arm_math",
     "cg_fixed_to_hull_coordinates_fixture",
     "fixed_upright_trim_fixture",
+    "grid_bounded_summary_metrics",
     "not_kayak_stability_evidence",
 )
 
@@ -1286,6 +1287,8 @@ def _fixture_gz_curve(
             "synthetic_closed_body_not_generated_kayak",
             "not_user_facing_secondary_stability",
         ],
+        summary_semantics="grid_bounded",
+        result_semantics="unvalidated_hydrostatic_comparison",
         **summaries,
     )
 

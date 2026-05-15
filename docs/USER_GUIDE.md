@@ -140,7 +140,10 @@ kayakgen stability hull.json --load-case load.json --equilibrium --out build/equ
 High-angle `GZ` curves and secondary-stability peak metrics are unavailable.
 They require real heeled integration over the generated closed-body evidence;
 the current handoff records unavailable results or explicitly labeled
-fixture-only synthetic math instead of real kayak stability claims.
+fixture-only synthetic math instead of real kayak stability claims. Fixture
+records now carry grid-bounded summary semantics and
+`unvalidated_hydrostatic_comparison` result semantics so they stay readable
+without being mistaken for a real kayak stability claim.
 
 ### `sweep`
 
@@ -176,8 +179,9 @@ Minimal sweep spec:
 The run directory contains `run.json`, `summary.csv`, `failures.jsonl`, the
 copied `spec.json`, and per-candidate artifacts under `candidates/`.
 Current sweep record statuses are `complete`, `failed`, and `skipped` on
-resume. RFC 0009's planned `pending` state and sweep-side STL artifact emission
-remain deltas; keep `stl` false in sweep specs and run `kayakgen generate` or
+resume. RFC 0009's `pending` state now remains visible across resume, and the
+CLI reports a pending count. Sweep-side STL artifact emission remains a later
+delta; keep `stl` false in sweep specs and run `kayakgen generate` or
 `kayakgen mesh-package` separately when surface or package artifacts are
 needed.
 
@@ -195,8 +199,10 @@ Resistance metrics can be named as objectives, but reports that include them
 remain exploratory because resistance is a raw comparative filter.
 The default objective set is built only from conservative metrics that are
 present in the current records: `GM0_m`, `displacement_error_kg`, and
-`mesh_problem_count`. Comparison reports are for candidate review; objective
-metadata for optimizer/search workflows remains roadmap work.
+`mesh_problem_count`. Comparison reports are for candidate review; pending
+candidates remain visible in the report but are not eligible for the Pareto
+frontier. Objective metadata for optimizer/search workflows remains roadmap
+work.
 
 ### `mesh-check`
 
@@ -375,6 +381,10 @@ hosted-demo documentation are covered by the web verification runbook; public
 hosting, full dashboard parity, hosted CFD workers, cancellation guarantees,
 authentication, and real solver adapters are not complete.
 
+Browser share or reload links can seed the current hull state from the query
+string, so a saved URL restores the same design inputs that were open when the
+link was copied.
+
 The web workspace class selector now reseeds `length_m`, `beam_oa_m`,
 `beam_wl_m`, `draft_m`, and `Cp` for the touring, performance,
 intermediate-surfski, and elite-surfski presets, and narrows those slider ranges
@@ -472,6 +482,7 @@ does not normalize, validate, or calibrate external solver output.
   fixture-backed RFC 0023 evidence path can produce watertight `cfd_ready`;
   production solver-ready meshing remains roadmap work.
 - High-angle `GZ`, secondary-stability peak, and full capsize-range stability
-  are unavailable.
+  are unavailable as real kayak claims; fixture-only comparison records use
+  bounded, unvalidated hydrostatic semantics instead.
 - Some class/shape parameters are reserved or partially surfaced in frontends
   while the RFC backlog lands.

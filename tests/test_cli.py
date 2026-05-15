@@ -38,6 +38,37 @@ def test_sweep_runs_json_spec(tmp_path) -> None:
     assert (tmp_path / "out" / "run.json").exists()
 
 
+def test_sweep_resume_reports_pending_count(tmp_path) -> None:
+    sweep = tmp_path / "sweep.json"
+    out = tmp_path / "out"
+    sweep.write_text(
+        """
+{
+  "schema_version": "1",
+  "name": "cli-pending",
+  "base_hull": {"beam_oa_m": 0.60},
+  "variables": {
+    "beam_wl_m": {"kind": "values", "values": [0.50]}
+  },
+  "evaluators": {"hydrostatics": true, "resistance": false, "mesh_diagnostics": false, "stl": false}
+}
+""".strip()
+    )
+    runner = CliRunner()
+    first = runner.invoke(app, ["sweep", str(sweep), "--out", str(out)])
+    assert first.exit_code == 0
+    run_dir = out / "candidates"
+    record_path = next(run_dir.glob("*.record.json"))
+    record = json.loads(record_path.read_text())
+    record["status"] = "pending"
+    record_path.write_text(json.dumps(record, indent=2))
+
+    result = runner.invoke(app, ["sweep", str(sweep), "--out", str(out), "--resume"])
+
+    assert result.exit_code == 0
+    assert "1 pending" in result.stdout
+
+
 def test_compare_writes_report_for_sweep_run(tmp_path) -> None:
     sweep = tmp_path / "sweep.json"
     run_dir = tmp_path / "run"

@@ -1,0 +1,26 @@
+# Workflow 0053 Sources
+
+- `AGENTS.md`
+- `docs/PRD.md`
+- `docs/USER_GUIDE.md`
+- `docs/ROADMAP.md`
+- `docs/DECISION_LOG.md`
+- `docs/design/kayak_hull_design_constraints.md`
+- `docs/rfcs/README.md`
+- `docs/workflows/0018-deferred-backlog/QUEUE.md`
+- `docs/rfcs/0008-web-frontend.md`
+- `docs/rfcs/0009-sweep-run-records.md`
+- `docs/rfcs/0032-web-hosted-browser-acceptance-revision.md`
+- `docs/rfcs/0033-workspace-ui-rework.md`
+- `docs/rfcs/0036-trame-seed-listener-proof.md`
+- `docs/rfcs/0037-export-row-schema-consolidation.md`
+- `docs/rfcs/0038-export-menu-disabled-copy-polish.md`
+- `docs/rfcs/0039-web-snapshot-schema-unification.md`
+- `docs/rfcs/0040-closed-volume-solver-readiness-roadmap.md`
+- `docs/rfcs/0041-real-cfd-adapter-successor.md`
+- `docs/rfcs/0042-resistance-calibration-fixture-successor.md`
+- `docs/rfcs/0043-high-angle-gz-successor.md`
+- `striatum/0051-implementation-burndown-stage1/final/FINAL_REVIEW.md`
+- `striatum/0051-implementation-burndown-stage1/ledger/FINDINGS_LEDGER.md`
+- `striatum/0052-successor-decision-research/integration/DECISION_RESULTS.md`
+- `striatum/0052-successor-decision-research/final/FINAL_REVIEW.md`

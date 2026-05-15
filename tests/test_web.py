@@ -311,10 +311,22 @@ def test_load_from_query_seeds_state() -> None:
 def test_create_app_accepts_initial_query() -> None:
     from kayakgen.ui.web.app import create_app
 
-    custom = Hull(name="elite", length_m=6.1, beam_oa_m=0.43, beam_wl_m=0.40)
+    custom = Hull(
+        name="elite",
+        length_m=6.1,
+        beam_oa_m=0.43,
+        beam_wl_m=0.40,
+        draft_m=0.11,
+        Cp=0.58,
+    )
     web = create_app(initial_query=f"?hull={encode_hull_query(custom)}")
     assert web.state.name == "elite"
     assert web.state.length_m == 6.1
+    assert web.state.beam_oa_m == 0.43
+    assert web.state.beam_wl_m == 0.40
+    assert web.state.draft_m == 0.11
+    assert web.state.Cp == 0.58
+    assert any("Hydrostatics" in line for line in web.state.analysis_lines)
 
 
 def test_query_string_decoder_handles_missing_hull() -> None:

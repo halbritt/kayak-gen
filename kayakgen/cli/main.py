@@ -388,7 +388,7 @@ def sweep(
         raise typer.Exit(code=1)
     typer.echo(
         f"wrote {out} ({run.completed_count} complete, {run.failed_count} failed, "
-        f"{run.skipped_count} skipped)"
+        f"{run.skipped_count} skipped, {run.pending_count} pending)"
     )
 
 

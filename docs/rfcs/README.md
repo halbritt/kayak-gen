@@ -82,9 +82,11 @@ generative and evaluation pipeline. RFC 0009 has landed as a partial
 sweep-run-record slice: deterministic JSON sweep expansion, `kayakgen sweep`,
 run/spec/summary/failure/candidate records, resume skip behavior, invalid
 candidate failure records, and optional resistance, stability, and
-mesh-diagnostic record fields are user-facing. Remaining RFC 0009 deltas are
-the planned `pending` record state, sweep-side `stl` artifact generation,
-objective metadata, and later optimizer/search scope. RFC 0010's mesh
+mesh-diagnostic record fields are user-facing. Workflow 0053 adds the
+`pending` record state, `pending_count`, and resume preservation while keeping
+pending rows visible but frontier-ineligible in comparison reports. Remaining
+RFC 0009 deltas are sweep-side `stl` artifact generation, objective metadata,
+and later optimizer/search scope. RFC 0010's mesh
 package/profile slice, RFC 0011's load-case plus equilibrium-sinkage slice, RFC
 0013's report/CLI and compact web inspection slices, and RFC 0014's partial
 trim slice have landed.
@@ -139,6 +141,12 @@ export-row guidance-copy consolidation, disabled mesh-package label polish, and
 web snapshot/CFD alias schema unification. They do not change runtime behavior,
 REST payload shapes, export availability, backend capability, or no-claims
 boundaries.
+
+Workflow 0053 lands the RFC 0009 `pending` candidate lifecycle and its
+comparison visibility rules, adds browser initial-query regression coverage,
+and gives fixture-only high-angle `GZ` records explicit grid-bounded and
+unvalidated-comparison semantics. Those landings do not reopen calibrated
+resistance, real solver success, or real generated-kayak stability claims.
 
 RFC 0040 is a proposed roadmap/gated scope layered above the closed-volume and
 solver-readiness RFC spine; it does not supersede the underlying landed or

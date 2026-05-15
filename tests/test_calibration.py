@@ -133,6 +133,23 @@ def test_default_review_packet_applies_to_edinburgh_without_fixture_promotion() 
     assert "outside_sea_kayak_calibration_envelope" in edinburgh.non_promotion_reasons
 
 
+def test_default_review_packet_round_trips_as_review_record_only() -> None:
+    packet = default_resistance_source_review_packets()[0]
+    payload = packet.model_dump(mode="json")
+    loaded = ResistanceSourceReviewPacket.model_validate(payload)
+
+    assert "source_use" not in payload
+    assert loaded.review_verdict == "validation_candidate"
+    assert loaded.source_use == "validation_candidate"
+    assert loaded.stage_label == "candidate_source"
+    assert loaded.non_promotion_reasons == [
+        "extraction_schema_missing",
+        "unit_normalized_rows_not_checked_in",
+        "uncertainty_treatment_missing",
+        "outside_sea_kayak_calibration_envelope",
+    ]
+
+
 def test_candidate_review_requires_non_promotion_reasons() -> None:
     with pytest.raises(ValidationError, match="candidate source reviews require"):
         ResistanceSourceReviewPacket.model_validate(

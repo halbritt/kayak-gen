@@ -34,6 +34,7 @@ def test_run_sweep_writes_records_and_summary(tmp_path: Path) -> None:
     run = run_sweep(_spec(), tmp_path)
     summary_header = (tmp_path / "summary.csv").read_text().splitlines()[0]
     assert run.completed_count == 2
+    assert run.pending_count == 0
     assert run.failed_count == 0
     assert (tmp_path / "run.json").exists()
     assert (tmp_path / "spec.json").exists()
@@ -51,6 +52,21 @@ def test_resume_marks_completed_records_as_skipped(tmp_path: Path) -> None:
     resumed = run_sweep(_spec(), tmp_path, resume=True)
     assert resumed.completed_count == 0
     assert resumed.skipped_count == 2
+
+
+def test_resume_preserves_pending_records(tmp_path: Path) -> None:
+    run = run_sweep(_spec(), tmp_path)
+    record_path = tmp_path / "candidates" / f"{run.candidates[0].candidate_key}.record.json"
+    record = CandidateRecord.model_validate_json(record_path.read_text())
+    record_path.write_text(record.model_copy(update={"status": "pending"}).model_dump_json(indent=2))
+
+    resumed = run_sweep(_spec(), tmp_path, resume=True)
+
+    assert resumed.pending_count == 1
+    assert resumed.completed_count == 0
+    assert resumed.skipped_count == 1
+    assert resumed.candidates[0].status == "pending"
+    assert CandidateRecord.model_validate_json(record_path.read_text()).status == "pending"
 
 
 def test_invalid_candidate_is_recorded_as_failed(tmp_path: Path) -> None:

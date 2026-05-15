@@ -22,7 +22,7 @@ from kayakgen.model.hull import Hull
 from kayakgen.model.validity import DesignValidityReport, evaluate_design_validity
 
 ParameterKind = Literal["values", "linspace"]
-CandidateStatus = Literal["complete", "failed", "skipped"]
+CandidateStatus = Literal["pending", "complete", "failed", "skipped"]
 
 
 class ParameterSweep(BaseModel):
@@ -131,6 +131,7 @@ class SweepRunRecord(BaseModel):
     name: str
     spec_hash: str
     candidate_count: int
+    pending_count: int
     completed_count: int
     failed_count: int
     skipped_count: int
@@ -178,6 +179,9 @@ def run_sweep(spec: SweepSpec, out_dir: str | Path, resume: bool = False) -> Swe
             if prior.status == "complete":
                 records.append(prior.model_copy(update={"status": "skipped"}))
                 continue
+            if prior.status == "pending":
+                records.append(prior)
+                continue
 
         try:
             hull = Hull(**attempted)
@@ -210,6 +214,7 @@ def run_sweep(spec: SweepSpec, out_dir: str | Path, resume: bool = False) -> Swe
         name=spec.name,
         spec_hash=spec.spec_hash(),
         candidate_count=len(records),
+        pending_count=sum(1 for record in records if record.status == "pending"),
         completed_count=sum(1 for record in records if record.status == "complete"),
         failed_count=sum(1 for record in records if record.status == "failed"),
         skipped_count=sum(1 for record in records if record.status == "skipped"),

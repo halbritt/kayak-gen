@@ -70,10 +70,65 @@ def _write_run_with_resistance_metadata(
         name="claim-gate",
         spec_hash="claim-gate",
         candidate_count=1,
+        pending_count=0,
         completed_count=1,
         failed_count=0,
         skipped_count=0,
         candidates=[record],
+    )
+    (root / "run.json").write_text(run.model_dump_json(indent=2))
+
+
+def _write_run_with_pending_candidate(root: Path) -> None:
+    candidates = root / "candidates"
+    candidates.mkdir(parents=True)
+    hull = Hull()
+    hydro = evaluate_hydrostatics(hull)
+    complete_eval = EvaluationResult(
+        hull_hash=hull.hash(),
+        hydrostatics=hydro,
+        resistance=ResistanceCurve(
+            V_knots=[3.5],
+            Fn=[0.27],
+            Rv_N=[6.0],
+            Rw_N=[3.0],
+            Rt_N=[9.0],
+            metadata=_complete_calibrated_resistance_metadata(),
+        ),
+    )
+    complete_eval_path = candidates / "candidate-complete.eval.json"
+    complete_eval_path.write_text(complete_eval.model_dump_json(indent=2))
+    complete_record = CandidateRecord(
+        candidate_index=0,
+        candidate_key="candidate-complete",
+        parameters={},
+        attempted_hull=hull.model_dump(mode="json"),
+        status="complete",
+        hull_hash=hull.hash(),
+        artifacts={"evaluation": str(complete_eval_path.relative_to(root))},
+        summary={
+            "GM0_m": hydro.GM0_m,
+            "Rt_N_last": 9.0,
+        },
+    )
+    pending_record = CandidateRecord(
+        candidate_index=1,
+        candidate_key="candidate-pending",
+        parameters={"beam_wl_m": 0.54},
+        attempted_hull={"beam_oa_m": 0.60, "beam_wl_m": 0.54},
+        status="pending",
+        evaluator_settings={"hydrostatics": True, "resistance": False},
+        evaluator_versions={"sweep_schema": "1"},
+    )
+    run = SweepRunRecord(
+        name="pending-gate",
+        spec_hash="pending-gate",
+        candidate_count=2,
+        pending_count=1,
+        completed_count=1,
+        failed_count=0,
+        skipped_count=0,
+        candidates=[complete_record, pending_record],
     )
     (root / "run.json").write_text(run.model_dump_json(indent=2))
 
@@ -255,6 +310,17 @@ def test_skipped_candidates_remain_visible_but_not_frontier_members(tmp_path: Pa
         "candidate status not eligible for pareto: skipped" in summary.warnings
         for summary in report.candidate_summaries
     )
+
+
+def test_pending_candidates_remain_visible_but_not_frontier_members(tmp_path: Path) -> None:
+    _write_run_with_pending_candidate(tmp_path)
+
+    report = build_comparison_report(tmp_path)
+
+    assert report.pareto_front_keys == ["candidate-complete"]
+    pending = next(summary for summary in report.candidate_summaries if summary.status == "pending")
+    assert pending.objective_values["GM0_m"] is None
+    assert "candidate status not eligible for pareto: pending" in pending.warnings
 
 
 def test_no_usable_default_objectives_is_report_warning(tmp_path: Path) -> None:

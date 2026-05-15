@@ -1,6 +1,6 @@
 # Operator Report
 
-Updated: 2026-05-14
+Updated: 2026-05-15
 
 ## Current State
 
@@ -8,6 +8,46 @@ Updated: 2026-05-14
   must be performed by Striatum-assigned agents, with this session limited to
   orchestration, artifact handling, report updates, trunk hygiene, and branch
   cleanup.
+- 2026-05-14T19:35Z checkpoint: scaffolded workflow 0053
+  (`implementation-burndown-stage2`) to burn down the remaining roadmap
+  backlog in parallel. The new workflow fans out six disjoint Codex
+  implementation lanes for browser parity, geometry evidence, OpenFOAM adapter
+  gating, resistance source evidence, high-angle GZ surfacing, and sweep
+  pending lifecycle, followed by a docs-sync lane, three independent reviews,
+  a findings ledger, remediation, and final review. No runtime changes have
+  landed yet from this scaffold.
+- 2026-05-14T20:01Z checkpoint: workflow 0053 was branch-confirmed and
+  started on `striatum/0053-implementation-burndown-stage2`. Six fresh
+  implementer sessions were registered and claimed against the queued jobs:
+  web parity (`sess_aef55d7c51fe446088425ac510124a9a`), mesh harness
+  (`sess_df61c8305552460ea01831deacaf68bf`), OpenFOAM adapter
+  (`sess_7763ae15abe747dfaf7800abb8cdaf55`), resistance sources
+  (`sess_05a09638b50a4d71a764e7bb52ec0e37`), high-angle GZ
+  (`sess_1c450f9192ff4f45bee3a494d8338305`), and pending lifecycle
+  (`sess_1d21e6d3d0ce4374a9b4dc42a3b13b34`). The run is now live and the
+  implementation lanes are executing in parallel under Striatum.
+- 2026-05-14T20:07Z checkpoint: all six implementation lanes published their
+  required patch summaries and were formally closed in Striatum. The work that
+  landed is narrow and reviewable: a web-share regression, high-angle GZ
+  summary semantics, pending sweep lifecycle support, and three lanes that
+  only needed workflow-local artifact publication because the accepted runtime
+  slices were already present. Docs synchronization is now the active lane on
+  session `sess_f5cfd90ca4644bee9ef5722290bcfc22`.
+- 2026-05-14T20:10Z checkpoint: the three review artifacts are written and
+  the ops/tests review surfaced one real compatibility finding: older sweep
+  `run.json` files no longer deserialize because `SweepRunRecord.pending_count`
+  is required without a compatibility fallback. The findings ledger artifact
+  `striatum/0053-implementation-burndown-stage2/ledger/FINDINGS_LEDGER.md`
+  is written and recorded locally, but the Striatum claim path for the ledger
+  packet is still split-brained between local and daemon session state. The
+  downstream remediation/final-review block remains pending until that claim
+  path is reconciled.
+- 2026-05-15T00:43Z checkpoint: the operator explicitly waived the
+  backward-compatibility concern for pre-`pending_count` sweep `run.json`
+  files. The stage-two ledger note is now to be treated as superseded policy,
+  not an open remediation item. No code changes were requested for that
+  decision; the remaining workflow state is about reflecting the waiver and
+  unblocking the ledger/final-review path if Striatum still expects it.
 - 2026-05-14T17:06Z checkpoint: workflow 0052
   (`successor-decision-research`) remains design-only and research-first. All
   six decision questions now have separate cited research artifacts under
