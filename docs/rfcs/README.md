@@ -49,14 +49,14 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0033](0033-workspace-ui-rework.md) | partial landed safe-slice | Workspace UI rework — three-region web shell, semantic theme, claim/readiness/status chips |
 | [0034](0034-workspace-ui-follow-up.md) | landed safe-slice | Workspace UI follow-up — dynamic presets, review-card wiring, export menu, and forbidden-copy tests |
 | [0035](0035-ui-follow-up-cleanup.md) | landed safe-slice | UI follow-up cleanup — validity semantics, export/state hygiene, slider-label maintenance |
-| [0036](0036-trame-seed-listener-proof.md) | proposed successor | Trame seed listener proof |
-| [0037](0037-export-row-schema-consolidation.md) | proposed successor | Export row schema consolidation |
-| [0038](0038-export-menu-disabled-copy-polish.md) | proposed successor | Export menu disabled copy polish |
-| [0039](0039-web-snapshot-schema-unification.md) | proposed successor | Web snapshot schema unification |
-| [0040](0040-closed-volume-solver-readiness-roadmap.md) | proposed roadmap/gated scope | Closed-volume solver readiness roadmap |
-| [0041](0041-real-cfd-adapter-successor.md) | proposed gated successor | Real CFD adapter successor |
-| [0042](0042-resistance-calibration-fixture-successor.md) | proposed evidence-gate successor | Resistance calibration fixture successor |
-| [0043](0043-high-angle-gz-successor.md) | proposed design-gate successor | High-angle GZ successor |
+| [0036](0036-trame-seed-listener-proof.md) | landed retain-with-trame-state-proof | Trame seed listener proof |
+| [0037](0037-export-row-schema-consolidation.md) | landed subtitle-only-schema | Export row schema consolidation |
+| [0038](0038-export-menu-disabled-copy-polish.md) | landed disabled-copy-polish | Export menu disabled copy polish |
+| [0039](0039-web-snapshot-schema-unification.md) | landed shared-schema-unification | Web snapshot schema unification |
+| [0040](0040-closed-volume-solver-readiness-roadmap.md) | partial landed generated-body-hardening | Closed-volume solver readiness roadmap |
+| [0041](0041-real-cfd-adapter-successor.md) | partial landed case-template-lock + provenance-probe + v2512-parser; succeeded still blocked | Real CFD adapter successor |
+| [0042](0042-resistance-calibration-fixture-successor.md) | partial landed source-review-packet-validators; data acquisition pending | Resistance calibration fixture successor |
+| [0043](0043-high-angle-gz-successor.md) | partial landed CLI-JSON-opt-in surfacing (stage 1) | High-angle GZ successor |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw

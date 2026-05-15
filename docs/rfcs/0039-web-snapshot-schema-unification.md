@@ -1,6 +1,6 @@
 # RFC 0039: Web Snapshot Schema Unification
 
-Status: proposed
+Status: landed shared-schema-unification
 Date: 2026-05-14
 Context: successor to RFC 0035 and workflow 0047 final review FR4. RFC 0035
 introduced declared `STATE_SNAPSHOT_KEYS`; workflow 0047 found that the same

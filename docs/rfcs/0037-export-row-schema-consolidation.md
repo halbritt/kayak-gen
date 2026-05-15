@@ -1,6 +1,6 @@
 # RFC 0037: Export Row Schema Consolidation
 
-Status: proposed
+Status: landed subtitle-only-schema
 Date: 2026-05-14
 Context: successor to RFC 0035 and workflow 0047 final review FR2. RFC 0035
 made `EXPORT_MENU_ROWS` the source for export-menu labels, availability,

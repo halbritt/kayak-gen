@@ -15,8 +15,74 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   failed/raw-unvalidated with no real `succeeded` solver path enabled, and
   generated-body high-angle stability output remains an unvalidated
   hydrostatic comparison behind the existing evidence gates.
+- Fixed the workflow 0053 web-share regression: browser Share URL reconstruction
+  now seeds hull state from the query string deterministically without
+  perturbing slider rails. No new browser capability, hosted operation, or
+  no-claim wording changed.
 
 ### Added
+
+- Landed RFC 0040 generated-body parameter-matrix hardening: a new 55-case
+  parametrized test surface (`tests/test_generated_closed_body_hardening.py`,
+  11 hull cases × 5 invariant assertions) pins generated closed-body
+  diagnostics across default, exact-plumb, mixed-rake, waterline-pinch,
+  shallow/deep draft, low/high Cp, and low/high Cm cases. Hardening proves
+  body-ref hash round-trip, RFC 0021 self-intersection `passed` (non-stub
+  algorithm), positive signed volume, and that ordinary generated packages
+  stay below `cfd_ready` with the expected `generated_body_missing` and
+  `volume_mesh_missing` blockers on both open and watertight readiness
+  reports. No new mesher or solver-readiness promotion landed.
+- Landed RFC 0041 partial: locked the OpenFOAM-v2512 interFoam case-template
+  constant (`openfoam-v2512-interfoam-dtchull-v1`), added a Pydantic
+  `OpenFoamProvenanceProbe` plus injectable runner seam that requires
+  application/build/API token evidence (explicitly refuses
+  `$WM_PROJECT_VERSION`-only evidence), and hardened `parse_openfoam_force_dat`
+  to require the v2512 19-field schema (`porous` header token); v2306 legacy
+  layout and corrupt/short files are rejected with structured codes. The
+  `succeeded` path stays blocked: the adapter still returns
+  `error_kind=solver_success_blocked`, and the `CfdOpenFoamRawResult` Literal
+  refuses non-locked case templates and non-`raw_unvalidated` payload classes.
+  +12 tests under `tests/test_cfd_jobs_openfoam.py` with fixtures under
+  `tests/fixtures/openfoam_v2512/`. No real OpenFOAM binary or solver success
+  path was enabled.
+- Landed RFC 0042 partial: restructured `kayakgen/eval/calibration.py` into a
+  package with an `extractors/` subpackage, added 12 new packet fields
+  (locators, access date, checksum/pending-reason, license, attribution,
+  extraction-script ref, units, Froude basis, uncertainty notes, accepted-fit
+  ref), and added validators that (a) refuse `rejected` as a runtime
+  `SourceUse`, (b) require both `source_checksum_sha256` (lowercase hex) and
+  `extraction_script_ref` before a packet can promote to
+  `validation_fixture`, and (c) require `accepted_fit_ref` before any
+  promotion to `calibration_fixture`. The Edinburgh DataShare Pacific-canoe
+  extractor stub raises `NotImplementedError("requires Edinburgh DataShare
+  download; pending data acquisition")`. +11 tests under
+  `tests/test_calibration.py`; the Edinburgh packet remains a validation
+  candidate with `pending_data_acquisition` and
+  `outside_sea_kayak_calibration_envelope` non-promotion reasons.
+- Landed RFC 0043 stage 1: opt-in `kayakgen stability --high-angle-gz`
+  (optional `--heel-grid-deg`) emits a `high_angle_gz` JSON block with the
+  fixed-trim generated-body v1 curve, per-heel records, summary metrics only
+  when every required grid point converges, mandatory surface warnings, and a
+  structured `unavailable_reason` for synthetic bodies. Default
+  `kayakgen stability` output is byte-equal to the prior behavior. No web,
+  desktop, sweep summary, or comparison-frontier surfaces changed.
+- Landed RFC 0009 sweep-side STL artifact emission: `evaluators.stl: true`
+  in a sweep spec writes `candidates/<key>/hull.stl` and
+  `candidates/<key>/deck.stl` via the same `kayakgen generate` STL writer.
+  Each successful candidate record gains `stl_artifacts.{hull,deck}` with
+  `{path, bytes, sha256}`. Failed and pending candidates skip artifact
+  emission; resume preserves existing STL files byte-for-byte without
+  regeneration. Sweep STLs are open inspection surfaces only and do not
+  promote any candidate to watertight `cfd_ready`.
+- Landed RFCs 0036-0039 as the post-workflow-0048 UI cleanup safe slice.
+  RFC 0036 retains `_state_matches_preset_seed` with a Trame-state listener
+  proof that drives the same-seed event sequence end-to-end without invoking
+  the private helper. RFC 0037's `EXPORT_MENU_ROWS` schema is subtitle-only
+  with no duplicate guidance fields. RFC 0038 polished the disabled mesh-package
+  label to "Mesh package (CLI only)". RFC 0039 unified web snapshot keys and
+  CFD/mesh-package aliases onto a shared `WebStateSchema`. No backend
+  capability, REST payload shape, calibration, watertight readiness,
+  real-solver, or hosted operation changed.
 
 - Landed workflow 0053 stage 2: web query bootstrap and slider-safe state
   handling, sweep pending lifecycle reporting, high-angle stability summary

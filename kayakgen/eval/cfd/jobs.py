@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, Protocol
@@ -347,6 +348,55 @@ class CfdOpenFoamCommandSpec(BaseModel):
     log_limit_bytes: int = Field(gt=0)
     expected_raw_outputs: list[str]
     result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
+
+
+class OpenFoamProvenanceProbe(BaseModel):
+    """Deterministic v2512 application/build/API provenance record.
+
+    Per workflow 0052 D004 the OpenFOAM-v2512 dispatch decision must derive
+    provenance from solver-reported probes (application name, build hash,
+    API version) and never trust ``$WM_PROJECT_VERSION`` alone. Tests inject
+    probe outputs through ``probe_openfoam_provenance`` to keep CI offline.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    application: str | None = None
+    build: str | None = None
+    api: str | None = None
+    project_version: str | None = None
+    env_project_version: str | None = None
+    raw: dict[str, str] = Field(default_factory=dict)
+
+    def matches_required(self, required: str) -> tuple[bool, str | None]:
+        """Return (accepted, reason_if_rejected) for a required version token."""
+        if not required:
+            return True, None
+        # Require at least one solver-reported probe channel (not env) to mention
+        # the required token. ``project_version`` is also acceptable when it came
+        # from ``foamVersion`` rather than the bare environment variable.
+        accepted_channels = {
+            "application": self.application,
+            "build": self.build,
+            "api": self.api,
+            "project_version": self.project_version,
+        }
+        matched = [name for name, value in accepted_channels.items() if value and required in value]
+        if matched:
+            return True, None
+        if self.env_project_version and required in self.env_project_version:
+            return (
+                False,
+                (
+                    "OpenFOAM provenance rejected: required "
+                    f"{required!r} only present in $WM_PROJECT_VERSION; "
+                    "application/build/API probes did not confirm v2512"
+                ),
+            )
+        return (
+            False,
+            f"OpenFOAM provenance rejected: no probe channel reported {required!r}",
+        )
 
 
 class CfdOpenFoamForceDatSample(BaseModel):
@@ -1184,6 +1234,67 @@ class OpenFoamLocalAdapter:
 
 
 _FLOAT_RE = re.compile(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?")
+_OPENFOAM_V2512_HEADER_TOKENS = ("forces", "pressure", "viscous", "porous")
+_OPENFOAM_V2512_FORCE_DAT_FIELDS = 19  # 1 time + 9 force comps + 9 moment comps
+_OPENFOAM_PRE2512_FORCE_DAT_FIELDS = 13  # 1 time + 6 force comps + 6 moment comps
+
+# Probe command names. ``Callable`` injection is used in tests; the real adapter
+# can pass ``subprocess.run``-backed runners.
+OpenFoamProbeRunner = Callable[[list[str]], tuple[int, str, str]]
+OPENFOAM_PROBE_COMMANDS: dict[str, list[str]] = {
+    "application": ["interFoam", "-help"],
+    "build": ["foamVersion", "-build"],
+    "api": ["foamVersion", "-api"],
+    "project_version": ["foamVersion"],
+}
+
+
+def probe_openfoam_provenance(
+    *,
+    runner: OpenFoamProbeRunner,
+    env: dict[str, str] | None = None,
+    commands: dict[str, list[str]] | None = None,
+) -> OpenFoamProvenanceProbe:
+    """Probe v2512 provenance across application/build/API channels.
+
+    The runner is injected so unit tests can supply deterministic probe output
+    without invoking the real OpenFOAM binary. ``$WM_PROJECT_VERSION`` is read
+    only as ``env_project_version`` and is intentionally NOT trusted as the
+    sole evidence of v2512 (per workflow 0052 D004).
+    """
+    probe_commands = commands or OPENFOAM_PROBE_COMMANDS
+    raw: dict[str, str] = {}
+    channels: dict[str, str | None] = {
+        "application": None,
+        "build": None,
+        "api": None,
+        "project_version": None,
+    }
+    for channel, command in probe_commands.items():
+        try:
+            returncode, stdout, stderr = runner(list(command))
+        except (FileNotFoundError, PermissionError, OSError) as exc:
+            raw[f"{channel}_error"] = str(exc)
+            continue
+        if returncode != 0:
+            raw[f"{channel}_returncode"] = str(returncode)
+            continue
+        text = (stdout or "") + ("\n" + stderr if stderr else "")
+        raw[channel] = text.strip()
+        channels[channel] = _first_nonempty_line(text)
+    env_value = None
+    if env is not None:
+        env_value = env.get("WM_PROJECT_VERSION")
+    elif "WM_PROJECT_VERSION" in os.environ:
+        env_value = os.environ["WM_PROJECT_VERSION"]
+    return OpenFoamProvenanceProbe(
+        application=channels["application"],
+        build=channels["build"],
+        api=channels["api"],
+        project_version=channels["project_version"],
+        env_project_version=env_value,
+        raw=raw,
+    )
 
 
 def parse_openfoam_force_dat(
@@ -1191,15 +1302,34 @@ def parse_openfoam_force_dat(
     *,
     source_ref: str | None = None,
 ) -> CfdOpenFoamForceDatResult:
-    """Parse the accepted OpenFOAM ``postProcessing/forces/**/force.dat`` shape."""
+    """Parse the accepted OpenFOAM v2512 ``postProcessing/forces/**/force.dat`` shape.
+
+    The accepted layout is the v2512 ``forces`` function object format with
+    pressure/viscous/porous force triples and matching moment triples
+    (19 numeric fields per data row). Older v2306-style files (no porous
+    column, 13 numeric fields) are rejected with ``code='unsupported_layout'``
+    so a stale solver build is not silently accepted as v2512 evidence.
+    """
     force_path = Path(path)
     try:
-        lines = force_path.read_text().splitlines()
+        text = force_path.read_text()
     except FileNotFoundError as exc:
         raise CfdDispatchError(
             f"OpenFOAM force.dat not found: {force_path}",
             code="missing_output",
         ) from exc
+
+    lines = text.splitlines()
+    header_lines = [line for line in lines if line.strip().startswith("#")]
+    header_blob = "\n".join(header_lines).lower()
+    # A v2512 header lists "forces(pressure viscous porous)". If a header
+    # mentions ``forces`` but omits ``porous`` it is the legacy v2306-style
+    # layout and must be rejected up front (do not silently accept).
+    if "forces" in header_blob and "porous" not in header_blob:
+        raise CfdDispatchError(
+            f"OpenFOAM force.dat header is not v2512 layout (no 'porous' column): {force_path}",
+            code="unsupported_layout",
+        )
 
     samples: list[CfdOpenFoamForceDatSample] = []
     for line_number, line in enumerate(lines, start=1):
@@ -1228,9 +1358,21 @@ def _parse_openfoam_force_dat_line(
     line_number: int,
 ) -> CfdOpenFoamForceDatSample:
     values = [float(match.group(0)) for match in _FLOAT_RE.finditer(line)]
-    if len(values) < 10:
+    if len(values) == _OPENFOAM_PRE2512_FORCE_DAT_FIELDS:
         raise CfdDispatchError(
-            f"OpenFOAM force.dat line {line_number} has too few numeric fields",
+            (
+                f"OpenFOAM force.dat line {line_number} has {len(values)} numeric "
+                "fields (legacy v2306-style layout without porous column); "
+                "v2512 interFoam dispatch requires the 19-field forces+moments layout"
+            ),
+            code="unsupported_layout",
+        )
+    if len(values) < _OPENFOAM_V2512_FORCE_DAT_FIELDS:
+        raise CfdDispatchError(
+            (
+                f"OpenFOAM force.dat line {line_number} has {len(values)} numeric "
+                f"fields; v2512 layout requires {_OPENFOAM_V2512_FORCE_DAT_FIELDS}"
+            ),
             code="malformed_output",
         )
 

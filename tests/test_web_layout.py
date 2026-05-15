@@ -416,6 +416,61 @@ def test_preset_seed_listener_reapplies_bounds_without_custom_flip() -> None:
     assert web.state.validity_badge == "In Elite surfski envelope"
 
 
+def test_preset_seed_listener_event_sequence_via_trame_state_only() -> None:
+    """RFC 0036 proof: same-seed branch is reachable via the registered Trame
+    hull-state listener (`_on_hull_param_change`) without invoking the private
+    `_state_matches_preset_seed` helper.
+
+    The sequence mirrors what Trame fires after `_apply_class_preset` writes
+    canonical seed values: a downstream state-bound listener re-enters
+    `_on_hull_param_change` while every hull-shaping field still equals its
+    preset seed. The bounds-widening between events simulates a stale rail
+    range produced by an earlier `custom`-preset state, and proves that the
+    same-seed branch re-narrows the rails instead of flipping to `custom`.
+    """
+
+    web = web_app.create_app(initial_hull=Hull())
+    web.state.class_preset = "touring"
+    web._apply_class_preset("touring")
+
+    seeded = {field: getattr(web.state, field) for field in HULL_STATE_FIELDS}
+    web.state.length_m_min = 2.0
+    web.state.length_m_max = 6.5
+    web.state.beam_oa_m_min = 0.40
+    web.state.beam_oa_m_max = 0.80
+
+    web._on_hull_param_change()
+
+    assert web.state.class_preset == "touring"
+    for field, value in seeded.items():
+        assert getattr(web.state, field) == value, field
+    assert web.state.length_m_min == 4.3
+    assert web.state.length_m_max == 5.5
+    assert web.state.validity_badge == "In Touring sea kayak envelope"
+
+
+def test_preset_seed_listener_flips_custom_when_seed_breaks_via_trame_state() -> None:
+    """RFC 0036 counter-proof: a single hull-shaping mutation that breaks the
+    seed snapshot drives the listener through the `class_preset = custom`
+    branch end-to-end via the same Trame entry point. This guards against
+    accidental removal of the same-seed comparison: if it were gone, even a
+    same-seed listener invocation would unconditionally hit the `custom`
+    branch.
+    """
+
+    web = web_app.create_app(initial_hull=Hull())
+    web.state.class_preset = "performance"
+    web._apply_class_preset("performance")
+
+    web.state.length_m = web.state.length_m + 0.10
+
+    web._on_hull_param_change()
+
+    assert web.state.class_preset == "custom"
+    assert web.state.length_m_min == 2.0
+    assert web.state.length_m_max == 6.5
+
+
 def test_target_speed_edit_does_not_flip_class_preset() -> None:
     web = web_app.create_app(initial_hull=Hull())
     web.state.class_preset = "touring"

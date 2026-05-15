@@ -4,10 +4,44 @@ Updated: 2026-05-15
 
 ## Current State
 
-- Operator-only constraint reaffirmed: design, implementation, and review work
-  must be performed by Striatum-assigned agents, with this session limited to
-  orchestration, artifact handling, report updates, trunk hygiene, and branch
-  cleanup.
+- 2026-05-15T18:00Z checkpoint: Striatum runner reported broken; operator
+  authorized a cowboy session to land remaining `docs/BACKLOG_EXECUTION_PLAN.md`
+  batches directly. Work fans out through parallel Agent sub-sessions (one per
+  batch) under this session's branch
+  `striatum/0053-implementation-burndown-stage2` rather than through Striatum
+  jobs. The branch name is retained for git continuity; the work landed here is
+  not a Striatum-managed run record.
+- Operator-only constraint waived for this session by explicit operator
+  direction. Restoring Striatum first is preferred when the runner is back;
+  until then, treat the cowboy checkpoint trail as the authoritative log for
+  this branch.
+- 2026-05-15T20:30Z checkpoint: cowboy session landed seven of eight backlog
+  batches in one pass.
+  - Batch 1 (docs/status hygiene): RFC index, ROADMAP, USER_GUIDE,
+    OPERATOR_REPORT, CHANGELOG, and individual RFC headers (0024, 0036-0043)
+    are reconciled with the landed runtime.
+  - Batch 2 (UI cleanup, RFCs 0036-0039): RFC 0036 retained with two new
+    Trame-state listener proof tests in `tests/test_web_layout.py`; RFCs
+    0037/0038/0039 confirmed already implemented in `kayakgen/ui/web/app.py`
+    and `kayakgen/ui/web/state.py` and re-statused as landed.
+  - Batch 3 (browser hosting & parity): public-demo operation remains deferred
+    per workflow 0052 (owner/budget/smoke/cleanup evidence pending);
+    `docs/WEB_VERIFICATION.md` already covers the narrow serve/Docker path.
+  - Batch 4 (RFC 0040): generated-body parameter-matrix hardening landed via
+    `tests/test_generated_closed_body_hardening.py` (55 parametrized cases).
+  - Batch 5 (RFC 0041): OpenFOAM-v2512 case-template lock, provenance probe
+    with injectable runner, hardened force.dat parser, succeeded still blocked.
+  - Batch 6 (RFC 0042): calibration restructured into a package with
+    `extractors/` stub; Edinburgh packet validators and runtime-source-use
+    gates landed; data acquisition still pending.
+  - Batch 7 (RFC 0043 stage 1): opt-in CLI JSON surfacing landed; defaults
+    unchanged; web/desktop/sweep surfaces untouched.
+  - Batch 8 (RFC 0009): sweep-side STL artifact emission landed; pending and
+    failed candidates skip emission; resume preserves artifacts.
+  - Full test suite: 478 passed under both random and stable ordering. No new
+    solver success path, calibration promotion, hosted operation, real
+    high-angle GZ claim, or production watertight readiness was introduced;
+    all new behavior remains behind the existing evidence gates.
 - 2026-05-14T19:35Z checkpoint: scaffolded workflow 0053
   (`implementation-burndown-stage2`) to burn down the remaining roadmap
   backlog in parallel. The new workflow fans out six disjoint Codex

@@ -6,9 +6,17 @@ resistance output is calibrated.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+_SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
+#: Calibration promotion must arrive via a separate accepted-fit workflow.
+#: A review packet alone (no accepted-fit gate) cannot legitimately claim
+#: ``calibration_fixture`` — the gate is preserved here so callers can refer
+#: to a single named token from tests.
+CALIBRATION_PROMOTION_REQUIRES_ACCEPTED_FIT: str = "calibration_promotion_requires_accepted_fit"
 
 SourceUse = Literal[
     "citation_only",
@@ -71,6 +79,26 @@ def source_use_for_review_verdict(verdict: SourceReviewVerdict) -> SourceUse | N
 def stage_label_for_review_verdict(verdict: SourceReviewVerdict) -> SourceReviewStageLabel:
     """Return the RFC 0027 grouping for a source-review verdict."""
     return STAGE_LABEL_BY_REVIEW_VERDICT[verdict]
+
+
+def assert_runtime_source_use(value: str) -> SourceUse:
+    """Validate that ``value`` is a runtime ``SourceUse`` token.
+
+    ``rejected`` is an RFC 0042 review verdict only — it cannot appear as a
+    runtime ``SourceUse`` because rejected sources are dropped from the
+    registry instead of being given a runtime role. This helper exists so
+    callers (and tests) can refuse ``rejected`` at the boundary without
+    importing the literal definition.
+    """
+    if value == "rejected":
+        raise ValueError(
+            "'rejected' is a review-only verdict and cannot be used as a "
+            "runtime SourceUse value"
+        )
+    allowed = set(SourceUse.__args__)  # type: ignore[attr-defined]
+    if value not in allowed:
+        raise ValueError(f"{value!r} is not a recognized runtime SourceUse value")
+    return value  # type: ignore[return-value]
 
 
 def _metadata_value_missing(value: Any) -> bool:
@@ -197,6 +225,18 @@ class ResistanceSourceReviewPacket(BaseModel):
     fixture_version: str | None = None
     accepted_uses: list[str] = Field(default_factory=list)
     validity_envelope: dict[str, Any] | None = None
+    primary_locator: str | None = None
+    secondary_locator: str | None = None
+    access_date: str | None = None
+    source_checksum_sha256: str | None = None
+    source_checksum_pending_reason: str | None = None
+    license_identifier: str | None = None
+    attribution: str | None = None
+    extraction_script_ref: str | None = None
+    measurement_units: dict[str, str] | None = None
+    froude_basis: str | None = None
+    uncertainty_notes: str | None = None
+    accepted_fit_ref: str | None = None
 
     @property
     def source_use(self) -> SourceUse | None:
@@ -220,10 +260,39 @@ class ResistanceSourceReviewPacket(BaseModel):
             if evidence.status != "accepted"
         ]
 
+    def is_validation_fixture_ready(self) -> bool:
+        """Return True when both checksum and extractor are bound.
+
+        Edinburgh-style sources may only be promoted from
+        ``validation_candidate`` to ``validation_fixture`` once the source
+        file checksum and an extraction-script reference are both bound.
+        Calibration promotion requires an additional accepted-fit gate that
+        is intentionally not satisfiable from a review packet alone.
+        """
+        return bool(self.source_checksum_sha256) and bool(self.extraction_script_ref)
+
+    def calibration_promotion_blockers(self) -> list[str]:
+        """Return reasons (if any) why calibration promotion is blocked.
+
+        A review packet alone cannot promote a source to
+        ``calibration_fixture``; promotion requires a separately-recorded
+        accepted-fit reference. This method returns an empty list only when
+        the full set of gates is satisfied.
+        """
+        blockers: list[str] = []
+        if not self.is_validation_fixture_ready():
+            blockers.append("pending_data_acquisition")
+        if not self.accepted_fit_ref:
+            blockers.append(CALIBRATION_PROMOTION_REQUIRES_ACCEPTED_FIT)
+        if self.incomplete_evidence_fields():
+            blockers.append("incomplete_source_review_evidence")
+        return blockers
+
     @model_validator(mode="after")
     def _review_verdict_controls_promotion_metadata(
         self,
     ) -> "ResistanceSourceReviewPacket":
+        self._validate_checksum_binding()
         if self.review_verdict == "rejected":
             if self.fixture_id or self.fixture_version or self.accepted_uses:
                 raise ValueError("rejected source reviews cannot declare fixture metadata")
@@ -231,6 +300,8 @@ class ResistanceSourceReviewPacket(BaseModel):
                 raise ValueError("rejected source reviews cannot declare validity envelopes")
             if not self.non_promotion_reasons:
                 raise ValueError("rejected source reviews require non-promotion reasons")
+            if self.accepted_fit_ref is not None:
+                raise ValueError("rejected source reviews cannot declare accepted_fit_ref")
             return self
 
         if self.stage_label == "candidate_source":
@@ -240,6 +311,8 @@ class ResistanceSourceReviewPacket(BaseModel):
                 raise ValueError("candidate source reviews cannot declare validity envelopes")
             if not self.non_promotion_reasons:
                 raise ValueError("candidate source reviews require non-promotion reasons")
+            if self.accepted_fit_ref is not None:
+                raise ValueError("candidate source reviews cannot declare accepted_fit_ref")
             return self
 
         incomplete = self.incomplete_evidence_fields()
@@ -254,9 +327,40 @@ class ResistanceSourceReviewPacket(BaseModel):
             raise ValueError(f"{self.review_verdict} requires fixture ID and version")
         if self.non_promotion_reasons:
             raise ValueError(f"{self.review_verdict} cannot carry non-promotion reasons")
-        if self.review_verdict == "calibration_fixture" and self.validity_envelope is None:
-            raise ValueError("calibration_fixture requires a validity envelope")
+        if not self.source_checksum_sha256 or not self.extraction_script_ref:
+            raise ValueError(
+                f"{self.review_verdict} requires source_checksum_sha256 and "
+                "extraction_script_ref to be bound"
+            )
+        if self.review_verdict == "calibration_fixture":
+            if self.validity_envelope is None:
+                raise ValueError("calibration_fixture requires a validity envelope")
+            if not self.accepted_fit_ref:
+                raise ValueError(
+                    "calibration_fixture requires an accepted_fit_ref "
+                    f"({CALIBRATION_PROMOTION_REQUIRES_ACCEPTED_FIT})"
+                )
         return self
+
+    def _validate_checksum_binding(self) -> None:
+        if self.source_checksum_sha256 is not None:
+            if not _SHA256_HEX_RE.match(self.source_checksum_sha256):
+                raise ValueError(
+                    "source_checksum_sha256 must be a 64-character lowercase hex string"
+                )
+            if self.source_checksum_pending_reason is not None:
+                raise ValueError(
+                    "source_checksum_pending_reason must be null when "
+                    "source_checksum_sha256 is bound"
+                )
+        else:
+            if (
+                self.source_checksum_pending_reason is not None
+                and not self.source_checksum_pending_reason.strip()
+            ):
+                raise ValueError(
+                    "source_checksum_pending_reason cannot be an empty string"
+                )
 
 
 def default_resistance_source_registry() -> tuple[ResistanceSourceRecord, ...]:
@@ -436,6 +540,7 @@ def default_resistance_source_review_packets() -> tuple[ResistanceSourceReviewPa
                 "validation_source_context_only",
             ],
             non_promotion_reasons=[
+                "pending_data_acquisition",
                 "extraction_schema_missing",
                 "unit_normalized_rows_not_checked_in",
                 "uncertainty_treatment_missing",
@@ -446,5 +551,34 @@ def default_resistance_source_review_packets() -> tuple[ResistanceSourceReviewPa
                 "pacific_canoe_not_sea_kayak",
                 "fixture_promotion_deferred",
             ],
+            primary_locator="https://datashare.ed.ac.uk/handle/10283/4772",
+            secondary_locator="https://doi.org/10.7488/ds/3785",
+            access_date="2026-05-14",
+            source_checksum_sha256=None,
+            source_checksum_pending_reason="pending_data_acquisition",
+            license_identifier="CC BY 4.0",
+            attribution=(
+                "University of Edinburgh DataShare, Hydrodynamics of Three "
+                "Slender Models Resembling Pacific Canoe Hulls (DOI "
+                "10.7488/ds/3785), CC BY 4.0."
+            ),
+            extraction_script_ref=(
+                "kayakgen/eval/calibration/extractors/"
+                "edinburgh_datashare_pacific_canoe.py"
+            ),
+            measurement_units={
+                "speed": "knots",
+                "drag": "N",
+                "length_waterline": "m",
+                "trim": "deg",
+                "sink": "mm",
+                "water_temperature": "C",
+            },
+            froude_basis="Fn = U / sqrt(g * Lwl)",
+            uncertainty_notes=(
+                "Source repeatability and Type B / digitization uncertainty "
+                "are not yet bound to fixture rows; pending data acquisition."
+            ),
+            accepted_fit_ref=None,
         ),
     )

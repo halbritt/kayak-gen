@@ -1,6 +1,6 @@
 # RFC 0041: Real CFD Adapter Successor
 
-Status: proposed
+Status: partial landed case-template-lock + provenance-probe + v2512-parser; succeeded still blocked
 Date: 2026-05-14
 Context: successor to RFC 0017 after RFC 0026 landed the deterministic
 `fixture-local-command` adapter. Builds on RFC 0015 local CFD job records, RFC

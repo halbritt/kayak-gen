@@ -137,13 +137,26 @@ components the command attempts the current bounded fixed-body trim slice:
 kayakgen stability hull.json --load-case load.json --equilibrium --out build/equilibrium.json
 ```
 
-High-angle `GZ` curves and secondary-stability peak metrics are unavailable.
-They require real heeled integration over the generated closed-body evidence;
-the current handoff records unavailable results or explicitly labeled
-fixture-only synthetic math instead of real kayak stability claims. Fixture
-records now carry grid-bounded summary semantics and
+High-angle `GZ` curves and secondary-stability peak metrics are unavailable as
+real kayak claims. They require real heeled integration over the generated
+closed-body evidence; the current handoff records unavailable results or
+explicitly labeled fixture-only synthetic math instead of real kayak stability
+claims. Fixture records now carry grid-bounded summary semantics and
 `unvalidated_hydrostatic_comparison` result semantics so they stay readable
 without being mistaken for a real kayak stability claim.
+
+Pass `--high-angle-gz` to emit an opt-in `high_angle_gz` block alongside the
+default stability JSON. Without the flag, the JSON output is byte-identical to
+the existing behavior. With the flag, the block records a fixed-trim
+generated-body v1 heel sweep (default `0..90` deg by `5` deg; override with
+`--heel-grid-deg "0,5,15,30,45,60,75,90"`) under
+`body_profile=generated_hull_plus_deck_closed_body_v1` and
+`result_semantics=unvalidated_hydrostatic_comparison`. Surface warnings
+(`deck_immersion_assumption`, `flooding_not_modeled`,
+`not_safety_or_seaworthiness_claim`, `active_paddler_not_modeled`,
+`sealed_body_assumption`) are always included. Synthetic bodies record
+`available: false` with `unavailable_reason.code = synthetic_body_not_allowed_for_real_gz`.
+Defaults, sweep ranking, and frontier behavior remain unchanged.
 
 ### `sweep`
 
@@ -178,12 +191,19 @@ Minimal sweep spec:
 
 The run directory contains `run.json`, `summary.csv`, `failures.jsonl`, the
 copied `spec.json`, and per-candidate artifacts under `candidates/`.
-Current sweep record statuses are `complete`, `failed`, and `skipped` on
-resume. RFC 0009's `pending` state now remains visible across resume, and the
-CLI reports a pending count. Sweep-side STL artifact emission remains a later
-delta; keep `stl` false in sweep specs and run `kayakgen generate` or
-`kayakgen mesh-package` separately when surface or package artifacts are
-needed.
+Current sweep record statuses are `complete`, `failed`, `pending`, and
+`skipped` on resume. The `pending` state remains visible across resume; the
+CLI reports a pending count; pending and failed candidates remain in the
+comparison report but are frontier-ineligible.
+
+Set `evaluators.stl: true` in a sweep spec to emit per-candidate open inspection
+surfaces. Each `complete` candidate gets `candidates/<key>/hull.stl` and
+`candidates/<key>/deck.stl`, with the candidate record's `stl_artifacts` block
+recording `{path, bytes, sha256}` for each file. Failed and pending candidates
+skip artifact emission; resume preserves existing STL files byte-for-byte
+without regeneration. Sweep STLs are open hull/deck inspection surfaces and do
+not prepare mesh packages or promote any candidate to watertight readiness;
+run `kayakgen mesh-package` separately when a package is needed.
 
 ### `compare`
 

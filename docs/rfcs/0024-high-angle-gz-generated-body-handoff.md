@@ -1,6 +1,6 @@
 # RFC 0024: High-Angle GZ Generated-Body Handoff
 
-Status: landed structured-unavailable handoff
+Status: landed structured-unavailable handoff; workflow 0053 added grid-bounded fixture summary semantics
 Date: 2026-05-13
 Context: narrows RFC 0020 using the generated closed-body boundary from RFC
 0016 and the unavailable high-angle GZ contract from RFC 0014.

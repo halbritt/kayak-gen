@@ -1,6 +1,6 @@
 # RFC 0040: Closed-Volume Solver Readiness Roadmap
 
-Status: proposed
+Status: partial landed generated-body-hardening
 Date: 2026-05-14
 Context: successor roadmap for the closed-volume and solver-readiness
 dependency spine in RFC 0010, RFC 0015, RFC 0016, RFC 0021, RFC 0022,

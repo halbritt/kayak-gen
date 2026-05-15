@@ -1,6 +1,6 @@
 # RFC 0036: Trame Seed Listener Proof
 
-Status: proposed
+Status: landed retain-with-trame-state-proof
 Date: 2026-05-14
 Context: successor to RFC 0035 and workflow 0047 final review FR1. This RFC
 narrows one retained web preset-listener branch left after the RFC 0035 cleanup

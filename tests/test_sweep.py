@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
+from kayakgen.io.stl import write_stl
+from kayakgen.model.hull import Hull
 from kayakgen.model.validity import CODE_L_BWL_LOW
 from kayakgen.search.sweep import CandidateRecord, SweepSpec, expand_candidates, run_sweep
 
@@ -169,3 +172,144 @@ def test_stability_is_optional_candidate_artifact_and_summary(tmp_path: Path) ->
     }
     assert forbidden_gz.isdisjoint(record.summary)
     assert not any(field in summary_header for field in forbidden_gz)
+
+
+def _stl_spec() -> SweepSpec:
+    return SweepSpec(
+        name="stl",
+        base_hull={"beam_oa_m": 0.60},
+        variables={
+            "beam_wl_m": {"kind": "values", "values": [0.50, 0.55]},
+            "Cp": {"kind": "values", "values": [0.54]},
+        },
+        evaluators={"hydrostatics": True, "resistance": False, "stl": True},
+    )
+
+
+def test_sweep_stl_off_does_not_write_stl_files(tmp_path: Path) -> None:
+    run = run_sweep(_spec(), tmp_path)
+    for record in run.candidates:
+        assert record.stl_artifacts is None
+        candidate_dir = tmp_path / "candidates" / record.candidate_key
+        assert not (candidate_dir / "hull.stl").exists()
+        assert not (candidate_dir / "deck.stl").exists()
+        assert "stl_hull" not in record.artifacts
+        assert "stl_deck" not in record.artifacts
+    # Ensure no stray .stl files anywhere under candidates/
+    assert list((tmp_path / "candidates").rglob("*.stl")) == []
+
+
+def test_sweep_stl_on_writes_hull_and_deck_per_candidate(tmp_path: Path) -> None:
+    run = run_sweep(_stl_spec(), tmp_path)
+    assert run.completed_count == 2
+    for record in run.candidates:
+        assert record.status == "complete"
+        assert record.stl_artifacts is not None
+        hull_rel = record.stl_artifacts.hull.path
+        deck_rel = record.stl_artifacts.deck.path
+        assert hull_rel == f"candidates/{record.candidate_key}/hull.stl"
+        assert deck_rel == f"candidates/{record.candidate_key}/deck.stl"
+        hull_path = tmp_path / hull_rel
+        deck_path = tmp_path / deck_rel
+        assert hull_path.exists()
+        assert deck_path.exists()
+        # Byte-equivalent to the `kayakgen generate` STL path for the
+        # triangle payload (the 80-byte binary STL header includes a numpy-stl
+        # timestamp, so we compare the geometry payload after the header).
+        reference_hull = tmp_path / "reference_hull.stl"
+        reference_deck = tmp_path / "reference_deck.stl"
+        write_stl(Hull(**record.attempted_hull), "hull", reference_hull)
+        write_stl(Hull(**record.attempted_hull), "deck", reference_deck)
+        assert hull_path.read_bytes()[80:] == reference_hull.read_bytes()[80:]
+        assert deck_path.read_bytes()[80:] == reference_deck.read_bytes()[80:]
+        reference_hull.unlink()
+        reference_deck.unlink()
+
+
+def test_sweep_stl_records_artifact_hashes(tmp_path: Path) -> None:
+    run = run_sweep(_stl_spec(), tmp_path)
+    for record in run.candidates:
+        assert record.stl_artifacts is not None
+        for kind, artifact in (
+            ("hull", record.stl_artifacts.hull),
+            ("deck", record.stl_artifacts.deck),
+        ):
+            path = tmp_path / artifact.path
+            data = path.read_bytes()
+            assert artifact.bytes == len(data)
+            assert artifact.sha256 == hashlib.sha256(data).hexdigest()
+            assert len(artifact.sha256) == 64
+            assert kind in artifact.path
+
+
+def test_sweep_stl_failed_candidate_skips_artifacts(tmp_path: Path) -> None:
+    spec = SweepSpec(
+        name="failed-stl",
+        base_hull={"beam_oa_m": 0.55},
+        variables={"beam_wl_m": {"kind": "values", "values": [0.60]}},
+        evaluators={"hydrostatics": True, "resistance": False, "stl": True},
+    )
+    run = run_sweep(spec, tmp_path)
+    assert run.failed_count == 1
+    record = run.candidates[0]
+    assert record.status == "failed"
+    assert record.stl_artifacts is None
+    candidate_dir = tmp_path / "candidates" / record.candidate_key
+    assert not (candidate_dir / "hull.stl").exists()
+    assert not (candidate_dir / "deck.stl").exists()
+
+
+def test_sweep_stl_pending_candidate_skips_artifacts(tmp_path: Path) -> None:
+    spec = _stl_spec()
+    run = run_sweep(spec, tmp_path)
+    target = run.candidates[0]
+    record_path = tmp_path / "candidates" / f"{target.candidate_key}.record.json"
+    candidate_dir = tmp_path / "candidates" / target.candidate_key
+    # Force the candidate back into the pending state and clear its STL artifacts
+    # so we can prove the resume path does not emit any STLs for pending records.
+    if candidate_dir.exists():
+        for stl in candidate_dir.glob("*.stl"):
+            stl.unlink()
+    pending = target.model_copy(update={"status": "pending", "stl_artifacts": None})
+    record_path.write_text(pending.model_dump_json(indent=2))
+
+    resumed = run_sweep(spec, tmp_path, resume=True)
+
+    pending_record = next(r for r in resumed.candidates if r.candidate_key == target.candidate_key)
+    assert pending_record.status == "pending"
+    assert pending_record.stl_artifacts is None
+    assert not (candidate_dir / "hull.stl").exists()
+    assert not (candidate_dir / "deck.stl").exists()
+
+
+def test_sweep_stl_resume_preserves_existing_artifacts(tmp_path: Path) -> None:
+    spec = _stl_spec()
+    run = run_sweep(spec, tmp_path)
+    fingerprints: dict[str, tuple[bytes, bytes, float, float]] = {}
+    for record in run.candidates:
+        assert record.stl_artifacts is not None
+        hull_path = tmp_path / record.stl_artifacts.hull.path
+        deck_path = tmp_path / record.stl_artifacts.deck.path
+        fingerprints[record.candidate_key] = (
+            hull_path.read_bytes(),
+            deck_path.read_bytes(),
+            hull_path.stat().st_mtime,
+            deck_path.stat().st_mtime,
+        )
+
+    resumed = run_sweep(spec, tmp_path, resume=True)
+    assert resumed.skipped_count == 2
+    assert resumed.completed_count == 0
+    for record in resumed.candidates:
+        assert record.status == "skipped"
+        # The completed-run record carried stl_artifacts forward; the skipped
+        # resume copy must preserve them rather than dropping them.
+        assert record.stl_artifacts is not None
+        hull_path = tmp_path / record.stl_artifacts.hull.path
+        deck_path = tmp_path / record.stl_artifacts.deck.path
+        prior_hull, prior_deck, prior_hull_mtime, prior_deck_mtime = fingerprints[record.candidate_key]
+        assert hull_path.read_bytes() == prior_hull
+        assert deck_path.read_bytes() == prior_deck
+        # File untouched on disk — no regeneration on resume.
+        assert hull_path.stat().st_mtime == prior_hull_mtime
+        assert deck_path.stat().st_mtime == prior_deck_mtime

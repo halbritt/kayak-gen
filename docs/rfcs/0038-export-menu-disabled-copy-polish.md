@@ -1,6 +1,6 @@
 # RFC 0038: Export Menu Disabled Copy Polish
 
-Status: proposed
+Status: landed disabled-copy-polish
 Date: 2026-05-14
 Context: successor to RFC 0035 and workflow 0047 final review FR3. This RFC
 addresses only the disabled Mesh package export-row label left as optional

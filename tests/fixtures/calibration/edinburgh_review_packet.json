@@ -1,0 +1,88 @@
+{
+  "accepted_fit_ref": null,
+  "accepted_uses": [],
+  "access_date": "2026-05-14",
+  "attribution": "University of Edinburgh DataShare, Hydrodynamics of Three Slender Models Resembling Pacific Canoe Hulls (DOI 10.7488/ds/3785), CC BY 4.0.",
+  "citation": "University of Edinburgh DataShare dataset, Hydrodynamics of Three Slender Models Resembling Pacific Canoe Hulls, DOI 10.7488/ds/3785",
+  "extraction": {
+    "refs": [],
+    "status": "incomplete",
+    "summary": "No checked-in extraction schema, source-file checksum binding, sheet/row filter, unit-normalization script, or row manifest has landed."
+  },
+  "extraction_script_ref": "kayakgen/eval/calibration/extractors/edinburgh_datashare_pacific_canoe.py",
+  "fixture_id": null,
+  "fixture_version": null,
+  "froude_basis": "Fn = U / sqrt(g * Lwl)",
+  "hull_class": "pacific_canoe_like_slender_hulls",
+  "hull_envelope": {
+    "refs": [],
+    "status": "accepted",
+    "summary": "The source covers Pacific-canoe-like slender hull models at fixed sink and trim, outside the sea-kayak calibration envelope."
+  },
+  "license_identifier": "CC BY 4.0",
+  "locator": "https://datashare.ed.ac.uk/handle/10283/4772",
+  "measured_data": true,
+  "measured_quantity": {
+    "refs": [],
+    "status": "accepted",
+    "summary": "Workflow 0050 research identifies measured hydrodynamic force and resistance fields in the DataShare workbook."
+  },
+  "measurement_units": {
+    "drag": "N",
+    "length_waterline": "m",
+    "sink": "mm",
+    "speed": "knots",
+    "trim": "deg",
+    "water_temperature": "C"
+  },
+  "non_promotion_reasons": [
+    "pending_data_acquisition",
+    "extraction_schema_missing",
+    "unit_normalized_rows_not_checked_in",
+    "uncertainty_treatment_missing",
+    "outside_sea_kayak_calibration_envelope"
+  ],
+  "primary_locator": "https://datashare.ed.ac.uk/handle/10283/4772",
+  "reasons": [
+    "open_measured_dataset",
+    "validation_source_context_only"
+  ],
+  "review_date": "2026-05-14",
+  "review_verdict": "validation_candidate",
+  "reviewer": "workflow-0051-implementation-burndown-stage1",
+  "rights": {
+    "refs": [
+      "doi:10.7488/ds/3785"
+    ],
+    "status": "accepted",
+    "summary": "Registry and workflow 0050 research record the dataset as CC BY 4.0; this covers dataset evidence, not article prose."
+  },
+  "secondary_locator": "https://doi.org/10.7488/ds/3785",
+  "source_checksum_pending_reason": "pending_data_acquisition",
+  "source_checksum_sha256": null,
+  "source_id": "edinburgh_pacific_canoe_hydrodynamics",
+  "source_type": "open_measured_towing_tank_dataset",
+  "speed_froude_range": {
+    "refs": [],
+    "status": "accepted",
+    "summary": "Workflow 0050 research records model speeds around 0.4-1.6 m/s and Fn about 0.117-0.466; length basis remains part of the future extraction manifest."
+  },
+  "title": "Hydrodynamics of Three Slender Models Resembling Pacific Canoe Hulls",
+  "uncertainty": {
+    "refs": [],
+    "status": "incomplete",
+    "summary": "No accepted uncertainty treatment, repeatability summary, or digitization/Type B uncertainty note is bound to fixture rows."
+  },
+  "uncertainty_notes": "Source repeatability and Type B / digitization uncertainty are not yet bound to fixture rows; pending data acquisition.",
+  "units": {
+    "refs": [],
+    "status": "incomplete",
+    "summary": "Source units are identified in research, but kayakgen has no accepted normalized row schema or conversion manifest."
+  },
+  "validity_envelope": null,
+  "warnings": [
+    "validation_not_calibration",
+    "pacific_canoe_not_sea_kayak",
+    "fixture_promotion_deferred"
+  ]
+}

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import cast
 
 import typer
 
+from kayakgen.cli.high_angle_gz import build_high_angle_gz_block, parse_heel_grid_deg
 from kayakgen.eval.contract import EvaluationResult
 from kayakgen.eval.contract import LoadCase
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
@@ -303,6 +305,22 @@ def stability(
         "--max-iterations",
         help="Maximum equilibrium bisection iterations.",
     ),
+    high_angle_gz: bool = typer.Option(
+        False,
+        "--high-angle-gz",
+        help=(
+            "Opt-in: append an unvalidated_hydrostatic_comparison high-angle GZ "
+            "block to the stability JSON. Default output is unchanged."
+        ),
+    ),
+    heel_grid_deg: str | None = typer.Option(
+        None,
+        "--heel-grid-deg",
+        help=(
+            "Comma-separated, strictly-increasing heel angles in degrees "
+            "(0..90). Only used with --high-angle-gz."
+        ),
+    ),
 ) -> None:
     """Evaluate initial stability for a load case."""
     load = (
@@ -322,7 +340,27 @@ def stability(
     else:
         result = evaluate_initial_stability(hull, load)
     out_path = out if out is not None else hull_path.with_suffix(".stability.json")
-    out_path.write_text(result.model_dump_json(indent=2))
+    if high_angle_gz:
+        try:
+            grid = parse_heel_grid_deg(heel_grid_deg)
+        except ValueError as exc:
+            typer.echo(f"stability --high-angle-gz failed: {exc}", err=True)
+            raise typer.Exit(code=1) from exc
+        payload = json.loads(result.model_dump_json())
+        payload["high_angle_gz"] = build_high_angle_gz_block(
+            hull,
+            load,
+            heel_grid_deg=grid,
+        )
+        out_path.write_text(json.dumps(payload, indent=2))
+    else:
+        if heel_grid_deg is not None:
+            typer.echo(
+                "stability: --heel-grid-deg requires --high-angle-gz",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+        out_path.write_text(result.model_dump_json(indent=2))
     typer.echo(f"wrote {out_path}")
 
 

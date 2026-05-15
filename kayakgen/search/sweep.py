@@ -17,6 +17,7 @@ from kayakgen.eval.contract import LoadCase
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import resistance_curve
 from kayakgen.eval.stability import evaluate_equilibrium_stability, evaluate_initial_stability
+from kayakgen.eval.sweep_artifacts import StlArtifactSet, write_candidate_stl
 from kayakgen.io.json import save_evaluation, save_hull
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import DesignValidityReport, evaluate_design_validity
@@ -113,6 +114,7 @@ class CandidateRecord(BaseModel):
     design_validity: DesignValidityReport = Field(default_factory=DesignValidityReport)
     design_warning_count: int = 0
     design_unsupported_count: int = 0
+    stl_artifacts: StlArtifactSet | None = None
     error: str | None = None
 
     @model_validator(mode="after")
@@ -284,6 +286,13 @@ def _evaluate_candidate(
         artifacts["mesh_diagnostics"] = str(mesh_path.relative_to(out))
         warnings.extend(mesh.warnings)
 
+    stl_artifacts: StlArtifactSet | None = None
+    if spec.evaluators.stl:
+        candidate_dir = candidates_dir / candidate_key
+        stl_artifacts = write_candidate_stl(hull, candidate_dir, out)
+        artifacts["stl_hull"] = stl_artifacts.hull.path
+        artifacts["stl_deck"] = stl_artifacts.deck.path
+
     summary = {
         "displaced_mass_kg": hydro.displaced_mass_kg,
         "wetted_surface_m2": hydro.wetted_surface_m2,
@@ -326,6 +335,7 @@ def _evaluate_candidate(
         design_validity=design_validity,
         design_warning_count=design_validity.warning_count,
         design_unsupported_count=design_validity.unsupported_count,
+        stl_artifacts=stl_artifacts,
     )
 
 
