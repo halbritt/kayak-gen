@@ -5,3 +5,13 @@ __pycache__/
 .pytest_cache/
 .claude/worktrees/
 
+# Build artifacts at the repo root (AGENTS.md: "*.stl at repo root — build
+# artifacts; generated, not authored"). The historical kayak_*.stl files
+# predate this rule and stay tracked for git history; new root-level STL
+# output from `kayakgen generate` or `python generator.py` should NOT be
+# staged.
+/*.stl
+!/kayak_deck.stl
+!/kayak_hull.stl
+!/kayak_meters.stl
+!/optimized_kayak.stl
