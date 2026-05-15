@@ -1,6 +1,6 @@
 # RFC 0042: Resistance Calibration Fixture Successor
 
-Status: partial landed source-review-packet-validators; data acquisition pending
+Status: partial landed source-review-packet-validators + Edinburgh data acquisition + real extractor; validation-fixture-ready, calibration still blocked by Pacific-canoe envelope
 Date: 2026-05-14
 Context: successor to RFC 0019 after RFC 0025 claim gates and RFC 0027
 acceptance gates landed. Current resistance output remains raw ITTC/Michell

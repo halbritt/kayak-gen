@@ -151,11 +151,13 @@ def test_default_review_packet_applies_to_edinburgh_without_fixture_promotion() 
         "validation_fixture",
         "calibration_fixture",
     }
-    assert "extraction" in edinburgh.incomplete_evidence_fields()
-    assert "units" in edinburgh.incomplete_evidence_fields()
-    assert "uncertainty" in edinburgh.incomplete_evidence_fields()
-    assert "extraction_schema_missing" in edinburgh.non_promotion_reasons
-    assert "outside_sea_kayak_calibration_envelope" in edinburgh.non_promotion_reasons
+    incomplete = edinburgh.incomplete_evidence_fields()
+    # After the 2026-05-15 acquisition only uncertainty remains incomplete
+    # (the workbook does not publish per-row uncertainty intervals).
+    assert incomplete == ["uncertainty"]
+    assert edinburgh.non_promotion_reasons == [
+        "outside_sea_kayak_calibration_envelope"
+    ]
 
 
 def test_default_review_packet_round_trips_as_review_record_only() -> None:
@@ -168,10 +170,6 @@ def test_default_review_packet_round_trips_as_review_record_only() -> None:
     assert loaded.source_use == "validation_candidate"
     assert loaded.stage_label == "candidate_source"
     assert loaded.non_promotion_reasons == [
-        "pending_data_acquisition",
-        "extraction_schema_missing",
-        "unit_normalized_rows_not_checked_in",
-        "uncertainty_treatment_missing",
         "outside_sea_kayak_calibration_envelope",
     ]
 
@@ -270,9 +268,11 @@ def test_edinburgh_review_packet_binds_provenance_fields() -> None:
     assert edinburgh.source_id == "edinburgh_pacific_canoe_hydrodynamics"
     assert edinburgh.primary_locator == "https://datashare.ed.ac.uk/handle/10283/4772"
     assert edinburgh.secondary_locator == "https://doi.org/10.7488/ds/3785"
-    assert edinburgh.access_date == "2026-05-14"
-    assert edinburgh.source_checksum_sha256 is None
-    assert edinburgh.source_checksum_pending_reason == "pending_data_acquisition"
+    assert edinburgh.access_date == "2026-05-15"
+    assert edinburgh.source_checksum_sha256 == (
+        "dffbd5d4547c9e1c1f5597d6188dc2a1efffd316ab301451fb818e11a22acade"
+    )
+    assert edinburgh.source_checksum_pending_reason is None
     assert edinburgh.license_identifier == "CC BY 4.0"
     assert "DOI 10.7488/ds/3785" in (edinburgh.attribution or "")
     assert edinburgh.extraction_script_ref == (
@@ -280,27 +280,30 @@ def test_edinburgh_review_packet_binds_provenance_fields() -> None:
         "edinburgh_datashare_pacific_canoe.py"
     )
     assert edinburgh.measurement_units == {
-        "speed": "knots",
+        "speed": "m/s",
         "drag": "N",
         "length_waterline": "m",
-        "trim": "deg",
-        "sink": "mm",
-        "water_temperature": "C",
+        "trim_pitch": "deg",
+        "heave": "mm",
+        "yaw": "deg",
     }
     assert edinburgh.froude_basis == "Fn = U / sqrt(g * Lwl)"
     assert edinburgh.uncertainty_notes is not None
     assert edinburgh.accepted_fit_ref is None
 
 
-def test_edinburgh_packet_blocked_from_validation_fixture_until_checksum_bound() -> None:
-    """Edinburgh stays validation_candidate while checksum is pending."""
+def test_edinburgh_packet_is_validation_fixture_ready_after_acquisition() -> None:
+    """After the 2026-05-15 download + extractor, validation-fixture
+    readiness flips True; calibration promotion remains blocked by the
+    Pacific-canoe envelope reason and the missing accepted-fit ref."""
     edinburgh = default_resistance_source_review_packets()[0]
     assert edinburgh.review_verdict == "validation_candidate"
-    assert edinburgh.is_validation_fixture_ready() is False
-    assert "pending_data_acquisition" in edinburgh.non_promotion_reasons
-    assert "outside_sea_kayak_calibration_envelope" in edinburgh.non_promotion_reasons
+    assert edinburgh.is_validation_fixture_ready() is True
+    assert edinburgh.non_promotion_reasons == [
+        "outside_sea_kayak_calibration_envelope"
+    ]
     blockers = edinburgh.calibration_promotion_blockers()
-    assert "pending_data_acquisition" in blockers
+    assert "pending_data_acquisition" not in blockers
     assert CALIBRATION_PROMOTION_REQUIRES_ACCEPTED_FIT in blockers
 
 
@@ -389,11 +392,13 @@ def test_calibration_promotion_allowed_with_accepted_fit() -> None:
     assert packet.calibration_promotion_blockers() == []
 
 
-def test_edinburgh_extractor_stub_raises_pending_data_acquisition(tmp_path: Path) -> None:
-    workbook = tmp_path / "edinburgh.xlsx"
-    workbook.write_bytes(b"")
-    with pytest.raises(NotImplementedError, match="pending data acquisition"):
-        edinburgh_datashare_pacific_canoe.extract(workbook)
+EDINBURGH_FIXTURE_WORKBOOK = (
+    Path(__file__).parent
+    / "fixtures"
+    / "calibration"
+    / "edinburgh"
+    / "FixedSink_and_TrimDataAnalysis20221114V15_IMV.xlsx"
+)
 
 
 def test_edinburgh_extractor_module_pins_output_schema() -> None:
@@ -401,37 +406,125 @@ def test_edinburgh_extractor_module_pins_output_schema() -> None:
     assert module.EXTRACTOR_SOURCE_ID == "edinburgh_pacific_canoe_hydrodynamics"
     assert module.EXPECTED_OUTPUT_COLUMNS == (
         "source_id",
-        "model_id",
+        "day",
+        "model",
         "run_id",
+        "yaw_deg",
         "speed_ms",
-        "drag_n",
+        "stbd_drag_n",
+        "port_drag_n",
+        "total_drag_n",
+        "fwd_side_force_n",
+        "aft_side_force_n",
+        "heave_mm",
+        "pitch_deg",
+        "velocity_ms",
         "Lwl_m",
         "Fn",
-        "trim_deg",
-        "sink_mm",
-        "water_temp_c",
+        "time",
+        "comment",
     )
     assert module.EXPECTED_SOURCE_COLUMNS == (
-        "model_id",
-        "run_id",
-        "speed_knots",
-        "drag_n",
-        "water_temp_c",
-        "trim_deg",
-        "sink_mm",
+        "Day",
+        "Model",
+        "Test",
+        "Yaw",
+        "Speed",
+        "Stbd Drag Force",
+        "Port Drag Force",
+        "FWD Side Force",
+        "AFT Side Force",
+        "Heave",
+        "Pitch",
+        "Velocity",
+        "Time",
+        "Comment",
     )
+    assert module.WORKBOOK_SHEET == "Averaged Data"
+    assert module.MODEL_LWL_M == {"V1": 1.2, "V2": 1.2, "V3": 1.2}
     assert module.FROUDE_BASIS == "Fn = U / sqrt(g * Lwl)"
     assert module.GRAVITY_M_S2 == pytest.approx(9.80665)
     docstring = module.__doc__ or ""
     # Pin the docstring schema so future edits cannot silently change it.
     for token in (
-        "speed_knots",
-        "drag_n",
+        "stbd_drag_n",
+        "port_drag_n",
+        "total_drag_n",
         "Lwl_m",
         "Fn = U / sqrt(g * Lwl)",
-        "DOI ``10.7488/ds/3785``",
+        "10.7488/ds/3785",
     ):
         assert token in docstring, f"missing {token!r} in extractor docstring"
+
+
+def test_edinburgh_extractor_raises_when_workbook_missing(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        edinburgh_datashare_pacific_canoe.extract(tmp_path / "nope.xlsx")
+
+
+@pytest.mark.skipif(
+    not EDINBURGH_FIXTURE_WORKBOOK.is_file(),
+    reason="Edinburgh workbook fixture not vendored",
+)
+def test_edinburgh_extractor_emits_expected_columns_for_vendored_workbook() -> None:
+    pytest.importorskip("openpyxl", reason="extractor needs openpyxl")
+    rows = edinburgh_datashare_pacific_canoe.extract(EDINBURGH_FIXTURE_WORKBOOK)
+    assert rows, "extractor should yield at least one accepted row"
+    assert (
+        set(rows[0].keys())
+        == set(edinburgh_datashare_pacific_canoe.EXPECTED_OUTPUT_COLUMNS)
+    )
+    assert all(row["source_id"] == "edinburgh_pacific_canoe_hydrodynamics" for row in rows)
+    assert all(row["run_id"] >= 1 for row in rows)
+    assert all(row["model"] in {"V1", "V2", "V3"} for row in rows)
+    assert all(row["Lwl_m"] == 1.2 for row in rows)
+    # Filtered rows: setup/zero/negative tests are excluded, so the run-id
+    # set has no <=0 entries and the dataset's documented model id set is
+    # exactly V1/V2/V3.
+    assert {row["model"] for row in rows} == {"V1", "V2", "V3"}
+
+
+@pytest.mark.skipif(
+    not EDINBURGH_FIXTURE_WORKBOOK.is_file(),
+    reason="Edinburgh workbook fixture not vendored",
+)
+def test_edinburgh_extractor_total_drag_equals_stbd_plus_port() -> None:
+    pytest.importorskip("openpyxl", reason="extractor needs openpyxl")
+    rows = edinburgh_datashare_pacific_canoe.extract(EDINBURGH_FIXTURE_WORKBOOK)
+    for row in rows:
+        assert row["total_drag_n"] == pytest.approx(
+            row["stbd_drag_n"] + row["port_drag_n"]
+        )
+
+
+@pytest.mark.skipif(
+    not EDINBURGH_FIXTURE_WORKBOOK.is_file(),
+    reason="Edinburgh workbook fixture not vendored",
+)
+def test_edinburgh_extractor_fn_matches_velocity_sqrt_g_lwl() -> None:
+    import math
+
+    pytest.importorskip("openpyxl", reason="extractor needs openpyxl")
+    rows = edinburgh_datashare_pacific_canoe.extract(EDINBURGH_FIXTURE_WORKBOOK)
+    g = edinburgh_datashare_pacific_canoe.GRAVITY_M_S2
+    for row in rows:
+        if row["velocity_ms"] > 0:
+            expected = row["velocity_ms"] / math.sqrt(g * row["Lwl_m"])
+            assert row["Fn"] == pytest.approx(expected)
+        else:
+            assert row["Fn"] == 0.0
+
+
+@pytest.mark.skipif(
+    not EDINBURGH_FIXTURE_WORKBOOK.is_file(),
+    reason="Edinburgh workbook fixture not vendored",
+)
+def test_edinburgh_workbook_sha256_matches_packet_record() -> None:
+    import hashlib
+
+    edinburgh = default_resistance_source_review_packets()[0]
+    digest = hashlib.sha256(EDINBURGH_FIXTURE_WORKBOOK.read_bytes()).hexdigest()
+    assert digest == edinburgh.source_checksum_sha256
 
 
 def test_edinburgh_packet_matches_pinned_fixture_json() -> None:

@@ -22,6 +22,24 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Acquired the Edinburgh DataShare bundle (DOI 10.7488/ds/3785, CC BY 4.0,
+  workbook SHA-256
+  `dffbd5d4547c9e1c1f5597d6188dc2a1efffd316ab301451fb818e11a22acade`) and
+  vendored it under `tests/fixtures/calibration/edinburgh/` with a
+  `DATASHARE_PROVENANCE.md` manifest. Rewrote
+  `kayakgen/eval/calibration/extractors/edinburgh_datashare_pacific_canoe.py`
+  against the real workbook schema: `Averaged Data` sheet, header row 12,
+  data from row 14, columns Day/Model/Test/Yaw/Speed/Stbd Drag/Port Drag/
+  FWD Side/AFT Side/Heave/Pitch/Velocity/Time/Comment. The extractor filters
+  setup/zero/negative test numbers and emits the pinned
+  `EXPECTED_OUTPUT_COLUMNS` schema (58 accepted rows from the vendored
+  bundle). The source-review packet for the Edinburgh source now binds the
+  workbook checksum, removes `pending_data_acquisition` from
+  non-promotion reasons, and reports `is_validation_fixture_ready() = True`;
+  calibration promotion remains blocked by
+  `outside_sea_kayak_calibration_envelope` per decision D013. `openpyxl` is
+  now an optional dependency under the `calibration` extras (and pinned in
+  `dev`). +5 calibration tests (replaced the stub-raises test).
 - Landed RFC 0040 stage 2 `snappyHexMesh` evidence-harness contract in
   `kayakgen/eval/snappy_hex_mesh.py`: locked
   `SNAPPYHEXMESH_CASE_TEMPLATE_VERSION = "openfoam-v2512-snappyhexmesh-watertight-v1"`,

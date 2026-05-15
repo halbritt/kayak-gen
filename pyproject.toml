@@ -34,11 +34,15 @@ web = [
 browser = [
     "playwright>=1.45",
 ]
+calibration = [
+    "openpyxl>=3.1",
+]
 dev = [
     "pytest>=8.0",
     "pytest-benchmark>=4.0",
     "ruff>=0.5",
     "mypy>=1.10",
+    "openpyxl>=3.1",
 ]
 
 [project.scripts]

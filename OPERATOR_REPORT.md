@@ -80,6 +80,35 @@ Updated: 2026-05-15
   records the RFC 0040 stage 2 contract-only landing rationale; decision
   D021 records that stage 4 desktop is intentionally minimal in this pass.
   Full test suite: 519 passed.
+- 2026-05-15T23:55Z checkpoint: completed the Edinburgh DataShare data
+  acquisition leg of RFC 0042.
+  - Downloaded the public CC BY 4.0 bundle `DS_10283_4772.zip` (SHA-256
+    `20fc15671941ffe71619a1796b9a3c121de226f03024f06f69a72e664b06c8ea`) from
+    `https://datashare.ed.ac.uk/download/DS_10283_4772.zip` and vendored
+    its four files under `tests/fixtures/calibration/edinburgh/` with a
+    new `DATASHARE_PROVENANCE.md` manifest pinning per-file SHA-256s and
+    the upstream attribution string.
+  - Rewrote
+    `kayakgen/eval/calibration/extractors/edinburgh_datashare_pacific_canoe.py`
+    against the real workbook schema and the `Averaged Data` /
+    `Froude Scaling` sheets, replacing the previous
+    `NotImplementedError("pending data acquisition")` stub. The extractor
+    yields 58 accepted rows from the vendored bundle across models V1/V2/V3
+    at six yaw angles and six set speeds.
+  - Updated `kayakgen/eval/calibration/__init__.py` Edinburgh packet to
+    bind the workbook SHA-256, set `access_date = 2026-05-15`, flip
+    extraction/units/hull_envelope/speed_froude_range evidence statuses to
+    `accepted`, and drop the `pending_data_acquisition`,
+    `extraction_schema_missing`, `unit_normalized_rows_not_checked_in`, and
+    `uncertainty_treatment_missing` non-promotion reasons. The only
+    remaining non-promotion reason is
+    `outside_sea_kayak_calibration_envelope` per decision D013.
+  - Added `openpyxl >= 3.1` as an optional `[calibration]` extra and
+    pinned it in `[dev]`. Regenerated the pinned fixture JSON
+    `tests/fixtures/calibration/edinburgh_review_packet.json`.
+  - Full test suite: 523 passed; `is_validation_fixture_ready()` now
+    returns True; calibration promotion remains blocked by envelope reason
+    plus the still-required accepted-fit workflow (D006).
 - 2026-05-14T19:35Z checkpoint: scaffolded workflow 0053
   (`implementation-burndown-stage2`) to burn down the remaining roadmap
   backlog in parallel. The new workflow fans out six disjoint Codex

@@ -489,73 +489,93 @@ def default_resistance_source_review_packets() -> tuple[ResistanceSourceReviewPa
                 refs=["doi:10.7488/ds/3785"],
             ),
             extraction=ResistanceSourceReviewEvidence(
-                status="incomplete",
+                status="accepted",
                 summary=(
-                    "No checked-in extraction schema, source-file checksum binding, "
-                    "sheet/row filter, unit-normalization script, or row manifest "
-                    "has landed."
+                    "DataShare bundle DS_10283_4772 downloaded and vendored under "
+                    "tests/fixtures/calibration/edinburgh/ with per-file SHA-256 "
+                    "manifest in DATASHARE_PROVENANCE.md. Sheet 'Averaged Data' "
+                    "is the row source; header at row 12, data from row 14. The "
+                    "extractor at "
+                    "kayakgen/eval/calibration/extractors/edinburgh_datashare_pacific_canoe.py "
+                    "filters setup/zero/negative test numbers and emits the "
+                    "pinned EXPECTED_OUTPUT_COLUMNS row schema."
                 ),
+                refs=[
+                    "tests/fixtures/calibration/edinburgh/DATASHARE_PROVENANCE.md",
+                    (
+                        "kayakgen/eval/calibration/extractors/"
+                        "edinburgh_datashare_pacific_canoe.py"
+                    ),
+                ],
             ),
             measured_quantity=ResistanceSourceReviewEvidence(
                 status="accepted",
                 summary=(
-                    "Workflow 0050 research identifies measured hydrodynamic force "
-                    "and resistance fields in the DataShare workbook."
+                    "Workbook records Stbd Drag Force and Port Drag Force in "
+                    "newtons, fore/aft side force in newtons, Heave in mm, Pitch "
+                    "(trim) in degrees, and Velocity in m/s; total drag is "
+                    "Stbd+Port. Fields confirmed by inspection of the vendored "
+                    "FixedSink_and_TrimDataAnalysis20221114V15_IMV.xlsx."
                 ),
             ),
             units=ResistanceSourceReviewEvidence(
-                status="incomplete",
+                status="accepted",
                 summary=(
-                    "Source units are identified in research, but kayakgen has no "
-                    "accepted normalized row schema or conversion manifest."
+                    "Source unit row (workbook row 12) records m/s for speed, "
+                    "newtons for forces, mm for heave, degrees for yaw and "
+                    "pitch. The extractor preserves these units in its output "
+                    "without conversion."
                 ),
             ),
             hull_envelope=ResistanceSourceReviewEvidence(
                 status="accepted",
                 summary=(
-                    "The source covers Pacific-canoe-like slender hull models at "
-                    "fixed sink and trim, outside the sea-kayak calibration envelope."
+                    "The source covers three Pacific-canoe-like slender hull "
+                    "models (V1/V2/V3) at Lm=1.2 m and Lfs=12 m, fixed sink and "
+                    "trim, outside the sea-kayak calibration envelope per "
+                    "decision D013."
                 ),
             ),
             speed_froude_range=ResistanceSourceReviewEvidence(
                 status="accepted",
                 summary=(
-                    "Workflow 0050 research records model speeds around 0.4-1.6 m/s "
-                    "and Fn about 0.117-0.466; length basis remains part of the "
-                    "future extraction manifest."
+                    "Model speeds 0-1.6 m/s; Fn from 0 to about 0.466 using "
+                    "Lm=1.2 m and g=9.80665 m/s^2 (Froude Scaling sheet). The "
+                    "extractor computes Fn per row using velocity_ms / "
+                    "sqrt(g * Lwl_m)."
                 ),
             ),
             uncertainty=ResistanceSourceReviewEvidence(
                 status="incomplete",
                 summary=(
-                    "No accepted uncertainty treatment, repeatability summary, or "
-                    "digitization/Type B uncertainty note is bound to fixture rows."
+                    "The workbook does not publish per-row repeatability "
+                    "intervals or a Type B uncertainty budget. Treat raw "
+                    "Stbd+Port drag totals as measured values without an "
+                    "uncertainty band; downstream consumers must derive their "
+                    "own uncertainty model before any fit work."
                 ),
             ),
-            reviewer="workflow-0051-implementation-burndown-stage1",
-            review_date="2026-05-14",
+            reviewer="cowboy-session-2026-05-15",
+            review_date="2026-05-15",
             review_verdict="validation_candidate",
             reasons=[
                 "open_measured_dataset",
                 "validation_source_context_only",
             ],
             non_promotion_reasons=[
-                "pending_data_acquisition",
-                "extraction_schema_missing",
-                "unit_normalized_rows_not_checked_in",
-                "uncertainty_treatment_missing",
                 "outside_sea_kayak_calibration_envelope",
             ],
             warnings=[
                 "validation_not_calibration",
                 "pacific_canoe_not_sea_kayak",
-                "fixture_promotion_deferred",
             ],
             primary_locator="https://datashare.ed.ac.uk/handle/10283/4772",
             secondary_locator="https://doi.org/10.7488/ds/3785",
-            access_date="2026-05-14",
-            source_checksum_sha256=None,
-            source_checksum_pending_reason="pending_data_acquisition",
+            access_date="2026-05-15",
+            source_checksum_sha256=(
+                "dffbd5d4547c9e1c1f5597d6188dc2a1efffd316ab301451fb818e11a22acade"
+            ),
+            source_checksum_pending_reason=None,
             license_identifier="CC BY 4.0",
             attribution=(
                 "University of Edinburgh DataShare, Hydrodynamics of Three "
@@ -567,17 +587,19 @@ def default_resistance_source_review_packets() -> tuple[ResistanceSourceReviewPa
                 "edinburgh_datashare_pacific_canoe.py"
             ),
             measurement_units={
-                "speed": "knots",
+                "speed": "m/s",
                 "drag": "N",
                 "length_waterline": "m",
-                "trim": "deg",
-                "sink": "mm",
-                "water_temperature": "C",
+                "trim_pitch": "deg",
+                "heave": "mm",
+                "yaw": "deg",
             },
             froude_basis="Fn = U / sqrt(g * Lwl)",
             uncertainty_notes=(
-                "Source repeatability and Type B / digitization uncertainty "
-                "are not yet bound to fixture rows; pending data acquisition."
+                "Source workbook does not provide per-row repeatability "
+                "intervals or a Type B uncertainty budget. Treat Stbd+Port "
+                "drag sums as raw measured totals; any uncertainty model "
+                "must be derived by the consumer."
             ),
             accepted_fit_ref=None,
         ),
