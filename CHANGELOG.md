@@ -389,6 +389,22 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Changed
 
+- Refreshed `docs/PRD.md` "Delivered Today", "Roadmap And Deferrals", and
+  success-criteria sections to match the 2026-05-16 landed state:
+  high-angle GZ surfacing is now a delivered opt-in display-only path under
+  `unvalidated_hydrostatic_comparison` semantics; the OpenFOAM-v2512
+  succeeded path is recorded as an opt-in env-gated capability with
+  `raw_unvalidated` payloads; the calibration and measured-GZ deferrals are
+  re-scoped against the 2026-05-16 null findings; generative search points
+  at RFC 0044.
+- Refreshed `AGENTS.md` current-direction paragraph and dropped the stale
+  "DECISION_LOG is mostly template" negative-space note (D001-D023 are now
+  real recorded decisions).
+- Added `docs/research/CALIBRATION_DATA_FINDINGS_2026-05-16.md` recording
+  the two null findings from the 2026-05-16 research investigations
+  (in-envelope measured kayak resistance and measured kayak GZ-vs-heel)
+  along with the open-access references that were vendored as schema
+  examples only.
 - Corrected the RFC index/status headers for previously landed safe slices:
   RFC 0016, RFC 0022, RFC 0025, RFC 0027, and RFC 0031 now match their landed
   workflow state instead of stale proposed/accepted-target labels.
