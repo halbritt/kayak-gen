@@ -118,6 +118,20 @@ class SearchObjectiveRefusedError(ValueError):
         super().__init__(self.reason["detail"])
 
 
+class UnknownSearchObjectiveError(ValueError):
+    """Raised when an explicit search objective is not registered.
+
+    Carries the structured rejection payload from
+    :func:`kayakgen.search.objectives.is_objective_metric_admissible` so callers
+    can render a machine-readable refusal.
+    """
+
+    def __init__(self, metric: str, reason: dict[str, str]) -> None:
+        self.metric = metric
+        self.reason = reason
+        super().__init__(reason.get("detail", f"unknown objective metric: {metric!r}"))
+
+
 def ensure_objectives_claim_admissible_for_search(
     objectives: list["Objective"],
     *,
@@ -144,11 +158,25 @@ def ensure_objectives_claim_admissible_for_search(
     # Local import to avoid a module-level circular import between
     # ``kayakgen.search.objectives`` (which imports from this module) and this
     # module's runtime path.
-    from kayakgen.search.objectives import OBJECTIVE_METADATA
+    from kayakgen.search.objectives import (
+        OBJECTIVE_METADATA,
+        is_objective_metric_admissible,
+    )
 
     for objective in objectives:
         metadata = OBJECTIVE_METADATA.get(objective.metric)
         if metadata is None:
+            # Unknown metrics are admissible only under explicit exploratory.
+            admissible, reason = is_objective_metric_admissible(
+                objective.metric, explicit_exploratory=explicit_exploratory
+            )
+            if not admissible:
+                assert reason is not None
+                raise UnknownSearchObjectiveError(objective.metric, reason)
+            continue
+        # ``display_only`` role is owned by the RFC 0043 gate above; we do not
+        # double-report here so the existing token wins.
+        if metadata.role == "display_only":
             continue
         claim_state = _SEARCH_ROLE_TO_CLAIM_STATE.get(metadata.role)
         if claim_state in SEARCH_REFUSED_CLAIM_STATES:

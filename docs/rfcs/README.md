@@ -64,6 +64,17 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0048](0048-geometry-v2-distribution-model.md) | proposed | Geometry V2 — explicit distribution model + canonical closed-body loft |
 | [0049](0049-artifact-store-and-identity.md) | proposed | Artifact store + identity normalization (design/record/artifact/run hashes; filesystem v1 + SQLite index) |
 
+Architecture-plan landing notes (not RFCs themselves; see
+`ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`):
+
+- Phase 5 (metric-registry consolidation) landed 2026-05-16:
+  `ObjectiveMetadata` gains `display_format`,
+  `availability_conditions`, `default_objective_eligible`;
+  `register_objective_metadata` + `is_objective_metric_admissible`;
+  new `"display_only"` role applied to high-angle-GZ metrics;
+  sweep summary columns now drive from the registry; web read models
+  consult the registry's `display_format`. +16 tests.
+
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
 comparative resistance filter; calibrated final-prediction claims,

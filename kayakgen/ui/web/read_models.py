@@ -21,6 +21,7 @@ import html
 from typing import Any, TypedDict
 
 from kayakgen.search.compare import ComparisonReport, HighAngleGzDisplay
+from kayakgen.search.objectives import OBJECTIVE_METADATA
 
 
 # Fixed display caption. Required adjacent to every rendered high-angle row.
@@ -165,11 +166,27 @@ def web_high_angle_gz_view_model_from_json(payload: str) -> WebHighAngleGzRows:
     return web_high_angle_gz_view_model(report)
 
 
-def _format_metric(value: float | None) -> str:
+_DEFAULT_DISPLAY_FORMAT = "{value:.3f}"
+
+
+def _format_metric(value: float | None, *, metric: str | None = None) -> str:
+    """Render a numeric value via the objective registry's ``display_format``.
+
+    When ``metric`` is provided and registered, the registry's
+    ``display_format`` template drives the rendering. Unregistered metrics
+    (or callers that pass no ``metric``) fall back to the historical
+    ``{value:.3f}`` format so existing call sites are byte-stable.
+    """
+
     if value is None:
         return "unavailable"
+    template = _DEFAULT_DISPLAY_FORMAT
+    if metric is not None:
+        metadata = OBJECTIVE_METADATA.get(metric)
+        if metadata is not None:
+            template = metadata.display_format
     try:
-        return f"{float(value):.3f}"
+        return template.format(value=float(value))
     except (TypeError, ValueError):
         return "unavailable"
 
@@ -212,11 +229,12 @@ def web_high_angle_gz_section_html(model: WebHighAngleGzRows) -> str:
         if row["available"]:
             parts.append(
                 '<dl class="kg-high-angle-gz-metrics">'
-                f'<dt>max GZ (m)</dt><dd>{html.escape(_format_metric(row["max_gz_m"]))}</dd>'
+                "<dt>max GZ (m)</dt>"
+                f'<dd>{html.escape(_format_metric(row["max_gz_m"], metric="max_gz_m"))}</dd>'
                 "<dt>heel at max GZ (deg)</dt>"
-                f'<dd>{html.escape(_format_metric(row["heel_at_max_gz_deg"]))}</dd>'
+                f'<dd>{html.escape(_format_metric(row["heel_at_max_gz_deg"], metric="heel_at_max_gz_deg"))}</dd>'
                 "<dt>range positive stability (deg)</dt>"
-                f'<dd>{html.escape(_format_metric(row["range_positive_stability_deg"]))}</dd>'
+                f'<dd>{html.escape(_format_metric(row["range_positive_stability_deg"], metric="range_positive_stability_deg"))}</dd>'
                 "</dl>"
             )
         else:

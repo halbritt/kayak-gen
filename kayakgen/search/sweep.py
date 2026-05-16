@@ -27,6 +27,8 @@ from kayakgen.eval.sweep_artifacts import (
 from kayakgen.io.json import save_evaluation, save_hull
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import DesignValidityReport, evaluate_design_validity
+from kayakgen.search.objectives import OBJECTIVE_METADATA
+from kayakgen.search.pareto import HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS
 
 ParameterKind = Literal["values", "linspace"]
 CandidateStatus = Literal["pending", "complete", "failed", "skipped", "constraint_failed"]
@@ -366,8 +368,54 @@ def _evaluate_candidate(
     )
 
 
+#: Non-registry summary columns that the sweep CSV has always carried for
+#: parity with prior runs. Display-only high-angle GZ keys are kept out of the
+#: header explicitly per RFC 0043 stage 3.
+_LEGACY_SUMMARY_COLUMNS: tuple[str, ...] = (
+    "displaced_mass_kg",
+    "wetted_surface_m2",
+    "GM0_m",
+    "Cp_actual",
+    "Rt_N_last",
+    "stability_method",
+    "stability_status",
+    "displacement_error_kg",
+    "initial_GM0_m",
+    "trim_angle_deg",
+    "moment_error_kg_m",
+    "equilibrium_iterations",
+)
+
+
+def _registry_summary_columns(records: list[CandidateRecord]) -> list[str]:
+    """Return any registry-known metric keys present on at least one record.
+
+    Display-only high-angle GZ keys are filtered out so callers that register a
+    display-only metric do not accidentally promote it into the CSV header.
+    The legacy column list is the seed; newly registered metrics with a hit on
+    any record's ``summary`` are appended in registry declaration order so the
+    column layout stays stable.
+    """
+
+    seen: set[str] = set(_LEGACY_SUMMARY_COLUMNS)
+    extra: list[str] = []
+    for metric, metadata in OBJECTIVE_METADATA.items():
+        if metric in seen:
+            continue
+        if metric in HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS:
+            continue
+        if metadata.role == "display_only":
+            continue
+        if not any(metric in record.summary for record in records):
+            continue
+        extra.append(metric)
+        seen.add(metric)
+    return [*_LEGACY_SUMMARY_COLUMNS, *extra]
+
+
 def _write_summary(path: Path, records: list[CandidateRecord]) -> None:
     parameter_names = sorted({key for record in records for key in record.parameters})
+    metric_columns = _registry_summary_columns(records)
     fieldnames = [
         "candidate_index",
         "candidate_key",
@@ -375,18 +423,7 @@ def _write_summary(path: Path, records: list[CandidateRecord]) -> None:
         "hull_hash",
         "error",
         *[f"param_{name}" for name in parameter_names],
-        "displaced_mass_kg",
-        "wetted_surface_m2",
-        "GM0_m",
-        "Cp_actual",
-        "Rt_N_last",
-        "stability_method",
-        "stability_status",
-        "displacement_error_kg",
-        "initial_GM0_m",
-        "trim_angle_deg",
-        "moment_error_kg_m",
-        "equilibrium_iterations",
+        *metric_columns,
     ]
     with path.open("w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
@@ -401,7 +438,7 @@ def _write_summary(path: Path, records: list[CandidateRecord]) -> None:
             }
             for name in parameter_names:
                 row[f"param_{name}"] = record.parameters.get(name, "")
-            for key in fieldnames[5 + len(parameter_names):]:
+            for key in metric_columns:
                 row[key] = record.summary.get(key, "")
             writer.writerow(row)
 

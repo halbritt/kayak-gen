@@ -92,6 +92,25 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   `tests/test_desktop_layout.py` confirms no safety / seaworthiness /
   validated / calibrated / final-prediction / design-fitness wording
   leaks onto the desktop status surface.
+- Phase 5 of `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`:
+  centralised the metric registry. `ObjectiveMetadata` gains
+  `display_format`, `availability_conditions`, and
+  `default_objective_eligible`. New helpers
+  `register_objective_metadata(metadata)` (refuses duplicate
+  registration) and `is_objective_metric_admissible(metric, *,
+  explicit_exploratory)` return structured rejection codes
+  (`objective_metric_unknown`, `high_angle_gz_display_only`,
+  `objective_claim_state_not_admissible`). New `ObjectiveRole`
+  literal `"display_only"` is applied to `max_gz_m`,
+  `heel_at_max_gz_deg`, `range_positive_stability_deg`; the RFC 0043
+  token still owns the refusal. `ensure_objectives_claim_admissible_
+  for_search` raises `UnknownSearchObjectiveError` for unknown
+  metrics unless `objectives_explicit_exploratory: true`. Sweep
+  `summary.csv` now writes every registry-known metric the candidate
+  reports (legacy ordering preserved); display-only metrics never
+  leak in. Web `read_models._format_metric` consults the registry's
+  `display_format`. +16 tests in `tests/test_objective_registry.py`.
+  Full suite 733 + 2 skipped; ruff clean.
 - Executed Phases 0-4 + 6 of
   `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. Phase 0+1
   installed ruff (now clean), added `docs/ARCHITECTURE_MAP.md`, and
