@@ -34,6 +34,39 @@ CfdAdapterName = Literal[
 
 RealSolverExecutionOptIn = Literal["profile_flag", "persistent_setting", "env_knob"]
 
+CfdRunStageName = Literal[
+    "mesh_readiness_evidence",
+    "case_render",
+    "meshing",
+    "mesh_evidence_binding",
+    "solver_execution",
+    "parser_post_processing",
+    "raw_result",
+    "validation_gate",
+]
+CfdRunStageState = Literal["pending", "running", "succeeded", "failed", "skipped"]
+
+
+class CfdRunStage(BaseModel):
+    """One named stage of the local CFD execution pipeline.
+
+    Phase 7 of ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`` models
+    the CFD pipeline as explicit, named stages so consumers can see
+    which stage failed without parsing logs. ``stages`` is an additive
+    field on ``CfdRunRecord``; the default is an empty list, so
+    pre-existing serialized records round-trip byte-stably.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: CfdRunStageName
+    state: CfdRunStageState
+    started_at: str | None = None
+    completed_at: str | None = None
+    wall_clock_seconds: float | None = Field(default=None, ge=0.0)
+    notes: list[str] = Field(default_factory=list)
+    error_kind: str | None = None
+
 
 class CfdDispatchError(ValueError):
     """Raised when a local CFD job cannot be prepared or read."""
@@ -135,6 +168,7 @@ class CfdRunRecord(RawUnvalidatedClaimFields):
     raw_records: dict[str, Any] = Field(default_factory=dict)
     real_solver_execution_opt_in: RealSolverExecutionOptIn | None = None
     solver_execution_audit: SolverExecutionAudit | None = None
+    stages: list[CfdRunStage] = Field(default_factory=list)
     result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
 
 
@@ -208,6 +242,9 @@ __all__ = [
     "CfdJobPaths",
     "CfdJobSpec",
     "CfdRunRecord",
+    "CfdRunStage",
+    "CfdRunStageName",
+    "CfdRunStageState",
     "CfdRunStatus",
     "LocalCfdJob",
     "PreparedSolverCase",

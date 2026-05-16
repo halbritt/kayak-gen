@@ -64,6 +64,13 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0048](0048-geometry-v2-distribution-model.md) | proposed | Geometry V2 — explicit distribution model + canonical closed-body loft |
 | [0049](0049-artifact-store-and-identity.md) | proposed | Artifact store + identity normalization (design/record/artifact/run hashes; filesystem v1 + SQLite index) |
 
+| [0050](0050-target-displacement-and-trim-workflows.md) | proposed | Target-displacement and target-trim design workflows |
+| [0051](0051-builder-oriented-exports.md) | proposed | Builder-oriented exports (DXF/SVG/offsets) |
+| [0052](0052-sensitivity-and-uncertainty-views.md) | proposed | Sensitivity and uncertainty views |
+| [0053](0053-turning-and-edged-waterline-metrics.md) | proposed | Turning and edged-waterline metrics |
+| [0054](0054-calibration-campaign-tooling.md) | proposed | Calibration-campaign tooling (tank-test + inclining-test schemas + accepted-fit) |
+| [0055](0055-design-report-export.md) | proposed | Single-file design report export (HTML + optional PDF) |
+
 Architecture-plan landing notes (not RFCs themselves; see
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`):
 

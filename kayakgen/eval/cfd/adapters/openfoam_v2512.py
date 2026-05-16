@@ -57,6 +57,9 @@ from kayakgen.eval.cfd.provenance import _first_nonempty_line
 from kayakgen.eval.cfd.records import (
     CfdDispatchError,
     CfdRunRecord,
+    CfdRunStage,
+    CfdRunStageName,
+    CfdRunStageState,
     PreparedSolverCase,
     RealSolverExecutionOptIn,
     SolverExecutionAudit,
@@ -553,6 +556,38 @@ def _probe_openfoam_version(
     return version, logs, None
 
 
+def _utc_stage_now() -> str:
+    """Return a UTC ISO-8601 timestamp suffixed with ``Z`` for stage records."""
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _emit_stage(
+    stages: list[CfdRunStage],
+    *,
+    name: CfdRunStageName,
+    state: CfdRunStageState,
+    started_at: str | None,
+    completed_at: str | None,
+    wall_clock_seconds: float | None,
+    notes: list[str] | None = None,
+    error_kind: str | None = None,
+) -> None:
+    """Append a stage entry to ``stages`` in place."""
+    stages.append(
+        CfdRunStage(
+            name=name,
+            state=state,
+            started_at=started_at,
+            completed_at=completed_at,
+            wall_clock_seconds=wall_clock_seconds,
+            notes=list(notes or []),
+            error_kind=error_kind,
+        )
+    )
+
+
 class OpenFoamLocalAdapter:
     """OpenFOAM.com v2512 interFoam skeleton adapter.
 
@@ -560,6 +595,14 @@ class OpenFoamLocalAdapter:
     command, timeout, and parser failures. It intentionally does not report a
     real ``succeeded`` state in this slice.
     """
+
+    def __init__(self) -> None:
+        # Per-instance stash mapping ``job_id`` -> stage list, populated by
+        # ``run`` on the real succeeded path and consumed by ``collect``.
+        # A fresh ``OpenFoamLocalAdapter`` is constructed for each dispatch
+        # (see ``kayakgen.eval.cfd.job_store._adapter_for``), so this is
+        # effectively a single-job transport.
+        self._stages_by_job_id: dict[str, list[CfdRunStage]] = {}
 
     def prepare(self, case: PreparedSolverCase) -> PreparedSolverCase:
         case_root = case.job_dir / OPENFOAM_CASE_ROOT
@@ -637,6 +680,45 @@ class OpenFoamLocalAdapter:
         return case
 
     def run(self, case: PreparedSolverCase) -> SolverRawResult:
+        # Track stages incrementally; only persisted to the run record on
+        # the real succeeded path (see ``_attempt_real_succeeded_path``).
+        # The historical ``solver_success_blocked`` and failure paths
+        # remain stage-free for byte-stability with the pre-Phase-7
+        # behavior.
+        stages: list[CfdRunStage] = []
+
+        mesh_evidence_started = _utc_stage_now()
+        mesh_evidence_start_clock = time.monotonic()
+        # ``case.mesh_manifest`` was already validated and bound by
+        # ``prepare_cfd_job`` before this method runs; this stage just
+        # records the readiness band the adapter saw.
+        mesh_readiness_value = case.mesh_manifest.readiness.level
+        _emit_stage(
+            stages,
+            name="mesh_readiness_evidence",
+            state="succeeded",
+            started_at=mesh_evidence_started,
+            completed_at=_utc_stage_now(),
+            wall_clock_seconds=max(0.0, time.monotonic() - mesh_evidence_start_clock),
+            notes=[f"mesh_readiness={mesh_readiness_value}"],
+        )
+
+        # ``prepare`` already wrote the deterministic case files (see
+        # ``OpenFoamLocalAdapter.prepare``); the adapter does not
+        # re-render the case here, but the stage is still emitted so
+        # consumers see the full pipeline shape.
+        case_render_started = _utc_stage_now()
+        case_render_start_clock = time.monotonic()
+        _emit_stage(
+            stages,
+            name="case_render",
+            state="succeeded",
+            started_at=case_render_started,
+            completed_at=_utc_stage_now(),
+            wall_clock_seconds=max(0.0, time.monotonic() - case_render_start_clock),
+            notes=["case_files_rendered_in_prepare"],
+        )
+
         version, version_logs, version_error = _probe_openfoam_version(case)
         if version_error is not None:
             return version_error
@@ -656,6 +738,36 @@ class OpenFoamLocalAdapter:
                 warnings=_openfoam_warnings(),
             )
 
+        # The adapter folds meshing into the single solver command, so
+        # the dedicated meshing stage records zero wall-clock and notes
+        # the limitation. Consumers that need real meshing wall-clock
+        # use the staged ``run_meshing_stage`` runner exercised by
+        # ``test_openfoam_v2512_smoke``.
+        meshing_started = _utc_stage_now()
+        meshing_start_clock = time.monotonic()
+        _emit_stage(
+            stages,
+            name="meshing",
+            state="succeeded",
+            started_at=meshing_started,
+            completed_at=_utc_stage_now(),
+            wall_clock_seconds=max(0.0, time.monotonic() - meshing_start_clock),
+            notes=["meshing_folded_into_solver_command"],
+        )
+
+        # Mesh-evidence binding is intentionally not implemented in the
+        # adapter; the staged runner has its own evidence pipeline.
+        _emit_stage(
+            stages,
+            name="mesh_evidence_binding",
+            state="skipped",
+            started_at=None,
+            completed_at=None,
+            wall_clock_seconds=None,
+            notes=["mesh_evidence_binding_not_implemented"],
+        )
+
+        solver_started = _utc_stage_now()
         solve_start = time.monotonic()
         try:
             completed = subprocess.run(
@@ -715,6 +827,8 @@ class OpenFoamLocalAdapter:
                 warnings=_openfoam_warnings(),
             )
 
+        solver_seconds = max(0.0, time.monotonic() - solve_start)
+        solver_completed = _utc_stage_now()
         command_logs = _write_command_logs(
             case.job_dir,
             completed,
@@ -740,6 +854,16 @@ class OpenFoamLocalAdapter:
                 warnings=_openfoam_warnings(),
             )
 
+        _emit_stage(
+            stages,
+            name="solver_execution",
+            state="succeeded",
+            started_at=solver_started,
+            completed_at=solver_completed,
+            wall_clock_seconds=solver_seconds,
+            notes=[f"returncode={completed.returncode}"],
+        )
+
         force_path = case.job_dir / OPENFOAM_CASE_ROOT / OPENFOAM_FORCE_DAT_OUTPUT
         if not force_path.is_file():
             return SolverRawResult(
@@ -757,6 +881,8 @@ class OpenFoamLocalAdapter:
                 warnings=_openfoam_warnings(),
             )
 
+        parser_started = _utc_stage_now()
+        parser_start_clock = time.monotonic()
         try:
             force_result = parse_openfoam_force_dat(
                 force_path,
@@ -774,9 +900,20 @@ class OpenFoamLocalAdapter:
                 },
                 warnings=_openfoam_warnings(),
             )
+        _emit_stage(
+            stages,
+            name="parser_post_processing",
+            state="succeeded",
+            started_at=parser_started,
+            completed_at=_utc_stage_now(),
+            wall_clock_seconds=max(0.0, time.monotonic() - parser_start_clock),
+            notes=[f"sample_count={force_result.sample_count}"],
+        )
 
-        opt_in = self._attempt_real_succeeded_path(case)
+        opt_in = self._attempt_real_succeeded_path(case, stages=stages)
         if opt_in is not None:
+            raw_result_started = _utc_stage_now()
+            raw_result_start_clock = time.monotonic()
             normalized = CfdOpenFoamRawResult(
                 job_id=case.job_spec.job_id,
                 solver_name=case.solver_profile.solver_name or OPENFOAM_SOLVER_NAME,
@@ -797,11 +934,39 @@ class OpenFoamLocalAdapter:
                 ],
             )
             _write_json(case.job_dir / OPENFOAM_RAW_RESULT, normalized)
+            _emit_stage(
+                stages,
+                name="raw_result",
+                state="succeeded",
+                started_at=raw_result_started,
+                completed_at=_utc_stage_now(),
+                wall_clock_seconds=max(
+                    0.0, time.monotonic() - raw_result_start_clock
+                ),
+                notes=[f"output_manifest={OPENFOAM_RAW_RESULT}"],
+            )
+            # No accepted-validation workflow exists today; record the
+            # gate as skipped so consumers see the pipeline shape but
+            # nothing claims the raw output has been validated.
+            _emit_stage(
+                stages,
+                name="validation_gate",
+                state="skipped",
+                started_at=None,
+                completed_at=None,
+                wall_clock_seconds=None,
+                notes=["validation_gate_not_implemented"],
+            )
             audit = _build_solver_execution_audit(
                 case=case,
                 version=version,
-                solve_seconds=max(0.0, time.monotonic() - solve_start),
+                solve_seconds=solver_seconds,
             )
+            # Stash stages for ``collect`` to attach to the run record;
+            # only emitted on the real succeeded path so blocked and
+            # failure records remain byte-stable with pre-Phase-7
+            # behavior (``stages == []``).
+            self._stages_by_job_id[case.job_spec.job_id] = stages
             return SolverRawResult(
                 status="succeeded",
                 output_manifest=OPENFOAM_RAW_RESULT,
@@ -844,15 +1009,22 @@ class OpenFoamLocalAdapter:
         )
 
     def collect(self, case: PreparedSolverCase, result: SolverRawResult) -> CfdRunRecord:
-        return _run_record_from_result(
+        record = _run_record_from_result(
             case.job_spec,
             result,
             started_at=_utc_now(),
             finished_at=_utc_now(),
         )
+        stages = self._stages_by_job_id.pop(case.job_spec.job_id, [])
+        if stages:
+            record = record.model_copy(update={"stages": list(stages)})
+        return record
 
     def _attempt_real_succeeded_path(
-        self, case: PreparedSolverCase
+        self,
+        case: PreparedSolverCase,
+        *,
+        stages: list[CfdRunStage] | None = None,
     ) -> RealSolverExecutionOptIn | None:
         """Return the opt-in label that admits the real succeeded path.
 
@@ -860,7 +1032,13 @@ class OpenFoamLocalAdapter:
         over persistent setting wins over the legacy env knob. If none
         admit the run, returns ``None`` and the adapter falls back to
         the historical ``solver_success_blocked`` path.
+
+        ``stages`` is the in-progress stage list owned by ``run``; it
+        is reserved for future stage emission in this helper (e.g., if
+        opt-in resolution itself grows wall-clock-worthy work). It is
+        currently unused.
         """
+        del stages  # reserved for future use; see docstring.
         return resolve_real_solver_execution_opt_in(case.job_dir)
 
 

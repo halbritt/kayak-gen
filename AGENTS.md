@@ -59,6 +59,15 @@ subject:
 - **`docs/rfcs/0001-template.md`** — the RFC template. Copy it for
   new RFCs; do not read it for current direction.
 
+## Release discipline
+
+`docs/RELEASE_DISCIPLINE.md` consolidates the pre-merge requirements,
+the public-behavior-change update checklist, the no-claim invariants
+and their named evidence gates, and the one-phase-per-RFC rule.
+Read it before landing any change that touches a public CLI command,
+a Pydantic schema, a claim/readiness literal, or any of the docs in
+the architecture-map list.
+
 ## Project conventions visible in `git log`
 
 - New design docs land as RFCs in `docs/rfcs/NNNN-slug.md`. Commit
