@@ -214,10 +214,21 @@ _EXPECTED_SKIPPED_STAGE_NAMES = {"mesh_evidence_binding", "validation_gate"}
     reason=_REAL_SUCCEEDED_PATH_SKIP_REASON,
 )
 def test_succeeded_record_emits_expected_stage_sequence(tmp_path: Path) -> None:
-    """The real succeeded path emits the eight named stages in order."""
+    """The real succeeded path emits the eight named stages in order.
+
+    The test follows the env-gating pattern from
+    ``test_openfoam_v2512_smoke.py``: both
+    ``KAYAKGEN_OPENFOAM_SMOKE=1`` and ``KAYAKGEN_OPENFOAM_LOCAL_RUN=1``
+    must be set, and an installed OpenFOAM-v2512 toolchain must be
+    sourceable. The env knob admits the adapter's real succeeded
+    path through the RFC 0046 resolver. Solver and version commands
+    are overridden to PATH-friendly fakes so the test exercises stage
+    emission inside ``_attempt_real_succeeded_path`` without depending
+    on the bashrc-sourced LD_LIBRARY_PATH setup that ``interFoam``
+    needs to actually run.
+    """
     job = _prepare_openfoam_job(tmp_path)
-    # Env knob is set in the process env (see ``_LOCAL_RUN_ENABLED``);
-    # the adapter's RFC 0046 resolver picks it up automatically.
+    _install_fake_solver(job.job_dir)
 
     record = run_cfd_job(job.job_dir)
 
@@ -225,6 +236,7 @@ def test_succeeded_record_emits_expected_stage_sequence(tmp_path: Path) -> None:
         f"unexpected status={record.status}, error_kind={record.error_kind}, "
         f"error_message={record.error_message}"
     )
+    assert record.real_solver_execution_opt_in == "env_knob"
     assert [stage.name for stage in record.stages] == _EXPECTED_STAGE_NAMES
     by_name = {stage.name: stage for stage in record.stages}
     for name in _EXPECTED_STAGE_NAMES:
@@ -247,6 +259,7 @@ def test_succeeded_record_emits_expected_stage_sequence(tmp_path: Path) -> None:
 def test_succeeded_record_stage_wall_clocks_are_non_negative(tmp_path: Path) -> None:
     """Every emitted stage carries a non-negative or ``None`` wall-clock."""
     job = _prepare_openfoam_job(tmp_path)
+    _install_fake_solver(job.job_dir)
 
     record = run_cfd_job(job.job_dir)
 

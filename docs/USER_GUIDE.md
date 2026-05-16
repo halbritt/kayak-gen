@@ -445,16 +445,26 @@ successful raw fixture record for tests.
 
 The `openfoam-v2512-interfoam-local` profile has a real local-execution path
 behind two opt-in environment variables. Both must be set, and an installed
-OpenFOAM-v2512 toolchain must be sourceable:
+OpenFOAM-v2512 toolchain must be sourceable. The three OpenFOAM env knobs have
+distinct roles:
+
+- `KAYAKGEN_OPENFOAM_LOCAL_RUN`: operational opt-in. Admits the real succeeded
+  path in `kayakgen cfd run` (RFC 0046 env-knob source); without it, the
+  adapter falls back to `error_kind="solver_success_blocked"`.
+- `KAYAKGEN_OPENFOAM_SMOKE`: test-only smoke gate. Gates the integration test
+  surface (`tests/test_openfoam_v2512_smoke.py` and the env-gated stage tests
+  in `tests/test_cfd_run_stages.py`) only; the CLI does not consult it.
+- `KAYAKGEN_OPENFOAM_BASHRC`: environment source. Path to the OpenFOAM bashrc
+  the runner sources to acquire the WM/FOAM environment; defaults to
+  `/usr/lib/openfoam/openfoam2512/etc/bashrc`.
 
 ```bash
-export KAYAKGEN_OPENFOAM_LOCAL_RUN=1
-export KAYAKGEN_OPENFOAM_SMOKE=1         # required only for the smoke test surface
-# optional override: where to source OpenFOAM from
-export KAYAKGEN_OPENFOAM_BASHRC=/usr/lib/openfoam/openfoam2512/etc/bashrc
+export KAYAKGEN_OPENFOAM_LOCAL_RUN=1      # operational opt-in (CLI succeeded path)
+export KAYAKGEN_OPENFOAM_SMOKE=1          # test-only smoke gate (integration tests)
+export KAYAKGEN_OPENFOAM_BASHRC=/usr/lib/openfoam/openfoam2512/etc/bashrc  # env source
 ```
 
-With both knobs set, `kayakgen cfd run` against an
+With both opt-ins set, `kayakgen cfd run` against an
 `openfoam-v2512-interfoam-local` job calls
 `kayakgen.eval.cfd.openfoam_v2512_interfoam.render_case`, runs
 `blockMesh + surfaceFeatureExtract + snappyHexMesh -overwrite + checkMesh`
@@ -465,6 +475,17 @@ payload. The payload preserves
 `case_template_version="openfoam-v2512-interfoam-dtchull-v1"`,
 `claim_state="raw_unvalidated"`, and empty `accepted_uses`. Without the env
 knobs the adapter still reports `error_kind="solver_success_blocked"`.
+
+The `CfdRunRecord` schema carries an additive `stages: list[CfdRunStage]`
+field that models the local CFD execution pipeline as explicit, named stages
+(`mesh_readiness_evidence`, `case_render`, `meshing`, `mesh_evidence_binding`,
+`solver_execution`, `parser_post_processing`, `raw_result`, `validation_gate`).
+A `succeeded` record records per-stage wall-clock under
+`stages[*].wall_clock_seconds` so consumers can see which stage produced the
+record without parsing logs. Skipped stages (`mesh_evidence_binding` and
+`validation_gate` in the current slice) carry `state="skipped"` and a `notes`
+entry that explains why. The blocked path and the unavailable/mock/fixture
+adapters keep `stages=[]`.
 
 Real-binary smoke wall-clock on a default `kayakgen init` hull: ~7 s meshing
 plus ~2 s solve. All output remains raw and unvalidated: it is not a
