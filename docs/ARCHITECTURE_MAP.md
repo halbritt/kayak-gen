@@ -16,37 +16,71 @@ kayakgen/
 │   ├── main.py                  init / generate / evaluate / mesh-check
 │   │                            / mesh-package / mesh-evidence / stability
 │   │                            / view / serve / sweep / search / compare / cfd
-│   └── high_angle_gz.py         opt-in `--high-angle-gz` block builder
+│   └── high_angle_gz.py         compat shim for kayakgen.eval.high_angle_gz
 ├── eval/                     # Domain evaluators, evidence records, claim gates
 │   ├── calibration/             RFC 0042 source-review packets, registry,
 │   │                            extractors (Edinburgh DataShare)
-│   ├── cfd/
-│   │   ├── jobs.py              CfdJobSpec, CfdRunRecord, SolverProfile,
-│   │   │                        OpenFoamLocalAdapter, OpenFoamProvenanceProbe,
-│   │   │                        SolverExecutionAudit, opt-in resolver
+│   ├── cfd/                     (Phase 3A split; jobs.py is now a thin shim)
+│   │   ├── jobs.py              compat shim re-exporting from the new modules
+│   │   ├── records.py           CfdRunStatus, SolverProfile, CfdJobSpec,
+│   │   │                        CfdRunRecord, SolverExecutionAudit,
+│   │   │                        PreparedSolverCase, SolverAdapter
+│   │   ├── profiles.py          built-in SolverProfile factories + warnings
+│   │   ├── job_store.py         prepare_cfd_job, run_cfd_job, load_run_record
+│   │   ├── manifest_validation.py mesh-package + watertight handoff checks
+│   │   ├── provenance.py        OpenFoamProvenanceProbe + probe runner
 │   │   ├── config.py            ~/.config/kayakgen/cfd.json loader
-│   │   ├── fixture_command.py   RFC 0026 fixture-local-command adapter
+│   │   ├── fixture_command.py   legacy fixture-local-command entry point
+│   │   ├── parsers/
+│   │   │   └── openfoam_forces.py  parse_openfoam_force_dat + sample types
+│   │   ├── adapters/
+│   │   │   ├── unavailable.py   UnavailableSolverAdapter
+│   │   │   ├── mock.py          MockFailingLocalCommandAdapter
+│   │   │   ├── fixture.py       FixtureLocalCommandAdapter
+│   │   │   └── openfoam_v2512.py OpenFoamLocalAdapter +
+│   │   │                        resolve_real_solver_execution_opt_in
 │   │   └── openfoam_v2512_interfoam/
 │   │       ├── case_render.py   OpenFoamCaseSpec + byte-deterministic render
 │   │       ├── runner.py        bashrc-sourced subprocess, meshing/solve stages
 │   │       ├── evidence.py      SnappyHexMeshEvidence binder
 │   │       └── templates/       15 vendored case-dict templates
+│   ├── closed_volume/           (Phase 3C split)
+│   │   ├── __init__.py          re-exports the original public surface
+│   │   ├── schemas.py           ClosedVolumeBody, ClosedVolumeDiagnostics,
+│   │   │                        ClosedVolumeReadiness, policies
+│   │   ├── generated_body.py    generated_hull_plus_deck_body + variants
+│   │   ├── topology.py          edge/face/topology diagnostics
+│   │   ├── self_intersection.py RFC 0021 algorithms (deterministic)
+│   │   └── diagnostics.py       diagnose_closed_volume_body composition
+│   ├── stability/               (Phase 3B split)
+│   │   ├── __init__.py          re-exports original public surface
+│   │   ├── load_case.py         load-case utilities
+│   │   ├── initial.py           initial stability (GM0, KB, BM)
+│   │   ├── upright_equilibrium.py upright sinkage solver
+│   │   ├── trim_equilibrium.py  bounded fixed-body trim solve
+│   │   ├── high_angle_contracts.py GZCurve, GeneratedBodyGZCurve schemas
+│   │   ├── heeled_section_integrator.py heeled-volume integration
+│   │   ├── warnings.py          RFC 0024 warning constants
+│   │   └── evaluator.py         evaluate_stability / evaluate_gz_curve
+│   ├── evidence/                Phase 2 step 5 neutral evidence facade
+│   │   ├── openfoam.py          re-exports OpenFoamProvenanceProbe
+│   │   ├── check_mesh.py        re-exports CheckMeshSummary
+│   │   └── claims.py            re-exports ClaimMetadata + helpers
 │   ├── claims.py                claim_state + accepted_uses contract
-│   ├── closed_volume.py         ClosedVolumeBody, diagnostics, self-intersection
 │   ├── contract.py              EvaluationResult, GZCurve, StabilityResult
 │   ├── generated_closed_body.py builds generated_hull_plus_deck_closed_body_v1
+│   ├── high_angle_gz.py         build_high_angle_gz_block (moved Phase 2)
 │   ├── hydrostatics.py          displaced volume, GM0, LCB, waterplane
 │   ├── mesh_diagnostics.py      per-part edge/face/topology diagnostics
 │   ├── mesh_package.py          manifest writer + readiness report + binder
 │   ├── resistance.py            Michell + ITTC raw-comparative filter
 │   ├── snappy_hex_mesh.py       SnappyHexMeshEvidence + bind helper
-│   ├── stability.py             load cases, upright trim, high-angle GZ
 │   ├── sweep_artifacts.py       sweep-side STL + high_angle_gz artifact writers
 │   └── volume_mesh.py           VolumeMeshDiagnostic + watertight handoff
 ├── io/                       # STL writer; nothing else
 ├── model/                    # Hull, geometry, presets — no eval/ui/cli imports
 │   ├── advisory.py
-│   ├── geometry.py
+│   ├── geometry.py              HullGeometry + section_for_closed_body
 │   ├── hull.py
 │   └── presets.py
 ├── search/                   # Sweep + compare + Pareto + active search
@@ -61,6 +95,12 @@ kayakgen/
 │   ├── objectives.py            OBJECTIVE_METADATA registry
 │   ├── pareto.py                Objective gates + RFC 0043/0044 refusal tokens
 │   └── sweep.py                 SweepSpec, CandidateRecord, pending lifecycle
+├── services/                 # Phase 3D application services (no UI/CLI deps)
+│   ├── design.py                hull-state assembly, presets, validity badges
+│   ├── evaluation.py            metrics + analysis + resistance view models
+│   ├── artifacts.py             STL / hydro / stability JSON / package export
+│   ├── cfd_jobs.py              CFD prepare/run/status/logs/raw-result orchestration
+│   └── comparison.py            comparison-report load + read-model assembly
 └── ui/                       # Trame web + PyQt desktop; consumes read models
     ├── desktop.py               PyQt6 + matplotlib desktop GUI
     ├── gui_params.py
@@ -68,7 +108,7 @@ kayakgen/
     ├── theme.py
     └── web/
         ├── app.py               Trame app + state
-        ├── controllers.py       route handlers
+        ├── controllers.py       thin route/state glue (~300 lines after Phase 3D)
         ├── read_models.py       view-model adapters (high-angle GZ etc.)
         └── state.py             WebStateSchema + alias maps
 ```
@@ -199,11 +239,13 @@ Preserved verbatim from `docs/ROADMAP.md`. Future doc changes must respect:
 
 ## Dependency rules
 
-Enforced by tests under `tests/test_import_boundaries.py`:
+Enforced by `tests/test_import_boundaries.py` and
+`tests/test_services_boundaries.py`:
 
 - `kayakgen.model` imports nothing from `eval`, `search`, `ui`, or `cli`.
 - `kayakgen.eval` imports nothing from `ui` or `cli`.
 - `kayakgen.search` imports nothing from `ui` or `cli`.
+- `kayakgen.services` imports nothing from `ui` or `cli`.
 - `kayakgen.cli` imports services and read models, not private helpers.
 - `kayakgen.ui` imports services and read models, not private evaluator
   helpers.

@@ -81,22 +81,32 @@ Immutable, equality-by-value, no identity. Defined by Pydantic with
 
 ## Domain services
 
-Stateless computations over aggregates and value objects.
+Stateless computations over aggregates and value objects. After Phase 3
+of the architecture plan, evaluator orchestration is split across
+focused modules under `kayakgen.eval.*` and a new `kayakgen.services`
+package hosts the web/CLI application services.
 
-- **Geometry**: `Hull.to_geometry()`, `generated_hull_plus_deck_closed_body`,
-  `diagnose_closed_volume_body`.
-- **Hydrostatics + initial stability**: `kayakgen.eval.hydrostatics.metrics`,
-  `kayakgen.eval.stability.evaluate_stability`,
-  `kayakgen.eval.stability.evaluate_gz_curve`.
+- **Geometry**: `Hull.to_geometry()`,
+  `kayakgen.eval.closed_volume.generated_body.generated_hull_plus_deck_body`,
+  `kayakgen.eval.closed_volume.diagnostics.diagnose_closed_volume_body`.
+- **Hydrostatics + initial stability**:
+  `kayakgen.eval.hydrostatics.metrics`,
+  `kayakgen.eval.stability.evaluator.evaluate_stability`,
+  `kayakgen.eval.stability.evaluator.evaluate_gz_curve`. Public surface
+  is re-exported from `kayakgen.eval.stability` so the original imports
+  continue to work.
 - **Resistance filter**: `kayakgen.eval.resistance.resistance_curve` (raw
   comparative; claim state `uncalibrated_comparative`).
 - **Mesh package + readiness**: `kayakgen.eval.mesh_package.write_mesh_package`,
   `closed_volume_solver_readiness_report_from_package`.
 - **Evidence binding**: `kayakgen.eval.snappy_hex_mesh.bind_evidence_to_mesh_package`
   (D026 three-hash gate); `snappy_hex_mesh_volume_mesh_diagnostic` translator.
-- **CFD dispatch**: `kayakgen.eval.cfd.jobs.prepare_cfd_job`,
-  `run_cfd_job`, `OpenFoamLocalAdapter`,
-  `resolve_real_solver_execution_opt_in` (D027 precedence resolver).
+- **CFD dispatch**: `kayakgen.eval.cfd.job_store.prepare_cfd_job`,
+  `kayakgen.eval.cfd.job_store.run_cfd_job`,
+  `kayakgen.eval.cfd.adapters.openfoam_v2512.OpenFoamLocalAdapter`,
+  `kayakgen.eval.cfd.adapters.openfoam_v2512.resolve_real_solver_execution_opt_in`
+  (D027 precedence resolver). All public names are also re-exported
+  from the `kayakgen.eval.cfd.jobs` compat shim.
 - **OpenFOAM execution**: case render
   (`kayakgen.eval.cfd.openfoam_v2512_interfoam.case_render.render_case`),
   meshing (`runner.run_meshing_stage`), solve (`runner.run_solver_stage`).
@@ -106,6 +116,14 @@ Stateless computations over aggregates and value objects.
 - **High-angle GZ read model**: `kayakgen.eval.high_angle_gz.build_high_angle_gz_block`
   (was in CLI; moved Phase 2 of the architecture plan).
 - **Comparison**: `kayakgen.search.compare.build_comparison_report`.
+- **Application services (Phase 3D)**: `kayakgen.services.design`
+  (hull-state composition, presets, validity badges),
+  `kayakgen.services.evaluation` (metrics + analysis + resistance view
+  models), `kayakgen.services.artifacts` (export orchestration),
+  `kayakgen.services.cfd_jobs` (CFD prepare/run/status/logs orchestration),
+  `kayakgen.services.comparison` (comparison-report load + read-model
+  assembly). The Trame web `controllers.py` and CLI subcommands consume
+  services; services consume `kayakgen.eval` and `kayakgen.search`.
 
 ## Read models
 

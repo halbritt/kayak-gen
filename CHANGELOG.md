@@ -92,6 +92,36 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   `tests/test_desktop_layout.py` confirms no safety / seaworthiness /
   validated / calibrated / final-prediction / design-fitness wording
   leaks onto the desktop status surface.
+- Executed Phases 0-4 + 6 of
+  `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. Phase 0+1
+  installed ruff (now clean), added `docs/ARCHITECTURE_MAP.md`, and
+  filled the previously-scaffold `docs/UBIQUITOUS_LANGUAGE.md`,
+  `docs/DDD.md`, and `docs/SPEC.md`; added vocabulary-coverage and
+  import-boundary regression tests. Phase 2 moved
+  `build_high_angle_gz_block` from `kayakgen.cli` to
+  `kayakgen.eval.high_angle_gz` (CLI becomes a compat shim), added a
+  public `HullGeometry.section_for_closed_body` accessor replacing
+  the private `_get_slice_points(..., closed_body_endpoint=True)`
+  reach-in, and added a neutral `kayakgen/eval/evidence/` facade
+  (re-exports `OpenFoamProvenanceProbe`, `CheckMeshSummary`, claim
+  contracts). Phase 3 split four large orchestration files into
+  focused sibling modules with byte-stable public surfaces:
+  `kayakgen/eval/cfd/jobs.py` 2611 → 180-line shim + 13 modules
+  (records, profiles, job_store, manifest_validation, provenance,
+  parsers/openfoam_forces, adapters/{unavailable, mock, fixture,
+  openfoam_v2512}); `kayakgen/eval/stability.py` 1322 → 9 modules
+  under `kayakgen/eval/stability/`;
+  `kayakgen/eval/closed_volume.py` 1452 → 6 modules under
+  `kayakgen/eval/closed_volume/`; `kayakgen/ui/web/controllers.py`
+  1602 → ~297 lines with the orchestration logic moved into a new
+  `kayakgen/services/` package (design, evaluation, artifacts,
+  cfd_jobs, comparison) — boundary-test-enforced not to import from
+  ui/cli. Phase 4 and Phase 6 land as proposed RFCs 0049
+  (ArtifactStore + identity normalization) and 0048 (Geometry V2
+  distribution model). All 685 prior tests pass plus 32 new
+  (vocabulary + import-boundary + services-boundary); full suite
+  717 passed + 2 skipped. Ruff clean across `kayakgen` and `tests`.
+  OpenFOAM env-gated smoke remains 2/2 in ~10s.
 - Promoted the Edinburgh DataShare Pacific-canoe source-review packet
   from `validation_candidate` to `validation_fixture` (RFC 0042 / D025).
   The `ResistanceSourceReviewPacket` validator relaxes in two narrow,
