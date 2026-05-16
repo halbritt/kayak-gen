@@ -129,7 +129,10 @@ def test_source_review_checklist_covers_rfc_0042_promotion_fields() -> None:
     assert packet.incomplete_evidence_fields() == []
 
 
-def test_default_review_packet_applies_to_edinburgh_without_fixture_promotion() -> None:
+def test_default_review_packet_promotes_edinburgh_to_validation_fixture() -> None:
+    """Per D025, Edinburgh is now a validation_fixture with the documented
+    uncertainty caveat; calibration_fixture promotion remains blocked by
+    the Pacific-canoe envelope reason and the missing accepted-fit ref."""
     reviews = default_resistance_source_review_packets()
     registry = {
         source.source_id: source for source in default_resistance_source_registry()
@@ -139,36 +142,38 @@ def test_default_review_packet_applies_to_edinburgh_without_fixture_promotion() 
         "edinburgh_pacific_canoe_hydrodynamics"
     ]
     edinburgh = reviews[0]
-    assert edinburgh.review_verdict == "validation_candidate"
-    assert edinburgh.source_use == "validation_candidate"
-    assert edinburgh.stage_label == "candidate_source"
-    assert edinburgh.fixture_id is None
-    assert edinburgh.fixture_version is None
-    assert edinburgh.validity_envelope is None
-    assert edinburgh.accepted_uses == []
-    assert registry[edinburgh.source_id].intended_use == "validation_candidate"
-    assert registry[edinburgh.source_id].intended_use not in {
-        "validation_fixture",
-        "calibration_fixture",
-    }
+    assert edinburgh.review_verdict == "validation_fixture"
+    assert edinburgh.source_use == "validation_fixture"
+    assert edinburgh.stage_label == "validation_fixture"
+    assert edinburgh.fixture_id == (
+        "edinburgh-pacific-canoe-hydrodynamics-2022-11-14-v15-imv"
+    )
+    assert edinburgh.fixture_version == "1"
+    assert edinburgh.accepted_uses == ["validation_only"]
+    assert edinburgh.validity_envelope is not None
+    assert edinburgh.validity_envelope["models"] == ["V1", "V2", "V3"]
+    assert registry[edinburgh.source_id].intended_use == "validation_fixture"
+    assert registry[edinburgh.source_id].fixture_review_status == "accepted"
+    # The only admitted incomplete checklist entry is uncertainty (per D025).
     incomplete = edinburgh.incomplete_evidence_fields()
-    # After the 2026-05-15 acquisition only uncertainty remains incomplete
-    # (the workbook does not publish per-row uncertainty intervals).
     assert incomplete == ["uncertainty"]
+    # The documented-caveat warning is required for D025 admission.
+    assert "uncertainty_documented_caveat" in edinburgh.warnings
+    # The calibration envelope reason is preserved as a calibration blocker.
     assert edinburgh.non_promotion_reasons == [
         "outside_sea_kayak_calibration_envelope"
     ]
 
 
-def test_default_review_packet_round_trips_as_review_record_only() -> None:
+def test_default_review_packet_round_trips_as_validation_fixture() -> None:
     packet = default_resistance_source_review_packets()[0]
     payload = packet.model_dump(mode="json")
     loaded = ResistanceSourceReviewPacket.model_validate(payload)
 
     assert "source_use" not in payload
-    assert loaded.review_verdict == "validation_candidate"
-    assert loaded.source_use == "validation_candidate"
-    assert loaded.stage_label == "candidate_source"
+    assert loaded.review_verdict == "validation_fixture"
+    assert loaded.source_use == "validation_fixture"
+    assert loaded.stage_label == "validation_fixture"
     assert loaded.non_promotion_reasons == [
         "outside_sea_kayak_calibration_envelope",
     ]
@@ -292,12 +297,13 @@ def test_edinburgh_review_packet_binds_provenance_fields() -> None:
     assert edinburgh.accepted_fit_ref is None
 
 
-def test_edinburgh_packet_is_validation_fixture_ready_after_acquisition() -> None:
-    """After the 2026-05-15 download + extractor, validation-fixture
-    readiness flips True; calibration promotion remains blocked by the
+def test_edinburgh_packet_is_validation_fixture_after_promotion() -> None:
+    """After the 2026-05-16 D025 promotion, Edinburgh is a
+    validation_fixture; calibration promotion remains blocked by the
     Pacific-canoe envelope reason and the missing accepted-fit ref."""
     edinburgh = default_resistance_source_review_packets()[0]
-    assert edinburgh.review_verdict == "validation_candidate"
+    assert edinburgh.review_verdict == "validation_fixture"
+    assert edinburgh.source_use == "validation_fixture"
     assert edinburgh.is_validation_fixture_ready() is True
     assert edinburgh.non_promotion_reasons == [
         "outside_sea_kayak_calibration_envelope"
@@ -305,6 +311,46 @@ def test_edinburgh_packet_is_validation_fixture_ready_after_acquisition() -> Non
     blockers = edinburgh.calibration_promotion_blockers()
     assert "pending_data_acquisition" not in blockers
     assert CALIBRATION_PROMOTION_REQUIRES_ACCEPTED_FIT in blockers
+
+
+def test_validation_fixture_admits_documented_uncertainty_caveat() -> None:
+    """Per D025, validation_fixture may carry uncertainty.status='incomplete'
+    if uncertainty_notes is bound AND the warnings list contains
+    'uncertainty_documented_caveat'. Removing the warning re-engages the
+    'requires complete source-review evidence' refusal."""
+    from kayakgen.eval.calibration import (
+        VALIDATION_FIXTURE_ADMITS_DOCUMENTED_UNCERTAINTY_CAVEAT,
+    )
+
+    packet = default_resistance_source_review_packets()[0]
+    assert "uncertainty_documented_caveat" in packet.warnings
+    # Sanity: the documented token exists as a referenceable constant.
+    assert VALIDATION_FIXTURE_ADMITS_DOCUMENTED_UNCERTAINTY_CAVEAT == (
+        "validation_fixture_admits_documented_uncertainty_caveat"
+    )
+
+    # Reconstruct without the documented-caveat warning: the validator must
+    # refuse, citing the token.
+    payload = packet.model_dump(mode="json")
+    payload["warnings"] = [w for w in payload["warnings"] if w != "uncertainty_documented_caveat"]
+    with pytest.raises(
+        ValidationError,
+        match="validation_fixture_admits_documented_uncertainty_caveat",
+    ):
+        ResistanceSourceReviewPacket.model_validate(payload)
+
+
+def test_validation_fixture_admits_calibration_blockers_in_non_promotion_reasons() -> None:
+    """Per D025, validation_fixture may carry non_promotion_reasons that
+    describe calibration-fixture blockers (e.g.
+    outside_sea_kayak_calibration_envelope). calibration_fixture itself
+    still cannot carry non_promotion_reasons because there is no further
+    promotion."""
+    edinburgh = default_resistance_source_review_packets()[0]
+    assert edinburgh.review_verdict == "validation_fixture"
+    assert edinburgh.non_promotion_reasons == [
+        "outside_sea_kayak_calibration_envelope"
+    ]
 
 
 def test_validation_fixture_requires_checksum_and_extractor() -> None:

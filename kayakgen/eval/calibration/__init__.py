@@ -18,6 +18,27 @@ _SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 #: to a single named token from tests.
 CALIBRATION_PROMOTION_REQUIRES_ACCEPTED_FIT: str = "calibration_promotion_requires_accepted_fit"
 
+#: Per D025: a ``validation_fixture`` review packet may carry
+#: ``non_promotion_reasons`` IF AND ONLY IF those reasons describe
+#: blockers against the next-level promotion (``calibration_fixture``).
+#: Reasons that would gate ``validation_fixture`` itself remain forbidden;
+#: the existing validator chain catches those by requiring measured_data,
+#: fixture_id, fixture_version, checksum, and extractor.
+VALIDATION_FIXTURE_ADMITS_CALIBRATION_BLOCKERS: str = (
+    "validation_fixture_admits_calibration_blockers"
+)
+
+#: Per D025: a ``validation_fixture`` review packet may have
+#: ``uncertainty.status == "incomplete"`` IF AND ONLY IF
+#: ``uncertainty_notes`` is non-empty and explicitly documents the
+#: limitation (e.g. "source publishes only averaged rows; per-row
+#: repeatability not reported"). The packet then advertises an
+#: ``uncertainty_documented_caveat`` warning so downstream consumers
+#: cannot mistake the missing per-row SD for an oversight.
+VALIDATION_FIXTURE_ADMITS_DOCUMENTED_UNCERTAINTY_CAVEAT: str = (
+    "validation_fixture_admits_documented_uncertainty_caveat"
+)
+
 SourceUse = Literal[
     "citation_only",
     "validation_candidate",
@@ -316,7 +337,28 @@ class ResistanceSourceReviewPacket(BaseModel):
             return self
 
         incomplete = self.incomplete_evidence_fields()
-        if incomplete:
+        if self.review_verdict == "validation_fixture":
+            # Per D025: validation_fixture admits one documented-caveat
+            # path — the uncertainty checklist may be 'incomplete' IF
+            # uncertainty_notes is non-empty and the
+            # 'uncertainty_documented_caveat' warning is carried.
+            documented_uncertainty_caveat = (
+                set(incomplete) == {"uncertainty"}
+                and bool((self.uncertainty_notes or "").strip())
+                and "uncertainty_documented_caveat" in self.warnings
+            )
+            if incomplete and not documented_uncertainty_caveat:
+                raise ValueError(
+                    f"{self.review_verdict} requires complete source-review evidence: "
+                    + ", ".join(incomplete)
+                    + (
+                        " (the only admitted incomplete field is 'uncertainty', "
+                        "and only when uncertainty_notes is bound and "
+                        "warnings carry 'uncertainty_documented_caveat' per "
+                        f"{VALIDATION_FIXTURE_ADMITS_DOCUMENTED_UNCERTAINTY_CAVEAT})"
+                    )
+                )
+        elif incomplete:
             raise ValueError(
                 f"{self.review_verdict} requires complete source-review evidence: "
                 + ", ".join(incomplete)
@@ -325,8 +367,13 @@ class ResistanceSourceReviewPacket(BaseModel):
             raise ValueError(f"{self.review_verdict} requires measured source data")
         if not self.fixture_id or not self.fixture_version:
             raise ValueError(f"{self.review_verdict} requires fixture ID and version")
-        if self.non_promotion_reasons:
-            raise ValueError(f"{self.review_verdict} cannot carry non-promotion reasons")
+        if self.review_verdict == "calibration_fixture" and self.non_promotion_reasons:
+            # Calibration_fixture is the terminal verdict — there is no
+            # further promotion, so non_promotion_reasons make no sense.
+            raise ValueError(
+                "calibration_fixture cannot carry non-promotion reasons "
+                "(no further promotion exists)"
+            )
         if not self.source_checksum_sha256 or not self.extraction_script_ref:
             raise ValueError(
                 f"{self.review_verdict} requires source_checksum_sha256 and "
@@ -374,22 +421,51 @@ def default_resistance_source_registry() -> tuple[ResistanceSourceRecord, ...]:
             title="Hydrodynamics of Three Slender Models Resembling Pacific Canoe Hulls",
             url="https://datashare.ed.ac.uk/handle/10283/4772",
             source_type="open_measured_towing_tank_dataset",
-            intended_use="validation_candidate",
+            intended_use="validation_fixture",
             measured_data=True,
             hull_class="pacific_canoe_like_slender_hulls",
             rights_status="cc_by_4_0_dataset_doi_10_7488_ds_3785",
-            extraction_status="no_checked_in_numeric_fixture_until_schema",
+            extraction_status="extractor_under_kayakgen_eval_calibration_extractors",
             notes=(
                 "Open measured towing-tank force dataset with CAD models for "
-                "three slender Pacific-canoe-like hulls. Useful for validation "
-                "source tracking, but not representative enough for general "
-                "sea-kayak resistance calibration."
+                "three slender Pacific-canoe-like hulls. Promoted to a "
+                "validation_fixture per D025 with a documented uncertainty "
+                "caveat (the workbook publishes averaged rows without per-row "
+                "repeatability). Not in the sea-kayak/surfski calibration "
+                "envelope per D013 — calibration_fixture promotion remains "
+                "blocked by 'outside_sea_kayak_calibration_envelope'."
             ),
             warnings=[
                 "pacific_canoe_not_sea_kayak",
                 "fixed_sink_trim",
                 "validation_not_calibration",
+                "uncertainty_documented_caveat",
             ],
+            fixture_id="edinburgh-pacific-canoe-hydrodynamics-2022-11-14-v15-imv",
+            measured_quantity="stbd_drag_n+port_drag_n total drag in newtons; "
+                "fwd/aft side force, heave (mm), pitch (deg), set/measured "
+                "speed (m/s); per-model Lwl=1.2 m from Froude Scaling sheet",
+            measurement_units="speed m/s; drag N; heave mm; pitch deg; yaw deg",
+            hull_envelope={
+                "models": ["V1", "V2", "V3"],
+                "Lm_m": 1.2,
+                "Lfs_m": 12.0,
+                "hull_class": "pacific_canoe_like_slender",
+            },
+            uncertainty_notes=(
+                "Source publishes averaged rows on the 'Averaged Data' sheet; "
+                "per-row repeatability and Type B uncertainty are not bound. "
+                "Treat Stbd+Port drag sums as raw measured totals without an "
+                "uncertainty band; downstream consumers must derive their own "
+                "uncertainty model before any fit work."
+            ),
+            validity_ranges={
+                "speed_ms": [0.0, 1.6],
+                "yaw_deg": [0.0, 24.0],
+                "fixed_sink_trim": True,
+                "Fn_max": 0.466,
+            },
+            fixture_review_status="accepted",
         ),
         ResistanceSourceRecord(
             source_id="sea_kayaker_kanu_compilation",
@@ -555,12 +631,12 @@ def default_resistance_source_review_packets() -> tuple[ResistanceSourceReviewPa
                     "own uncertainty model before any fit work."
                 ),
             ),
-            reviewer="cowboy-session-2026-05-15",
-            review_date="2026-05-15",
-            review_verdict="validation_candidate",
+            reviewer="cowboy-session-2026-05-16",
+            review_date="2026-05-16",
+            review_verdict="validation_fixture",
             reasons=[
                 "open_measured_dataset",
-                "validation_source_context_only",
+                "validation_fixture_promotion_per_d025",
             ],
             non_promotion_reasons=[
                 "outside_sea_kayak_calibration_envelope",
@@ -568,7 +644,21 @@ def default_resistance_source_review_packets() -> tuple[ResistanceSourceReviewPa
             warnings=[
                 "validation_not_calibration",
                 "pacific_canoe_not_sea_kayak",
+                "uncertainty_documented_caveat",
             ],
+            fixture_id="edinburgh-pacific-canoe-hydrodynamics-2022-11-14-v15-imv",
+            fixture_version="1",
+            accepted_uses=["validation_only"],
+            validity_envelope={
+                "hull_class": "pacific_canoe_like_slender",
+                "models": ["V1", "V2", "V3"],
+                "Lm_m": 1.2,
+                "Lfs_m": 12.0,
+                "speed_ms": [0.0, 1.6],
+                "yaw_deg": [0.0, 24.0],
+                "Fn_max": 0.466,
+                "fixed_sink_trim": True,
+            },
             primary_locator="https://datashare.ed.ac.uk/handle/10283/4772",
             secondary_locator="https://doi.org/10.7488/ds/3785",
             access_date="2026-05-15",

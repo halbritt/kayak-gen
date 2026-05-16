@@ -46,24 +46,46 @@
     "summary": "The workbook does not publish per-row repeatability intervals or a Type B uncertainty budget. Treat raw Stbd+Port drag totals as measured values without an uncertainty band; downstream consumers must derive their own uncertainty model before any fit work.",
     "refs": []
   },
-  "reviewer": "cowboy-session-2026-05-15",
-  "review_date": "2026-05-15",
-  "review_verdict": "validation_candidate",
+  "reviewer": "cowboy-session-2026-05-16",
+  "review_date": "2026-05-16",
+  "review_verdict": "validation_fixture",
   "reasons": [
     "open_measured_dataset",
-    "validation_source_context_only"
+    "validation_fixture_promotion_per_d025"
   ],
   "non_promotion_reasons": [
     "outside_sea_kayak_calibration_envelope"
   ],
   "warnings": [
     "validation_not_calibration",
-    "pacific_canoe_not_sea_kayak"
+    "pacific_canoe_not_sea_kayak",
+    "uncertainty_documented_caveat"
   ],
-  "fixture_id": null,
-  "fixture_version": null,
-  "accepted_uses": [],
-  "validity_envelope": null,
+  "fixture_id": "edinburgh-pacific-canoe-hydrodynamics-2022-11-14-v15-imv",
+  "fixture_version": "1",
+  "accepted_uses": [
+    "validation_only"
+  ],
+  "validity_envelope": {
+    "hull_class": "pacific_canoe_like_slender",
+    "models": [
+      "V1",
+      "V2",
+      "V3"
+    ],
+    "Lm_m": 1.2,
+    "Lfs_m": 12.0,
+    "speed_ms": [
+      0.0,
+      1.6
+    ],
+    "yaw_deg": [
+      0.0,
+      24.0
+    ],
+    "Fn_max": 0.466,
+    "fixed_sink_trim": true
+  },
   "primary_locator": "https://datashare.ed.ac.uk/handle/10283/4772",
   "secondary_locator": "https://doi.org/10.7488/ds/3785",
   "access_date": "2026-05-15",

@@ -32,6 +32,24 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Promoted the Edinburgh DataShare Pacific-canoe source-review packet
+  from `validation_candidate` to `validation_fixture` (RFC 0042 / D025).
+  The `ResistanceSourceReviewPacket` validator relaxes in two narrow,
+  named ways: `validation_fixture` may carry `non_promotion_reasons`
+  describing calibration-fixture blockers (token
+  `VALIDATION_FIXTURE_ADMITS_CALIBRATION_BLOCKERS`), and
+  `validation_fixture` may have `uncertainty.status == "incomplete"`
+  when `uncertainty_notes` is bound and `warnings` carries
+  `uncertainty_documented_caveat` (token
+  `VALIDATION_FIXTURE_ADMITS_DOCUMENTED_UNCERTAINTY_CAVEAT`).
+  `calibration_fixture` still cannot carry non-promotion reasons.
+  Edinburgh now binds full `ResistanceSourceRecord` fixture metadata
+  (`fixture_id`, `fixture_version="1"`, `accepted_uses=["validation_only"]`,
+  `validity_envelope`, `validity_ranges`, `fixture_review_status="accepted"`)
+  and keeps `outside_sea_kayak_calibration_envelope` as the lone
+  calibration blocker per D013. +2 new tests; the regenerated pinned
+  packet JSON lives at
+  `tests/fixtures/calibration/edinburgh_review_packet.json`.
 - Landed RFC 0044 v1: additive opt-in `kayakgen search` CLI with a vendored
   NSGA-II multi-objective evolutionary algorithm (pure Python, no external
   optimization-library dependency). New subpackage

@@ -323,10 +323,14 @@ def test_default_resistance_source_registry_has_no_calibration_fixtures() -> Non
         for record in registry
         if record.source_id == "edinburgh_pacific_canoe_hydrodynamics"
     )
-    assert edinburgh.intended_use == "validation_candidate"
+    # Per D025 (2026-05-16), Edinburgh promoted from validation_candidate
+    # to validation_fixture with a documented uncertainty caveat.
+    assert edinburgh.intended_use == "validation_fixture"
+    assert edinburgh.fixture_review_status == "accepted"
     assert edinburgh.measured_data is True
     assert "cc_by_4_0" in edinburgh.rights_status
     assert "validation_not_calibration" in edinburgh.warnings
+    assert "uncertainty_documented_caveat" in edinburgh.warnings
 
 
 def test_validation_fixture_does_not_promote_resistance_claim() -> None:
@@ -355,7 +359,16 @@ def test_validation_fixture_does_not_promote_resistance_claim() -> None:
 
 
 def test_calibration_fixture_requires_review_metadata() -> None:
-    candidate = default_resistance_source_registry()[0].model_dump(mode="python")
+    # Pick a registry entry that genuinely lacks fixture metadata
+    # (Edinburgh became a validation_fixture under D025 and carries the
+    # full fixture record now, so it cannot stand in for the "bare
+    # candidate" case any longer).
+    bare_candidate = next(
+        record
+        for record in default_resistance_source_registry()
+        if record.fixture_id is None
+    )
+    candidate = bare_candidate.model_dump(mode="python")
     candidate["intended_use"] = "calibration_fixture"
 
     with pytest.raises(ValidationError, match="fixture review metadata"):
