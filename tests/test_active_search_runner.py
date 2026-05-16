@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from kayakgen.search.active.runner import run_search
 from kayakgen.search.active.spec import (

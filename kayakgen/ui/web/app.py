@@ -26,7 +26,6 @@ from kayakgen.ui.web.controllers import (
     CfdWebError,
     CfdWebStore,
     HullStore,
-    analysis_lines_from_state,
     class_preset_options,
     class_preset_read_model,
     candidate_state_from_report_json,

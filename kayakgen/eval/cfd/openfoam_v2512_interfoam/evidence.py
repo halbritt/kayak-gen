@@ -13,7 +13,6 @@ from __future__ import annotations
 import hashlib
 import re
 from pathlib import Path
-from typing import Iterable, Mapping
 
 from kayakgen.eval.cfd.jobs import OpenFoamProvenanceProbe
 from kayakgen.eval.cfd.openfoam_v2512_interfoam.case_render import OpenFoamCaseSpec

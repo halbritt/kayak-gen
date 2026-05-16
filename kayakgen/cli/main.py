@@ -235,7 +235,7 @@ def mesh_evidence(
 
     if os.environ.get(OPENFOAM_LOCAL_RUN_ENV_VAR) != "1":
         typer.echo(
-            f"binding_code: openfoam_local_run_env_required",
+            "binding_code: openfoam_local_run_env_required",
             err=True,
         )
         typer.echo(

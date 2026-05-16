@@ -12,7 +12,6 @@ from kayakgen.eval.closed_volume import (
 from kayakgen.eval.mesh_package import (
     closed_volume_solver_readiness_report,
     closed_volume_solver_readiness_report_from_package,
-    watertight_solid_profile,
     write_mesh_package,
     write_watertight_volume_mesh_handoff_package,
 )

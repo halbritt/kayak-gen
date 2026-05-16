@@ -21,7 +21,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Sequence
 
 from kayakgen.eval.snappy_hex_mesh import CheckMeshSummary
 

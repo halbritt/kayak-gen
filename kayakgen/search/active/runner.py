@@ -39,9 +39,7 @@ from kayakgen.search.active.gp import GaussianProcess, kernel_by_name
 from kayakgen.search.active.nsga2 import (
     Generation,
     Individual,
-    initialize_population,
     nsga2_iterations,
-    select_next_population,
 )
 from kayakgen.search.active.spec import (
     ChoiceVariable,
@@ -60,13 +58,11 @@ from kayakgen.search.active.spec import (
 from kayakgen.search.objectives import DEFAULT_OBJECTIVE_METRICS, OBJECTIVE_METADATA
 from kayakgen.search.pareto import (
     Objective,
-    SearchObjectiveRefusedError,
     ensure_objectives_claim_admissible_for_search,
     ensure_objectives_not_high_angle_gz,
 )
 from kayakgen.search.sweep import (
     CandidateRecord,
-    EvaluatorOptions,
     SweepSpec,
     _evaluate_candidate,
     _write_failures,
@@ -1062,7 +1058,6 @@ def _run_ehvi_search(
         pareto = _ehvi_pareto_front(records_by_key.values(), objectives)
         ref_point = _ehvi_reference_point(algorithm, Y, len(objectives))
 
-        best_idx = -1
         best_score = -1.0
         best_genome: dict[str, Any] | None = None
         for cand_i in range(pool_unit.shape[0]):
@@ -1079,7 +1074,6 @@ def _run_ehvi_search(
             # Stable tie-break: prefer earlier draws on equal score.
             if score > best_score:
                 best_score = score
-                best_idx = cand_i
                 best_genome = genome
 
         assert best_genome is not None

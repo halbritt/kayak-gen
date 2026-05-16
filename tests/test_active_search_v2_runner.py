@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from kayakgen.search.active.ehvi import EhviDimensionError, compute_ehvi
+from kayakgen.search.active.ehvi import compute_ehvi
 from kayakgen.search.active.gp import GaussianProcess, MaternKernel52
 from kayakgen.search.active.runner import run_search
 from kayakgen.search.active.spec import (

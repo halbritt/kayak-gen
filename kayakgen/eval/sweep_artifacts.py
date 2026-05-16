@@ -83,7 +83,7 @@ def write_candidate_high_angle_gz(
     """Emit ``high_angle_gz.json`` under ``candidate_dir`` and return its record.
 
     ``block`` is the same JSON-serializable structure produced by
-    :func:`kayakgen.cli.high_angle_gz.build_high_angle_gz_block`, so artifact
+    :func:`kayakgen.eval.high_angle_gz.build_high_angle_gz_block`, so artifact
     bytes match the ``kayakgen stability --high-angle-gz`` CLI surface.
     """
     candidate_dir.mkdir(parents=True, exist_ok=True)

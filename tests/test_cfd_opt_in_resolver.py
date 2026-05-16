@@ -19,7 +19,6 @@ from pathlib import Path
 
 import pytest
 
-from kayakgen.eval.cfd.config import KayakgenCfdConfig
 from kayakgen.eval.cfd.jobs import (
     OPENFOAM_CASE_TEMPLATE_VERSION,
     OPENFOAM_LOCAL_RUN_ENV_VAR,

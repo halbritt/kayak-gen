@@ -12,8 +12,8 @@ from typing import Any, Literal
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from kayakgen.cli.high_angle_gz import build_high_angle_gz_block
 from kayakgen.eval.contract import EvaluationResult
+from kayakgen.eval.high_angle_gz import build_high_angle_gz_block
 from kayakgen.eval.contract import LoadCase
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import resistance_curve

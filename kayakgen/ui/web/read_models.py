@@ -18,7 +18,6 @@ the assumption/warning text from the underlying artifact.
 from __future__ import annotations
 
 import html
-import json
 from typing import Any, TypedDict
 
 from kayakgen.search.compare import ComparisonReport, HighAngleGzDisplay

@@ -10,7 +10,6 @@ every system dictionary.
 from __future__ import annotations
 
 import hashlib
-import struct
 from pathlib import Path
 
 import numpy as np

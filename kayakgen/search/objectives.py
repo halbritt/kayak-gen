@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from kayakgen.eval.claims import (
     ACCEPTED_USE_FINAL_DESIGN_FITNESS,

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
-import pytest
+from click.testing import Result
 from typer.testing import CliRunner
 
-from kayakgen.cli import high_angle_gz as cli_high_angle_gz
+from kayakgen.cli import high_angle_gz as cli_high_angle_gz  # noqa: F401 — kept for compat smoke
+from kayakgen.eval import high_angle_gz as eval_high_angle_gz
 from kayakgen.cli.high_angle_gz import (
     HIGH_ANGLE_GZ_BODY_PROFILE,
     HIGH_ANGLE_GZ_RESULT_SEMANTICS,
@@ -21,13 +23,13 @@ from kayakgen.eval.closed_volume import (
 from kayakgen.model.hull import Hull
 
 
-def _write_hull(tmp_path, *, name: str = "high-angle-cli", **overrides) -> "Path":
+def _write_hull(tmp_path, *, name: str = "high-angle-cli", **overrides) -> Path:
     hull = tmp_path / f"{name}.json"
     hull.write_text(Hull(name=name, bow_rake=0.0, stern_rake=0.0, **overrides).model_dump_json())
     return hull
 
 
-def _run_stability(args: list[str]) -> "Result":
+def _run_stability(args: list[str]) -> Result:
     return CliRunner().invoke(app, args)
 
 
@@ -170,8 +172,11 @@ def test_stability_cli_high_angle_unavailable_for_synthetic(tmp_path, monkeypatc
         body_id="cli-synthetic-fixture",
         policy=explicit_synthetic_self_intersection_policy(),
     )
+    # The real read-model lives in ``kayakgen.eval.high_angle_gz`` after the
+    # Phase 2 move; monkeypatch the eval module's call site rather than the
+    # cli compatibility shim.
     monkeypatch.setattr(
-        cli_high_angle_gz,
+        eval_high_angle_gz,
         "generated_hull_plus_deck_body",
         lambda hull, **_kwargs: synthetic,
     )

@@ -17,7 +17,6 @@ from kayakgen.eval.mesh_diagnostics import (
 )
 from kayakgen.io.json import save_hull
 from kayakgen.io.stl import write_stl
-from kayakgen.model.geometry import PartType
 from kayakgen.model.hull import Hull
 from kayakgen.eval.closed_volume import (
     ClosedVolumeDiagnostics,
