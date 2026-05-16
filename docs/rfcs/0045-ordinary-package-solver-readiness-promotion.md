@@ -1,6 +1,6 @@
 # RFC 0045: Ordinary-Package Solver-Readiness Promotion
 
-Status: proposed
+Status: landed kayakgen mesh-evidence + mesh-package --bind-evidence (hash-bound; defaults unchanged)
 Date: 2026-05-16
 Context: successor to RFC 0040 stage 2 (snappyHexMesh evidence harness)
 and RFC 0023 (watertight `cfd_ready` fixture handoff). The cowboy

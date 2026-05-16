@@ -58,9 +58,9 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0042](0042-resistance-calibration-fixture-successor.md) | partial landed source-review-packet-validators + Edinburgh acquisition + extractor + D025 promotion to validation_fixture; calibration still envelope-blocked | Resistance calibration fixture successor |
 | [0043](0043-high-angle-gz-successor.md) | landed staged surfacing (stages 1-3 + web read model + stage 4 desktop minimal status segment) | High-angle GZ successor |
 | [0044](0044-active-hull-design-search.md) | landed v1 NSGA-II + kayakgen search CLI (additive opt-in; defaults unchanged) | Active hull-design search |
-| [0045](0045-ordinary-package-solver-readiness-promotion.md) | proposed | Ordinary-package solver-readiness promotion (mesh-evidence binding) |
-| [0046](0046-non-env-gated-openfoam-succeeded-path.md) | proposed | Non-env-gated OpenFOAM succeeded path (per-job + persistent settings) |
-| [0047](0047-active-search-v2-successor-algorithms.md) | proposed | Active search v2 — EHVI/GP Bayesian successor algorithms |
+| [0045](0045-ordinary-package-solver-readiness-promotion.md) | landed kayakgen mesh-evidence + mesh-package --bind-evidence (hash-bound; defaults unchanged) | Ordinary-package solver-readiness promotion |
+| [0046](0046-non-env-gated-openfoam-succeeded-path.md) | landed three-mechanism opt-in + audit trail; defaults unchanged | Non-env-gated OpenFOAM succeeded path |
+| [0047](0047-active-search-v2-successor-algorithms.md) | landed v2 EHVI over vendored Cholesky GP (1-3 objectives; additive opt-in; defaults unchanged) | Active search v2 — EHVI/GP Bayesian successor |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw

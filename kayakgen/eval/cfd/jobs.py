@@ -66,6 +66,8 @@ OPENFOAM_SUCCEEDED_RAW_UNVALIDATED_WARNING = (
     "calibrated for any design-fitness use."
 )
 
+RealSolverExecutionOptIn = Literal["profile_flag", "persistent_setting", "env_knob"]
+
 READINESS_ORDER: dict[ReadinessLevel, int] = {
     "invalid": 0,
     "display": 1,
@@ -111,6 +113,7 @@ class SolverProfile(RawUnvalidatedClaimFields):
     timeout_seconds: float | None = Field(default=None, gt=0)
     log_limit_bytes: int | None = Field(default=None, gt=0)
     required_mesh_profile: str | None = None
+    allow_real_solver_execution: bool = False
     result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
 
 
@@ -135,6 +138,25 @@ class CfdJobSpec(RawUnvalidatedClaimFields):
     result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
 
 
+class SolverExecutionAudit(BaseModel):
+    """Audit trail for a real-solver succeeded run.
+
+    Populated only on the OpenFOAM ``succeeded`` path admitted by the
+    RFC 0046 opt-in resolver. The block records local-to-run provenance
+    so the run record explains *which* toolchain produced the raw
+    payload. The existing fixture/blocked path leaves the field as
+    ``None`` on its run record.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    bashrc_path: str
+    provenance_summary: dict[str, Any] = Field(default_factory=dict)
+    case_template_version: str
+    mesh_seconds: float = Field(ge=0.0)
+    solve_seconds: float = Field(ge=0.0)
+
+
 class CfdRunRecord(RawUnvalidatedClaimFields):
     """Serializable run-status record for raw external solver output."""
 
@@ -153,6 +175,8 @@ class CfdRunRecord(RawUnvalidatedClaimFields):
     logs: dict[str, str] = Field(default_factory=dict)
     mesh_warnings: list[str] = Field(default_factory=list)
     raw_records: dict[str, Any] = Field(default_factory=dict)
+    real_solver_execution_opt_in: RealSolverExecutionOptIn | None = None
+    solver_execution_audit: SolverExecutionAudit | None = None
     result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
 
 
@@ -202,6 +226,8 @@ class SolverRawResult(RawUnvalidatedClaimFields):
     error_message: str | None = None
     logs: dict[str, str] = Field(default_factory=dict)
     raw_records: dict[str, Any] = Field(default_factory=dict)
+    real_solver_execution_opt_in: RealSolverExecutionOptIn | None = None
+    solver_execution_audit: SolverExecutionAudit | None = None
     result_semantics: Literal["raw_unvalidated"] = "raw_unvalidated"
 
 
@@ -605,9 +631,18 @@ def prepare_cfd_job(
     seawater_density_kg_m3: float = 1025.0,
     kinematic_viscosity_m2_s: float = 1.19e-6,
     hull_ref: str | None = None,
+    allow_real_solver_execution: bool = False,
 ) -> CfdJobPaths:
-    """Prepare a local CFD job using a named built-in solver profile."""
+    """Prepare a local CFD job using a named built-in solver profile.
+
+    ``allow_real_solver_execution`` writes
+    ``allow_real_solver_execution: true`` into the prepared
+    ``profile.json``. This is one of the three opt-in mechanisms for the
+    OpenFOAM real-solver succeeded path (RFC 0046).
+    """
     profile = _solver_profile_by_name(solver_profile_name)
+    if allow_real_solver_execution:
+        profile = profile.model_copy(update={"allow_real_solver_execution": True})
     job = prepare_local_job(
         mesh_package,
         out_dir,
@@ -1090,6 +1125,9 @@ class OpenFoamLocalAdapter:
                 warnings=_openfoam_warnings(),
             )
 
+        import time
+
+        solve_start = time.monotonic()
         try:
             completed = subprocess.run(
                 case.solver_profile.command_template,
@@ -1208,8 +1246,8 @@ class OpenFoamLocalAdapter:
                 warnings=_openfoam_warnings(),
             )
 
-        succeeded_path_enabled = _openfoam_succeeded_path_enabled()
-        if succeeded_path_enabled:
+        opt_in = self._attempt_real_succeeded_path(case)
+        if opt_in is not None:
             normalized = CfdOpenFoamRawResult(
                 job_id=case.job_spec.job_id,
                 solver_name=case.solver_profile.solver_name or OPENFOAM_SOLVER_NAME,
@@ -1230,12 +1268,19 @@ class OpenFoamLocalAdapter:
                 ],
             )
             _write_json(case.job_dir / OPENFOAM_RAW_RESULT, normalized)
+            audit = _build_solver_execution_audit(
+                case=case,
+                version=version,
+                solve_seconds=max(0.0, time.monotonic() - solve_start),
+            )
             return SolverRawResult(
                 status="succeeded",
                 output_manifest=OPENFOAM_RAW_RESULT,
                 logs=logs,
                 raw_records=normalized.model_dump(mode="python"),
                 warnings=list(normalized.warnings),
+                real_solver_execution_opt_in=opt_in,
+                solver_execution_audit=audit,
             )
 
         normalized = CfdOpenFoamRawResult(
@@ -1276,6 +1321,18 @@ class OpenFoamLocalAdapter:
             started_at=_utc_now(),
             finished_at=_utc_now(),
         )
+
+    def _attempt_real_succeeded_path(
+        self, case: PreparedSolverCase
+    ) -> RealSolverExecutionOptIn | None:
+        """Return the opt-in label that admits the real succeeded path.
+
+        The resolver enforces RFC 0046 precedence: profile flag wins
+        over persistent setting wins over the legacy env knob. If none
+        admit the run, returns ``None`` and the adapter falls back to
+        the historical ``solver_success_blocked`` path.
+        """
+        return resolve_real_solver_execution_opt_in(case.job_dir)
 
 
 _FLOAT_RE = re.compile(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?")
@@ -1636,6 +1693,108 @@ def _openfoam_succeeded_path_enabled() -> bool:
         return bool(is_openfoam_available())
     except Exception:  # pragma: no cover - defensive
         return False
+
+
+def _resolve_openfoam_bashrc_path() -> str:
+    """Return a string representation of the OpenFOAM bashrc path used by the runner.
+
+    Falls back to the runner's default when neither the env override nor
+    a real install is present. The returned string is only used for the
+    audit trail; it is not opened by this function.
+    """
+    try:
+        from kayakgen.eval.cfd.openfoam_v2512_interfoam.runner import (
+            OPENFOAM_BASHRC,
+            OPENFOAM_BASHRC_ENV_VAR,
+        )
+    except ImportError:
+        return ""
+    override = os.environ.get(OPENFOAM_BASHRC_ENV_VAR)
+    if override:
+        return override
+    return str(OPENFOAM_BASHRC)
+
+
+def _build_solver_execution_audit(
+    *,
+    case: PreparedSolverCase,
+    version: str | None,
+    solve_seconds: float,
+    mesh_seconds: float = 0.0,
+    provenance_summary: dict[str, Any] | None = None,
+) -> SolverExecutionAudit:
+    """Build the audit block emitted alongside a real succeeded record.
+
+    ``mesh_seconds`` defaults to ``0.0`` because the adapter executes a
+    single solver command rather than a staged mesh + solve pipeline;
+    callers that wrap the staged runner can pass real timings.
+    """
+    summary: dict[str, Any] = dict(provenance_summary or {})
+    if version and "solver_version" not in summary:
+        summary["solver_version"] = version
+    return SolverExecutionAudit(
+        bashrc_path=_resolve_openfoam_bashrc_path(),
+        provenance_summary=summary,
+        case_template_version=OPENFOAM_CASE_TEMPLATE_VERSION,
+        mesh_seconds=mesh_seconds,
+        solve_seconds=solve_seconds,
+    )
+
+
+def resolve_real_solver_execution_opt_in(
+    job_dir: Path,
+    env: dict[str, str] | None = None,
+    *,
+    config_path: Path | None = None,
+) -> RealSolverExecutionOptIn | None:
+    """Return the source label that admits a real-solver run, or ``None``.
+
+    Precedence (highest first), per RFC 0046:
+
+    1. ``profile_flag`` — ``profile.json`` carries
+       ``allow_real_solver_execution: true``.
+    2. ``persistent_setting`` — ``~/.config/kayakgen/cfd.json`` lists the
+       job's profile name under ``allow_real_solver_execution_profiles``.
+    3. ``env_knob`` — ``KAYAKGEN_OPENFOAM_LOCAL_RUN=1`` is set in
+       ``env``.
+
+    The resolver inspects the prepared job directory only; it does not
+    probe the toolchain. The adapter is still responsible for checking
+    toolchain availability before actually executing.
+    """
+    env_map = dict(env) if env is not None else dict(os.environ)
+    profile_path = Path(job_dir) / "profile.json"
+    profile_name: str | None = None
+    profile_flag = False
+    if profile_path.is_file():
+        try:
+            profile_payload = json.loads(profile_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            profile_payload = None
+        if isinstance(profile_payload, dict):
+            raw_flag = profile_payload.get("allow_real_solver_execution")
+            profile_flag = raw_flag is True
+            name = profile_payload.get("name")
+            if isinstance(name, str):
+                profile_name = name
+
+    if profile_flag:
+        return "profile_flag"
+
+    if profile_name is not None:
+        from kayakgen.eval.cfd.config import load_kayakgen_cfd_config
+
+        try:
+            config = load_kayakgen_cfd_config(config_path)
+        except Exception:
+            config = None
+        if config is not None and profile_name in config.allow_real_solver_execution_profiles:
+            return "persistent_setting"
+
+    if env_map.get(OPENFOAM_LOCAL_RUN_ENV_VAR) == "1":
+        return "env_knob"
+
+    return None
 
 
 def _first_nonempty_line(text: str) -> str | None:
@@ -2387,6 +2546,8 @@ def _run_record_from_result(
         logs=result.logs,
         mesh_warnings=list(job_spec.mesh_warnings),
         raw_records=result.raw_records,
+        real_solver_execution_opt_in=result.real_solver_execution_opt_in,
+        solver_execution_audit=result.solver_execution_audit,
         warnings=list(result.warnings),
     )
 

@@ -130,11 +130,54 @@ def mesh_package(
         "--solver-profile",
         help="Mesh solver profile: open-wetted-surface or watertight-solid.",
     ),
+    bind_evidence: Path | None = typer.Option(
+        None,
+        "--bind-evidence",
+        exists=True,
+        dir_okay=False,
+        help=(
+            "RFC 0045: attach a previously-recorded snappyHexMesh evidence "
+            "JSON. Triggers hash-binding gates and promotes the manifest to "
+            "cfd_ready when the bound diagnostic satisfies the watertight "
+            "handoff. Without this flag, output is byte-identical to today."
+        ),
+    ),
 ) -> None:
     """Write manifest, quality reports, and STL surfaces for a Hull."""
+    from kayakgen.eval.snappy_hex_mesh import (
+        MeshEvidenceBindError,
+        SnappyHexMeshEvidence,
+        bind_evidence_to_mesh_package,
+        closed_body_content_sha256,
+    )
+    from kayakgen.eval.closed_volume import generated_hull_plus_deck_body
+
     try:
         profile = _mesh_solver_profile(solver_profile)
-        manifest = write_mesh_package(load_hull(hull_path), out, solver_profile=profile)
+        hull = load_hull(hull_path)
+        bound_diagnostic = None
+        if bind_evidence is not None:
+            evidence = SnappyHexMeshEvidence.model_validate_json(
+                bind_evidence.read_text()
+            )
+            polymesh_dir = bind_evidence.parent / "polyMesh"
+            body = generated_hull_plus_deck_body(hull)
+            closed_hash = closed_body_content_sha256(body)
+            bound_diagnostic = bind_evidence_to_mesh_package(
+                evidence,
+                closed_body_hash=closed_hash,
+                polymesh_dir=polymesh_dir if polymesh_dir.is_dir() else None,
+            )
+        manifest = write_mesh_package(
+            hull,
+            out,
+            solver_profile=profile,
+            bound_volume_mesh_diagnostic=bound_diagnostic,
+        )
+    except MeshEvidenceBindError as exc:
+        typer.echo(f"binding_code: {exc.code}", err=True)
+        typer.echo(f"mesh-package failed: {exc.message}", err=True)
+        raise typer.Exit(code=1)
     except Exception as exc:
         typer.echo(f"mesh-package failed: {exc}", err=True)
         raise typer.Exit(code=1)
@@ -144,6 +187,143 @@ def mesh_package(
         typer.echo(f"readiness_blocker: {blocker}")
     for reason in manifest.readiness.reasons:
         typer.echo(f"readiness_reason: {reason}")
+
+
+@app.command("mesh-evidence")
+def mesh_evidence(
+    hull_path: Path = typer.Argument(..., exists=True, dir_okay=False),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Output directory for the snappyHexMesh evidence artifacts.",
+    ),
+    stations: int = typer.Option(
+        12,
+        "--stations",
+        help="Number of stations to use when constructing the closed body.",
+    ),
+) -> None:
+    """Run the meshing stage and write a SnappyHexMeshEvidence record.
+
+    Refuses without ``KAYAKGEN_OPENFOAM_LOCAL_RUN=1`` and an actual
+    OpenFOAM-v2512 toolchain on PATH. Produces ``evidence.json``,
+    ``polyMesh/``, and ``provenance.json`` under ``--out``.
+    """
+    import os
+    import shutil
+
+    from kayakgen.eval.cfd.jobs import (
+        OPENFOAM_LOCAL_RUN_ENV_VAR,
+        probe_openfoam_provenance,
+    )
+    from kayakgen.eval.cfd.openfoam_v2512_interfoam.case_render import (
+        OpenFoamCaseSpec,
+        domain_bounds_from_stl,
+        render_case,
+    )
+    from kayakgen.eval.cfd.openfoam_v2512_interfoam.evidence import (
+        build_snappy_hex_mesh_evidence_from_case,
+    )
+    from kayakgen.eval.cfd.openfoam_v2512_interfoam.runner import (
+        OpenFoamProbeBashrcRunner,
+        is_openfoam_available,
+        probe_commands_for_bashrc_runner,
+        run_meshing_stage,
+    )
+    from kayakgen.eval.closed_volume import generated_hull_plus_deck_body
+    from kayakgen.eval.snappy_hex_mesh import closed_body_content_sha256
+
+    if os.environ.get(OPENFOAM_LOCAL_RUN_ENV_VAR) != "1":
+        typer.echo(
+            f"binding_code: openfoam_local_run_env_required",
+            err=True,
+        )
+        typer.echo(
+            "mesh-evidence refuses to run: set "
+            f"{OPENFOAM_LOCAL_RUN_ENV_VAR}=1 and ensure the OpenFOAM-v2512 "
+            "bashrc is sourceable with interFoam on PATH",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    if not is_openfoam_available():
+        typer.echo("binding_code: openfoam_toolchain_unavailable", err=True)
+        typer.echo(
+            "mesh-evidence refuses to run: OpenFOAM-v2512 toolchain "
+            "(sourceable bashrc + interFoam on PATH) was not detected",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    out.mkdir(parents=True, exist_ok=True)
+    hull = load_hull(hull_path)
+    body = generated_hull_plus_deck_body(hull, stations=stations)
+    closed_hash = closed_body_content_sha256(body)
+
+    # Write the closed-body STL into a case directory and render the case.
+    case_dir = out / "case"
+    case_dir.mkdir(parents=True, exist_ok=True)
+    closed_body_stl = out / "closed_body.stl"
+    _write_closed_body_stl(body, closed_body_stl)
+    bounds = domain_bounds_from_stl(closed_body_stl)
+    spec = OpenFoamCaseSpec(hull_stl_path=closed_body_stl, domain_bounds=bounds)
+    render_case(spec, case_dir, stage="meshing")
+
+    meshing = run_meshing_stage(case_dir)
+    if not meshing.succeeded:
+        typer.echo(
+            f"mesh-evidence failed: meshing stage did not succeed "
+            f"({meshing.failure_reason})",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    provenance = probe_openfoam_provenance(
+        commands=probe_commands_for_bashrc_runner(),
+        runner=OpenFoamProbeBashrcRunner(),
+    )
+    evidence = build_snappy_hex_mesh_evidence_from_case(
+        case_dir,
+        spec,
+        meshing,
+        provenance,
+        body_ref_hash=closed_hash,
+    )
+
+    evidence_path = out / "evidence.json"
+    evidence_path.write_text(evidence.model_dump_json(indent=2) + "\n")
+
+    poly_src = case_dir / "constant" / "polyMesh"
+    poly_dst = out / "polyMesh"
+    if poly_dst.exists():
+        shutil.rmtree(poly_dst)
+    shutil.copytree(poly_src, poly_dst)
+
+    provenance_path = out / "provenance.json"
+    provenance_path.write_text(provenance.model_dump_json(indent=2) + "\n")
+
+    typer.echo(f"wrote {evidence_path}")
+    typer.echo(f"wrote {poly_dst}")
+    typer.echo(f"wrote {provenance_path}")
+    typer.echo(f"dispatch_state: {evidence.dispatch_state}")
+
+
+def _write_closed_body_stl(body, path: Path) -> None:
+    """Write a binary STL of ``body`` to ``path``."""
+
+    import numpy as np
+    from stl import mesh as stl_mesh
+
+    triangles: list[tuple[tuple[float, float, float], ...]] = []
+    for part in body.parts:
+        vertices = [list(v) for v in part.vertices]
+        for face in part.faces:
+            triangles.append(tuple(tuple(vertices[idx]) for idx in face))
+    data = np.zeros(len(triangles), dtype=stl_mesh.Mesh.dtype)
+    obj = stl_mesh.Mesh(data)
+    for i, tri in enumerate(triangles):
+        for j in range(3):
+            obj.vectors[i][j] = tri[j]
+    obj.save(str(path))
 
 
 def _mesh_solver_profile(name: str):
@@ -194,6 +374,15 @@ def cfd_prepare(
         "--kinematic-viscosity-m2-s",
         help="Kinematic viscosity used by the solver job.",
     ),
+    allow_real_solver_execution: bool = typer.Option(
+        False,
+        "--allow-real-solver-execution",
+        help=(
+            "Write allow_real_solver_execution=true into profile.json so a "
+            "subsequent cfd run admits the OpenFOAM real-solver succeeded path "
+            "without setting the env knob (RFC 0046)."
+        ),
+    ),
 ) -> None:
     """Prepare a deterministic local CFD job without running a real solver."""
     try:
@@ -204,6 +393,7 @@ def cfd_prepare(
             speed_mps=speed_mps,
             seawater_density_kg_m3=seawater_density_kg_m3,
             kinematic_viscosity_m2_s=kinematic_viscosity_m2_s,
+            allow_real_solver_execution=allow_real_solver_execution,
         )
     except CfdDispatchError as exc:
         typer.echo(f"blocker_class: {exc.code}", err=True)

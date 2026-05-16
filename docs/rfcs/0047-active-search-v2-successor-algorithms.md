@@ -1,6 +1,6 @@
 # RFC 0047: Active Search v2 — Successor Algorithms
 
-Status: proposed
+Status: landed v2 EHVI over vendored Cholesky GP (1-3 objectives; additive opt-in; defaults unchanged)
 Date: 2026-05-16
 Context: successor to RFC 0044 v1 (vendored NSGA-II), which landed in
 the cowboy 2026-05-16 session under D024. The v1 surface is multi-

@@ -1,8 +1,8 @@
-"""Active-search runner (RFC 0044 v1).
+"""Active-search runner (RFC 0044 v1 NSGA-II + RFC 0047 v2 EHVI).
 
-Orchestrates a vendored NSGA-II run, evaluates each proposed candidate via
-:func:`kayakgen.search.sweep._evaluate_candidate`, applies hard-rejection
-constraints, and writes:
+Orchestrates a vendored NSGA-II or EHVI run, evaluates each proposed
+candidate via :func:`kayakgen.search.sweep._evaluate_candidate`, applies
+hard-rejection constraints, and writes:
 
   - ``runs/<name>/spec.json``        — input spec, persisted byte-for-byte
   - ``runs/<name>/candidates/<key>.record.json`` — per-candidate record
@@ -24,14 +24,18 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import random
 import time
 from pathlib import Path
 from typing import Any, Iterable, Literal
 
+import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from kayakgen.model.hull import Hull
 from kayakgen.search.active.constraints import ConstraintViolation, evaluate_constraints
+from kayakgen.search.active.ehvi import EhviDimensionError, compute_ehvi
+from kayakgen.search.active.gp import GaussianProcess, kernel_by_name
 from kayakgen.search.active.nsga2 import (
     Generation,
     Individual,
@@ -40,12 +44,17 @@ from kayakgen.search.active.nsga2 import (
     select_next_population,
 )
 from kayakgen.search.active.spec import (
+    ChoiceVariable,
+    EhviAlgorithmConfig,
+    EhviHistoryEntry,
     GenerationHistoryEntry,
     ObjectiveSpec,
     SearchClass,
     SearchMetadata,
     SearchSpec,
+    SearchVariable,
     TerminationReason,
+    UniformVariable,
     load_search_spec,
 )
 from kayakgen.search.objectives import DEFAULT_OBJECTIVE_METRICS, OBJECTIVE_METADATA
@@ -364,6 +373,15 @@ def run_search(
         "exploratory" if spec.objectives_explicit_exploratory else "conservative"
     )
 
+    if isinstance(spec.algorithm, EhviAlgorithmConfig):
+        return _run_ehvi_search(
+            spec=spec,
+            out=out,
+            objectives=objectives,
+            search_class=search_class,
+            resume=resume,
+        )
+
     sweep_shim = _make_sweep_spec_shim(spec)
     spec_h = spec_hash(spec)
     started_at = time.monotonic()
@@ -661,6 +679,491 @@ def _build_generation_history(
         failed_count=len(failed),
         frontier_size=frontier_size,
         objective_summary=summary,
+    )
+
+
+# ---------------------------------------------------------------------------
+# EHVI runner (RFC 0047)
+# ---------------------------------------------------------------------------
+
+
+_EHVI_AUTO_REFERENCE_MARGIN = 0.10
+
+
+def _continuous_variable_names(
+    search_space: dict[str, SearchVariable],
+) -> list[str]:
+    return [name for name, var in search_space.items() if isinstance(var, UniformVariable)]
+
+
+def _featureise_genome(
+    genome: dict[str, Any], names: list[str], search_space: dict[str, SearchVariable]
+) -> np.ndarray:
+    out = np.empty(len(names), dtype=float)
+    for i, name in enumerate(names):
+        var = search_space[name]
+        if isinstance(var, UniformVariable):
+            out[i] = (float(genome[name]) - var.min) / max(var.max - var.min, 1.0e-12)
+        else:  # pragma: no cover - filtered by names
+            out[i] = 0.0
+    return out
+
+
+def _latin_hypercube_unit(
+    rng: np.random.Generator, n_samples: int, n_dim: int
+) -> np.ndarray:
+    """Return ``(n_samples, n_dim)`` LHS draws in [0, 1)."""
+    if n_samples <= 0 or n_dim <= 0:
+        return np.empty((max(n_samples, 0), max(n_dim, 0)), dtype=float)
+    cuts = np.arange(n_samples, dtype=float) / float(n_samples)
+    u = rng.uniform(size=(n_samples, n_dim))
+    columns = []
+    for d in range(n_dim):
+        perm = rng.permutation(n_samples)
+        columns.append((cuts + u[:, d] / float(n_samples))[perm])
+    return np.stack(columns, axis=1)
+
+
+def _sample_genome_from_unit(
+    unit: np.ndarray,
+    search_space: dict[str, SearchVariable],
+    py_rng: random.Random,
+) -> dict[str, Any]:
+    """Map a [0,1) unit vector to a genome dict.
+
+    Continuous variables come from ``unit`` (LHS draws); choice variables use
+    the seeded ``random.Random`` to keep parity with v1's stochastic surface.
+    """
+    genome: dict[str, Any] = {}
+    cont_index = 0
+    for name, var in search_space.items():
+        if isinstance(var, UniformVariable):
+            u = float(unit[cont_index])
+            cont_index += 1
+            genome[name] = var.min + u * (var.max - var.min)
+        elif isinstance(var, ChoiceVariable):
+            genome[name] = py_rng.choice(var.values)
+        else:  # pragma: no cover - guarded by spec
+            raise TypeError(f"unsupported search variable: {var!r}")
+    return genome
+
+
+def _signed_value(value: float, direction: Literal["min", "max"]) -> float:
+    return -value if direction == "max" else value
+
+
+def _ehvi_pareto_front(
+    records: Iterable[CandidateRecord], objectives: list[ObjectiveSpec]
+) -> np.ndarray:
+    """Return the non-dominated front (minimisation space) of evaluated records."""
+    pts: list[list[float]] = []
+    for rec in records:
+        if rec.status != "complete":
+            continue
+        row: list[float] = []
+        ok = True
+        for obj in objectives:
+            v = _objective_value(rec, obj.metric)
+            if v is None:
+                ok = False
+                break
+            row.append(_signed_value(v, obj.direction))
+        if ok:
+            pts.append(row)
+    if not pts:
+        return np.empty((0, len(objectives)), dtype=float)
+    arr = np.asarray(pts, dtype=float)
+    # Filter to non-dominated.
+    keep: list[int] = []
+    for i in range(arr.shape[0]):
+        dominated = False
+        for j in range(arr.shape[0]):
+            if i == j:
+                continue
+            if np.all(arr[j] <= arr[i]) and np.any(arr[j] < arr[i]):
+                dominated = True
+                break
+        if not dominated:
+            keep.append(i)
+    return arr[np.array(keep, dtype=int)]
+
+
+def _ehvi_reference_point(
+    algorithm: EhviAlgorithmConfig,
+    evaluated_points: np.ndarray,
+    n_obj: int,
+) -> np.ndarray:
+    if algorithm.reference_point == "auto":
+        if evaluated_points.shape[0] == 0:
+            return np.zeros(n_obj, dtype=float) + 1.0
+        worst = np.max(evaluated_points, axis=0)
+        span = np.maximum(
+            np.max(evaluated_points, axis=0) - np.min(evaluated_points, axis=0), 1.0
+        )
+        return worst + _EHVI_AUTO_REFERENCE_MARGIN * span
+    ref = np.asarray(algorithm.reference_point, dtype=float)
+    if ref.shape[0] != n_obj:
+        raise ValueError(
+            f"reference_point dimensionality {ref.shape[0]} does not match "
+            f"objective count {n_obj}"
+        )
+    return ref
+
+
+def _run_ehvi_search(
+    *,
+    spec: SearchSpec,
+    out: Path,
+    objectives: list[ObjectiveSpec],
+    search_class: SearchClass,
+    resume: bool,
+) -> SearchRunResult:
+    """RFC 0047 v2: Latin-hypercube initialisation + EHVI acquisition loop."""
+
+    algorithm = spec.algorithm
+    assert isinstance(algorithm, EhviAlgorithmConfig)
+
+    if len(objectives) > 3:
+        raise EhviDimensionError(
+            f"EHVI v1 supports 1-3 objectives; spec declares {len(objectives)}"
+        )
+
+    cont_names = _continuous_variable_names(spec.search_space)
+    if not cont_names:
+        raise ValueError(
+            "EHVI requires at least one uniform variable in search_space"
+        )
+
+    sweep_shim = _make_sweep_spec_shim(spec)
+    spec_h = spec_hash(spec)
+    started_at = time.monotonic()
+
+    state = _load_state(out) if resume else None
+    if state is None:
+        state = _RunnerState(seed=algorithm.seed)
+
+    py_rng = random.Random(algorithm.seed)
+    np_rng = np.random.default_rng(algorithm.seed)
+
+    records_by_key: dict[str, CandidateRecord] = {}
+    if resume:
+        for path in sorted((out / "candidates").glob("*.record.json")):
+            try:
+                rec = CandidateRecord.model_validate_json(path.read_text())
+            except ValidationError:
+                continue
+            if rec.status in ("complete", "failed", "constraint_failed"):
+                records_by_key[rec.candidate_key] = rec
+
+    evaluations = sum(1 for r in records_by_key.values() if r.status != "pending")
+    termination_reason: TerminationReason | None = None
+    ehvi_history: list[EhviHistoryEntry] = []
+
+    def _evaluate_and_record(
+        index: int,
+        candidate_key: str,
+        genome: dict[str, Any],
+    ) -> CandidateRecord:
+        try:
+            hull, attempted = _hull_from_genome(spec, genome)
+        except (ValidationError, ValueError) as exc:
+            record = _build_failed_record(
+                spec=spec,
+                index=index,
+                candidate_key=candidate_key,
+                genome=genome,
+                attempted=dict(spec.base_hull) | dict(genome),
+                error=str(exc),
+            )
+            _write_record(record, out)
+            return record
+        try:
+            record = _evaluate_candidate(
+                hull=hull,
+                spec=sweep_shim,
+                index=index,
+                candidate_key=candidate_key,
+                params=dict(genome),
+                attempted=attempted,
+                out=out,
+            )
+        except (ValidationError, ValueError) as exc:
+            record = _build_failed_record(
+                spec=spec,
+                index=index,
+                candidate_key=candidate_key,
+                genome=genome,
+                attempted=attempted,
+                error=str(exc),
+            )
+            _write_record(record, out)
+            return record
+        violations = evaluate_constraints(record.summary, spec.constraints)
+        if violations:
+            record = _build_constraint_failed_record(base=record, violations=violations)
+        _write_record(record, out)
+        return record
+
+    def _append_history(iteration: int, ehvi_score: float) -> None:
+        evaluated = [r for r in records_by_key.values() if r.status == "complete"]
+        constraint_failed = [
+            r for r in records_by_key.values() if r.status == "constraint_failed"
+        ]
+        failed = [r for r in records_by_key.values() if r.status == "failed"]
+        pareto = _ehvi_pareto_front(records_by_key.values(), objectives)
+        summary: dict[str, dict[str, float]] = {}
+        for obj in objectives:
+            values: list[float] = []
+            for rec in evaluated:
+                val = _objective_value(rec, obj.metric)
+                if val is None:
+                    continue
+                values.append(val)
+            if not values:
+                continue
+            values_sorted = sorted(values)
+            summary[obj.metric] = {
+                "best": values_sorted[0] if obj.direction == "min" else values_sorted[-1],
+                "worst": values_sorted[-1] if obj.direction == "min" else values_sorted[0],
+                "median": values_sorted[len(values_sorted) // 2],
+            }
+        ehvi_history.append(
+            EhviHistoryEntry(
+                iteration=iteration,
+                evaluated_count=len(evaluated),
+                constraint_failed_count=len(constraint_failed),
+                failed_count=len(failed),
+                frontier_size=int(pareto.shape[0]),
+                ehvi_score=float(ehvi_score),
+                objective_summary=summary,
+            )
+        )
+
+    # ---- Initial Latin-hypercube draw ------------------------------------
+    initial_unit = _latin_hypercube_unit(
+        np_rng, algorithm.initial_population_size, len(cont_names)
+    )
+
+    for i in range(algorithm.initial_population_size):
+        if termination_reason is not None:
+            break
+        # Build genome with the LHS row, mapping back to variable bounds.
+        # Iterate search_space in declaration order so continuous indices line
+        # up with the LHS row.
+        genome: dict[str, Any] = {}
+        cont_idx = 0
+        for name, var in spec.search_space.items():
+            if isinstance(var, UniformVariable):
+                u = float(initial_unit[i, cont_idx])
+                cont_idx += 1
+                genome[name] = var.min + u * (var.max - var.min)
+            elif isinstance(var, ChoiceVariable):
+                genome[name] = py_rng.choice(var.values)
+            else:  # pragma: no cover
+                raise TypeError(f"unsupported variable: {var!r}")
+        candidate_key = _candidate_key(spec_h, genome)
+        existing = records_by_key.get(candidate_key)
+        if existing is None or existing.status == "pending":
+            record = _evaluate_and_record(state.next_candidate_index, candidate_key, genome)
+            state.next_candidate_index += 1
+            records_by_key[candidate_key] = record
+            evaluations += 1
+        _append_history(iteration=i, ehvi_score=0.0)
+        reason = _budget_remaining(spec, evaluations, started_at)
+        if reason is not None:
+            termination_reason = reason
+
+    # ---- EHVI acquisition loop ------------------------------------------
+    for iteration_idx in range(algorithm.iteration_budget):
+        if termination_reason is not None:
+            break
+
+        observed = [r for r in records_by_key.values() if r.status == "complete"]
+        if not observed:
+            # Fall back to a pure random draw if the LHS phase yielded no
+            # feasible point.
+            unit = np_rng.uniform(size=len(cont_names))
+            genome = _sample_genome_from_unit(unit, spec.search_space, py_rng)
+            candidate_key = _candidate_key(spec_h, genome)
+            existing = records_by_key.get(candidate_key)
+            if existing is None or existing.status == "pending":
+                record = _evaluate_and_record(
+                    state.next_candidate_index, candidate_key, genome
+                )
+                state.next_candidate_index += 1
+                records_by_key[candidate_key] = record
+                evaluations += 1
+            _append_history(
+                iteration=algorithm.initial_population_size + iteration_idx,
+                ehvi_score=0.0,
+            )
+            reason = _budget_remaining(spec, evaluations, started_at)
+            if reason is not None:
+                termination_reason = reason
+            continue
+
+        # Build training set.
+        X_rows: list[np.ndarray] = []
+        Y_rows: list[list[float]] = []
+        for rec in observed:
+            X_rows.append(_featureise_genome(rec.parameters, cont_names, spec.search_space))
+            y_row: list[float] = []
+            ok = True
+            for obj in objectives:
+                v = _objective_value(rec, obj.metric)
+                if v is None:
+                    ok = False
+                    break
+                y_row.append(_signed_value(v, obj.direction))
+            if ok:
+                Y_rows.append(y_row)
+            else:
+                X_rows.pop()
+        if not X_rows:
+            unit = np_rng.uniform(size=len(cont_names))
+            genome = _sample_genome_from_unit(unit, spec.search_space, py_rng)
+            candidate_key = _candidate_key(spec_h, genome)
+            existing = records_by_key.get(candidate_key)
+            if existing is None or existing.status == "pending":
+                record = _evaluate_and_record(
+                    state.next_candidate_index, candidate_key, genome
+                )
+                state.next_candidate_index += 1
+                records_by_key[candidate_key] = record
+                evaluations += 1
+            _append_history(
+                iteration=algorithm.initial_population_size + iteration_idx,
+                ehvi_score=0.0,
+            )
+            reason = _budget_remaining(spec, evaluations, started_at)
+            if reason is not None:
+                termination_reason = reason
+            continue
+
+        X = np.stack(X_rows, axis=0)
+        Y = np.asarray(Y_rows, dtype=float)
+
+        # Fit one GP per objective with a *fresh* deterministic RNG anchored
+        # in the spec seed so reseeded runs are byte-identical.
+        gps: list[GaussianProcess] = []
+        for obj_idx in range(len(objectives)):
+            gp_rng = np.random.default_rng(
+                algorithm.seed + 1000 * (iteration_idx + 1) + obj_idx
+            )
+            kernel = kernel_by_name(algorithm.gp_kernel)
+            gp = GaussianProcess(kernel, noise_floor=algorithm.gp_noise_floor)
+            gp.fit(X, Y[:, obj_idx], rng=gp_rng)
+            gps.append(gp)
+
+        # Sample the candidate pool via LHS in unit space.
+        pool_unit = _latin_hypercube_unit(
+            np_rng, algorithm.candidate_pool_size, len(cont_names)
+        )
+        pareto = _ehvi_pareto_front(records_by_key.values(), objectives)
+        ref_point = _ehvi_reference_point(algorithm, Y, len(objectives))
+
+        best_idx = -1
+        best_score = -1.0
+        best_genome: dict[str, Any] | None = None
+        for cand_i in range(pool_unit.shape[0]):
+            unit = pool_unit[cand_i]
+            genome = _sample_genome_from_unit(unit, spec.search_space, py_rng)
+            x_feat = _featureise_genome(genome, cont_names, spec.search_space).reshape(1, -1)
+            mu = np.empty(len(objectives), dtype=float)
+            sigma = np.empty(len(objectives), dtype=float)
+            for obj_idx, gp in enumerate(gps):
+                m, v = gp.predict(x_feat)
+                mu[obj_idx] = float(m[0])
+                sigma[obj_idx] = math.sqrt(max(float(v[0]), 1.0e-12))
+            score = compute_ehvi(mu, sigma, pareto, ref_point)
+            # Stable tie-break: prefer earlier draws on equal score.
+            if score > best_score:
+                best_score = score
+                best_idx = cand_i
+                best_genome = genome
+
+        assert best_genome is not None
+        candidate_key = _candidate_key(spec_h, best_genome)
+        existing = records_by_key.get(candidate_key)
+        if existing is None or existing.status == "pending":
+            record = _evaluate_and_record(
+                state.next_candidate_index, candidate_key, best_genome
+            )
+            state.next_candidate_index += 1
+            records_by_key[candidate_key] = record
+            evaluations += 1
+        _append_history(
+            iteration=algorithm.initial_population_size + iteration_idx,
+            ehvi_score=best_score,
+        )
+        reason = _budget_remaining(spec, evaluations, started_at)
+        if reason is not None:
+            termination_reason = reason
+
+    if termination_reason is None:
+        termination_reason = "completed"
+
+    # ---- Finalise ----------------------------------------------------------
+    ordered = sorted(records_by_key.values(), key=lambda r: r.candidate_index)
+    final_frontier_keys = _final_frontier_keys(
+        ordered, objectives, exploratory=spec.objectives_explicit_exploratory
+    )
+    pending_count = sum(1 for r in ordered if r.status == "pending")
+    completed_count = sum(1 for r in ordered if r.status == "complete")
+    failed_count = sum(1 for r in ordered if r.status == "failed")
+    constraint_failed_count = sum(
+        1 for r in ordered if r.status == "constraint_failed"
+    )
+
+    metadata = SearchMetadata(
+        algorithm_kind="ehvi",
+        seed=algorithm.seed,
+        population_size=None,
+        generations=None,
+        initial_population_size=algorithm.initial_population_size,
+        iteration_budget=algorithm.iteration_budget,
+        gp_kernel=algorithm.gp_kernel,
+        objectives=objectives,
+        constraints=list(spec.constraints),
+        realized_max_evaluations=spec.budget.max_evaluations,
+        realized_wall_clock_seconds=spec.budget.wall_clock_seconds,
+        realized_evaluations=evaluations,
+        termination_reason=termination_reason,
+        history=[],
+        ehvi_history=ehvi_history,
+    )
+
+    run_record = SearchRunRecord(
+        name=spec.name,
+        spec_hash=spec_h,
+        search_class=search_class,
+        search_metadata=metadata,
+        candidate_count=len(ordered),
+        pending_count=pending_count,
+        completed_count=completed_count,
+        failed_count=failed_count,
+        constraint_failed_count=constraint_failed_count,
+        final_frontier_keys=final_frontier_keys,
+        candidates=ordered,
+    )
+    (out / "run.json").write_text(run_record.model_dump_json(indent=2))
+    _write_summary(out / "summary.csv", ordered)
+    _write_failures(
+        out / "failures.jsonl",
+        [r for r in ordered if r.status in ("failed", "constraint_failed")],
+    )
+    _write_state(state, out)
+    return SearchRunResult(
+        name=spec.name,
+        run_dir=str(out),
+        search_class=search_class,
+        search_metadata=metadata,
+        final_frontier_keys=final_frontier_keys,
+        candidate_count=len(ordered),
+        completed_count=completed_count,
+        failed_count=failed_count,
+        constraint_failed_count=constraint_failed_count,
+        pending_count=pending_count,
     )
 
 

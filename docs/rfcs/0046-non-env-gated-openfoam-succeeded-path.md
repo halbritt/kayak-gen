@@ -1,6 +1,6 @@
 # RFC 0046: Non-env-gated OpenFOAM Succeeded Path
 
-Status: proposed
+Status: landed three-mechanism opt-in (profile flag > persistent setting > env knob) + audit trail; defaults unchanged
 Date: 2026-05-16
 Context: successor to RFC 0041 / D012 / D022. The cowboy 2026-05-16
 session landed a real `openfoam-v2512-interfoam-local` `succeeded` path

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -40,6 +41,14 @@ from kayakgen.eval.volume_mesh import (
     VolumeMeshReason,
     sha256_json,
 )
+
+MeshEvidenceBindCode = Literal[
+    "closed_body_hash_mismatch",
+    "snappy_evidence_body_mismatch",
+    "polymesh_artifact_drift",
+    "evidence_not_recorded",
+    "evidence_translation_failed",
+]
 
 SNAPPYHEXMESH_CASE_TEMPLATE_VERSION = "openfoam-v2512-snappyhexmesh-watertight-v1"
 SNAPPYHEXMESH_BODY_PROFILE = "generated_hull_plus_deck_closed_body_v1"
@@ -572,6 +581,173 @@ def _canonical_dict_payload(scaffolds: dict[str, str]) -> str:
     return json.dumps(scaffolds, sort_keys=True, separators=(",", ":"))
 
 
+class MeshEvidenceBindError(Exception):
+    """Structured rejection raised when evidence-binding gates fail.
+
+    The ``code`` attribute carries one of the RFC 0045 rejection codes
+    (``closed_body_hash_mismatch``, ``snappy_evidence_body_mismatch``,
+    ``polymesh_artifact_drift``). Additional ``evidence_not_recorded`` /
+    ``evidence_translation_failed`` codes are emitted when the evidence
+    record is shaped correctly but the translator refuses to issue a
+    :class:`VolumeMeshDiagnostic`.
+    """
+
+    def __init__(self, code: MeshEvidenceBindCode, message: str) -> None:
+        super().__init__(message)
+        self.code: MeshEvidenceBindCode = code
+        self.message: str = message
+
+
+def closed_body_content_sha256(body: ClosedVolumeBody) -> str:
+    """Return a deterministic SHA-256 of a closed-body's identity + triangle mesh.
+
+    The hash is derived from the canonical JSON serialization of the body's
+    identity fields and per-part vertex/face data so two callers with the
+    same in-memory body always agree on the same hash. This is the binding
+    identity used by RFC 0045's evidence-binding gate and is independent of
+    on-disk STL encoding which is not byte-deterministic across runs.
+    """
+
+    parts_payload = [
+        {
+            "name": part.name,
+            "vertices": [list(v) for v in part.vertices],
+            "faces": [list(f) for f in part.faces],
+        }
+        for part in body.parts
+    ]
+    payload = {
+        "body_id": body.body_id,
+        "body_type": body.body_type,
+        "source_hull_hash": body.source_hull_hash or "",
+        "profile_name": body.policy.profile_name,
+        "waterline_z_m": body.waterline_z_m,
+        "parts": parts_payload,
+    }
+    return sha256_json(payload)
+
+
+def _recompute_polymesh_checksums(
+    polymesh_dir: Path,
+    artifact_names: list[str],
+) -> dict[str, str]:
+    """Return SHA-256 digests for the polyMesh files named in ``artifact_names``.
+
+    Only filenames recorded in the evidence record's
+    ``artifact_checksums`` are recomputed; files outside that set (e.g.
+    auxiliary ``points.gz`` rotations) are intentionally ignored so the
+    drift check stays scoped to the recorded surface.
+    """
+
+    checksums: dict[str, str] = {}
+    for name in artifact_names:
+        candidate = polymesh_dir / name
+        if not candidate.is_file():
+            continue
+        digest = hashlib.sha256()
+        with open(candidate, "rb") as handle:
+            for chunk in iter(lambda: handle.read(65536), b""):
+                digest.update(chunk)
+        checksums[name] = digest.hexdigest()
+    return checksums
+
+
+def bind_evidence_to_mesh_package(
+    evidence: SnappyHexMeshEvidence,
+    *,
+    closed_body_hash: str,
+    polymesh_dir: Path | None = None,
+) -> VolumeMeshDiagnostic:
+    """Validate evidence body bindings and return the bound diagnostic.
+
+    Three gates must all pass:
+
+    1. ``evidence.body_profile`` matches
+       :data:`SNAPPYHEXMESH_BODY_PROFILE` (the RFC 0040 generated body
+       profile name). Failure emits ``snappy_evidence_body_mismatch``.
+    2. ``evidence.body_ref_hash`` matches ``closed_body_hash``. Failure
+       emits ``closed_body_hash_mismatch``.
+    3. If ``polymesh_dir`` is supplied, each artifact name recorded in
+       ``evidence.artifact_checksums`` is re-hashed on disk and compared
+       to the recorded checksum. Any mismatch (or missing file) emits
+       ``polymesh_artifact_drift``.
+
+    On success the helper invokes
+    :func:`snappy_hex_mesh_volume_mesh_diagnostic` and returns the
+    resulting :class:`VolumeMeshDiagnostic`. A ``None`` return from the
+    translator (partial evidence after the body checks) escalates to
+    ``evidence_not_recorded`` / ``evidence_translation_failed`` so
+    callers always either get a usable diagnostic or a structured
+    :class:`MeshEvidenceBindError`.
+    """
+
+    if evidence.body_profile != SNAPPYHEXMESH_BODY_PROFILE:
+        raise MeshEvidenceBindError(
+            code="snappy_evidence_body_mismatch",
+            message=(
+                f"snappyHexMesh evidence body_profile {evidence.body_profile!r} "
+                f"does not match required profile {SNAPPYHEXMESH_BODY_PROFILE!r}"
+            ),
+        )
+    if not evidence.body_ref_hash or evidence.body_ref_hash != closed_body_hash:
+        raise MeshEvidenceBindError(
+            code="closed_body_hash_mismatch",
+            message=(
+                "snappyHexMesh evidence body_ref_hash does not match the current "
+                "hull's closed-body hash; the evidence is bound to a different body"
+            ),
+        )
+
+    if polymesh_dir is not None:
+        recorded = dict(evidence.artifact_checksums)
+        # Restrict the drift check to polymesh-style artifact names so that
+        # case-metadata or volume_mesh placeholder names are ignored when
+        # they are not present on disk.
+        candidate_names = [
+            name for name in recorded if (polymesh_dir / name).is_file()
+        ]
+        if not candidate_names:
+            raise MeshEvidenceBindError(
+                code="polymesh_artifact_drift",
+                message=(
+                    f"no recorded polyMesh artifacts were present under "
+                    f"{polymesh_dir}; cannot verify polymesh artifact integrity"
+                ),
+            )
+        actual = _recompute_polymesh_checksums(polymesh_dir, candidate_names)
+        for name in candidate_names:
+            if actual.get(name) != recorded.get(name):
+                raise MeshEvidenceBindError(
+                    code="polymesh_artifact_drift",
+                    message=(
+                        f"polyMesh artifact {name!r} checksum differs from the "
+                        "evidence record; the on-disk artifact has drifted "
+                        "since evidence was captured"
+                    ),
+                )
+
+    if evidence.dispatch_state != "evidence_recorded":
+        raise MeshEvidenceBindError(
+            code="evidence_not_recorded",
+            message=(
+                f"snappyHexMesh evidence dispatch_state is "
+                f"{evidence.dispatch_state!r}; only 'evidence_recorded' "
+                "evidence can be bound to a mesh package"
+            ),
+        )
+
+    diagnostic = snappy_hex_mesh_volume_mesh_diagnostic(evidence)
+    if diagnostic is None:
+        raise MeshEvidenceBindError(
+            code="evidence_translation_failed",
+            message=(
+                "snappyHexMesh evidence translator refused to issue a "
+                "VolumeMeshDiagnostic; required gates are not all satisfied"
+            ),
+        )
+    return diagnostic
+
+
 __all__ = [
     "SNAPPYHEXMESH_CASE_TEMPLATE_VERSION",
     "SNAPPYHEXMESH_BODY_PROFILE",
@@ -589,4 +765,8 @@ __all__ = [
     "compute_dict_hashes",
     "build_snappy_hex_mesh_evidence",
     "snappy_hex_mesh_volume_mesh_diagnostic",
+    "MeshEvidenceBindError",
+    "MeshEvidenceBindCode",
+    "bind_evidence_to_mesh_package",
+    "closed_body_content_sha256",
 ]

@@ -32,6 +32,56 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed RFC 0045 ordinary-package solver-readiness promotion. New
+  `kayakgen mesh-evidence <hull> --out <dir>` subcommand runs the
+  OpenFOAM-v2512 meshing stage against a generated closed-body STL and
+  emits a serialized `SnappyHexMeshEvidence` plus the polyMesh artifacts;
+  refuses without `KAYAKGEN_OPENFOAM_LOCAL_RUN=1` and a sourceable
+  bashrc. New `kayakgen mesh-package --bind-evidence <path>` reads the
+  evidence and embeds the resulting `VolumeMeshDiagnostic` into the
+  manifest. A new `bind_evidence_to_mesh_package(evidence, *,
+  closed_body_hash, polymesh_dir)` helper performs three hash checks
+  with structured rejection codes (`closed_body_hash_mismatch`,
+  `snappy_evidence_body_mismatch`, `polymesh_artifact_drift`, plus
+  `evidence_not_recorded` and `evidence_translation_failed`). Default
+  `kayakgen mesh-package` JSON is byte-equal to before when
+  `--bind-evidence` is absent. +7 tests.
+- Landed RFC 0046 non-env-gated OpenFOAM `succeeded` path. Three
+  mechanisms admit the real-solver path in precedence order:
+  per-job profile flag (`kayakgen cfd prepare
+  --allow-real-solver-execution`), persistent setting
+  (`~/.config/kayakgen/cfd.json` with
+  `allow_real_solver_execution_profiles`), and the existing
+  `KAYAKGEN_OPENFOAM_LOCAL_RUN=1` env knob (backwards-compatible).
+  Default behavior (no opt-in) stays `solver_success_blocked`.
+  `CfdRunRecord` gains a `real_solver_execution_opt_in: Literal[
+  "profile_flag","persistent_setting","env_knob"] | None` field and a
+  `SolverExecutionAudit` block (bashrc path, provenance summary, locked
+  case-template version, mesh seconds, solve seconds). `claim_state`
+  stays `raw_unvalidated`; `accepted_uses` stays `[]`. +11 tests across
+  `tests/test_cfd_config.py` and `tests/test_cfd_opt_in_resolver.py`.
+- Landed RFC 0047 v2 EHVI active-search successor. New
+  `kayakgen/search/active/gp.py` ships a vendored Cholesky-factorized
+  Gaussian process with Matern 5/2 and RBF kernels and a vendored
+  Nelder-Mead marginal-likelihood optimizer (numpy only; no scipy /
+  scikit-learn / BoTorch / GPyTorch / scikit-optimize dependency).
+  `kayakgen/search/active/ehvi.py` implements EHVI for 1, 2, and 3
+  objectives via axis-aligned cell decomposition; raises
+  `EhviDimensionError` for 4+. `SearchAlgorithmSpec.kind` accepts a new
+  `"ehvi"` literal; `EhviAlgorithmConfig` carries
+  `initial_population_size`, `iteration_budget`, `seed`, `gp_kernel`,
+  `gp_noise_floor`, `reference_point`, `candidate_pool_size`. The
+  runner dispatches on `isinstance(spec.algorithm, EhviAlgorithmConfig)`
+  to the new `_run_ehvi_search` path; the RFC 0043 high-angle-GZ
+  display-only refusal and the RFC 0044 claim-admissibility gate apply
+  unchanged. Seeded determinism is enforced via a single
+  `numpy.random.default_rng(seed)` thread through LHS sampling, GP fit,
+  candidate-pool draw, and tie-breaking. The synthetic-landscape
+  regression test verifies EHVI achieves >=5x hypervolume improvement
+  vs random selection at equal budget. Surrogate predictions never
+  appear in candidate `summary` or `run.json` objective fields. Default
+  NSGA-II behavior is byte-equal. +19 tests across
+  `tests/test_active_search_{gp,ehvi,v2_runner}.py`.
 - Landed RFC 0043 stage 4 desktop minimal indicator: a new
   `high_angle_gz: cli_only_unvalidated_hydrostatic_comparison` segment
   in the desktop status block points users at the staged opt-in
