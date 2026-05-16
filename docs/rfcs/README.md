@@ -56,7 +56,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0040](0040-closed-volume-solver-readiness-roadmap.md) | partial landed generated-body-hardening + real snappyHexMesh evidence harness (opt-in env-gated) | Closed-volume solver readiness roadmap |
 | [0041](0041-real-cfd-adapter-successor.md) | landed real openfoam-v2512-interfoam-local succeeded path (opt-in env-gated); claim_state stays raw_unvalidated | Real CFD adapter successor |
 | [0042](0042-resistance-calibration-fixture-successor.md) | partial landed source-review-packet-validators + Edinburgh acquisition + extractor + D025 promotion to validation_fixture; calibration still envelope-blocked | Resistance calibration fixture successor |
-| [0043](0043-high-angle-gz-successor.md) | partial landed staged surfacing (stages 1-3 + web read model; stage 4 desktop intentionally minimal) | High-angle GZ successor |
+| [0043](0043-high-angle-gz-successor.md) | landed staged surfacing (stages 1-3 + web read model + stage 4 desktop minimal status segment) | High-angle GZ successor |
 | [0044](0044-active-hull-design-search.md) | landed v1 NSGA-II + kayakgen search CLI (additive opt-in; defaults unchanged) | Active hull-design search |
 | [0045](0045-ordinary-package-solver-readiness-promotion.md) | proposed | Ordinary-package solver-readiness promotion (mesh-evidence binding) |
 | [0046](0046-non-env-gated-openfoam-succeeded-path.md) | proposed | Non-env-gated OpenFOAM succeeded path (per-job + persistent settings) |

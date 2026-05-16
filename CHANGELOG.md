@@ -32,6 +32,16 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed RFC 0043 stage 4 desktop minimal indicator: a new
+  `high_angle_gz: cli_only_unvalidated_hydrostatic_comparison` segment
+  in the desktop status block points users at the staged opt-in
+  surfaces (`kayakgen stability --high-angle-gz`, sweep
+  `evaluators.high_angle_gz`, comparison `high_angle_gz_display`, Trame
+  web workspace). Per D021 the desktop does not render a curve; the
+  segment is a labelled pointer. Forbidden-copy regression in
+  `tests/test_desktop_layout.py` confirms no safety / seaworthiness /
+  validated / calibrated / final-prediction / design-fitness wording
+  leaks onto the desktop status surface.
 - Promoted the Edinburgh DataShare Pacific-canoe source-review packet
   from `validation_candidate` to `validation_fixture` (RFC 0042 / D025).
   The `ResistanceSourceReviewPacket` validator relaxes in two narrow,

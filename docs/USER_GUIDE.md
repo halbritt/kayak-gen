@@ -497,10 +497,16 @@ unchanged: choosing a stem such as `kayak` writes `kayak_hull.stl` and
 `kayak_deck.stl`.
 
 The desktop review text now keeps the same four status categories used by the
-workspace RFC: package, readiness, resistance, and CFD. In the current desktop
-slice these are status labels only; the GUI does not prepare mesh packages,
-start CFD jobs, or promote raw resistance output to a final prediction. The
-3D preview still opens as a separate PyVista window.
+workspace RFC: package, readiness, resistance, and CFD. RFC 0043 stage 4 adds
+a fifth segment, `high_angle_gz`, which always reads
+`cli_only_unvalidated_hydrostatic_comparison` on the desktop. The desktop
+intentionally does not render a high-angle GZ curve (per D021); the staged
+opt-in surfaces are `kayakgen stability --high-angle-gz`, the sweep
+`evaluators.high_angle_gz` artifact, the comparison report's
+`high_angle_gz_display` block, and the Trame web workspace. In the current
+desktop slice these are status labels only; the GUI does not prepare mesh
+packages, start CFD jobs, or promote raw resistance output to a final
+prediction. The 3D preview still opens as a separate PyVista window.
 
 ### `serve`
 

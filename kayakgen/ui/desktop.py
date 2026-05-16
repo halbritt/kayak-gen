@@ -69,6 +69,13 @@ STATUS_SEGMENTS = (
     "readiness: cfd_surface_candidate",
     "resistance: uncalibrated_comparative",
     "cfd: not_prepared",
+    # RFC 0043 stage 4 (desktop minimal, per D021): the desktop GUI does
+    # not surface a high-angle GZ curve. Users who want the staged
+    # display-only output go through `kayakgen stability --high-angle-gz`,
+    # the sweep `evaluators.high_angle_gz` artifact, the comparison
+    # report's `high_angle_gz_display` block, or the Trame web workspace.
+    # The text stays unvalidated_hydrostatic_comparison everywhere.
+    "high_angle_gz: cli_only_unvalidated_hydrostatic_comparison",
 )
 
 

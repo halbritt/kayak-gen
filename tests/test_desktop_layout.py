@@ -131,3 +131,45 @@ def test_desktop_slider_labels_are_visible_and_unobstructed(
             ), f"{value_text} overlaps value text for {other_key}"
 
     plt.close(gui.fig)
+
+
+def test_desktop_status_segments_carry_rfc_0043_stage4_high_angle_line(
+    monkeypatch,
+) -> None:
+    """RFC 0043 stage 4 desktop indicator (per D021 intentionally minimal):
+    the status block carries a single `high_angle_gz: ...` segment that
+    points at the staged opt-in CLI/sweep/comparison/web surfaces and
+    preserves the unvalidated_hydrostatic_comparison wording. No safety,
+    seaworthiness, calibration, or validation copy on the desktop."""
+    monkeypatch.setattr(plt, "show", lambda *args, **kwargs: None)
+
+    from kayakgen.ui.desktop import STATUS_SEGMENTS, KayakGUI
+
+    gui = KayakGUI()
+    try:
+        block = gui._status_segments_block()
+        assert "high_angle_gz" in block
+        assert "unvalidated_hydrostatic_comparison" in block
+        assert "cli_only" in block
+        # Forbidden-copy regression on the desktop status surface. Strip
+        # the explicit negated forms before the substring check so the
+        # `unvalidated_hydrostatic_comparison` marker doesn't trip the
+        # `validated` refusal.
+        scrubbed = (
+            block.replace("unvalidated_hydrostatic_comparison", "")
+                 .replace("uncalibrated_comparative", "")
+        )
+        for forbidden in (
+            "safe",
+            "seaworthy",
+            "validated",
+            "calibrated",
+            "final prediction",
+            "design fitness",
+        ):
+            assert forbidden not in scrubbed, (
+                f"desktop status must not advertise {forbidden!r}"
+            )
+        assert any("high_angle_gz" in seg for seg in STATUS_SEGMENTS)
+    finally:
+        plt.close(gui.fig)
