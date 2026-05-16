@@ -62,6 +62,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0046](0046-non-env-gated-openfoam-succeeded-path.md) | landed three-mechanism opt-in + audit trail; defaults unchanged | Non-env-gated OpenFOAM succeeded path |
 | [0047](0047-active-search-v2-successor-algorithms.md) | landed v2 EHVI over vendored Cholesky GP (1-3 objectives; additive opt-in; defaults unchanged) | Active search v2 — EHVI/GP Bayesian successor |
 | [0048](0048-geometry-v2-distribution-model.md) | proposed | Geometry V2 — explicit distribution model + canonical closed-body loft |
+| [0049](0049-artifact-store-and-identity.md) | proposed | Artifact store + identity normalization (design/record/artifact/run hashes; filesystem v1 + SQLite index) |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
