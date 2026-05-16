@@ -92,6 +92,22 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   `tests/test_desktop_layout.py` confirms no safety / seaworthiness /
   validated / calibrated / final-prediction / design-fitness wording
   leaks onto the desktop status surface.
+- Phase 7 of `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`:
+  modelled the OpenFOAM CFD execution pipeline as explicit named
+  stages. New `CfdRunStage` Pydantic record (`name`, `state`,
+  `started_at`, `completed_at`, `wall_clock_seconds`, `notes`,
+  `error_kind`) with literal-locked names (`mesh_readiness_evidence`,
+  `case_render`, `meshing`, `mesh_evidence_binding`,
+  `solver_execution`, `parser_post_processing`, `raw_result`,
+  `validation_gate`) and an additive `stages: list[CfdRunStage]`
+  field on `CfdRunRecord` (default `[]`).
+  `OpenFoamLocalAdapter._attempt_real_succeeded_path` populates the
+  stages incrementally as each runs; the non-OpenFOAM adapters keep
+  `stages=[]`. `validation_gate` is always emitted with
+  `state="skipped"` + `notes=["validation_gate_not_implemented"]`
+  because no accepted-validation workflow exists. Backwards-compatible
+  for existing serialized records. New tests under
+  `tests/test_cfd_run_stages.py`. Suite 733 + 2 skipped, ruff clean.
 - Phase 5 of `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`:
   centralised the metric registry. `ObjectiveMetadata` gains
   `display_format`, `availability_conditions`, and
