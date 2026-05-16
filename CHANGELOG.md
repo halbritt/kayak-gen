@@ -453,6 +453,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 - Refreshed `AGENTS.md` current-direction paragraph and dropped the stale
   "DECISION_LOG is mostly template" negative-space note (D001-D023 are now
   real recorded decisions).
+- Added `ARCHITECTURE_REVIEW_2026-05-16.md` at the repo root — an
+  operator-authored systems architecture review of kayakgen as of
+  2026-05-16 covering verification snapshot, executive summary, what
+  the project is trying to be, and architectural risks. Independent of
+  the cowboy-session implementation commits; included for shared
+  reference.
 - Added `docs/research/CALIBRATION_DATA_FINDINGS_2026-05-16.md` recording
   the two null findings from the 2026-05-16 research investigations
   (in-envelope measured kayak resistance and measured kayak GZ-vs-heel)
