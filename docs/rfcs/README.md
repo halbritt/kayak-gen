@@ -58,6 +58,9 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0042](0042-resistance-calibration-fixture-successor.md) | partial landed source-review-packet-validators + Edinburgh acquisition + extractor; validation-fixture-ready, calibration still blocked by envelope | Resistance calibration fixture successor |
 | [0043](0043-high-angle-gz-successor.md) | partial landed staged surfacing (stages 1-3 + web read model; stage 4 desktop intentionally minimal) | High-angle GZ successor |
 | [0044](0044-active-hull-design-search.md) | landed v1 NSGA-II + kayakgen search CLI (additive opt-in; defaults unchanged) | Active hull-design search |
+| [0045](0045-ordinary-package-solver-readiness-promotion.md) | proposed | Ordinary-package solver-readiness promotion (mesh-evidence binding) |
+| [0046](0046-non-env-gated-openfoam-succeeded-path.md) | proposed | Non-env-gated OpenFOAM succeeded path (per-job + persistent settings) |
+| [0047](0047-active-search-v2-successor-algorithms.md) | proposed | Active search v2 — EHVI/GP Bayesian successor algorithms |
 
 RFC 0007 has landed as the `kayakgen` package, CLI, compatibility
 shims, and golden regression tests. RFC 0005 has landed only as a raw
