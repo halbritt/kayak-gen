@@ -581,12 +581,20 @@ def _generated_section_points(
     x: float,
     part: str,
 ) -> np.ndarray:
-    get_slice_points = getattr(geometry, "_get_slice_points", None)
-    if callable(get_slice_points):
-        return np.asarray(
-            get_slice_points(x, part, closed_body_endpoint=True),
-            dtype=float,
-        )
+    """Return the closed-body section ring at ``x``.
+
+    Per Phase 2 step 4 of ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md``
+    the closed-body builder consumes the public
+    :meth:`HullGeometry.section_for_closed_body` entry point. Geometries
+    that pre-date the method fall back to their open :meth:`section`
+    surface; the result will not honor exact plumb-stem endpoint
+    closure but the generated-body diagnostic chain catches that
+    downstream.
+    """
+
+    closed_section = getattr(geometry, "section_for_closed_body", None)
+    if callable(closed_section):
+        return np.asarray(closed_section(x, part), dtype=float)
     return np.asarray(geometry.section(x, part), dtype=float)
 
 

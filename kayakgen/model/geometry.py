@@ -229,7 +229,29 @@ class LoftedHullGeometry(HullGeometry):
     # ----- HullGeometry interface -----
 
     def section(self, x: float, part: PartType) -> np.ndarray:
+        """Cross-section ring at ``x`` using the open-loft end-decay.
+
+        This is the loft used by the open hull/deck STL surfaces. The result
+        is *not* watertight at the ends — exact plumb-stem endpoint closure
+        is handled separately by :meth:`section_for_closed_body`.
+        """
+
         return self._get_slice_points(x, part)
+
+    def section_for_closed_body(self, x: float, part: PartType) -> np.ndarray:
+        """Cross-section ring at ``x`` honoring exact plumb-stem closure.
+
+        Public entry point introduced by Phase 2 step 4 of
+        ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md``: replaces the
+        previous ``_get_slice_points(..., closed_body_endpoint=True)``
+        reach-in used by ``kayakgen.eval.closed_volume`` to assemble the
+        generated closed-body. At endpoints where ``bow_rake==0`` or
+        ``stern_rake==0`` the section snaps to the exact plumb-stem ring
+        instead of decaying to zero; elsewhere the behaviour is identical
+        to :meth:`section`.
+        """
+
+        return self._get_slice_points(x, part, closed_body_endpoint=True)
 
     def mesh(
         self, part: PartType, stations: int | None = None
