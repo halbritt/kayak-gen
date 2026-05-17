@@ -45,6 +45,12 @@ class ObjectiveMetadata(BaseModel):
     display_format: str = "{value:.3f}"
     availability_conditions: list[str] = []
     default_objective_eligible: bool = False
+    within_evaluator_noise_threshold: float | None = None
+    """RFC 0052 tolerance map entry. When two default-objective metric values
+    differ by less than this threshold the comparison report flags the pair as
+    ``within_evaluator_noise`` in ``pairwise_notes``. ``None`` opts the metric
+    out of the advisory.
+    """
 
     @field_validator("metric", "label", "unit", "source_evaluator", "availability_rule")
     @classmethod
@@ -83,6 +89,7 @@ OBJECTIVE_METADATA: dict[str, ObjectiveMetadata] = {
         display_format="{value:.3f}",
         availability_conditions=["hydrostatics_evaluated"],
         default_objective_eligible=True,
+        within_evaluator_noise_threshold=0.001,
     ),
     "displacement_error_kg": ObjectiveMetadata(
         metric="displacement_error_kg",
@@ -95,6 +102,7 @@ OBJECTIVE_METADATA: dict[str, ObjectiveMetadata] = {
         display_format="{value:.3f}",
         availability_conditions=["stability_evaluator_ran"],
         default_objective_eligible=True,
+        within_evaluator_noise_threshold=0.5,
     ),
     "displaced_mass_kg": ObjectiveMetadata(
         metric="displaced_mass_kg",
@@ -143,6 +151,7 @@ OBJECTIVE_METADATA: dict[str, ObjectiveMetadata] = {
         display_format="{value:.0f}",
         availability_conditions=["mesh_diagnostics_artifact_present"],
         default_objective_eligible=True,
+        within_evaluator_noise_threshold=1.0,
     ),
     "Rt_N_last": ObjectiveMetadata(
         metric="Rt_N_last",
@@ -206,6 +215,60 @@ OBJECTIVE_METADATA: dict[str, ObjectiveMetadata] = {
         role="display_only",
         display_format="{value:.3f}",
         availability_conditions=["high_angle_gz_artifact_present"],
+        default_objective_eligible=False,
+    ),
+    # RFC 0053 turning metrics: display-only numeric outputs of the
+    # opt-in TurningMetrics evaluator. Surfaced as candidate summary
+    # columns but never admissible as Pareto/search objectives — the
+    # geometric proxy is not a fitness signal until a validated dynamic
+    # turning evaluator lands. Refusal flows through the existing
+    # ``role="display_only"`` admissibility gate.
+    "turning.edged_waterline_length_m": ObjectiveMetadata(
+        metric="turning.edged_waterline_length_m",
+        label="Edged waterline length",
+        unit="m",
+        direction="max",
+        source_evaluator="turning",
+        availability_rule="present when turning metrics evaluator runs",
+        role="display_only",
+        display_format="{value:.3f}",
+        availability_conditions=["turning_metrics_evaluator_ran"],
+        default_objective_eligible=False,
+    ),
+    "turning.upright_waterline_length_m": ObjectiveMetadata(
+        metric="turning.upright_waterline_length_m",
+        label="Upright waterline length",
+        unit="m",
+        direction="max",
+        source_evaluator="turning",
+        availability_rule="present when turning metrics evaluator runs",
+        role="display_only",
+        display_format="{value:.3f}",
+        availability_conditions=["turning_metrics_evaluator_ran"],
+        default_objective_eligible=False,
+    ),
+    "turning.lateral_plane_shift_m": ObjectiveMetadata(
+        metric="turning.lateral_plane_shift_m",
+        label="Lateral plane shift",
+        unit="m",
+        direction="max",
+        source_evaluator="turning",
+        availability_rule="present when turning metrics evaluator runs",
+        role="display_only",
+        display_format="{value:.3f}",
+        availability_conditions=["turning_metrics_evaluator_ran"],
+        default_objective_eligible=False,
+    ),
+    "turning.rocker_weighted_maneuverability_signal": ObjectiveMetadata(
+        metric="turning.rocker_weighted_maneuverability_signal",
+        label="Rocker-weighted maneuverability signal",
+        unit="m",
+        direction="max",
+        source_evaluator="turning",
+        availability_rule="present when turning metrics evaluator runs",
+        role="display_only",
+        display_format="{value:.3f}",
+        availability_conditions=["turning_metrics_evaluator_ran"],
         default_objective_eligible=False,
     ),
 }

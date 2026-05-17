@@ -8,16 +8,26 @@ not touch any HTTP / Trame state object.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
+from pydantic import BaseModel, ConfigDict, Field
 
-from kayakgen.eval.contract import EvaluationResult, ResistanceCurve, ResistanceMetadata
+from kayakgen.eval.contract import (
+    EvaluationResult,
+    LoadCase,
+    ResistanceCurve,
+    ResistanceMetadata,
+    StabilityResult,
+)
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.mesh_diagnostics import MeshDiagnostics, diagnose_mesh
 from kayakgen.eval.mesh_package import MeshPackageManifest
 from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance, resistance_curve
+from kayakgen.eval.stability import evaluate_equilibrium_stability
+from kayakgen.eval.stability.trim_equilibrium import _evaluate_trim_equilibrium
 from kayakgen.model.advisory import design_advisory
+from kayakgen.model.hull import Hull
 from kayakgen.model.validity import evaluate_design_validity
 from kayakgen.services.design import hull_from_web_state
 
@@ -523,6 +533,141 @@ def _mesh_diagnostics_counts(diagnostics: MeshDiagnostics) -> dict[str, dict[str
             "raw": diagnostics.degenerate_faces,
         },
     }
+
+
+class TargetDraftMismatchReport(BaseModel):
+    """Diagnostic report comparing an assumed draft against a load case.
+
+    Returned by :func:`target_draft_load_mismatch`. Given a fixed draft for
+    a hull, reports the buoyant displaced mass at that draft, the
+    expected mass requested by the load case, and the signed mismatch in
+    kilograms and percent of the requested load. Positive ``mismatch_kg``
+    means the hull at the assumed draft displaces *more* mass than the
+    load case requests (under-loaded relative to draft).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    hull_record_hash: str
+    assumed_draft_m: float = Field(gt=0)
+    expected_displaced_mass_kg: float = Field(ge=0)
+    actual_displaced_mass_kg: float = Field(ge=0)
+    mismatch_kg: float
+    mismatch_percent: float
+    notes: list[str] = Field(default_factory=list)
+
+
+def solve_target_draft(hull: Hull, load_case: LoadCase) -> StabilityResult:
+    """Solve upright sinkage for the given load (no longitudinal trim).
+
+    Wraps :func:`evaluate_equilibrium_stability` with a load case stripped
+    of explicit longitudinal components so the centered sinkage-only
+    solver path is used even if the caller supplied a component list. The
+    returned :class:`StabilityResult` carries the solved equilibrium
+    draft, residuals, iterations, and the buoyancy/load summary fields
+    populated by the underlying solver.
+    """
+    upright_load = (
+        load_case.model_copy(update={"components": []})
+        if load_case.uses_longitudinal_components
+        else load_case
+    )
+    return evaluate_equilibrium_stability(hull, upright_load)
+
+
+def solve_target_trim(hull: Hull, load_case: LoadCase) -> StabilityResult:
+    """Solve draft + trim for a load case with explicit longitudinal CG.
+
+    Delegates to the existing fixed-body upright trim solver. When the
+    supplied load case has no explicit longitudinal components, a
+    placeholder paddler component is synthesized at ``x_m = 0`` so the
+    trim solver receives a non-empty components list; the result will
+    converge near zero trim in that case.
+    """
+    if load_case.uses_longitudinal_components:
+        trim_load = load_case
+    else:
+        from kayakgen.eval.contract import LongitudinalLoadComponent
+
+        kg_above_keel = load_case.kg_above_keel_for_draft(hull.draft_m)
+        trim_load = load_case.model_copy(
+            update={
+                "components": [
+                    LongitudinalLoadComponent(
+                        name="paddler",
+                        mass_kg=load_case.paddler_mass_kg,
+                        x_m=0.0,
+                        kg_above_keel_m=kg_above_keel,
+                    ),
+                    LongitudinalLoadComponent(
+                        name="hull",
+                        mass_kg=load_case.hull_mass_kg,
+                        x_m=0.0,
+                        kg_above_keel_m=kg_above_keel,
+                    ),
+                    LongitudinalLoadComponent(
+                        name="cargo",
+                        mass_kg=load_case.cargo_mass_kg,
+                        x_m=0.0,
+                        kg_above_keel_m=kg_above_keel,
+                    ),
+                ]
+            }
+        )
+    tolerance_kg = 1.0
+    moment_tolerance_kg_m = max(0.1, tolerance_kg * hull.length_m * 0.05)
+    return _evaluate_trim_equilibrium(
+        hull,
+        trim_load,
+        tolerance_kg=tolerance_kg,
+        moment_tolerance_kg_m=moment_tolerance_kg_m,
+        max_iterations=60,
+        max_trim_angle_deg=8.0,
+    )
+
+
+def target_draft_load_mismatch(
+    hull: Hull,
+    draft_m: float,
+    load_case: LoadCase,
+) -> TargetDraftMismatchReport:
+    """Report displacement mismatch for a fixed draft and load case.
+
+    Recomputes the hull's hydrostatics at the assumed ``draft_m`` and
+    compares the resulting displaced mass against the load case's total
+    requested mass. The signed mismatch is positive when the hull
+    displaces more than requested (over-buoyant at the assumed draft).
+    """
+    if draft_m <= 0:
+        raise ValueError("draft_m must be positive")
+    if load_case.total_mass_kg <= 0:
+        raise ValueError("load case total mass must be positive")
+
+    hull_at_draft = hull.model_copy(update={"draft_m": draft_m})
+    hydro = evaluate_hydrostatics(hull_at_draft)
+    actual_mass = float(hydro.displaced_volume_m3 * load_case.seawater_density_kg_m3)
+    expected_mass = float(load_case.total_mass_kg)
+    mismatch_kg = actual_mass - expected_mass
+    mismatch_percent = 100.0 * mismatch_kg / expected_mass
+
+    notes: list[str] = ["target_draft_load_mismatch_report"]
+    if abs(mismatch_kg) <= 1.0:
+        notes.append("mismatch_within_one_kg")
+    if mismatch_kg > 0:
+        notes.append("hull_over_buoyant_at_assumed_draft")
+    elif mismatch_kg < 0:
+        notes.append("hull_under_buoyant_at_assumed_draft")
+
+    return TargetDraftMismatchReport(
+        hull_record_hash=hull.hash(),
+        assumed_draft_m=float(draft_m),
+        expected_displaced_mass_kg=expected_mass,
+        actual_displaced_mass_kg=actual_mass,
+        mismatch_kg=float(mismatch_kg),
+        mismatch_percent=float(mismatch_percent),
+        notes=notes,
+    )
 
 
 def _cfd_status_from_state(state: dict[str, Any]) -> str:

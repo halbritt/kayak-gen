@@ -8,12 +8,17 @@ from typing import cast
 
 import typer
 
+from kayakgen.cli.design_report_cli import design_report_command
 from kayakgen.cli.high_angle_gz import build_high_angle_gz_block, parse_heel_grid_deg
+from kayakgen.cli.migrate_geometry_cli import migrate_geometry_command
+from kayakgen.cli.runs_cli import runs_app
+from kayakgen.cli.sensitivity_cli import sensitivity_command
 from kayakgen.eval.contract import EvaluationResult
 from kayakgen.eval.contract import LoadCase
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import resistance_curve
 from kayakgen.eval.stability import evaluate_equilibrium_stability, evaluate_initial_stability
+from kayakgen.eval.turning import evaluate_turning_metrics
 from kayakgen.eval.mesh_package import (
     open_wetted_surface_profile,
     watertight_solid_profile,
@@ -39,6 +44,15 @@ from kayakgen.search.compare import parse_objective, write_comparison_report
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="kayakgen pipeline CLI")
 cfd_app = typer.Typer(no_args_is_help=True, help="Local CFD dispatch jobs")
 app.add_typer(cfd_app, name="cfd")
+calibration_app = typer.Typer(
+    no_args_is_help=True,
+    help="Calibration-campaign ingest, acceptance, and artifact writers (RFC 0054).",
+)
+app.add_typer(calibration_app, name="calibration")
+app.add_typer(runs_app, name="runs")
+app.command("sensitivity")(sensitivity_command)
+app.command("design-report")(design_report_command)
+app.command("migrate-geometry")(migrate_geometry_command)
 
 
 @app.command()
@@ -71,6 +85,19 @@ def evaluate(
     hull_path: Path = typer.Argument(..., exists=True, dir_okay=False),
     out: Path | None = typer.Option(None, "--out", help="Where to write the EvaluationResult JSON; default is <hull>.eval.json."),
     skip_resistance: bool = typer.Option(False, "--skip-resistance", help="Skip the Michell+ITTC sweep (faster)."),
+    turning: bool = typer.Option(
+        False,
+        "--turning",
+        help=(
+            "Opt-in (RFC 0053): compute the TurningMetrics block and attach "
+            "it to the EvaluationResult. Default output is unchanged."
+        ),
+    ),
+    turning_heel_deg: float = typer.Option(
+        8.0,
+        "--turning-heel-deg",
+        help="Heel angle (deg) for --turning; ignored without --turning.",
+    ),
 ) -> None:
     """Run all available evaluators on a hull and write the EvaluationResult."""
     hull = load_hull(hull_path)
@@ -82,11 +109,19 @@ def evaluate(
         displaced_mass_kg=hydrostatics.displaced_mass_kg,
         surface=("cli",),
     )
+    turning_block = None
+    if turning:
+        try:
+            turning_block = evaluate_turning_metrics(hull, heel_deg=turning_heel_deg)
+        except ValueError as exc:
+            typer.echo(f"evaluate --turning failed: {exc}", err=True)
+            raise typer.Exit(code=1) from exc
     result = EvaluationResult(
         hull_hash=hull.hash(),
         hydrostatics=hydrostatics,
         resistance=resistance,
         design_validity=design_validity,
+        turning_metrics=turning_block,
     )
     out_path = out if out is not None else hull_path.with_suffix(".eval.json")
     save_evaluation(result, out_path)
@@ -689,6 +724,281 @@ def compare(
         typer.echo(f"compare failed: {exc}", err=True)
         raise typer.Exit(code=1)
     typer.echo(f"wrote {out} ({len(report.pareto_front_keys)} pareto candidates)")
+
+
+@app.command("build-export")
+def build_export(
+    hull_path: Path = typer.Argument(..., exists=True, dir_okay=False),
+    out: Path = typer.Option(..., "--out", help="Output directory for builder artifacts."),
+    n_stations: int = typer.Option(
+        32,
+        "--n-stations",
+        help="Number of evenly-spaced section cuts to sample (RFC 0051).",
+    ),
+) -> None:
+    """Write builder-oriented artifacts (offsets CSV, DXF, SVG) for a hull (RFC 0051)."""
+    try:
+        from kayakgen.services.build_export import BuildExportSpec, write_build_export
+    except ImportError as exc:
+        typer.echo(
+            f"builder extras not installed (pip install 'kayakgen[builder]'): {exc}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    try:
+        manifest_path = write_build_export(
+            load_hull(hull_path),
+            out,
+            spec=BuildExportSpec(n_stations=n_stations),
+        )
+    except ImportError as exc:
+        typer.echo(
+            f"builder extras not installed (pip install 'kayakgen[builder]'): {exc}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    except Exception as exc:
+        typer.echo(f"build-export failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"wrote {manifest_path}")
+
+
+@calibration_app.command("ingest-tank-test")
+def calibration_ingest_tank_test(
+    csv_path: Path = typer.Argument(
+        ...,
+        exists=True,
+        dir_okay=False,
+        help="Tank-test CSV (see TankTestRun for the required columns).",
+    ),
+    hull: Path = typer.Option(
+        ...,
+        "--hull",
+        exists=True,
+        dir_okay=False,
+        help="Hull JSON used to bind hull_design_hash.",
+    ),
+    rights: Path = typer.Option(
+        ...,
+        "--rights",
+        exists=True,
+        dir_okay=False,
+        help="RightsChecklist JSON describing license / attribution.",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Output directory for the campaign artifact.",
+    ),
+    source_id: str = typer.Option(
+        ...,
+        "--source-id",
+        help="Campaign source_id (must match the value carried on rows).",
+    ),
+    uncertainty_method: str = typer.Option(
+        "Type_A_repeatability",
+        "--uncertainty-method",
+        help=(
+            "One of Type_A_repeatability, Type_B_uncertainty_budget, "
+            "documented_caveat."
+        ),
+    ),
+) -> None:
+    """Ingest a tank-test CSV into a TankTestCampaign JSON artifact."""
+    from kayakgen.eval.calibration.campaigns import (
+        GeometryReference,
+        tank_test_campaign_from_csv,
+    )
+    from kayakgen.eval.calibration.rights import RightsChecklist
+
+    try:
+        hull_obj = load_hull(hull)
+        rights_obj = RightsChecklist.model_validate_json(rights.read_text())
+        # Until RFC 0049 lands Hull.design_hash(), use Hull.hash() as the
+        # placeholder per the RFC 0054 deferred decision.
+        geometry = GeometryReference(
+            geometry_path=str(hull),
+            hull_design_hash=hull_obj.hash(),
+        )
+        campaign = tank_test_campaign_from_csv(
+            csv_path,
+            source_id=source_id,
+            hull_design_hash=hull_obj.hash(),
+            rights_checklist=rights_obj,
+            geometry_reference=geometry,
+            uncertainty_method=uncertainty_method,  # type: ignore[arg-type]
+        )
+    except Exception as exc:
+        typer.echo(f"calibration ingest-tank-test failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+    out.mkdir(parents=True, exist_ok=True)
+    out_path = out / f"{source_id}.campaign.json"
+    out_path.write_text(campaign.model_dump_json(indent=2) + "\n")
+    typer.echo(f"wrote {out_path} ({len(campaign.rows)} rows)")
+
+
+@calibration_app.command("ingest-inclining-test")
+def calibration_ingest_inclining_test(
+    csv_path: Path = typer.Argument(
+        ...,
+        exists=True,
+        dir_okay=False,
+        help="Inclining-test CSV (see IncliningTestRun for the required columns).",
+    ),
+    hull: Path = typer.Option(
+        ...,
+        "--hull",
+        exists=True,
+        dir_okay=False,
+        help="Hull JSON used to bind hull_design_hash.",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Output directory for the campaign artifact.",
+    ),
+    source_id: str = typer.Option(
+        ...,
+        "--source-id",
+        help="Campaign source_id (must match the value carried on rows).",
+    ),
+    rights: Path | None = typer.Option(
+        None,
+        "--rights",
+        exists=True,
+        dir_okay=False,
+        help=(
+            "Optional RightsChecklist JSON; if omitted a documented-caveat "
+            "placeholder is written. Real campaigns SHOULD supply this."
+        ),
+    ),
+) -> None:
+    """Ingest an inclining-test CSV into an IncliningTestCampaign JSON artifact."""
+    from kayakgen.eval.calibration.campaigns import (
+        GeometryReference,
+        inclining_test_campaign_from_csv,
+    )
+    from kayakgen.eval.calibration.rights import RightsChecklist
+
+    try:
+        hull_obj = load_hull(hull)
+        if rights is not None:
+            rights_obj = RightsChecklist.model_validate_json(rights.read_text())
+        else:
+            rights_obj = RightsChecklist(
+                license_identifier="unspecified",
+                attribution="unspecified",
+                source_locator=str(csv_path),
+                redistribution_authorized=False,
+                attribution_required=True,
+                notes=["rights checklist not supplied at ingest time"],
+            )
+        geometry = GeometryReference(
+            geometry_path=str(hull),
+            hull_design_hash=hull_obj.hash(),
+        )
+        campaign = inclining_test_campaign_from_csv(
+            csv_path,
+            source_id=source_id,
+            hull_design_hash=hull_obj.hash(),
+            rights_checklist=rights_obj,
+            geometry_reference=geometry,
+        )
+    except Exception as exc:
+        typer.echo(f"calibration ingest-inclining-test failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+    out.mkdir(parents=True, exist_ok=True)
+    out_path = out / f"{source_id}.campaign.json"
+    out_path.write_text(campaign.model_dump_json(indent=2) + "\n")
+    typer.echo(f"wrote {out_path} ({len(campaign.rows)} rows)")
+
+
+@calibration_app.command("accept-fit")
+def calibration_accept_fit(
+    fixture_id: str = typer.Argument(
+        ...,
+        help="The fixture id this accepted fit belongs to (for human cross-ref).",
+    ),
+    fit: Path = typer.Option(
+        ...,
+        "--fit",
+        exists=True,
+        dir_okay=False,
+        help="AcceptedFitRecord JSON to evaluate and persist.",
+    ),
+    rmse_threshold: float = typer.Option(
+        5.0,
+        "--rmse-threshold",
+        help=(
+            "Acceptance threshold percent. Interpreted per fit_metric: "
+            "for RMSE, the ceiling is rmse_threshold % of holdout_rms_n; "
+            "for MAPE, the maximum admissible MAPE; for R2, the minimum "
+            "admissible R2."
+        ),
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Output directory for the accepted-fit artifact.",
+    ),
+) -> None:
+    """Validate an AcceptedFitRecord against the threshold and persist it."""
+    from kayakgen.eval.calibration.campaigns import (
+        AcceptedFitRecord,
+        AcceptedFitRejection,
+        evaluate_fit_against_threshold,
+    )
+
+    try:
+        record = AcceptedFitRecord.model_validate_json(fit.read_text())
+        evaluate_fit_against_threshold(
+            record,
+            measured_baseline=record.holdout_rms_n,
+            threshold_pct=rmse_threshold,
+        )
+    except AcceptedFitRejection as exc:
+        typer.echo(f"accept-fit refused: {exc.reason}: {exc}", err=True)
+        raise typer.Exit(code=1)
+    except Exception as exc:
+        typer.echo(f"accept-fit failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+    out.mkdir(parents=True, exist_ok=True)
+    out_path = out / f"{record.fit_id}.accepted_fit.json"
+    out_path.write_text(record.model_dump_json(indent=2) + "\n")
+    typer.echo(f"wrote {out_path} (fixture_id={fixture_id})")
+
+
+@calibration_app.command("residual-plot")
+def calibration_residual_plot(
+    accepted_fit_json: Path = typer.Argument(
+        ...,
+        exists=True,
+        dir_okay=False,
+        help="AcceptedFitRecord JSON file to plot.",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Output SVG file path.",
+    ),
+) -> None:
+    """Write a residual-stem SVG plot for an AcceptedFitRecord."""
+    from kayakgen.eval.calibration.campaigns import AcceptedFitRecord
+    from kayakgen.services.calibration_artifacts import write_residual_plot
+
+    try:
+        record = AcceptedFitRecord.model_validate_json(accepted_fit_json.read_text())
+        write_residual_plot(record, out)
+    except Exception as exc:
+        typer.echo(f"residual-plot failed: {exc}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"wrote {out}")
+
+
+from kayakgen.cli.target_workflows import target_draft_command, target_trim_command  # noqa: E402
+
+app.command("target-draft")(target_draft_command)
+app.command("target-trim")(target_trim_command)
 
 
 if __name__ == "__main__":

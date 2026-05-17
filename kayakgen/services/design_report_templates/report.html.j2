@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title }}</title>
+  <style>
+    body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+           color: #1a1a1a; max-width: 960px; margin: 1.5rem auto;
+           padding: 0 1rem; line-height: 1.4; }
+    h1, h2 { border-bottom: 1px solid #888; padding-bottom: 0.2rem; }
+    h2 { margin-top: 1.8rem; }
+    section { margin-bottom: 1.6rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 0.4rem; }
+    th, td { border: 1px solid #ccc; padding: 4px 8px; text-align: left;
+             font-size: 13px; vertical-align: top; }
+    th { background: #f0f0f0; }
+    .notice { background: #f8f4e3; padding: 0.4rem 0.6rem; border-left: 3px solid #c9a227;
+              font-size: 13px; }
+    .preview { text-align: center; }
+    .preview img { max-width: 480px; height: auto; }
+    .warning-list li { font-size: 13px; }
+    .small { font-size: 12px; color: #555; }
+    code { background: #f4f4f4; padding: 1px 4px; border-radius: 2px; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+{% for section in sections %}
+{% if section.id == "header" %}
+<section id="{{ section.id }}">
+  <h1>kayakgen design report</h1>
+  <table>
+    <tbody>
+      <tr><th>Hull name</th><td>{{ section.hull_name }}</td></tr>
+      <tr><th>record_hash</th><td><code>{{ section.record_hash }}</code></td></tr>
+      <tr><th>design_hash</th><td><code>{{ section.design_hash }}</code>
+        <span class="small">({{ section.design_hash_note }})</span></td></tr>
+      <tr><th>kayakgen version</th><td>{{ section.kayakgen_version }}</td></tr>
+      <tr><th>generated</th><td>{{ section.timestamp_iso }}</td></tr>
+      {% if section.hull_source %}
+      <tr><th>hull source</th><td><code>{{ section.hull_source }}</code></td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</section>
+{% elif section.id == "parameters" %}
+<section id="{{ section.id }}">
+  <h2>Parameters</h2>
+  <table>
+    <thead><tr><th>Field</th><th>Value</th><th>Unit</th><th>Source</th></tr></thead>
+    <tbody>
+    {% for row in section.rows %}
+      <tr>
+        <td><code>{{ row.name }}</code></td>
+        <td>{{ row.value }}</td>
+        <td>{{ row.unit }}</td>
+        <td>{{ row.source }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% elif section.id == "rendered_views" %}
+<section id="{{ section.id }}">
+  <h2>Rendered views</h2>
+  <div class="preview">
+    <img src="data:image/png;base64,{{ section.preview_png_base64 }}"
+         alt="{{ section.preview_alt }}">
+  </div>
+  <p class="small">{{ section.notice }}</p>
+</section>
+{% elif section.id == "hydrostatics" %}
+<section id="{{ section.id }}">
+  <h2>Hydrostatics</h2>
+  <table>
+    <thead><tr><th>Metric</th><th>Value</th><th>Unit</th></tr></thead>
+    <tbody>
+    {% for row in section.rows %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td>{{ row.value }}</td>
+        <td>{{ row.unit }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% elif section.id == "stability" %}
+<section id="{{ section.id }}">
+  <h2>Stability</h2>
+  <h3>Upright (design waterline initial)</h3>
+  <table>
+    <tbody>
+      <tr><th>method</th><td><code>{{ section.initial.method }}</code></td></tr>
+      <tr><th>status</th><td>{{ section.initial.status }}</td></tr>
+      <tr><th>load mass</th><td>{{ "%.2f"|format(section.initial.load_mass_kg) }} kg</td></tr>
+      <tr><th>displaced mass</th><td>{{ "%.2f"|format(section.initial.displaced_mass_kg) }} kg</td></tr>
+      <tr><th>displacement error</th><td>{{ "%.2f"|format(section.initial.displacement_error_kg) }} kg</td></tr>
+      <tr><th>initial GM0</th><td>{% if section.initial.initial_GM0_m is not none %}{{ "%.4f"|format(section.initial.initial_GM0_m) }} m{% else %}n/a{% endif %}</td></tr>
+    </tbody>
+  </table>
+  <h3>Equilibrium (trim)</h3>
+  <table>
+    <tbody>
+      <tr><th>method</th><td><code>{{ section.equilibrium.method }}</code></td></tr>
+      <tr><th>status</th><td>{{ section.equilibrium.status }}</td></tr>
+      <tr><th>equilibrium draft</th><td>{% if section.equilibrium.equilibrium_draft_m is not none %}{{ "%.4f"|format(section.equilibrium.equilibrium_draft_m) }} m{% else %}n/a{% endif %}</td></tr>
+      <tr><th>trim angle</th><td>{% if section.equilibrium.trim_angle_deg is not none %}{{ "%.3f"|format(section.equilibrium.trim_angle_deg) }} deg{% else %}n/a{% endif %}</td></tr>
+      <tr><th>displacement error</th><td>{{ "%.2f"|format(section.equilibrium.displacement_error_kg) }} kg</td></tr>
+    </tbody>
+  </table>
+  {% if section.high_angle %}
+  <h3>High-angle GZ (display-only)</h3>
+  <p class="notice">
+    Result semantics: <code>{{ section.high_angle.result_semantics }}</code>.
+    Body profile: <code>{{ section.high_angle.body_profile }}</code>.
+  </p>
+  <table>
+    <tbody>
+      <tr><th>available</th><td>{{ section.high_angle.available }}</td></tr>
+      <tr><th>heel grid (deg)</th><td>{{ section.high_angle.heel_grid_deg }}</td></tr>
+      {% if section.high_angle.summary %}
+      <tr><th>summary</th><td><code>{{ section.high_angle.summary }}</code></td></tr>
+      {% endif %}
+      {% if section.high_angle.unavailable_reason %}
+      <tr><th>unavailable reason</th><td><code>{{ section.high_angle.unavailable_reason }}</code></td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+  <p class="small">Surface warnings (always emitted):</p>
+  <ul class="warning-list">
+    {% for warning in section.high_angle_surface_warnings %}<li><code>{{ warning }}</code></li>{% endfor %}
+  </ul>
+  {% if section.high_angle.warnings %}
+  <p class="small">Evaluator warnings:</p>
+  <ul class="warning-list">
+    {% for warning in section.high_angle.warnings %}<li><code>{{ warning }}</code></li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if section.high_angle.assumptions %}
+  <p class="small">Assumptions:</p>
+  <ul class="warning-list">
+    {% for note in section.high_angle.assumptions %}<li><code>{{ note }}</code></li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% endif %}
+</section>
+{% elif section.id == "resistance" %}
+<section id="{{ section.id }}">
+  <h2>Resistance</h2>
+  <p class="notice">{{ section.notice }}</p>
+  <p class="small">
+    Claim state: <code>{{ section.claim_state }}</code>.
+    Accepted uses: {% for use in section.accepted_uses %}<code>{{ use }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
+  </p>
+  <table>
+    <thead><tr><th>Speed (kt)</th><th>Fn</th><th>Rv (N)</th><th>Rw (N)</th><th>Rt (N)</th></tr></thead>
+    <tbody>
+    {% for row in section.rows %}
+      <tr>
+        <td>{{ "%.2f"|format(row.speed_kt) }}</td>
+        <td>{{ "%.3f"|format(row.Fn) }}</td>
+        <td>{{ "%.2f"|format(row.Rv_N) }}</td>
+        <td>{{ "%.2f"|format(row.Rw_N) }}</td>
+        <td>{{ "%.2f"|format(row.Rt_N) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if section.warnings %}
+  <p class="small">Warnings:</p>
+  <ul class="warning-list">
+    {% for warning in section.warnings %}<li><code>{{ warning }}</code></li>{% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% elif section.id == "mesh" %}
+<section id="{{ section.id }}">
+  <h2>Mesh and readiness</h2>
+  <table>
+    <thead>
+      <tr><th>Part</th><th>Readiness</th><th>Boundary edges (welded/raw)</th>
+          <th>Non-manifold edges (welded/raw)</th><th>Degenerate faces</th></tr>
+    </thead>
+    <tbody>
+    {% for part in section.parts %}
+      <tr>
+        <td>{{ part.part }}</td>
+        <td>
+          {% if part.status == "ready" %}
+            <code>{{ part.readiness_level }}</code>
+          {% else %}
+            <code>error</code>: {{ part.message }}
+          {% endif %}
+        </td>
+        <td>{% if part.status == "ready" %}{{ part.welded_boundary_edges }} / {{ part.raw_boundary_edges }}{% else %}-{% endif %}</td>
+        <td>{% if part.status == "ready" %}{{ part.welded_nonmanifold_edges }} / {{ part.raw_nonmanifold_edges }}{% else %}-{% endif %}</td>
+        <td>{% if part.status == "ready" %}{{ part.degenerate_faces }}{% else %}-{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% elif section.id == "comparison" %}
+<section id="{{ section.id }}">
+  <h2>Comparison position</h2>
+  {% if not section.available %}
+    <p class="notice">{{ section.notice }}</p>
+  {% else %}
+    <table>
+      <tbody>
+        <tr><th>run</th><td><code>{{ section.run_name }}</code></td></tr>
+        <tr><th>report kind</th><td><code>{{ section.report_kind }}</code></td></tr>
+        <tr><th>candidates (total)</th><td>{{ section.candidates_total }}</td></tr>
+        <tr><th>frontier size</th><td>{{ section.frontier_size }}</td></tr>
+        <tr><th>this hull index</th><td>{{ section.candidate_index }}</td></tr>
+        <tr><th>candidate key</th><td><code>{{ section.candidate_key }}</code></td></tr>
+        <tr><th>on frontier</th><td>{{ section.on_frontier }}</td></tr>
+      </tbody>
+    </table>
+    <p class="small">Objective values for this candidate:</p>
+    <table>
+      <thead><tr><th>metric</th><th>value</th></tr></thead>
+      <tbody>
+      {% for metric, value in section.objective_values.items() %}
+        <tr><td><code>{{ metric }}</code></td><td>{{ value }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if section.high_angle_display %}
+    <p class="small">High-angle GZ display (display-only adjacent row):</p>
+    <table>
+      <tbody>
+        <tr><th>result semantics</th><td><code>{{ section.high_angle_display.result_semantics }}</code></td></tr>
+        <tr><th>body profile</th><td><code>{{ section.high_angle_display.body_profile }}</code></td></tr>
+        <tr><th>max GZ (m)</th><td>{{ section.high_angle_display.max_gz_m }}</td></tr>
+        <tr><th>heel at max GZ (deg)</th><td>{{ section.high_angle_display.heel_at_max_gz_deg }}</td></tr>
+        <tr><th>range positive stability (deg)</th><td>{{ section.high_angle_display.range_positive_stability_deg }}</td></tr>
+      </tbody>
+    </table>
+    {% endif %}
+    {% if section.warnings %}
+    <p class="small">Candidate warnings:</p>
+    <ul class="warning-list">
+      {% for warning in section.warnings %}<li><code>{{ warning }}</code></li>{% endfor %}
+    </ul>
+    {% endif %}
+  {% endif %}
+</section>
+{% elif section.id == "artifacts" %}
+<section id="{{ section.id }}">
+  <h2>Artifact references</h2>
+  <p class="small">{{ section.notice }}</p>
+  {% if section.rows %}
+  <table>
+    <thead><tr><th>label</th><th>path</th><th>SHA-256</th><th>size (bytes)</th></tr></thead>
+    <tbody>
+    {% for row in section.rows %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td><code>{{ row.path }}</code></td>
+        <td><code>{{ row.sha256 }}</code></td>
+        <td>{{ row.size_bytes }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="small">No external artifact references attached.</p>
+  {% endif %}
+</section>
+{% elif section.id == "claim_explanations" %}
+<section id="{{ section.id }}">
+  <h2>Claim-state explanations</h2>
+  <table>
+    <thead>
+      <tr><th>Topic</th><th>Claim</th><th>Decisions</th><th>Explanation</th></tr>
+    </thead>
+    <tbody>
+    {% for row in section.rows %}
+      <tr>
+        <td>{{ row.topic }}</td>
+        <td><code>{{ row.claim }}</code></td>
+        <td>
+          {% for decision in row.decisions %}<code>{{ decision }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+        </td>
+        <td>{{ row.explanation }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endfor %}
+
+</body>
+</html>

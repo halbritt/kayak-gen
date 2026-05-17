@@ -17,6 +17,7 @@ from kayakgen.eval.claims import (
     uncalibrated_resistance_warnings,
 )
 from kayakgen.eval.hydrostatics import Hydrostatics
+from kayakgen.eval.turning import TurningMetrics
 from kayakgen.model.validity import DesignValidityReport
 
 
@@ -406,6 +407,106 @@ class CfdResult(RawUnvalidatedClaimFields):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class ConvergenceFlag(BaseModel):
+    """RFC 0052 value object: per-evaluator-stage convergence status.
+
+    Emitted additively on :class:`EvaluationResult` so designers can tell
+    whether the upright trim solve converged, the per-heel GZ solve hit its
+    residual, or the resistance/mesh-diagnostics stage simply ran. The
+    ``residual`` field is the numeric driver of the convergence check when one
+    exists (e.g. ``displacement_error_kg`` or ``moment_error_kg_m``); it is
+    ``None`` for stages that do not iterate (resistance, mesh diagnostics).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    stage: str
+    status: Literal["converged", "not_converged", "iteration_cap"]
+    residual: float | None = None
+
+    @field_validator("residual")
+    @classmethod
+    def _residual_must_be_finite_or_none(cls, value: float | None) -> float | None:
+        if value is not None and not math.isfinite(value):
+            raise ValueError("ConvergenceFlag.residual must be finite when present")
+        return value
+
+
+def _flags_from_stability(stability: StabilityResult) -> list[ConvergenceFlag]:
+    """Derive convergence flags from a stability result's iteration metadata."""
+    flags: list[ConvergenceFlag] = []
+    if stability.method == "design_waterline_initial":
+        return flags
+
+    iterations = stability.equilibrium_iterations
+    max_iterations = stability.equilibrium_max_iterations
+    if (
+        iterations is not None
+        and max_iterations is not None
+        and iterations >= max_iterations
+        and stability.status != "converged"
+    ):
+        upright_status: Literal["converged", "not_converged", "iteration_cap"] = (
+            "iteration_cap"
+        )
+    elif stability.status == "converged":
+        upright_status = "converged"
+    else:
+        upright_status = "not_converged"
+    flags.append(
+        ConvergenceFlag(
+            stage="upright_equilibrium",
+            status=upright_status,
+            residual=stability.displacement_error_kg,
+        )
+    )
+
+    if stability.method == "equilibrium_trim":
+        trim_residual = stability.moment_error_kg_m
+        if (
+            iterations is not None
+            and max_iterations is not None
+            and iterations >= max_iterations
+            and stability.status != "converged"
+        ):
+            trim_status: Literal["converged", "not_converged", "iteration_cap"] = (
+                "iteration_cap"
+            )
+        elif stability.status == "converged":
+            trim_status = "converged"
+        else:
+            trim_status = "not_converged"
+        flags.append(
+            ConvergenceFlag(
+                stage="trim_equilibrium",
+                status=trim_status,
+                residual=trim_residual,
+            )
+        )
+
+    if stability.gz_curve is not None and stability.gz_curve.heel_point_metadata:
+        for point in stability.gz_curve.heel_point_metadata:
+            if point.status == "computed":
+                point_status: Literal[
+                    "converged", "not_converged", "iteration_cap"
+                ] = "converged"
+            elif (
+                point.displacement_iterations >= point.displacement_max_iterations
+                and point.displacement_max_iterations > 0
+            ):
+                point_status = "iteration_cap"
+            else:
+                point_status = "not_converged"
+            flags.append(
+                ConvergenceFlag(
+                    stage=f"evaluate_gz_curve@{point.heel_deg:g}deg",
+                    status=point_status,
+                    residual=point.displacement_residual_kg,
+                )
+            )
+    return flags
+
+
 class EvaluationResult(BaseModel):
     """Read-side join of evaluator outputs sharing a single hull."""
 
@@ -416,5 +517,36 @@ class EvaluationResult(BaseModel):
     resistance: ResistanceCurve | None = None
     stability: StabilityResult | None = None
     cfd: CfdResult | None = None
+    turning_metrics: TurningMetrics | None = None
     timings_ms: dict[str, float] = Field(default_factory=dict)
     design_validity: DesignValidityReport = Field(default_factory=DesignValidityReport)
+    convergence: list[ConvergenceFlag] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _populate_convergence(self) -> "EvaluationResult":
+        """Auto-emit RFC 0052 convergence flags from the evaluator outputs.
+
+        Additive — runs only when ``convergence`` is empty so callers that
+        explicitly pass a list (including a deserialized record) keep the
+        round-trip identity ``EvaluationResult.model_validate(
+        original.model_dump_json()) == original``.
+        """
+
+        if self.convergence:
+            return self
+
+        flags: list[ConvergenceFlag] = [
+            ConvergenceFlag(stage="hydrostatics", status="converged", residual=None)
+        ]
+        if self.resistance is not None:
+            flags.append(
+                ConvergenceFlag(stage="resistance", status="converged", residual=None)
+            )
+        if self.stability is not None:
+            flags.extend(_flags_from_stability(self.stability))
+        # ``mesh_diagnostics`` is reported as a single converged entry whenever
+        # an EvaluationResult is materialized with a mesh-bearing CFD record.
+        # The default ``kayakgen evaluate`` flow does not attach mesh
+        # diagnostics, so this entry only appears when the consumer wires it.
+        self.convergence = flags
+        return self

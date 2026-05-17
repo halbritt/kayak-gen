@@ -1,0 +1,5 @@
+heel_deg,applied_moment_nm,applied_moment_uncertainty_nm,sealed_body,cockpit_flooded,paddler_state,notes
+2.0,12.5,0.3,true,false,absent,
+4.0,25.1,0.5,true,false,absent,
+6.0,37.8,0.7,true,false,absent,steady
+8.0,50.2,0.9,true,false,absent,

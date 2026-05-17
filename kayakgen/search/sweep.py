@@ -18,6 +18,7 @@ from kayakgen.eval.contract import LoadCase
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import resistance_curve
 from kayakgen.eval.stability import DEFAULT_GZ_HEEL_GRID_DEG, evaluate_equilibrium_stability, evaluate_initial_stability
+from kayakgen.eval.turning import evaluate_turning_metrics
 from kayakgen.eval.sweep_artifacts import (
     HighAngleGzArtifact,
     StlArtifactSet,
@@ -78,6 +79,8 @@ class EvaluatorOptions(BaseModel):
     stl: bool = False
     high_angle_gz: bool = False
     high_angle_gz_heel_grid_deg: list[float] | None = None
+    turning_metrics: bool = False
+    turning_metrics_heel_deg: float = 8.0
 
 
 class SweepLimits(BaseModel):
@@ -177,11 +180,42 @@ def expand_candidates(spec: SweepSpec) -> list[tuple[int, str, dict[str, Any], d
 
 
 def run_sweep(spec: SweepSpec, out_dir: str | Path, resume: bool = False) -> SweepRunRecord:
-    """Run a deterministic sweep and write candidate/run artifacts."""
+    """Run a deterministic sweep and write candidate/run artifacts.
+
+    Routes every persisted artifact through
+    :class:`kayakgen.services.artifact_store.FilesystemArtifactStore`
+    (RFC 0049) so the run directory gains a ``_store/`` content-addressed
+    mirror and the SQLite index records the run + candidates + metrics +
+    artifacts. The canonical paths under ``out_dir`` remain byte-stable
+    with prior releases.
+    """
+    from kayakgen import __version__ as kayakgen_version
+    from kayakgen.services.artifact_store import (
+        FilesystemArtifactStore,
+        index_candidates,
+        index_run_directory,
+    )
+    from kayakgen.services.identity import run_hash as compute_run_hash
+
     out = Path(out_dir)
     candidates_dir = out / "candidates"
     candidates_dir.mkdir(parents=True, exist_ok=True)
-    (out / "spec.json").write_text(spec.model_dump_json(indent=2))
+
+    spec_hash_value = spec.spec_hash()
+    run_id = f"sweep-{spec_hash_value[:16]}-{out.name}"
+    store = FilesystemArtifactStore(out, run_id=run_id)
+    run_hash_value = compute_run_hash(
+        spec.model_dump(mode="json"), kayakgen_version
+    )
+    index_run_directory(
+        out,
+        run_id=run_id,
+        kind="sweep",
+        spec_hash=spec_hash_value,
+        run_hash_value=run_hash_value,
+        index=store.index,
+    )
+    store.put_json("sweep_run_record", spec, canonical_path=out / "spec.json")
 
     records: list[CandidateRecord] = []
     failures: list[CandidateRecord] = []
@@ -206,6 +240,7 @@ def run_sweep(spec: SweepSpec, out_dir: str | Path, resume: bool = False) -> Swe
                 params=params,
                 attempted=attempted,
                 out=out,
+                store=store,
             )
         except (ValidationError, ValueError) as exc:
             record = CandidateRecord(
@@ -220,12 +255,17 @@ def run_sweep(spec: SweepSpec, out_dir: str | Path, resume: bool = False) -> Swe
             )
             failures.append(record)
 
-        record_path.write_text(record.model_dump_json(indent=2))
+        store.put_json(
+            "candidate_record",
+            record,
+            candidate_key=candidate_key,
+            canonical_path=record_path,
+        )
         records.append(record)
 
     run = SweepRunRecord(
         name=spec.name,
-        spec_hash=spec.spec_hash(),
+        spec_hash=spec_hash_value,
         candidate_count=len(records),
         pending_count=sum(1 for record in records if record.status == "pending"),
         completed_count=sum(1 for record in records if record.status == "complete"),
@@ -233,10 +273,45 @@ def run_sweep(spec: SweepSpec, out_dir: str | Path, resume: bool = False) -> Swe
         skipped_count=sum(1 for record in records if record.status == "skipped"),
         candidates=records,
     )
-    (out / "run.json").write_text(run.model_dump_json(indent=2))
+    store.put_json("sweep_run_record", run, canonical_path=out / "run.json")
     _write_summary(out / "summary.csv", records)
-    _write_failures(out / "failures.jsonl", failures or [r for r in records if r.status == "failed"])
+    store.put_file("sweep_summary_csv", out / "summary.csv")
+    failures_target = failures or [r for r in records if r.status == "failed"]
+    _write_failures(out / "failures.jsonl", failures_target)
+    store.put_file("sweep_failures_jsonl", out / "failures.jsonl")
+
+    index_candidates(
+        run_id=run_id,
+        candidate_rows=[_index_row_for_candidate(rec) for rec in records],
+        index=store.index,
+    )
     return run
+
+
+def _index_row_for_candidate(record: CandidateRecord) -> dict[str, Any]:
+    """Build a SQLite-index row payload from a CandidateRecord."""
+
+    metrics: dict[str, float] = {}
+    for key, value in record.summary.items():
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, (int, float)):
+            metrics[key] = float(value)
+    return {
+        "candidate_key": record.candidate_key,
+        "status": record.status,
+        "hull_design_hash": _try_design_hash(record),
+        "hull_record_hash": record.hull_hash,
+        "metrics": metrics,
+    }
+
+
+def _try_design_hash(record: CandidateRecord) -> str | None:
+    try:
+        hull = Hull.model_validate(record.attempted_hull)
+    except (ValidationError, ValueError):
+        return None
+    return hull.design_hash()
 
 
 def _evaluate_candidate(
@@ -247,6 +322,7 @@ def _evaluate_candidate(
     params: dict[str, Any],
     attempted: dict[str, Any],
     out: Path,
+    store: Any | None = None,
 ) -> CandidateRecord:
     candidates_dir = out / "candidates"
     hull_path = candidates_dir / f"{candidate_key}.hull.json"
@@ -273,15 +349,24 @@ def _evaluate_candidate(
             if spec.evaluators.stability_equilibrium
             else evaluate_initial_stability(hull, load_case)
         )
+    turning = None
+    if spec.evaluators.turning_metrics:
+        turning = evaluate_turning_metrics(
+            hull, heel_deg=spec.evaluators.turning_metrics_heel_deg
+        )
     evaluation = EvaluationResult(
         hull_hash=hull.hash(),
         hydrostatics=hydro,
         resistance=resistance,
         stability=stability,
+        turning_metrics=turning,
         design_validity=design_validity,
     )
     save_hull(hull, hull_path)
     save_evaluation(evaluation, eval_path)
+    if store is not None:
+        store.put_file("hull_json", hull_path, candidate_key=candidate_key)
+        store.put_file("eval_result_json", eval_path, candidate_key=candidate_key)
 
     artifacts = {
         "hull": str(hull_path.relative_to(out)),
@@ -294,6 +379,8 @@ def _evaluate_candidate(
         mesh_path = candidates_dir / f"{candidate_key}.mesh.json"
         mesh = diagnose_mesh(hull)
         mesh_path.write_text(mesh.model_dump_json(indent=2))
+        if store is not None:
+            store.put_file("mesh_quality_json", mesh_path, candidate_key=candidate_key)
         artifacts["mesh_diagnostics"] = str(mesh_path.relative_to(out))
         warnings.extend(mesh.warnings)
 
@@ -303,6 +390,17 @@ def _evaluate_candidate(
         stl_artifacts = write_candidate_stl(hull, candidate_dir, out)
         artifacts["stl_hull"] = stl_artifacts.hull.path
         artifacts["stl_deck"] = stl_artifacts.deck.path
+        if store is not None:
+            store.put_file(
+                "hull_stl",
+                out / stl_artifacts.hull.path,
+                candidate_key=candidate_key,
+            )
+            store.put_file(
+                "deck_stl",
+                out / stl_artifacts.deck.path,
+                candidate_key=candidate_key,
+            )
 
     high_angle_gz_artifact: HighAngleGzArtifact | None = None
     if spec.evaluators.high_angle_gz:
@@ -320,6 +418,12 @@ def _evaluate_candidate(
         candidate_dir = candidates_dir / candidate_key
         high_angle_gz_artifact = write_candidate_high_angle_gz(block, candidate_dir, out)
         artifacts["high_angle_gz"] = high_angle_gz_artifact.path
+        if store is not None:
+            store.put_file(
+                "high_angle_gz_artifact",
+                out / high_angle_gz_artifact.path,
+                candidate_key=candidate_key,
+            )
 
     summary = {
         "displaced_mass_kg": hydro.displaced_mass_kg,
@@ -342,6 +446,19 @@ def _evaluate_candidate(
         summary["moment_error_kg_m"] = stability.moment_error_kg_m
         summary["equilibrium_iterations"] = stability.equilibrium_iterations
         summary["stability_warnings"] = ",".join(stability.warnings)
+    if turning is not None:
+        # Surface only the numeric outputs (no embedded record). The
+        # four metrics are registered as ``display_only`` in
+        # OBJECTIVE_METADATA per RFC 0053; they will appear in
+        # summary.csv via the registry pickup (turning_metrics are
+        # display-only and therefore *not* eligible Pareto/search
+        # objectives, but are emitted as candidate summary columns).
+        summary["turning.edged_waterline_length_m"] = turning.edged_waterline_length_m
+        summary["turning.upright_waterline_length_m"] = turning.upright_waterline_length_m
+        summary["turning.lateral_plane_shift_m"] = turning.lateral_plane_shift_m
+        summary["turning.rocker_weighted_maneuverability_signal"] = (
+            turning.rocker_weighted_maneuverability_signal
+        )
 
     return CandidateRecord(
         candidate_index=index,
@@ -392,6 +509,10 @@ def _registry_summary_columns(records: list[CandidateRecord]) -> list[str]:
 
     Display-only high-angle GZ keys are filtered out so callers that register a
     display-only metric do not accidentally promote it into the CSV header.
+    Other ``role="display_only"`` registry entries (e.g. RFC 0053 turning
+    metrics) are admitted when at least one record's ``summary`` carries the
+    key — display-only just means they cannot become Pareto/search
+    objectives, not that they cannot appear in ``summary.csv``.
     The legacy column list is the seed; newly registered metrics with a hit on
     any record's ``summary`` are appended in registry declaration order so the
     column layout stays stable.
@@ -404,7 +525,7 @@ def _registry_summary_columns(records: list[CandidateRecord]) -> list[str]:
             continue
         if metric in HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS:
             continue
-        if metadata.role == "display_only":
+        if metadata.role == "display_only" and metadata.source_evaluator == "high_angle_gz":
             continue
         if not any(metric in record.summary for record in records):
             continue

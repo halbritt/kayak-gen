@@ -6,7 +6,9 @@ resistance output is calibrated.
 
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -387,7 +389,65 @@ class ResistanceSourceReviewPacket(BaseModel):
                     "calibration_fixture requires an accepted_fit_ref "
                     f"({CALIBRATION_PROMOTION_REQUIRES_ACCEPTED_FIT})"
                 )
+            self._validate_accepted_fit_ref_on_disk()
         return self
+
+    def _validate_accepted_fit_ref_on_disk(self) -> None:
+        """Resolve ``accepted_fit_ref`` and validate the recorded fit.
+
+        Per RFC 0054: when ``review_verdict == "calibration_fixture"`` and
+        ``accepted_fit_ref`` is a path-shaped reference (a ``.json``
+        suffix), it must resolve to an on-disk ``AcceptedFitRecord``
+        JSON document. If the path does not exist, the file is
+        unparseable, or the recorded ``fit_value`` is below the
+        configured ``acceptance_threshold_pct`` (default 5% — RMSE
+        admission ceiling per D006), the validator raises ``ValueError``
+        with a structured reason token. Non-path opaque refs are
+        admitted unchanged so that pre-RFC-0054 fixture tokens keep
+        working; the on-disk gate fires the moment any operator binds a
+        real ``.json`` artifact.
+        """
+        from kayakgen.eval.calibration.campaigns import (
+            AcceptedFitRecord,
+            AcceptedFitRejection,
+            evaluate_fit_against_threshold,
+        )
+
+        ref = self.accepted_fit_ref or ""
+        if not ref.lower().endswith(".json"):
+            return  # opaque ID — no disk gate to enforce
+        path = Path(ref)
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        if not path.is_file():
+            raise ValueError(
+                "calibration_fixture accepted_fit_ref does not resolve to an "
+                f"on-disk AcceptedFitRecord (accepted_fit_unresolved): {ref!r}"
+            )
+        try:
+            payload = json.loads(path.read_text())
+            record = AcceptedFitRecord.model_validate(payload)
+        except (json.JSONDecodeError, ValueError) as exc:
+            raise ValueError(
+                "calibration_fixture accepted_fit_ref could not be parsed "
+                f"as an AcceptedFitRecord (accepted_fit_unparseable): {exc}"
+            ) from exc
+        threshold_pct = float(
+            (self.validity_envelope or {}).get(
+                "acceptance_threshold_pct", 5.0
+            )
+        )
+        try:
+            evaluate_fit_against_threshold(
+                record,
+                measured_baseline=record.holdout_rms_n,
+                threshold_pct=threshold_pct,
+            )
+        except AcceptedFitRejection as exc:
+            raise ValueError(
+                "calibration_fixture accepted_fit_ref fails the configured "
+                f"acceptance threshold ({exc.reason}): {exc}"
+            ) from exc
 
     def _validate_checksum_binding(self) -> None:
         if self.source_checksum_sha256 is not None:

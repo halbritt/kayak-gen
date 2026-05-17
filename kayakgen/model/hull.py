@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from kayakgen.model.distribution_v2 import DistributionV2Spec
+
 if TYPE_CHECKING:
     from kayakgen.model.geometry import HullGeometry
 
@@ -59,7 +61,8 @@ class Hull(BaseModel):
     rocker_bow_m: float = Field(default=0.0, ge=0)
     rocker_stern_m: float = Field(default=0.0, ge=0)
 
-    geometry_kind: Literal["lofted"] = "lofted"
+    geometry_kind: Literal["lofted", "distribution_v2"] = "lofted"
+    distribution_v2: DistributionV2Spec | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -80,14 +83,57 @@ class Hull(BaseModel):
             raise ValueError("beam_wl_m must be less than or equal to beam_oa_m")
         return self
 
-    def hash(self) -> str:
-        """Stable cache key for this hull's design parameters."""
+    @model_validator(mode="after")
+    def _validate_distribution_v2_coupling(self) -> "Hull":
+        if self.geometry_kind == "distribution_v2":
+            if self.distribution_v2 is None:
+                raise ValueError(
+                    "geometry_kind='distribution_v2' requires a distribution_v2 spec"
+                )
+            # RFC 0048 open-question decision: bow_rake / stern_rake are
+            # legacy lofted-loft controls. They are preserved on the
+            # record for backwards-compat reporting but are refused when
+            # the hull declares distribution_v2 geometry.
+            if self.bow_rake != 1.0 or self.stern_rake != 1.0:
+                raise ValueError(
+                    "geometry_kind='distribution_v2' refuses non-default bow_rake / "
+                    "stern_rake; rake is reported but does not drive the V2 loft"
+                )
+        return self
+
+    def record_hash(self) -> str:
+        """SHA-256 over this hull's full serialized record (RFC 0049).
+
+        Equivalent to today's :meth:`hash` and byte-stable with it. Owns
+        the "record identity" half of the RFC 0049 vocabulary: differs
+        whenever any field — including ``name`` — differs.
+        """
+
         return hashlib.sha256(self.model_dump_json().encode("utf-8")).hexdigest()
+
+    def design_hash(self) -> str:
+        """SHA-256 over this hull's physical design inputs only (RFC 0049).
+
+        Invariant under renaming the hull or reordering JSON keys; changes
+        whenever any physical input (``length_m``, ``Cp``, ...) changes.
+        Delegates to :func:`kayakgen.services.identity.design_hash_for_hull`.
+        """
+
+        from kayakgen.services.identity import design_hash_for_hull
+
+        return design_hash_for_hull(self)
+
+    def hash(self) -> str:
+        """Backwards-compat alias for :meth:`record_hash` (RFC 0049)."""
+
+        return self.record_hash()
 
     def to_geometry(self) -> "HullGeometry":
         """Construct the geometry implementation declared by ``geometry_kind``."""
-        from kayakgen.model.geometry import LoftedHullGeometry
+        from kayakgen.model.geometry import DistributionV2Geometry, LoftedHullGeometry
 
         if self.geometry_kind == "lofted":
             return LoftedHullGeometry(self)
+        if self.geometry_kind == "distribution_v2":
+            return DistributionV2Geometry(self)
         raise ValueError(f"unknown geometry_kind: {self.geometry_kind!r}")

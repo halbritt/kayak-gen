@@ -101,7 +101,12 @@ def prepare_local_job(
     kinematic_viscosity_m2_s: float = 1.19e-6,
     created_at: str | None = None,
 ) -> LocalCfdJob:
-    """Validate a mesh package and write deterministic local job records."""
+    """Validate a mesh package and write deterministic local job records.
+
+    Writes are also mirrored into the run's ``_store/`` content-addressed
+    layout via :class:`kayakgen.services.artifact_store.FilesystemArtifactStore`
+    (RFC 0049). Canonical paths remain byte-stable.
+    """
     _validate_positive_job_inputs(
         speed_mps=speed_mps,
         seawater_density_kg_m3=seawater_density_kg_m3,
@@ -142,6 +147,15 @@ def prepare_local_job(
     _write_json(job_dir / "profile.json", solver_profile)
     _write_json(job_dir / "job.json", job_spec)
     _write_json(job_dir / "run.json", run_record)
+    _route_cfd_writes_through_store(
+        job_dir,
+        job_spec,
+        files=(
+            ("cfd_run_record", "profile.json"),
+            ("cfd_run_record", "job.json"),
+            ("cfd_run_record", "run.json"),
+        ),
+    )
 
     if solver_profile.adapter_name in {"fixture_local_command", "openfoam_local"}:
         prepared_case = PreparedSolverCase(
@@ -174,10 +188,20 @@ def run_local_job(job_dir: str | Path) -> CfdRunRecord:
         finished_at=None,
     )
     _write_json(prepared.job_dir / "run.json", running)
+    _route_cfd_writes_through_store(
+        prepared.job_dir,
+        prepared.job_spec,
+        files=(("cfd_run_record", "run.json"),),
+    )
 
     result = adapter.run(prepared)
     record = adapter.collect(prepared, result)
     _write_json(prepared.job_dir / "run.json", record)
+    _route_cfd_writes_through_store(
+        prepared.job_dir,
+        prepared.job_spec,
+        files=(("cfd_run_record", "run.json"),),
+    )
     return record
 
 
@@ -377,6 +401,46 @@ def _write_command_logs(
 
 def _write_json(path: Path, model: BaseModel) -> None:
     path.write_text(model.model_dump_json(indent=2) + "\n")
+
+
+def _route_cfd_writes_through_store(
+    job_dir: Path,
+    job_spec: CfdJobSpec,
+    *,
+    files: tuple[tuple[str, str], ...],
+) -> None:
+    """Mirror canonical CFD job files into the artifact store (RFC 0049).
+
+    Best-effort: failures here must not break the legacy job preparation
+    path. The canonical files at ``job_dir`` are already on disk; this
+    function just hard-links them into ``_store/`` and records SQLite
+    index rows.
+    """
+
+    try:
+        from kayakgen.services.artifact_store import (
+            FilesystemArtifactStore,
+            index_run_directory,
+        )
+    except ImportError:  # pragma: no cover - defensive
+        return
+    try:
+        run_id = job_spec.job_id
+        store = FilesystemArtifactStore(job_dir, run_id=run_id)
+        index_run_directory(
+            job_dir,
+            run_id=run_id,
+            kind="cfd",
+            spec_hash=run_id,
+            run_hash_value=run_id,
+            index=store.index,
+        )
+        for kind, filename in files:
+            target = job_dir / filename
+            if target.exists():
+                store.put_file(kind, target)  # type: ignore[arg-type]
+    except OSError:  # pragma: no cover - never break legacy path
+        return
 
 
 def _write_text(path: Path, text: str) -> None:

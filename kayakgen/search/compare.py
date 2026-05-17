@@ -17,6 +17,7 @@ from kayakgen.eval.claims import (
 from kayakgen.eval.contract import EvaluationResult
 from kayakgen.model.validity import DesignValidityReport
 from kayakgen.search.objectives import (
+    OBJECTIVE_METADATA,
     ObjectiveMetadata,
     default_objectives,
     objective_metadata_for,
@@ -92,6 +93,25 @@ class CandidateSummary(BaseModel):
         return self
 
 
+class PairwiseNote(BaseModel):
+    """RFC 0052 pairwise comparison advisory.
+
+    Emitted when two Pareto-front candidates differ by less than the metric
+    registry's ``within_evaluator_noise_threshold`` on every default-objective
+    metric. The advisory is a *read-model* enhancement — it never gates
+    frontier eligibility — and stays absent when no pair triggers it.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    left_key: str
+    right_key: str
+    within_evaluator_noise: bool = True
+    metric_differences: dict[str, float] = Field(default_factory=dict)
+    metric_thresholds: dict[str, float] = Field(default_factory=dict)
+
+
 class ComparisonReport(BaseModel):
     """Machine-readable Pareto comparison report."""
 
@@ -113,6 +133,10 @@ class ComparisonReport(BaseModel):
     # artifact. Omitted (false) when no candidates do — keeps the report shape
     # backwards-compatible by absence. Display-only per RFC 0043 stage 3.
     high_angle_gz_columns: bool = False
+    # RFC 0052: pairwise within-evaluator-noise advisories. Empty list when no
+    # pareto pair satisfies the registry's tolerance map; the field stays in
+    # the schema (default ``[]``) so consumers can iterate unconditionally.
+    pairwise_notes: list[PairwiseNote] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _sync_design_validity_counts(self) -> "ComparisonReport":
@@ -235,6 +259,12 @@ def build_comparison_report(
         summary.high_angle_gz_display is not None for summary in candidate_summaries
     )
 
+    pairwise_notes = _pairwise_noise_notes(
+        candidate_summaries,
+        pareto_keys=[point.id for point in front],
+        objectives=selected_objectives,
+    )
+
     return ComparisonReport(
         run_name=run.name,
         spec_hash=run.spec_hash,
@@ -256,7 +286,78 @@ def build_comparison_report(
             summary.design_unsupported_count for summary in candidate_summaries
         ),
         high_angle_gz_columns=high_angle_gz_columns,
+        pairwise_notes=pairwise_notes,
     )
+
+
+def _pairwise_noise_notes(
+    summaries: list[CandidateSummary],
+    *,
+    pareto_keys: list[str],
+    objectives: list[Objective],
+) -> list[PairwiseNote]:
+    """RFC 0052 advisory: flag Pareto-front pairs within evaluator noise.
+
+    For each unordered pair of Pareto-front candidates, gather every
+    default-objective metric that has a registered
+    ``within_evaluator_noise_threshold``; the pair is flagged when every such
+    metric is present on both rows AND every pairwise difference is strictly
+    less than the registered threshold. Empty when no such pair exists; the
+    report consumer can iterate unconditionally.
+    """
+
+    if len(pareto_keys) < 2:
+        return []
+    summaries_by_key = {summary.candidate_key: summary for summary in summaries}
+    tolerance_metrics: list[tuple[str, float]] = []
+    for objective in objectives:
+        registry_entry = OBJECTIVE_METADATA.get(objective.metric)
+        if registry_entry is None:
+            continue
+        threshold = registry_entry.within_evaluator_noise_threshold
+        if threshold is None or threshold <= 0:
+            continue
+        tolerance_metrics.append((objective.metric, float(threshold)))
+    if not tolerance_metrics:
+        return []
+
+    notes: list[PairwiseNote] = []
+    for i, left_key in enumerate(pareto_keys):
+        for right_key in pareto_keys[i + 1 :]:
+            left = summaries_by_key.get(left_key)
+            right = summaries_by_key.get(right_key)
+            if left is None or right is None:
+                continue
+            differences: dict[str, float] = {}
+            thresholds: dict[str, float] = {}
+            within_noise = True
+            for metric, threshold in tolerance_metrics:
+                left_value = left.metrics.get(metric)
+                right_value = right.metrics.get(metric)
+                if left_value is None or right_value is None:
+                    within_noise = False
+                    break
+                if not (math.isfinite(left_value) and math.isfinite(right_value)):
+                    within_noise = False
+                    break
+                difference = abs(float(left_value) - float(right_value))
+                if difference >= threshold:
+                    within_noise = False
+                    break
+                differences[metric] = difference
+                thresholds[metric] = threshold
+            if not within_noise or not differences:
+                continue
+            notes.append(
+                PairwiseNote(
+                    left_key=left_key,
+                    right_key=right_key,
+                    within_evaluator_noise=True,
+                    metric_differences=differences,
+                    metric_thresholds=thresholds,
+                )
+            )
+    return notes
 
 
 def write_comparison_report(

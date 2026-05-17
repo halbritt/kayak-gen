@@ -108,6 +108,83 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   because no accepted-validation workflow exists. Backwards-compatible
   for existing serialized records. New tests under
   `tests/test_cfd_run_stages.py`. Suite 733 + 2 skipped, ruff clean.
+- Drove all 8 proposed RFCs (0048-0055) to landed status in a single
+  parallel-subagent wave (2026-05-17). All defaults are byte-stable;
+  every new feature is additive or opt-in. Full suite: 914 passed +
+  4 skipped (env-gated OpenFOAM smokes), random and stable ordering;
+  ruff clean; env-gated CFD pipeline 9/9.
+  - **RFC 0048 Geometry V2 (landed v1)**: new
+    `geometry_kind="distribution_v2"` on `Hull` with
+    `DistributionV2Spec` carrying five `LongitudinalDistribution`
+    records, six cross-section families
+    (`round`, `shallow_arch`, `shallow_v`, `deep_v`, `hard_chine`,
+    `multi_chine` with 2-4 chines), `DistributionV2Geometry`
+    producing both canonical closed-body sections and derived open
+    inspection surfaces, hydrostatic cross-check (1% volume / 1% Aw
+    / 1% LCB / 0.5% GM0; advisory-only), and a
+    `kayakgen migrate-geometry` CLI emitting a sibling `*.v2.json`.
+    Non-default `bow_rake`/`stern_rake` refused on v2. +77 tests.
+  - **RFC 0049 ArtifactStore (landed)**: `Hull.record_hash()` +
+    `Hull.design_hash()` (existing `Hull.hash()` aliases
+    `record_hash`, byte-stable). New `kayakgen.services.identity`
+    (`record_hash`, `design_hash_for_hull`, `run_hash`) and
+    `kayakgen.services.artifact_store` (`FilesystemArtifactStore`
+    hard-link mirror under `_store/` with copy-on-cross-device
+    fallback + missing-mirror warning, `SqliteIndex` auto-creating
+    tables at `~/.local/share/kayakgen/index.sqlite` or
+    `$KAYAKGEN_INDEX_DB`). Sweep, search, and CFD writers route
+    through the store; canonical paths stay byte-stable. New
+    `kayakgen runs {list,query,reindex}` Typer sub-app. +17 tests.
+  - **RFC 0050 target-draft / target-trim (landed)**: two new CLI
+    subcommands `kayakgen target-draft` and `kayakgen target-trim`
+    wrapping the existing equilibrium solvers; `--report-only` flag
+    on target-draft emits a `TargetDraftMismatchReport`. Refuses
+    loads >2× max displaced mass with structured error. +9 tests.
+  - **RFC 0051 builder-oriented exports (landed)**: new
+    `kayakgen build-export` CLI under a new `[builder]` extras
+    group (ezdxf). Seven artifacts: `offsets.csv`, `sections.dxf`,
+    `sheer.svg`, `keel.svg`, `waterline.svg`,
+    `deck_centreline.svg`, `station_molds.dxf`, plus
+    `manifest.json` with per-artifact sha256+bytes. Deterministic
+    modulo CAD-library timestamps. +11 tests.
+  - **RFC 0052 sensitivity + uncertainty (landed)**: new
+    `kayakgen sensitivity` CLI driving central-difference Jacobian
+    over the existing evaluators (auto-step `1e-4 * baseline`
+    clamped to `[1e-9, 1e-2]`). New `ConvergenceFlag` value object
+    populated additively onto `EvaluationResult.convergence` for
+    every evaluator. New `PairwiseNote` block on `ComparisonReport`
+    flagging Pareto-front pairs whose default-objective metrics
+    differ by less than the registry-side
+    `within_evaluator_noise_threshold` (default per-metric
+    thresholds in `OBJECTIVE_METADATA`). +11 tests.
+  - **RFC 0053 turning + edged-waterline metrics (landed)**:
+    `TurningMetrics` Pydantic record + `evaluate_turning_metrics`
+    over heeled stations; opt-in `--turning [--turning-heel-deg]`
+    on `kayakgen evaluate`; sweep `evaluators.turning_metrics`
+    flag writes four numeric columns to `summary.csv`. All four
+    metrics registered with `role="display_only"` so they are
+    refused as Pareto/search objectives. +14 tests.
+  - **RFC 0054 calibration-campaign tooling (landed)**: new
+    `kayakgen calibration` sub-app with `ingest-tank-test`,
+    `ingest-inclining-test`, `accept-fit`, `residual-plot`
+    subcommands. New schemas `RightsChecklist`, `GeometryReference`,
+    `TankTestRun`/`TankTestCampaign`, `IncliningTestRun`/
+    `IncliningTestCampaign`, `AcceptedFitRecord`. The
+    `ResistanceSourceReviewPacket` validator now resolves
+    `accepted_fit_ref` on disk and refuses below-threshold fits
+    with structured tokens. Edinburgh stays at
+    `validation_fixture` (synthetic source used for the test).
+    +19 tests.
+  - **RFC 0055 design-report export (landed)**: new
+    `kayakgen design-report` CLI under a new `[report]` extras
+    group (jinja2 + optional weasyprint). 10-section single-file
+    HTML report (header → parameters → rendered views →
+    hydrostatics → stability → resistance → mesh readiness →
+    optional comparison position via `--from-run` → artifact refs
+    → claim-state explanations) with embedded base64 PNG preview,
+    forbidden-copy scan + scrub (named constants
+    `FORBIDDEN_COPY_TOKENS`, `FORBIDDEN_COPY_SCRUB_TOKENS`), and a
+    structured `ReportForbiddenCopyError` refusal. +8 tests.
 - Phase 5 of `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`:
   centralised the metric registry. `ObjectiveMetadata` gains
   `display_format`, `availability_conditions`, and

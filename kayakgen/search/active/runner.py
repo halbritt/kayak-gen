@@ -65,6 +65,7 @@ from kayakgen.search.sweep import (
     CandidateRecord,
     SweepSpec,
     _evaluate_candidate,
+    _index_row_for_candidate,
     _write_failures,
     _write_summary,
 )
@@ -169,9 +170,17 @@ def _record_path(out: Path, candidate_key: str) -> Path:
     return out / "candidates" / f"{candidate_key}.record.json"
 
 
-def _write_record(record: CandidateRecord, out: Path) -> None:
+def _write_record(record: CandidateRecord, out: Path, *, store: Any | None = None) -> None:
     path = _record_path(out, record.candidate_key)
     path.parent.mkdir(parents=True, exist_ok=True)
+    if store is not None:
+        store.put_json(
+            "candidate_record",
+            record,
+            candidate_key=record.candidate_key,
+            canonical_path=path,
+        )
+        return
     path.write_text(record.model_dump_json(indent=2))
 
 
@@ -349,10 +358,30 @@ def run_search(
         spec_path_p = Path(spec_path)
     spec = load_search_spec(spec_path_p)
 
+    from kayakgen import __version__ as kayakgen_version
+    from kayakgen.services.artifact_store import (
+        FilesystemArtifactStore,
+        index_candidates,
+        index_run_directory,
+    )
+    from kayakgen.services.identity import run_hash as compute_run_hash
+
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     (out / "candidates").mkdir(parents=True, exist_ok=True)
-    (out / "spec.json").write_text(spec.model_dump_json(indent=2))
+    spec_h_pre = spec_hash(spec)
+    run_id = f"search-{spec_h_pre[:16]}-{out.name}"
+    store = FilesystemArtifactStore(out, run_id=run_id)
+    run_hash_value = compute_run_hash(spec.model_dump(mode="json"), kayakgen_version)
+    index_run_directory(
+        out,
+        run_id=run_id,
+        kind="search",
+        spec_hash=spec_h_pre,
+        run_hash_value=run_hash_value,
+        index=store.index,
+    )
+    store.put_json("search_run_record", spec, canonical_path=out / "spec.json")
 
     objectives = resolve_objectives(spec)
     objective_models = [
@@ -376,6 +405,8 @@ def run_search(
             objectives=objectives,
             search_class=search_class,
             resume=resume,
+            store=store,
+            run_id=run_id,
         )
 
     sweep_shim = _make_sweep_spec_shim(spec)
@@ -423,7 +454,7 @@ def run_search(
                 attempted=dict(spec.base_hull) | dict(genome),
                 error=str(exc),
             )
-            _write_record(record, out)
+            _write_record(record, out, store=store)
             return record
 
         try:
@@ -435,6 +466,7 @@ def run_search(
                 params=dict(genome),
                 attempted=attempted,
                 out=out,
+                store=store,
             )
         except (ValidationError, ValueError) as exc:
             record = _build_failed_record(
@@ -445,13 +477,13 @@ def run_search(
                 attempted=attempted,
                 error=str(exc),
             )
-            _write_record(record, out)
+            _write_record(record, out, store=store)
             return record
 
         violations = evaluate_constraints(record.summary, spec.constraints)
         if violations:
             record = _build_constraint_failed_record(base=record, violations=violations)
-        _write_record(record, out)
+        _write_record(record, out, store=store)
         return record
 
     for entry in pending_queue:
@@ -563,7 +595,7 @@ def run_search(
                     genome=entry.genome,
                     generation_index=entry.generation_index,
                 )
-                _write_record(record, out)
+                _write_record(record, out, store=store)
                 records_by_key[entry.candidate_key] = record
 
     # ---- Build final records, frontier, summary, run.json ------------------
@@ -605,13 +637,20 @@ def run_search(
         final_frontier_keys=final_frontier_keys,
         candidates=ordered,
     )
-    (out / "run.json").write_text(run_record.model_dump_json(indent=2))
+    store.put_json("search_run_record", run_record, canonical_path=out / "run.json")
     _write_summary(out / "summary.csv", ordered)
+    store.put_file("sweep_summary_csv", out / "summary.csv")
     _write_failures(
         out / "failures.jsonl",
         [r for r in ordered if r.status in ("failed", "constraint_failed")],
     )
+    store.put_file("sweep_failures_jsonl", out / "failures.jsonl")
     _write_state(state, out)
+    index_candidates(
+        run_id=run_id,
+        candidate_rows=[_index_row_for_candidate(rec) for rec in ordered],
+        index=store.index,
+    )
 
     return SearchRunResult(
         name=spec.name,
@@ -813,6 +852,8 @@ def _run_ehvi_search(
     objectives: list[ObjectiveSpec],
     search_class: SearchClass,
     resume: bool,
+    store: Any | None = None,
+    run_id: str | None = None,
 ) -> SearchRunResult:
     """RFC 0047 v2: Latin-hypercube initialisation + EHVI acquisition loop."""
 
@@ -871,7 +912,7 @@ def _run_ehvi_search(
                 attempted=dict(spec.base_hull) | dict(genome),
                 error=str(exc),
             )
-            _write_record(record, out)
+            _write_record(record, out, store=store)
             return record
         try:
             record = _evaluate_candidate(
@@ -882,6 +923,7 @@ def _run_ehvi_search(
                 params=dict(genome),
                 attempted=attempted,
                 out=out,
+                store=store,
             )
         except (ValidationError, ValueError) as exc:
             record = _build_failed_record(
@@ -892,12 +934,12 @@ def _run_ehvi_search(
                 attempted=attempted,
                 error=str(exc),
             )
-            _write_record(record, out)
+            _write_record(record, out, store=store)
             return record
         violations = evaluate_constraints(record.summary, spec.constraints)
         if violations:
             record = _build_constraint_failed_record(base=record, violations=violations)
-        _write_record(record, out)
+        _write_record(record, out, store=store)
         return record
 
     def _append_history(iteration: int, ehvi_score: float) -> None:
@@ -1140,13 +1182,28 @@ def _run_ehvi_search(
         final_frontier_keys=final_frontier_keys,
         candidates=ordered,
     )
-    (out / "run.json").write_text(run_record.model_dump_json(indent=2))
+    if store is not None:
+        store.put_json("search_run_record", run_record, canonical_path=out / "run.json")
+    else:
+        (out / "run.json").write_text(run_record.model_dump_json(indent=2))
     _write_summary(out / "summary.csv", ordered)
+    if store is not None:
+        store.put_file("sweep_summary_csv", out / "summary.csv")
     _write_failures(
         out / "failures.jsonl",
         [r for r in ordered if r.status in ("failed", "constraint_failed")],
     )
+    if store is not None:
+        store.put_file("sweep_failures_jsonl", out / "failures.jsonl")
     _write_state(state, out)
+    if store is not None and run_id is not None:
+        from kayakgen.services.artifact_store import index_candidates as _index_candidates
+
+        _index_candidates(
+            run_id=run_id,
+            candidate_rows=[_index_row_for_candidate(rec) for rec in ordered],
+            index=store.index,
+        )
     return SearchRunResult(
         name=spec.name,
         run_dir=str(out),

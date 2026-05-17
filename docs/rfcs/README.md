@@ -61,15 +61,15 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0045](0045-ordinary-package-solver-readiness-promotion.md) | landed kayakgen mesh-evidence + mesh-package --bind-evidence (hash-bound; defaults unchanged) | Ordinary-package solver-readiness promotion |
 | [0046](0046-non-env-gated-openfoam-succeeded-path.md) | landed three-mechanism opt-in + audit trail; defaults unchanged | Non-env-gated OpenFOAM succeeded path |
 | [0047](0047-active-search-v2-successor-algorithms.md) | landed v2 EHVI over vendored Cholesky GP (1-3 objectives; additive opt-in; defaults unchanged) | Active search v2 — EHVI/GP Bayesian successor |
-| [0048](0048-geometry-v2-distribution-model.md) | proposed | Geometry V2 — explicit distribution model + canonical closed-body loft |
-| [0049](0049-artifact-store-and-identity.md) | proposed | Artifact store + identity normalization (design/record/artifact/run hashes; filesystem v1 + SQLite index) |
+| [0048](0048-geometry-v2-distribution-model.md) | landed v1 distribution_v2 + 6 cross-section families + hydrostatic cross-check + migrate-geometry CLI | Geometry V2 — explicit distribution model + canonical closed-body loft |
+| [0049](0049-artifact-store-and-identity.md) | landed Hull.{record,design}_hash + FilesystemArtifactStore + SqliteIndex + kayakgen runs CLI | Artifact store + identity normalization |
 
-| [0050](0050-target-displacement-and-trim-workflows.md) | proposed | Target-displacement and target-trim design workflows |
-| [0051](0051-builder-oriented-exports.md) | proposed | Builder-oriented exports (DXF/SVG/offsets) |
-| [0052](0052-sensitivity-and-uncertainty-views.md) | proposed | Sensitivity and uncertainty views |
-| [0053](0053-turning-and-edged-waterline-metrics.md) | proposed | Turning and edged-waterline metrics |
-| [0054](0054-calibration-campaign-tooling.md) | proposed | Calibration-campaign tooling (tank-test + inclining-test schemas + accepted-fit) |
-| [0055](0055-design-report-export.md) | proposed | Single-file design report export (HTML + optional PDF) |
+| [0050](0050-target-displacement-and-trim-workflows.md) | landed kayakgen target-draft + target-trim subcommands | Target-displacement and target-trim design workflows |
+| [0051](0051-builder-oriented-exports.md) | landed kayakgen build-export + 7 artifact writers under [builder] extras | Builder-oriented exports (DXF/SVG/offsets) |
+| [0052](0052-sensitivity-and-uncertainty-views.md) | landed kayakgen sensitivity + ConvergenceFlag + pairwise-noise advisory | Sensitivity and uncertainty views |
+| [0053](0053-turning-and-edged-waterline-metrics.md) | landed TurningMetrics + opt-in --turning flag + sweep evaluator | Turning and edged-waterline metrics |
+| [0054](0054-calibration-campaign-tooling.md) | landed kayakgen calibration sub-app + tank/inclining/AcceptedFitRecord schemas + accepted-fit gate wiring | Calibration-campaign tooling |
+| [0055](0055-design-report-export.md) | landed kayakgen design-report + jinja2 template + forbidden-copy scan + optional [report] PDF extras | Single-file design report export |
 
 Architecture-plan landing notes (not RFCs themselves; see
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`):
