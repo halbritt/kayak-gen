@@ -3,7 +3,7 @@
 This memo is the detailed design for measurement option 2 of
 `CALIBRATION_DATA_FINDINGS_2026-05-16.md` ("force-arm rig with a single-axis
 or six-axis load cell"). It is the physical-instrument counterpart to
-RFC 0050, which scopes the data fixture and acceptance gates.
+RFC 0056, which scopes the data fixture and acceptance gates.
 
 The motivation is unchanged from the findings memo: D007 / D014 cannot be
 closed from public datasets, and protocol 1 (inclining-by-known-weight)
@@ -208,8 +208,11 @@ path if available.
 
 - `docs/research/CALIBRATION_DATA_FINDINGS_2026-05-16.md` — research
   context and the original protocol enumeration.
-- `docs/rfcs/0050-strain-gauged-gz-rig.md` — fixture schema, gates,
+- `docs/rfcs/0056-strain-gauged-gz-rig.md` — fixture schema, gates,
   and integration with RFC 0043 claim semantics.
+- `docs/rfcs/0054-calibration-campaign-tooling.md` — discrete
+  inclining-by-known-weight schema (`IncliningTestRun`) and the
+  `AcceptedFitRecord` flow this rig's output binds against.
 - `docs/rfcs/0011-hydrostatic-stability-load-cases.md` — mass and KG
   conventions the rig must record.
 - `docs/rfcs/0014-generalized-trim-and-gz-stability.md` — `GZCurve`

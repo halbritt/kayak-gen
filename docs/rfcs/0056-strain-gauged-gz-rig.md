@@ -1,11 +1,16 @@
-# RFC 0050: Strain-Gauged Moment-Arm Rig for Measured High-Angle GZ
+# RFC 0056: Strain-Gauged Moment-Arm Rig for Measured High-Angle GZ
 
 Status: proposed
 Date: 2026-05-16
 Context: extends the calibration-fixture family (RFC 0019, RFC 0027,
 RFC 0042) into measured *stability* data, and supplies the validation
 input that RFC 0043's analytical high-angle `GZ` evaluator currently
-lacks. Grounded in `docs/research/CALIBRATION_DATA_FINDINGS_2026-05-16.md`
+lacks. Parallel to RFC 0054, which lands the ingest schema for the
+discrete inclining-by-known-weight protocol (`IncliningTestRun` —
+one `(heel_deg, applied_moment_nm)` row per measurement); this RFC
+scopes the continuous strain-gauged-arm protocol as a distinct data
+kind that produces a dense `(θ, GZ)` trace in a single sweep.
+Grounded in `docs/research/CALIBRATION_DATA_FINDINGS_2026-05-16.md`
 which concluded that public measured high-angle GZ datasets for
 in-envelope kayaks do not exist, and that the realistic path is to
 produce them. The rig design lives at
@@ -89,6 +94,11 @@ same failure mode RFC 0019 closed for resistance data.
   stability.
 - RFC 0043 for the claim gates that still apply to any analytical
   `GZCurve`, with or without measured data.
+- RFC 0054 for the `IncliningTestRun` schema (discrete fixed-weight
+  protocol) and the `AcceptedFitRecord` schema. This RFC's continuous
+  trace is the sweep-rate analog of the discrete inclining row, and
+  the `AcceptedFitRecord` flow defined there applies once a measured
+  stability fixture is bound to an analytical comparison.
 
 ## Proposal
 

@@ -70,6 +70,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0053](0053-turning-and-edged-waterline-metrics.md) | proposed | Turning and edged-waterline metrics |
 | [0054](0054-calibration-campaign-tooling.md) | proposed | Calibration-campaign tooling (tank-test + inclining-test schemas + accepted-fit) |
 | [0055](0055-design-report-export.md) | proposed | Single-file design report export (HTML + optional PDF) |
+| [0056](0056-strain-gauged-gz-rig.md) | proposed | Strain-gauged moment-arm rig for measured high-angle GZ (continuous-trace sibling to RFC 0054 inclining) |
 
 Architecture-plan landing notes (not RFCs themselves; see
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`):
@@ -182,13 +183,15 @@ while keeping RFC 0027 claim gates authoritative. RFC 0043 supersedes the
 remaining proposed implementation scope of RFC 0020 while preserving RFC 0024
 as the landed structured-unavailable handoff; real kayak high-angle `GZ`
 remains unavailable until generated-body evidence and an accepted heeled
-integration model exist. RFC 0050 introduces `measured_stability_fixture`
+integration model exist. RFC 0056 introduces `measured_stability_fixture`
 as a sibling data kind to RFC 0019's resistance fixtures, defines the
 manifest, hull-identity, calibration-trace, and free-equilibrium gates that
 promote a strain-gauged moment-arm rig run to a citable measured-GZ fixture,
 and leaves RFC 0043's `unvalidated_hydrostatic_comparison` label in place
 until a separate fitting RFC accepts both fixture and analytical comparison;
-the rig itself is designed in
+RFC 0056 sits parallel to RFC 0054's discrete `IncliningTestRun` schema
+(fixed-weight protocol) as the continuous-trace strain-gauged-arm protocol,
+and the rig itself is designed in
 `docs/research/STRAIN_GAUGED_GZ_RIG_DESIGN_2026-05-16.md`.
 
 RFC 0021 has landed only for explicit synthetic closed-volume diagnostics: the
