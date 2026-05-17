@@ -182,7 +182,14 @@ while keeping RFC 0027 claim gates authoritative. RFC 0043 supersedes the
 remaining proposed implementation scope of RFC 0020 while preserving RFC 0024
 as the landed structured-unavailable handoff; real kayak high-angle `GZ`
 remains unavailable until generated-body evidence and an accepted heeled
-integration model exist.
+integration model exist. RFC 0050 introduces `measured_stability_fixture`
+as a sibling data kind to RFC 0019's resistance fixtures, defines the
+manifest, hull-identity, calibration-trace, and free-equilibrium gates that
+promote a strain-gauged moment-arm rig run to a citable measured-GZ fixture,
+and leaves RFC 0043's `unvalidated_hydrostatic_comparison` label in place
+until a separate fitting RFC accepts both fixture and analytical comparison;
+the rig itself is designed in
+`docs/research/STRAIN_GAUGED_GZ_RIG_DESIGN_2026-05-16.md`.
 
 RFC 0021 has landed only for explicit synthetic closed-volume diagnostics: the
 RFC 0016 compatibility profile records `not_checked`, while
