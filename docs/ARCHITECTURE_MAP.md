@@ -82,7 +82,9 @@ kayakgen/
 │   ├── advisory.py
 │   ├── geometry.py              HullGeometry + section_for_closed_body
 │   ├── hull.py
-│   └── presets.py
+│   ├── presets.py
+│   └── distribution_v2.py       RFC 0048 LongitudinalDistribution +
+│                                 DistributionV2Spec (6 cross-section families)
 ├── search/                   # Sweep + compare + Pareto + active search
 │   ├── active/
 │   │   ├── spec.py              SearchSpec, SearchAlgorithmSpec union
@@ -95,12 +97,20 @@ kayakgen/
 │   ├── objectives.py            OBJECTIVE_METADATA registry
 │   ├── pareto.py                Objective gates + RFC 0043/0044 refusal tokens
 │   └── sweep.py                 SweepSpec, CandidateRecord, pending lifecycle
-├── services/                 # Phase 3D application services (no UI/CLI deps)
+├── services/                 # Application services (no UI/CLI deps)
 │   ├── design.py                hull-state assembly, presets, validity badges
-│   ├── evaluation.py            metrics + analysis + resistance view models
+│   ├── evaluation.py            metrics + analysis + resistance view models +
+│   │                            RFC 0050 target-draft/trim solvers
 │   ├── artifacts.py             STL / hydro / stability JSON / package export
 │   ├── cfd_jobs.py              CFD prepare/run/status/logs/raw-result orchestration
-│   └── comparison.py            comparison-report load + read-model assembly
+│   ├── comparison.py            comparison-report load + read-model assembly
+│   ├── identity.py              RFC 0049 design_hash / record_hash / run_hash
+│   ├── artifact_store.py        RFC 0049 FilesystemArtifactStore + SqliteIndex
+│   ├── sensitivity.py           RFC 0052 SensitivityRequest + compute_sensitivity
+│   ├── build_export.py          RFC 0051 7 builder-artifact writers + manifest
+│   ├── calibration_artifacts.py RFC 0054 residual-plot SVG writer
+│   ├── design_report.py         RFC 0055 HTML render + optional weasyprint PDF
+│   └── design_report_templates/ jinja2 templates for RFC 0055
 └── ui/                       # Trame web + PyQt desktop; consumes read models
     ├── desktop.py               PyQt6 + matplotlib desktop GUI
     ├── gui_params.py
@@ -112,6 +122,12 @@ kayakgen/
         ├── read_models.py       view-model adapters (high-angle GZ etc.)
         └── state.py             WebStateSchema + alias maps
 ```
+
+The `cli/` directory carries seven sibling modules used by `main.py`:
+`high_angle_gz.py` (RFC 0043 compat shim), `target_workflows.py`
+(RFC 0050), `migrate_geometry_cli.py` (RFC 0048), `sensitivity_cli.py`
+(RFC 0052), `design_report_cli.py` (RFC 0055), and `runs_cli.py`
+(RFC 0049). `main.py` adds each as a one-line import + registration.
 
 ## Public CLI commands
 
@@ -136,11 +152,26 @@ kayakgen/
 | `kayakgen cfd prepare ... --allow-real-solver-execution` | per-job real-solver opt-in flag | job dir with `allow_real_solver_execution=true` |
 | `kayakgen cfd status <job>` | print job state | stdout |
 | `kayakgen cfd run <job>` | invoke adapter | updates run.json |
+| `kayakgen target-draft <hull> --load <load>` | upright sinkage for a load | StabilityResult JSON |
+| `kayakgen target-draft ... --draft N --report-only` | load mismatch at a fixed draft | `TargetDraftMismatchReport` |
+| `kayakgen target-trim <hull> --load <load>` | draft + trim for a longitudinal-CG load | StabilityResult JSON |
+| `kayakgen migrate-geometry <hull>` | v1 lofted → v2 distribution sibling | `<name>.v2.json` |
+| `kayakgen build-export <hull>` | builder artifacts (RFC 0051; `[builder]` extras) | offsets CSV + 2 DXF + 4 SVG + manifest |
+| `kayakgen sensitivity <hull>` | local finite-difference Jacobian | `<out>.sensitivity.json` |
+| `kayakgen design-report <hull>` | self-contained HTML (+ optional PDF) | `report.html` (+ `report.pdf` with `[report]` extras) |
+| `kayakgen runs list/query/reindex` | cross-run index (RFC 0049) | reads `~/.local/share/kayakgen/index.sqlite` |
+| `kayakgen calibration ingest-tank-test` | tank-test CSV ingest | `TankTestCampaign` JSON |
+| `kayakgen calibration ingest-inclining-test` | inclining-test CSV ingest | `IncliningTestCampaign` JSON |
+| `kayakgen calibration accept-fit` | accept a fit against an RMSE threshold | `AcceptedFitRecord` JSON |
+| `kayakgen calibration residual-plot` | SVG residual plot for an accepted fit | SVG file |
+| `kayakgen evaluate ... --turning [--turning-heel-deg N]` | opt-in turning + edged-waterline metrics (RFC 0053) | adds `turning_metrics` to JSON |
 
 ## Durable artifact types
 
-- **Hull JSON**: `kayakgen.model.hull.Hull` record. Stable schema; SHA-256 via
-  `Hull.hash()`.
+- **Hull JSON**: `kayakgen.model.hull.Hull` record. Stable schema; SHA-256
+  via `Hull.hash()` (alias for `Hull.record_hash()` per RFC 0049);
+  `Hull.design_hash()` for physical-inputs-only identity; optional
+  `geometry_kind="distribution_v2"` carrying a `DistributionV2Spec`.
 - **STL**: `kayakgen.io.stl` binary writer; not used as a test oracle (see
   `tests/golden/` for goldens).
 - **EvaluationResult JSON**: `kayakgen.eval.contract.EvaluationResult`.
@@ -163,6 +194,37 @@ kayakgen/
 - **Edinburgh validation fixture**: vendored under
   `tests/fixtures/calibration/edinburgh/`; SHA-256-bound in the source-review
   packet.
+- **SQLite cross-run index (RFC 0049)**: default at
+  `~/.local/share/kayakgen/index.sqlite`, overridable via
+  `KAYAKGEN_INDEX_DB`. Tables: `runs`, `candidates`, `metrics`,
+  `artifacts`, `events`. Populated by `FilesystemArtifactStore` on
+  each sweep/search/CFD write; queryable via `kayakgen runs list/query`.
+- **Filesystem `_store/` mirror (RFC 0049)**: content-addressed
+  hard-link mirror under each run directory; canonical paths and
+  bytes stay byte-stable.
+- **Builder-export bundle (RFC 0051)**: directory with `offsets.csv`,
+  `sections.dxf`, `sheer.svg`, `keel.svg`, `waterline.svg`,
+  `deck_centreline.svg`, `station_molds.dxf`, plus a `manifest.json`
+  enumerating each artifact's `sha256` + `bytes`.
+- **Design-report HTML (RFC 0055)**: self-contained HTML (inline CSS,
+  base64 PNG preview); optional sibling PDF when `kayakgen[report]`
+  + weasyprint are installed. Forbidden-copy clean (`FORBIDDEN_COPY_TOKENS`
+  scan + `FORBIDDEN_COPY_SCRUB_TOKENS` scrub).
+- **Sensitivity result JSON (RFC 0052)**: `SensitivityResult` with
+  hull record hash, per-parameter step, metric baselines, the
+  `metric → param` partial-derivative table, non-finite-partial
+  triples.
+- **Calibration campaigns (RFC 0054)**: directories containing
+  `TankTestCampaign` / `IncliningTestCampaign` JSON, optional
+  `RightsChecklist` JSON, and the `GeometryReference` binding. The
+  `accept-fit` subcommand writes an `AcceptedFitRecord` JSON that
+  the `ResistanceSourceReviewPacket` validator resolves on disk.
+- **Target-workflow JSON (RFC 0050)**: `StabilityResult` from
+  `target-draft` / `target-trim`, or `TargetDraftMismatchReport`
+  from `target-draft --report-only`.
+- **Turning metrics (RFC 0053)**: `TurningMetrics` block on
+  `EvaluationResult` (opt-in via `--turning`); four numeric metrics
+  registered as `display_only`.
 
 ## Public JSON records
 
@@ -184,8 +246,24 @@ with a `schema_version` literal. JSON round-trip lossless.
   `HighAngleGzArtifact`
 - `SearchSpec`, `SearchAlgorithmSpec` (Nsga2 | Ehvi),
   `SearchMetadata`, `SearchConstraint`, `SearchBudget`, `SearchLimits`
-- `ComparisonReport`, `CandidateSummary`, `HighAngleGzDisplay`
+- `ComparisonReport`, `CandidateSummary`, `HighAngleGzDisplay`,
+  `PairwiseNote`
 - `WebStateSchema`, `WebHighAngleGzRows`
+- `CfdRunStage` (RFC Phase 7 staged pipeline)
+- `DistributionV2Spec`, `LongitudinalDistribution` union
+  (`UniformDistribution`, `PolynomialDistribution`,
+  `KeyPointsDistribution`), `CrossSectionFamily` (RFC 0048)
+- `TurningMetrics` (RFC 0053)
+- `TargetDraftMismatchReport` (RFC 0050)
+- `SensitivityRequest`, `SensitivityResult`, `ConvergenceFlag`
+  (RFC 0052)
+- `ArtifactRef`, `ArtifactKind`, `RunEvent` (RFC 0049)
+- `BuildExportSpec` (RFC 0051)
+- `DesignReportRequest`, `DesignReportResult` (RFC 0055)
+- `RightsChecklist`, `GeometryReference`, `TankTestRun`,
+  `TankTestCampaign`, `IncliningTestRun`, `IncliningTestCampaign`,
+  `AcceptedFitRecord` (RFC 0054)
+- `V2HydrostaticCrossCheck` (RFC 0048 hydrostatics advisory)
 
 ## Claim states
 
@@ -236,6 +314,15 @@ Preserved verbatim from `docs/ROADMAP.md`. Future doc changes must respect:
   indefinitely deferred per D023.
 - Class validity and advisory badges are not proof of seaworthiness,
   calibrated performance, or final design fitness.
+- Turning metrics (RFC 0053) are a geometric proxy, not a turning
+  prediction or maneuverability claim. All four are refused as
+  Pareto/search objectives via the `display_only` registry role.
+- Sensitivity output (RFC 0052) is local finite-difference, not a
+  global reliability claim. Pairwise within-evaluator-noise
+  advisories on `ComparisonReport` are informational; frontier
+  eligibility is unchanged.
+- A measured high-angle GZ rig design exists at RFC 0056; the design
+  is a scaffold only — no measured data has been ingested.
 
 ## Dependency rules
 

@@ -1,6 +1,6 @@
 # Operator Report
 
-Updated: 2026-05-15
+Updated: 2026-05-17
 
 ## Current State
 
@@ -164,6 +164,53 @@ Updated: 2026-05-15
     Default `kayakgen sweep` and `kayakgen compare` behavior is
     byte-equal to today; the only sweep-side change is one literal
     extension of `CandidateStatus` to admit `"constraint_failed"`.
+- 2026-05-17 checkpoint (`drive all proposed RFCs to completion` wave):
+  ran 8 parallel-subagent landings against the proposed-RFC list, then
+  a deep-scan doc sync pass.
+  - **RFC 0048 Geometry V2** (D029): `geometry_kind="distribution_v2"`
+    on `Hull`, six cross-section families, `DistributionV2Geometry`,
+    hydrostatic cross-check (advisory-only), `kayakgen migrate-geometry`
+    CLI. Default lofted hull is byte-stable. +77 tests.
+  - **RFC 0049 ArtifactStore** (D030): `Hull.{record,design}_hash()`,
+    `kayakgen.services.identity`, `FilesystemArtifactStore` +
+    `SqliteIndex` (at `~/.local/share/kayakgen/index.sqlite` or
+    `$KAYAKGEN_INDEX_DB`), `kayakgen runs` sub-app. Sweep / search /
+    CFD writers route through the store; canonical paths byte-stable.
+    +17 tests.
+  - **RFC 0050 target-draft/trim** (D031): two new CLI subcommands +
+    `TargetDraftMismatchReport`. +9 tests.
+  - **RFC 0051 builder-oriented exports** (D032): `kayakgen
+    build-export` under new `[builder]` extras; seven artifacts +
+    `manifest.json`. +11 tests.
+  - **RFC 0052 sensitivity** (D033): `kayakgen sensitivity` CLI,
+    `ConvergenceFlag` additive on `EvaluationResult`, `PairwiseNote`
+    advisory on `ComparisonReport`, registry-side
+    `within_evaluator_noise_threshold`. +11 tests.
+  - **RFC 0053 turning metrics** (D034): `TurningMetrics` block,
+    opt-in `--turning [--turning-heel-deg]` flag, sweep evaluator;
+    four metrics registered as `display_only`. +14 tests.
+  - **RFC 0054 calibration-campaign tooling** (D035): `kayakgen
+    calibration` sub-app, tank/inclining/AcceptedFitRecord schemas,
+    validator wiring for on-disk `accepted_fit_ref`. Edinburgh stays
+    at `validation_fixture`. +19 tests.
+  - **RFC 0055 design-report** (D036): `kayakgen design-report` under
+    new `[report]` extras; 10-section self-contained HTML with
+    embedded base64 PNG; forbidden-copy scan + scrub; optional
+    weasyprint PDF. +8 tests.
+  - Resolved an inbound merge conflict against the operator-scaffolded
+    RFC 0056 (strain-gauged GZ rig design). Both my RFCs 0050-0055
+    (landed) and the operator's 0056 (proposed) now coexist.
+  - Full suite: 914 passed, 4 skipped in stable AND random ordering.
+    Ruff clean. Env-gated CFD pipeline 9/9 in ~14s.
+  - Doc sync pass: `docs/USER_GUIDE.md` documents the 9 new CLI
+    surfaces and 3 new extras; `docs/ARCHITECTURE_MAP.md` refreshed
+    with the new package layout, CLI table, artifact catalogue, and
+    schema list; `docs/DECISION_LOG.md` gains D029-D036;
+    `docs/DDD.md` records the new aggregates and services;
+    `docs/SPEC.md` records the new durable state, invariants, and
+    schemas; `docs/PRD.md` Delivered Today + Roadmap And Deferrals
+    refreshed; `docs/ROADMAP.md` updated with new tracks; AGENTS.md
+    current-direction paragraph refreshed.
 - 2026-05-14T19:35Z checkpoint: scaffolded workflow 0053
   (`implementation-burndown-stage2`) to burn down the remaining roadmap
   backlog in parallel. The new workflow fans out six disjoint Codex

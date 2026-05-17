@@ -47,7 +47,7 @@ validators.
 
 | Aggregate | Storage | Identity | Invariants |
 | --- | --- | --- | --- |
-| **Hull** | `<name>.json` Pydantic record | content-hashed via `Hull.hash()` | dimensions positive; `Cp`/`Cm`/`bow_rake`/`stern_rake` in canonical bands; class-preset constraints; rake fields are dimensionless fullness controls in `[0, 1]`. |
+| **Hull** | `<name>.json` Pydantic record | `Hull.record_hash()` for serialized-form identity; `Hull.design_hash()` for physical-inputs-only identity (RFC 0049). `Hull.hash()` is an alias for `record_hash()` and is byte-stable. | dimensions positive; `Cp`/`Cm`/`bow_rake`/`stern_rake` in canonical bands; class-preset constraints; rake fields are dimensionless fullness controls in `[0, 1]`. When `geometry_kind="distribution_v2"` (RFC 0048), a `DistributionV2Spec` must be present and `bow_rake`/`stern_rake` must be at defaults. |
 | **MeshPackage** | directory written by `kayakgen mesh-package`; `manifest.json` is the canonical reader | manifest's `mesh_profile.name` + body identity | manifest's `body_ref_hash` matches the source hull; readiness chosen by the bound `VolumeMeshDiagnostic` and the profile; `cfd_ready` only when watertight evidence binds. |
 | **ClosedVolumeBody** | in-process `ClosedVolumeBody` record; persisted via the package manifest | `body_id` + `source_hull_hash` | positive signed volume; passes RFC 0016 topology and RFC 0021 self-intersection diagnostics; per-part vertex/face arrays consistent. |
 | **SnappyHexMeshEvidence** | `<dir>/evidence.json` written by `kayakgen mesh-evidence` | `body_ref_hash` + locked case-template version + dictionary hash set | `dispatch_state` only `evidence_recorded` when every dict hash, patch entry, `CheckMeshSummary.passed`, polyMesh checksum, and v2512 provenance bind. |
@@ -57,7 +57,10 @@ validators.
 | **ResistanceSourceReviewPacket** | `kayakgen/eval/calibration/__init__.py:default_resistance_source_review_packets()` + pinned JSON | `source_id` + `fixture_id` + `fixture_version` | promotion rules in `_review_verdict_controls_promotion_metadata`; D025 admits one documented-uncertainty caveat path and one calibration-blocker `non_promotion_reasons` path on `validation_fixture`. |
 | **SweepRun** | `runs/<name>/` directory | run directory + spec hash | `pending` candidates frontier-ineligible; resume preserves seeded order; per-candidate record schemas frozen. |
 | **SearchRun** | same as `SweepRun` with a `search_metadata` block | run directory + spec hash + seed | algorithm-determined byte-identical records across reseeded runs (NSGA-II + EHVI); claim-admissibility gate enforced before any evaluation. |
-| **ComparisonReport** | `<run>/compare.json` written by `kayakgen compare` | (run_id, objective set hash) | pending rows visible but frontier-ineligible; high-angle GZ is display-only; refused as Pareto objective via RFC 0043 token. |
+| **ComparisonReport** | `<run>/compare.json` written by `kayakgen compare` | (run_id, objective set hash) | pending rows visible but frontier-ineligible; high-angle GZ and turning metrics are display-only (RFC 0043 / RFC 0053); refused as Pareto objective via the registry's `display_only` role + the RFC 0043 token. RFC 0052 `pairwise_notes` are advisory only; frontier eligibility unchanged. |
+| **TankTestCampaign** / **IncliningTestCampaign** | directories under operator-chosen `--out` (RFC 0054) | `source_id` + row-source-id consistency | every `TankTestRun` row's `source_id` matches the campaign's; `RightsChecklist` records license/attribution/redistribution intent. Promotion to `validation_fixture` / `calibration_fixture` runs through the existing `ResistanceSourceReviewPacket` validator. |
+| **AcceptedFitRecord** | `accepted_fit.json` under a calibration fixture directory (RFC 0054) | (fit_id, immutable model_version) | `fit_metric ∈ {RMSE, MAPE, R2}`; below-threshold fits refused at accept-fit time AND at `ResistanceSourceReviewPacket` validation time with structured tokens. Calibration_fixture promotion requires this record on disk. |
+| **ArtifactStore + SqliteIndex** | hard-linked `_store/` per run directory (RFC 0049); `~/.local/share/kayakgen/index.sqlite` (override `KAYAKGEN_INDEX_DB`) | `artifact_hash` (SHA-256 of bytes) per artifact; `run_id` per run | sweep/search/CFD writers route through `FilesystemArtifactStore`; canonical paths and bytes stay byte-stable; missing `_store/` re-derives from canonical on next read with a warning. |
 
 ## Value objects
 
@@ -116,6 +119,35 @@ package hosts the web/CLI application services.
 - **High-angle GZ read model**: `kayakgen.eval.high_angle_gz.build_high_angle_gz_block`
   (was in CLI; moved Phase 2 of the architecture plan).
 - **Comparison**: `kayakgen.search.compare.build_comparison_report`.
+- **Identity (RFC 0049 / D030)**: `kayakgen.services.identity`
+  (`record_hash`, `design_hash_for_hull`, `run_hash`); `Hull.hash()`,
+  `Hull.record_hash()`, `Hull.design_hash()` accessors.
+- **ArtifactStore (RFC 0049 / D030)**:
+  `kayakgen.services.artifact_store.FilesystemArtifactStore` (hard-link
+  mirror under `_store/`), `SqliteIndex` (runs / candidates /
+  metrics / artifacts / events), and `index_run_directory` /
+  `index_candidates` helpers. Sweep, search, and CFD job writers
+  route through the store.
+- **Sensitivity (RFC 0052 / D033)**: `kayakgen.services.sensitivity`
+  `compute_sensitivity` with auto-step + per-parameter step override.
+- **Builder exports (RFC 0051 / D032)**:
+  `kayakgen.services.build_export` writers + `write_build_export`
+  orchestrator.
+- **Calibration artifacts (RFC 0054 / D035)**:
+  `kayakgen.services.calibration_artifacts.write_residual_plot`
+  (vendored SVG, no matplotlib dependency).
+- **Design-report rendering (RFC 0055 / D036)**:
+  `kayakgen.services.design_report.render_design_report` (jinja2 +
+  optional weasyprint); `FORBIDDEN_COPY_TOKENS` + scrub list named
+  constants; `ReportForbiddenCopyError` refusal.
+- **Geometry V2 (RFC 0048 / D029)**: `Hull.to_geometry()` dispatches
+  on `geometry_kind` to either the existing `LoftedHullGeometry` or
+  the new `DistributionV2Geometry`. The hydrostatic cross-check lives
+  in `kayakgen.eval.hydrostatics` and emits an advisory note on
+  `Hydrostatics` + an optional `V2HydrostaticCrossCheck`.
+- **Target workflows (RFC 0050 / D031)**:
+  `kayakgen.services.evaluation.solve_target_draft`,
+  `solve_target_trim`, `target_draft_load_mismatch`.
 - **Application services (Phase 3D)**: `kayakgen.services.design`
   (hull-state composition, presets, validity badges),
   `kayakgen.services.evaluation` (metrics + analysis + resistance view
@@ -133,6 +165,16 @@ View shapes consumed by UI or external tooling, not aggregates.
 - `ComparisonReport` (Pareto frontier + per-candidate display rows).
 - `ClosedVolumeSolverReadinessReport` (per-package readiness + blockers).
 - `WebStateSchema` and the Trame `WebHighAngleGzRows` view-model.
+- `SensitivityResult` (RFC 0052 read model over evaluator outputs)
+  and `PairwiseNote` (advisory on `ComparisonReport`).
+- `DesignReportResult` (RFC 0055; the rendered HTML + optional PDF
+  + the `forbidden_copy_clean` flag).
+- `BuildExportSpec`-driven artifact bundle (RFC 0051; one bundle per
+  `kayakgen build-export` invocation).
+- `TurningMetrics` (RFC 0053; opt-in additive view model on
+  `EvaluationResult`).
+- `TargetDraftMismatchReport` (RFC 0050).
+- `V2HydrostaticCrossCheck` (RFC 0048 advisory on `Hydrostatics`).
 
 ## Write surface
 

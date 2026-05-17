@@ -108,6 +108,55 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   because no accepted-validation workflow exists. Backwards-compatible
   for existing serialized records. New tests under
   `tests/test_cfd_run_stages.py`. Suite 733 + 2 skipped, ruff clean.
+
+### Changed
+
+- Deep-scan doc-sync pass on 2026-05-17 after the eight-RFC wave:
+  - `docs/USER_GUIDE.md` documents the 9 new CLI surfaces
+    (`target-draft`, `target-trim`, `migrate-geometry`,
+    `build-export`, `sensitivity`, `design-report`, `runs`,
+    `calibration`, `--turning` flag on `evaluate`) and lists the
+    new optional extras (`browser`, `builder`, `calibration`,
+    `report`).
+  - `docs/ARCHITECTURE_MAP.md` refreshed: package map adds 15 new
+    files, CLI table adds 14 rows, durable-artifact catalogue adds
+    9 new entries (SQLite index, `_store/` mirror, builder bundle,
+    design-report HTML, sensitivity result, calibration campaign
+    directories, target-workflow JSON, turning metrics). Public
+    JSON record list updated with 14 new entries; no-claim rules
+    extended for turning + sensitivity advisories.
+  - `docs/DECISION_LOG.md` gains D029-D036 (one row per landed RFC,
+    each citing structured tokens and the open-question defaults
+    pre-resolved).
+  - `docs/DDD.md` aggregates table gains `TankTestCampaign`,
+    `IncliningTestCampaign`, `AcceptedFitRecord`, and the
+    `ArtifactStore + SqliteIndex` row; Hull aggregate updated with
+    `record_hash`/`design_hash`; domain-services section adds the
+    eight new RFC entries; read-models section adds Sensitivity,
+    DesignReport, BuildExport, Turning, TargetDraftMismatch,
+    V2HydrostaticCrossCheck.
+  - `docs/SPEC.md` "State the project owns" table adds 9 new rows;
+    invariants list extended with hull-identity, geometry-V2
+    admissibility, calibration_fixture promotion, display-only
+    objective refusal, and pairwise within-evaluator-noise
+    semantics; schema catalogue + CLI surface lists updated.
+  - `docs/PRD.md` Delivered Today section gains six new bullets
+    (Geometry V2 in Geometry, target-workflows + sensitivity +
+    builder + turning in Evaluation, design-report + cross-run
+    inspection + calibration tooling in Frontends/tooling);
+    Roadmap And Deferrals rewritten to reflect what is now landed
+    vs still operator-blocked; generative-search bullet moved
+    from proposed to landed.
+  - `docs/ROADMAP.md` track table refreshed; "Inverse design and
+    reporting" + "Geometry V2 distribution model" + "Calibration-
+    campaign tooling" track rows added.
+  - `AGENTS.md` current-direction paragraph rewritten to reflect
+    the 2026-05-17 state.
+  - `OPERATOR_REPORT.md` gains a 2026-05-17 wave checkpoint with
+    per-RFC summaries + the doc-sync pass.
+
+### Added
+
 - Drove all 8 proposed RFCs (0048-0055) to landed status in a single
   parallel-subagent wave (2026-05-17). All defaults are byte-stable;
   every new feature is additive or opt-in. Full suite: 914 passed +

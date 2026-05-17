@@ -20,9 +20,13 @@ python -m pip install -e .
 Optional extras:
 
 ```bash
-python -m pip install -e '.[desktop]'  # PyQt/PyVista desktop GUI
-python -m pip install -e '.[web]'      # Trame web frontend
-python -m pip install -e '.[dev]'      # tests, linting, type checking
+python -m pip install -e '.[desktop]'      # PyQt/PyVista desktop GUI
+python -m pip install -e '.[web]'          # Trame web frontend
+python -m pip install -e '.[browser]'      # Playwright (browser acceptance)
+python -m pip install -e '.[builder]'      # ezdxf (kayakgen build-export)
+python -m pip install -e '.[calibration]'  # openpyxl (calibration ingest)
+python -m pip install -e '.[report]'       # jinja2 + weasyprint (design-report)
+python -m pip install -e '.[dev]'          # tests, linting, type checking
 ```
 
 After install, `kayakgen --help` should show the command list.
@@ -70,6 +74,23 @@ The current loft honors only the implemented parameter set. Some fields exist
 for RFC compatibility and are not complete shape controls yet; for example,
 `LCB_frac` is reserved and not yet honored by the loft.
 
+Hull JSON may set `geometry_kind`. The default `"lofted"` runs the
+existing implicit loft and is byte-stable for every existing hull.
+`"distribution_v2"` (RFC 0048) opts into an explicit distribution
+model: the hull's `distribution_v2` block carries five
+`LongitudinalDistribution` records (waterline half-breadth, draft
+profile, section-area, deck-freeboard, rocker), a
+`cross_section_family` choice from `round` / `shallow_arch` /
+`shallow_v` / `deep_v` / `hard_chine` / `multi_chine` (2-4 chines),
+plus deadrise / chine-radius / bow-flare controls and a target
+LCB fraction. The canonical closed body is the source of truth in
+v2; open hull/deck STLs are derived from it. Hydrostatics is
+cross-checked by both section-integration and triangle-integration
+methods (advisory-only on >1% displaced volume / Aw / LCB drift, or
+>0.5% GM0). `bow_rake` / `stern_rake` are refused at non-default
+values on a v2 hull. Use `kayakgen migrate-geometry` to produce a
+v2 sibling from an existing lofted hull.
+
 ## CLI Commands
 
 ### `init`
@@ -109,6 +130,20 @@ valid hulls. These records separate non-blocking design advisories, such as
 such as non-neutral `LCB_frac`, `rocker_bow_m`, or `rocker_stern_m`. Advisory
 and unsupported records do not make the hull invalid, do not change sweep or
 comparison ranking, and are not proof of seaworthiness or final design fitness.
+
+The result also gains a `convergence: list[ConvergenceFlag]` block
+(RFC 0052) summarising each evaluator's convergence: `(stage, status
+∈ {converged, not_converged, iteration_cap}, residual)`. Default
+hulls evaluate to a fully-converged block; values are populated
+automatically by an additive model validator on `EvaluationResult`.
+
+Pass `--turning` (RFC 0053) to emit a `turning_metrics` block
+(`heel_deg`, `edged_waterline_length_m`, `upright_waterline_length_m`,
+`lateral_plane_shift_m`, `rocker_weighted_maneuverability_signal`,
+`method="geometric_proxy_v1"`). Default heel is 8 deg; override via
+`--turning-heel-deg <float>`. The metrics are a geometric proxy, not
+a turning prediction. All four are registered as `display_only` in
+the metric registry and refused as Pareto/search objectives.
 
 ### `stability`
 
@@ -216,6 +251,13 @@ shape that `kayakgen stability --high-angle-gz` emits and remains
 `summary.csv` columns and are NOT selectable as Pareto objectives — they are
 display-only.
 
+Set `evaluators.turning_metrics: true` (RFC 0053; optionally
+`evaluators.turning_metrics_heel_deg: 8.0`) to emit four numeric
+`turning.*` metrics on each candidate's `summary`. They appear as
+columns in `summary.csv`. All four are registered as `display_only`
+and refused as Pareto/search objectives, matching the CLI `--turning`
+flag's contract.
+
 ### `compare`
 
 Build a Pareto-style comparison report from a sweep run:
@@ -310,6 +352,164 @@ comparison view.
 `kayakgen search` does not run real CFD by itself. To use the
 OpenFOAM-v2512 succeeded path inside the loop, set the env knobs
 documented under `cfd run` above.
+
+### `target-draft`
+
+Solve upright sinkage for a load case (RFC 0050), or report the
+mismatch between a given draft and that load:
+
+```bash
+kayakgen target-draft hull.json --load day-trip.json --out target-draft.json
+kayakgen target-draft hull.json --load day-trip.json --draft 0.12 --report-only \
+    --out target-draft-mismatch.json
+```
+
+The default mode writes the equilibrium `StabilityResult`. With
+`--report-only` and `--draft`, the command writes a
+`TargetDraftMismatchReport` (`hull_record_hash`, `assumed_draft_m`,
+`expected_displaced_mass_kg`, `actual_displaced_mass_kg`, `mismatch_kg`,
+`mismatch_percent`, `notes`). Loads that exceed 2× the hull's max
+displaced mass are refused with a structured `load_unphysical` error.
+
+### `target-trim`
+
+Solve draft + trim for a load case with a non-zero longitudinal CG
+(RFC 0050):
+
+```bash
+kayakgen target-trim hull.json --load offset-paddler.json --out target-trim.json
+```
+
+Wraps the existing bounded fixed-body trim solver via
+`kayakgen.services.evaluation.solve_target_trim`. Same load-physics
+guard as `target-draft`.
+
+### `migrate-geometry`
+
+Convert a v1 lofted `Hull` JSON to a best-effort v2 distribution
+record (RFC 0048):
+
+```bash
+kayakgen migrate-geometry hull.json --out hull.v2.json --tolerance-percent 1.0
+```
+
+Without `--out`, the migration writes a sibling `<name>.v2.json`. If
+the round-trip discrepancy exceeds the configured tolerance, the
+command writes the v2 file but exits with a non-zero status and a
+structured warning. The v1 `geometry_kind="lofted"` hull and STL
+output remain byte-stable; v2 is additive, not a replacement.
+
+### `build-export`
+
+Write builder-oriented artifacts (RFC 0051; requires
+`kayakgen[builder]` extras for the DXF writer):
+
+```bash
+kayakgen build-export hull.json --out build/builder
+kayakgen build-export hull.json --out build/builder --n-stations 48
+```
+
+Produces seven artifacts under `--out`: `offsets.csv`, `sections.dxf`,
+`sheer.svg`, `keel.svg`, `waterline.svg`, `deck_centreline.svg`,
+`station_molds.dxf`, plus a `manifest.json` enumerating each with
+`sha256` and `bytes`. Each artifact carries a header comment with the
+hull SHA-256 and the kayakgen version pin. Output is deterministic
+modulo CAD-library save timestamps (the DXF determinism check
+compares parsed entities, not raw bytes).
+
+### `sensitivity`
+
+Local finite-difference Jacobian over hull parameters (RFC 0052):
+
+```bash
+kayakgen sensitivity hull.json \
+    --metric GM0_m --metric displaced_mass_kg \
+    --param length_m --param beam_oa_m \
+    --out hull.sensitivity.json
+kayakgen sensitivity hull.json --metric GM0_m --param beam_oa_m --step 0.005
+```
+
+Auto-step is `1e-4 * baseline_value` per parameter, clamped to
+`[1e-9, 1e-2]`. The output JSON is a `SensitivityResult` with the hull
+record hash, the chosen step per parameter, the metric baselines, the
+`metric → param` partial-derivative table, and any `(metric, param,
+reason)` triples that produced non-finite partials. The result is
+explicitly local-sensitivity, not a calibrated reliability claim.
+
+The comparison report (`kayakgen compare`) also gains a
+`pairwise_notes` block flagging Pareto-front pairs whose default-
+objective metrics differ by less than the registry's per-metric
+`within_evaluator_noise_threshold` (defaults: `GM0_m=0.001 m`,
+`displacement_error_kg=0.5 kg`, `mesh_problem_count=1`). The advisory
+does not change frontier eligibility; it tells the operator that two
+"different" candidates are within evaluator noise.
+
+### `design-report`
+
+Render a self-contained HTML (and optionally PDF) design report
+(RFC 0055; requires `kayakgen[report]` extras):
+
+```bash
+kayakgen design-report hull.json --out report.html
+kayakgen design-report hull.json --out report.html --pdf
+kayakgen design-report hull.json --out report.html --from-run runs/demo
+```
+
+The report assembles ten sections: header, parameters, rendered
+views (embedded base64 PNG preview), hydrostatics, stability
+(including opt-in high-angle GZ when present), resistance, mesh /
+readiness, optional comparison position (when `--from-run` is set),
+artifact refs + SHA-256, and claim-state explanations. The
+renderer scans the assembled text against
+`FORBIDDEN_COPY_TOKENS` after scrubbing the explicit negated forms;
+forbidden copy raises `ReportForbiddenCopyError` instead of writing
+the file. The optional PDF path uses weasyprint; without weasyprint
+the command emits a structured error pointing at the `report` extras.
+
+### `runs`
+
+Cross-run inspection over the RFC 0049 artifact store:
+
+```bash
+kayakgen runs list [--kind sweep|search|cfd|comparison] [--limit N]
+kayakgen runs query <run_id> [--metric NAME ...] [--filter key:value ...]
+kayakgen runs reindex <run_dir> [--run-id ID]
+```
+
+The SQLite index lives at `~/.local/share/kayakgen/index.sqlite` by
+default; override via `KAYAKGEN_INDEX_DB`. Each sweep, search, and
+CFD run that writes through `FilesystemArtifactStore` registers
+itself in `runs`, `candidates`, `metrics`, `artifacts`, and `events`
+tables on completion. Legacy run directories produced before RFC
+0049 still load; `kayakgen runs reindex <run_dir>` re-derives index
+rows from disk.
+
+### `calibration`
+
+Calibration-campaign ingest, acceptance, and artifact tooling
+(RFC 0054). The campaign itself is operator action; this surface is
+the on-disk plumbing that makes a future campaign reproducible.
+
+```bash
+kayakgen calibration ingest-tank-test <csv> \
+    --hull hull.json --rights rights.json --out fixtures/tank-test/<source>/ \
+    --source-id <source> [--uncertainty-method documented_caveat]
+kayakgen calibration ingest-inclining-test <csv> \
+    --hull hull.json --out fixtures/inclining/<source>/ --source-id <source>
+kayakgen calibration accept-fit <fixture-id> \
+    --fit fit.json --rmse-threshold 5.0 --out fixtures/calibration/<fixture>/
+kayakgen calibration residual-plot accepted_fit.json --out residuals.svg
+```
+
+`accept-fit` refuses below-threshold fits with structured tokens
+(`fit_above_rmse_threshold`, `fit_above_mape_threshold`,
+`fit_below_r2_threshold`). The validator on
+`ResistanceSourceReviewPacket` resolves `accepted_fit_ref` on disk
+when it points at a `.json` file and refuses promotion to
+`calibration_fixture` if the fit is missing, unparseable, or
+below threshold (`accepted_fit_unresolved`,
+`accepted_fit_unparseable`). Edinburgh stays at `validation_fixture`
+per D013; no current source resolves the calibration gate.
 
 ### `mesh-check`
 

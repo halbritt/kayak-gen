@@ -58,7 +58,14 @@ The project considers durable:
 | `<cfd-job>/` | `profile.json`, `job.json`, `run.json`, optional `raw-result.json`, optional `postProcessing/forces/<t>/force.dat`. |
 | `<sweep-run>/` | `spec.json`, `run.json`, `summary.csv`, `failures.jsonl`, `candidates/<key>/...`. |
 | `<search-run>/` | Same shape as sweep, plus a `search_metadata` block. |
-| `<compare.json>` | `ComparisonReport`. |
+| `<compare.json>` | `ComparisonReport` (with optional `pairwise_notes` advisory block per RFC 0052). |
+| `<run-dir>/_store/` | Hard-link content-addressed mirror of every artifact written through `FilesystemArtifactStore` (RFC 0049 / D030). Mirror is additive; canonical paths and bytes stay byte-stable. |
+| `~/.local/share/kayakgen/index.sqlite` (override `KAYAKGEN_INDEX_DB`) | RFC 0049 / D030 cross-run index. Tables: `runs`, `candidates`, `metrics`, `artifacts`, `events`. Auto-created on first write. |
+| `<target-out>.json` | `StabilityResult` from `kayakgen target-draft` / `target-trim`, or `TargetDraftMismatchReport` from `target-draft --report-only` (RFC 0050 / D031). |
+| `<build-export-dir>/` | `offsets.csv`, `sections.dxf`, `sheer.svg`, `keel.svg`, `waterline.svg`, `deck_centreline.svg`, `station_molds.dxf`, plus a `manifest.json` (RFC 0051 / D032). |
+| `<sensitivity-out>.json` | `SensitivityResult` from `kayakgen sensitivity` (RFC 0052 / D033). |
+| `<calibration-out>/` | `TankTestCampaign` / `IncliningTestCampaign` / `AcceptedFitRecord` JSON + optional residual-plot SVG (RFC 0054 / D035). Promotion to `calibration_fixture` requires an `AcceptedFitRecord` on disk. |
+| `<report.html>` (+ optional `report.pdf`) | Self-contained design report (RFC 0055 / D036; jinja2-rendered with embedded base64 PNG preview; weasyprint-rendered PDF when `kayakgen[report]` extras are installed). |
 | `~/.config/kayakgen/cfd.json` | `KayakgenCfdConfig` persistent opt-in settings (D027). |
 | `KAYAKGEN_WEB_CFD_JOBS_ROOT` or default `.kayakgen-web-cfd-jobs/` | Web-served CFD job directories. |
 | `tests/fixtures/calibration/edinburgh/` | Vendored CC BY 4.0 validation fixture (D018 acquisition; D025 promoted to validation_fixture). |
@@ -154,8 +161,46 @@ Enforced by Pydantic model validators and regression tests.
   `tests/test_vocabulary_coverage.py`).
 - **Forbidden-copy refusal.** No surface advertises `safe`, `seaworthy`,
   `validated`, `calibrated`, `final prediction`, or `design fitness` —
-  regression-pinned in `tests/test_desktop_layout.py` (desktop status)
-  and `tests/test_web_read_models.py` (Trame web HTML).
+  regression-pinned in `tests/test_desktop_layout.py` (desktop status),
+  `tests/test_web_read_models.py` (Trame web HTML), and
+  `tests/test_design_report.py` (RFC 0055 HTML render via
+  `FORBIDDEN_COPY_TOKENS` + `FORBIDDEN_COPY_SCRUB_TOKENS` named
+  constants; the renderer raises `ReportForbiddenCopyError` rather
+  than write a non-clean report).
+- **Hull identity (RFC 0049 / D030).** `Hull.hash()` is an alias for
+  `Hull.record_hash()` and is byte-stable for every existing hull.
+  `Hull.design_hash()` is invariant under rename, class-preset
+  changes, and JSON-key-order changes; it differs whenever any
+  physical input changes (length / beams / draft / form coefficients
+  / rake / rocker / `LCB_frac` / `geometry_kind`).
+- **Geometry-V2 admissibility (RFC 0048 / D029).** When
+  `geometry_kind="distribution_v2"`, the `Hull` validator requires a
+  `DistributionV2Spec` and refuses non-default `bow_rake` /
+  `stern_rake`. Hydrostatics computes both section-integration and
+  triangle-integration totals and emits an advisory note on
+  `Hydrostatics.notes` + an optional
+  `Hydrostatics.v2_cross_check` block when drift exceeds 1% (volume
+  / Aw / LCB) or 0.5% (GM0). The check never raises.
+- **Calibration_fixture promotion (RFC 0054 / D035).**
+  `ResistanceSourceReviewPacket._validate_accepted_fit_ref_on_disk`
+  resolves a `.json`-pathed `accepted_fit_ref` to an
+  `AcceptedFitRecord` and refuses promotion if the file is missing
+  (`accepted_fit_unresolved`), unparseable (`accepted_fit_unparseable`),
+  or below the recorded threshold (`fit_above_rmse_threshold`,
+  `fit_above_mape_threshold`, `fit_below_r2_threshold`). Opaque
+  (non-`.json`) refs continue to satisfy the D006 token only — they
+  do not bypass the validator chain.
+- **Display-only objective refusal (RFC 0053 / D034).** All four
+  `turning.*` metrics + the three `high_angle_gz.*` summary metrics
+  are registered with `role="display_only"` and refused as
+  Pareto/search objectives via
+  `ensure_objectives_claim_admissible_for_search` + the RFC 0043
+  token.
+- **Pairwise within-evaluator-noise advisory (RFC 0052 / D033).**
+  `ComparisonReport.pairwise_notes` flags Pareto-front pairs whose
+  default-objective metrics differ by less than the registry's
+  per-metric `within_evaluator_noise_threshold`. Frontier eligibility
+  is unchanged; the flag is informational.
 
 ## Schemas
 
@@ -181,7 +226,26 @@ list; the load-bearing groups:
   `SearchSpec`, `SearchAlgorithmSpec` (Nsga2 | Ehvi),
   `SearchMetadata`, `SearchConstraint`, `SearchBudget`, `SearchLimits`.
 - **Comparison + web**: `ComparisonReport`, `CandidateSummary`,
-  `HighAngleGzDisplay`, `WebStateSchema`, `WebHighAngleGzRows`.
+  `HighAngleGzDisplay`, `PairwiseNote`, `WebStateSchema`,
+  `WebHighAngleGzRows`.
+- **Identity + persistence (RFC 0049)**: `ArtifactRef`, `ArtifactKind`,
+  `RunEvent`; identity hashes are pure SHA-256 strings, not records.
+- **Geometry V2 (RFC 0048)**: `DistributionV2Spec`,
+  `LongitudinalDistribution` union (`UniformDistribution`,
+  `PolynomialDistribution`, `KeyPointsDistribution`),
+  `CrossSectionFamily`, `V2HydrostaticCrossCheck`.
+- **Target workflows (RFC 0050)**: `TargetDraftMismatchReport`.
+- **Builder exports (RFC 0051)**: `BuildExportSpec`; the seven
+  artifact files have no Pydantic schema (CSV / DXF / SVG bytes).
+- **Sensitivity (RFC 0052)**: `SensitivityRequest`,
+  `SensitivityResult`, `ConvergenceFlag`.
+- **Turning (RFC 0053)**: `TurningMetrics`.
+- **Calibration campaigns (RFC 0054)**: `RightsChecklist`,
+  `GeometryReference`, `TankTestRun`, `TankTestCampaign`,
+  `IncliningTestRun`, `IncliningTestCampaign`, `AcceptedFitRecord`.
+- **Design report (RFC 0055)**: `DesignReportRequest`,
+  `DesignReportResult`.
+- **CFD stages (Phase 7)**: `CfdRunStage`.
 
 ## Initialization
 
@@ -211,6 +275,16 @@ Every persistent mutation flows through one of these:
 - `kayakgen cfd prepare` (with optional `--allow-real-solver-execution`)
 - `kayakgen cfd run`
 - `kayakgen cfd status`
+- `kayakgen target-draft` (with optional `--report-only --draft N`)
+- `kayakgen target-trim`
+- `kayakgen migrate-geometry` (writes `<name>.v2.json` sibling)
+- `kayakgen build-export` (requires `kayakgen[builder]`)
+- `kayakgen sensitivity`
+- `kayakgen design-report` (with optional `--pdf` requiring
+  `kayakgen[report]` + weasyprint, and optional `--from-run`)
+- `kayakgen runs list / query / reindex` (cross-run index)
+- `kayakgen calibration ingest-tank-test / ingest-inclining-test /
+  accept-fit / residual-plot` (RFC 0054)
 
 `kayakgen view` and `kayakgen serve` open read-and-edit surfaces over the
 same evaluators. The web frontend's `/api/cfd/*` routes are the

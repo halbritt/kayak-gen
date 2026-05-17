@@ -84,25 +84,31 @@ the architecture-map list.
 ## Current direction (one paragraph)
 
 The pivot from "single-paddler desktop hull generator" to "generative
-CFD pipeline with desktop and web frontends" is now mostly landed.
-`kayakgen/` ships a CLI, compat shims, evaluators, golden tests, a Trame
-web workspace, hydrostatics, raw-comparative-filter resistance, a
-generated closed-body construction with parameter-matrix hardening, a
-local CFD dispatch layer, a real OpenFOAM-v2512 `interFoam` succeeded
-path behind opt-in env knobs (RFC 0041 / D012; `claim_state` stays
-`raw_unvalidated`), a real `snappyHexMesh` evidence harness (RFC 0040
-stage 2), the Edinburgh DataShare Pacific-canoe extractor and
-validation-fixture-ready packet (RFC 0042 / D018; calibration still
-envelope-blocked), staged opt-in high-angle GZ surfacing across CLI,
-sweep, comparison, and web (RFC 0043 stages 1-3, stage 4 desktop
-intentionally minimal per D021), the `pending` candidate lifecycle and
-sweep-side STL artifacts (RFC 0009 partial), and a proposed RFC 0044
-NSGA-II active hull-design search. The hosted public demo is deferred
-indefinitely per D023; restoring it requires a successor decision.
-Genuinely open work: an in-envelope measured kayak resistance source
-(D006, requires author outreach — see
-`docs/research/CALIBRATION_DATA_FINDINGS_2026-05-16.md`), measured kayak
-GZ-vs-heel data (D007 / D014, requires a commissioned measurement
-campaign), and a measured-validation workflow that would let
-`uncalibrated_comparative` and `unvalidated_hydrostatic_comparison`
-labels evolve.
+CFD + design pipeline with desktop and web frontends" is now broadly
+landed. `kayakgen/` ships a CLI with 20+ subcommands, evaluators,
+golden tests, a Trame web workspace, a desktop GUI, hydrostatics,
+raw-comparative-filter resistance, generated closed-body construction
+with parameter-matrix hardening, two geometry kinds (legacy `lofted`
+plus RFC 0048 `distribution_v2` with six cross-section families), a
+local CFD dispatch layer with a real OpenFOAM-v2512 `interFoam`
+succeeded path behind opt-in env knobs (RFC 0041/D012, RFC 0046/D027;
+`claim_state` stays `raw_unvalidated`), a real `snappyHexMesh`
+evidence harness + RFC 0045 `mesh-evidence + --bind-evidence` chain,
+the Edinburgh DataShare extractor and validation-fixture-ready packet
+(D018/D025; calibration still envelope-blocked), opt-in high-angle GZ
+across every surface (RFC 0043 stages 1-4 + RFC 0056 measurement-rig
+scaffold), the `pending` candidate lifecycle + sweep-side STL and
+high-angle-GZ artifacts (RFC 0009), v1 NSGA-II + v2 EHVI active search
+(RFCs 0044/0047), a central metric registry with display-only refusal
+(Phase 5), RFC 0049 `ArtifactStore` + `SqliteIndex` cross-run
+inspection via `kayakgen runs`, RFC 0050 target-draft / target-trim
+solvers, RFC 0051 builder-oriented exports, RFC 0052 sensitivity +
+within-evaluator-noise advisory, RFC 0053 turning + edged-waterline
+metrics, RFC 0054 calibration-campaign tooling (schemas + ingest +
+accept-fit + residual-plot), and RFC 0055 single-file design-report
+export. The hosted public demo is deferred indefinitely per D023.
+Genuinely open work is operator action: in-envelope measured kayak
+resistance source (D006 author outreach — see
+`docs/research/CALIBRATION_DATA_FINDINGS_2026-05-16.md`), measured
+kayak GZ-vs-heel data (D007/D014 commissioned campaign; RFC 0056 rig
+design is ready), and any reopening of the public hosted demo.

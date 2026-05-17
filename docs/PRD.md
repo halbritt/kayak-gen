@@ -30,6 +30,17 @@ This section describes current behavior, not the whole roadmap.
   endpoint rings and caps and must pass diagnostics before reporting
   `closed_volume`; open hull/deck STLs remain inspection surfaces and are not
   watertight or `cfd_ready`.
+- Hull JSON additionally supports `geometry_kind="distribution_v2"`
+  (RFC 0048 / D029): an opt-in explicit distribution model with five
+  `LongitudinalDistribution` records (waterline half-breadth, draft,
+  section area, deck freeboard, rocker), six cross-section families
+  (`round`, `shallow_arch`, `shallow_v`, `deep_v`, `hard_chine`,
+  `multi_chine` with 2-4 chines), and explicit LCB / deadrise /
+  chine-radius / bow-flare controls. The canonical closed body is
+  the source of truth in v2; open inspection surfaces are derived
+  from it. Default `"lofted"` hulls (and all existing hull JSON) are
+  byte-stable; `kayakgen migrate-geometry` produces a best-effort v2
+  sibling.
 - Ends taper using a prismatic-coefficient-derived area curve. The centre parallel mid-body fraction is configurable.
 - Class presets (touring sea kayak, performance sea kayak, intermediate surfski, elite surfski) seed a hull at sensible defaults derived from `docs/design/kayak_hull_design_constraints.md`. Users can deviate from the preset; surfaced constraint checks are advisory and still incomplete in the desktop GUI.
 - Hull body and deck are exported as separate binary STL surfaces suitable for inspection, CAD import, or downstream packaging. Default generated mesh packages remain open-surface candidates; only the narrow fixture-backed volume-mesh evidence path can report `cfd_ready`.
@@ -38,6 +49,10 @@ This section describes current behavior, not the whole roadmap.
 
 - **Hydrostatics, computed from the integrated geometry** — not from a formula envelope. Delivered readouts include displaced volume, displaced mass at seawater density, wetted surface area, waterplane area, longitudinal centre of buoyancy, and primary metacentric height GM₀. Upright trim equilibrium exists for explicit component load cases.
 - **High-angle GZ surface (opt-in, display-only).** Fixed-trim generated-body v1 GZ-vs-heel is available on opt-in surfaces: `kayakgen stability --high-angle-gz`, sweep-side `evaluators.high_angle_gz` artifacts, and a display-only `high_angle_gz_display` block in the comparison report and Trame web workspace. The result semantics are `unvalidated_hydrostatic_comparison`; the project does not claim a measured validation, a calibrated curve, a capsize range, a final prediction, or a safety/seaworthiness statement. High-angle GZ metrics are explicitly refused as Pareto objectives.
+- **Turning and edged-waterline metrics (opt-in, display-only).** `kayakgen evaluate --turning` (RFC 0053 / D034) writes a `TurningMetrics` block with the heeled vs upright waterline length, lateral-plane shift, and a rocker-weighted maneuverability proxy. All four metrics are registered as `display_only` and refused as Pareto/search objectives.
+- **Target-load workflows.** `kayakgen target-draft` solves upright sinkage for a given load; `kayakgen target-trim` solves draft + trim for loads with non-zero longitudinal CG; `--report-only --draft N` emits a `TargetDraftMismatchReport` (RFC 0050 / D031).
+- **Local-finite-difference sensitivity (opt-in).** `kayakgen sensitivity` (RFC 0052 / D033) emits a `SensitivityResult` with auto-stepped central-difference partials and convergence-flag metadata on every `EvaluationResult`. The comparison report gains a `pairwise_notes` advisory flagging Pareto-front pairs within evaluator noise. Sensitivity output is local, not a global reliability claim.
+- **Builder exports.** `kayakgen build-export` (RFC 0051 / D032; requires `kayakgen[builder]` extras for the DXF writer) writes seven CAD-friendly artifacts (offsets CSV, sections + station_molds DXF, sheer/keel/waterline/deck-centreline SVG) plus a checksum manifest, deterministic across two invocations modulo CAD-library timestamps.
 - **Resistance estimation at user-selected paddling speeds.** Viscous resistance via the ITTC-57 friction line; wave-making resistance via the Michell (thin-ship) integral. This is an exploratory analytical screening filter for comparing candidates, not a calibrated final prediction.
 - **Speed sweep curve** broken into viscous and wave components, plotted against speed in knots and Froude number, with the user's target speed marked.
 - **Local CFD dispatch with an opt-in real OpenFOAM-v2512 succeeded path.** Baseline CFD support is job/run/profile plumbing with readiness gates, local artifact directories, unavailable solver state, mock failed-command state, CLI commands, and local web job routes. The `openfoam-v2512-interfoam-local` profile additionally has a real local-execution path that runs `blockMesh + surfaceFeatureExtract + snappyHexMesh + checkMesh + setFields + interFoam` against the installed OpenFOAM-v2512 toolchain when both `KAYAKGEN_OPENFOAM_LOCAL_RUN=1` and `KAYAKGEN_OPENFOAM_SMOKE=1` are set. The resulting `CfdOpenFoamRawResult` preserves `claim_state="raw_unvalidated"`, empty `accepted_uses`, and the locked case-template version. SU2, hosted workers, Dockerized solvers, and validated CFD output remain roadmap items; the public hosted demo is deferred indefinitely (D023).
@@ -47,17 +62,20 @@ This section describes current behavior, not the whole roadmap.
 - **Headless CLI.** `kayakgen generate / evaluate / sweep / view` makes every capability scriptable from a terminal, a notebook, or CI. The GUI is one consumer of the core, not its entry point.
 - **Desktop GUI.** PyQt6 + matplotlib + PyVista. Sliders for all design parameters; live 2D cross-section, sheer plan, and plan-view previews; a separate interactive 3D window with hull+deck rendered as distinct surfaces and smooth shading.
 - **Portable web frontend.** Browser-based UI built on Trame, with parameter editing, rendered hull inspection, compact analysis views, comparison report loading, local filesystem CFD job inspection, and optional browser smoke coverage. Full desktop parity, console-clean Lighthouse acceptance, hosted-demo acceptance, hosted CFD workers, and real solver adapters remain roadmap items.
-- **Installation and local operation.** The Python package and CLI run locally; deployment and packaging work continues through RFC-backed slices.
+- **Design-report export.** `kayakgen design-report` (RFC 0055 / D036; requires `kayakgen[report]` extras) renders a self-contained HTML (10 sections: header / parameters / rendered views / hydrostatics / stability / resistance / mesh readiness / optional comparison position / artifact refs + SHA-256 / claim-state explanations) with an embedded base64 PNG preview. The renderer scans the output against the forbidden-copy regex and refuses non-clean reports. Optional `--pdf` uses weasyprint.
+- **Cross-run inspection.** `kayakgen runs list/query/reindex` (RFC 0049 / D030) read the SQLite cross-run index at `~/.local/share/kayakgen/index.sqlite` (override `KAYAKGEN_INDEX_DB`). Sweep, search, and CFD writes route through `FilesystemArtifactStore` which hard-link-mirrors content-addressed bytes under a per-run `_store/` while leaving canonical paths byte-stable. `Hull.record_hash()` and `Hull.design_hash()` are the public hash accessors; `Hull.hash()` is the byte-stable alias.
+- **Calibration-campaign on-disk tooling.** `kayakgen calibration ingest-tank-test`, `ingest-inclining-test`, `accept-fit`, `residual-plot` (RFC 0054 / D035) ship the schemas + validators that would let a future operator-run measurement campaign land cleanly. The campaign itself remains operator action; no current source resolves the calibration_fixture gate.
+- **Installation and local operation.** The Python package and CLI run locally; deployment and packaging work continues through RFC-backed slices. Optional extras: `desktop`, `web`, `browser`, `builder`, `calibration`, `report`, `dev`.
 
 ## Roadmap And Deferrals
 
 These capabilities remain in scope, but they should not be described as delivered until their RFCs and tests land:
 
-- Production watertight, closed-volume hull-plus-deck meshing for *ordinary* generated packages with a named readiness profile suitable for real solver dispatch. The RFC 0040 `snappyHexMesh` evidence harness produces real polyMesh evidence on a per-case basis under the OpenFOAM env knobs, but ordinary generated packages still remain below `cfd_ready`.
-- Calibrated resistance prediction backed by licensed, relevant kayak-scale measured validation fixtures. As of 2026-05-16, no in-envelope public source exists; closing this gate requires author outreach (Pendergast/Gomes, Tzabiras/NTUA) or a commissioned tank campaign. See `docs/research/CALIBRATION_DATA_FINDINGS_2026-05-16.md`.
-- **Measured** validation of the existing fixed-trim generated-body v1 high-angle GZ surface. Real kayak/surfski GZ-vs-heel data does not exist publicly today; closing this gate requires a commissioned pool/tank inclining campaign. The current surface remains `unvalidated_hydrostatic_comparison`.
-- A real `succeeded` CFD path that is not env-gated, plus normalized validated outputs, Docker/container execution, hosted workers, and browser job-management beyond the local filesystem route/panel slice.
-- Active hull-design search (Bayesian optimization or evolutionary multi-objective) and matching objective-metadata provenance. RFC 0044 is proposed and scopes the v1 surface.
+- Production watertight, closed-volume hull-plus-deck meshing for *ordinary* generated packages with a named readiness profile suitable for real solver dispatch. The RFC 0040 `snappyHexMesh` evidence harness produces real polyMesh evidence on a per-case basis under the OpenFOAM env knobs, and the RFC 0045 `mesh-evidence + --bind-evidence` path can promote an explicitly-bound package, but ordinary (unbound) generated packages still remain below `cfd_ready`.
+- Calibrated resistance prediction backed by licensed, relevant kayak-scale measured validation fixtures. As of 2026-05-17, no in-envelope public source exists; closing this gate requires author outreach (Pendergast/Gomes, Tzabiras/NTUA) or a commissioned tank campaign. See `docs/research/CALIBRATION_DATA_FINDINGS_2026-05-16.md`. The on-disk ingest/acceptance/validator plumbing is landed (RFC 0054 / D035); the campaign itself is operator action.
+- **Measured** validation of the existing fixed-trim generated-body v1 high-angle GZ surface. Real kayak/surfski GZ-vs-heel data does not exist publicly today; closing this gate requires a commissioned pool/tank inclining campaign. The current surface remains `unvalidated_hydrostatic_comparison`. RFC 0056 sketches the strain-gauged moment-arm rig design.
+- A real `succeeded` CFD path that is not env-gated, plus normalized validated outputs, Docker/container execution, hosted workers, and browser job-management beyond the local filesystem route/panel slice. The env-gated path landed under D012/D022/D027.
+- Successor active-search algorithms after the v1 NSGA-II + v2 EHVI surface (RFC 0044/0047). v1 + v2 are landed; v3 (e.g. transfer-learning, library-level surrogate reuse) remains a future-RFC concern.
 - Full native desktop parity with the web workspace remains intentionally not a goal (D009); the web workspace is the primary UI composition target.
 
 ## Out of scope
@@ -73,7 +91,7 @@ What is *not* on this list, and why:
 
 - *Hydrostatics, web frontend, and resistance estimation* are in scope per the relevant RFCs, with the delivered/roadmap split above.
 - *High-fidelity CFD* (panel method, RANS) is reserved for the asynchronous evaluation tier — it has local job-state plumbing and future solver seams, not a delivered real-solver path.
-- *Generative search / multi-objective optimisation* is now scoped by RFC 0044 (proposed): an additive opt-in `kayakgen search` CLI atop the existing RFC 0009 sweep records and RFC 0013 Pareto comparison rules, with a v1 NSGA-II surface and a hard claim-admissibility gate that refuses `raw_unvalidated`, `uncalibrated_comparative`, and high-angle-GZ-display-only metrics as Pareto objectives.
+- *Generative search / multi-objective optimisation* landed: RFC 0044 v1 NSGA-II + RFC 0047 v2 EHVI under an additive opt-in `kayakgen search` CLI. A hard claim-admissibility gate refuses `raw_unvalidated`, `uncalibrated_comparative`, and high-angle-GZ-display-only metrics as Pareto objectives unless `objectives_explicit_exploratory: true` is set (and even then the high-angle-GZ token still wins).
 - *Native installer packaging* is moot once the web frontend ships — anyone with a browser can use the tool. A single-binary distribution via PyInstaller is a low-priority convenience, not a non-goal.
 
 ## Success criteria
