@@ -32,6 +32,33 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed RFC 0057 stage 1: long-lived generative-job foundation. New
+  `kayakgen.services.generative_jobs` module ships `GenerativeJob`,
+  `GenerativeJobProgress`, `GenerativeJobError`, `GenerativeJobSummary`
+  Pydantic records (schema_version="1", canonical JSON byte-stable);
+  the `GenerativeJobProgressSink` protocol; and
+  `InProcessGenerativeJobManager` running each job in a background
+  `threading.Thread` with cooperative cancel (via an internal
+  `threading.Event`) and a bounded 256 KB `log.txt` ring buffer per
+  job. `run_search` and `run_sweep` gain an optional
+  `progress_sink: GenerativeJobProgressSink | None = None` argument
+  that emits `candidate_completed` after every persisted record,
+  `checkpoint` after every `state.json` write, and polls
+  `should_cancel` between candidate emissions; cancellation maps to
+  the existing `operator_stop` termination reason. Default
+  (`progress_sink=None`) behavior is byte-equal to before across the
+  active-search and sweep regression suites. `SqliteIndex` gains a
+  `generative_jobs` table (job_id, kind, state, output_dir,
+  run_id/run_hash, started_at, completed_at, evaluation counters,
+  updated_at) plus `upsert_generative_job` / `list_generative_jobs`
+  helpers; new `kayakgen runs jobs [--state] [--kind] [--limit]` CLI
+  surface lists them. +30 tests across
+  `tests/test_generative_jobs.py`,
+  `tests/test_generative_jobs_progress_sink.py`,
+  `tests/test_generative_jobs_index.py`, and
+  `tests/test_generative_jobs_manager.py`; full suite previously 930
+  passed + 2 skipped before this slice. Web routes + Trame panel land
+  as stage 2; subprocess-manager + crash-survival lands as stage 3.
 - Landed RFC 0045 ordinary-package solver-readiness promotion. New
   `kayakgen mesh-evidence <hull> --out <dir>` subcommand runs the
   OpenFOAM-v2512 meshing stage against a generated closed-body STL and

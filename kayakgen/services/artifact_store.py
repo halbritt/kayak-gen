@@ -215,12 +215,33 @@ class SqliteIndex:
               kind TEXT,
               payload TEXT
             );
+            CREATE TABLE IF NOT EXISTS generative_jobs (
+              job_id TEXT PRIMARY KEY,
+              job_kind TEXT,
+              spec_hash TEXT,
+              state TEXT,
+              output_dir TEXT,
+              run_id TEXT,
+              run_hash TEXT,
+              started_at REAL,
+              completed_at REAL,
+              realized_evaluations INTEGER,
+              completed_count INTEGER,
+              failed_count INTEGER,
+              constraint_failed_count INTEGER,
+              pending_count INTEGER,
+              updated_at INTEGER
+            );
             CREATE INDEX IF NOT EXISTS idx_runs_kind ON runs (kind);
             CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs (created_at);
             CREATE INDEX IF NOT EXISTS idx_candidates_hull_design_hash
               ON candidates (hull_design_hash);
             CREATE INDEX IF NOT EXISTS idx_metrics_name ON metrics (metric_name);
             CREATE INDEX IF NOT EXISTS idx_artifacts_kind ON artifacts (kind);
+            CREATE INDEX IF NOT EXISTS idx_generative_jobs_state
+              ON generative_jobs (state);
+            CREATE INDEX IF NOT EXISTS idx_generative_jobs_kind
+              ON generative_jobs (job_kind);
             """
         )
 
@@ -339,6 +360,71 @@ class SqliteIndex:
                 (run_id, event.ts, event.kind, json.dumps(event.payload, sort_keys=True)),
             )
 
+    def upsert_generative_job(
+        self,
+        *,
+        job_id: str,
+        job_kind: str,
+        spec_hash: str,
+        state: str,
+        output_dir: str,
+        run_id: str | None = None,
+        run_hash: str | None = None,
+        started_at: float | None = None,
+        completed_at: float | None = None,
+        realized_evaluations: int = 0,
+        completed_count: int = 0,
+        failed_count: int = 0,
+        constraint_failed_count: int = 0,
+        pending_count: int = 0,
+        updated_at: int | None = None,
+    ) -> None:
+        """Insert or update a row in the ``generative_jobs`` table (RFC 0057)."""
+
+        ts = updated_at if updated_at is not None else int(time.time())
+        with self._conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO generative_jobs
+                  (job_id, job_kind, spec_hash, state, output_dir, run_id, run_hash,
+                   started_at, completed_at, realized_evaluations, completed_count,
+                   failed_count, constraint_failed_count, pending_count, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(job_id) DO UPDATE SET
+                  job_kind=excluded.job_kind,
+                  spec_hash=excluded.spec_hash,
+                  state=excluded.state,
+                  output_dir=excluded.output_dir,
+                  run_id=excluded.run_id,
+                  run_hash=excluded.run_hash,
+                  started_at=excluded.started_at,
+                  completed_at=excluded.completed_at,
+                  realized_evaluations=excluded.realized_evaluations,
+                  completed_count=excluded.completed_count,
+                  failed_count=excluded.failed_count,
+                  constraint_failed_count=excluded.constraint_failed_count,
+                  pending_count=excluded.pending_count,
+                  updated_at=excluded.updated_at
+                """,
+                (
+                    job_id,
+                    job_kind,
+                    spec_hash,
+                    state,
+                    output_dir,
+                    run_id,
+                    run_hash,
+                    started_at,
+                    completed_at,
+                    realized_evaluations,
+                    completed_count,
+                    failed_count,
+                    constraint_failed_count,
+                    pending_count,
+                    ts,
+                ),
+            )
+
     # -- reads -------------------------------------------------------------
 
     def list_runs(
@@ -353,6 +439,39 @@ class SqliteIndex:
             sql += " WHERE kind = ?"
             params.append(kind)
         sql += " ORDER BY created_at ASC, run_id ASC"
+        if limit is not None:
+            sql += " LIMIT ?"
+            params.append(int(limit))
+        with self._conn() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return [dict(row) for row in rows]
+
+    def list_generative_jobs(
+        self,
+        *,
+        state: str | None = None,
+        job_kind: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """List rows from the ``generative_jobs`` table (RFC 0057)."""
+
+        sql = (
+            "SELECT job_id, job_kind, spec_hash, state, output_dir, run_id, "
+            "run_hash, started_at, completed_at, realized_evaluations, "
+            "completed_count, failed_count, constraint_failed_count, "
+            "pending_count, updated_at FROM generative_jobs"
+        )
+        params: list[Any] = []
+        clauses: list[str] = []
+        if state is not None:
+            clauses.append("state = ?")
+            params.append(state)
+        if job_kind is not None:
+            clauses.append("job_kind = ?")
+            params.append(job_kind)
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        sql += " ORDER BY updated_at ASC, job_id ASC"
         if limit is not None:
             sql += " LIMIT ?"
             params.append(int(limit))

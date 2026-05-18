@@ -27,7 +27,10 @@ import math
 import random
 import time
 from pathlib import Path
-from typing import Any, Iterable, Literal
+from typing import TYPE_CHECKING, Any, Iterable, Literal
+
+if TYPE_CHECKING:  # pragma: no cover - import only for type hints
+    from kayakgen.services.generative_jobs import GenerativeJobProgressSink
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -343,6 +346,7 @@ def run_search(
     out_dir: str | Path,
     *,
     resume: bool = False,
+    progress_sink: GenerativeJobProgressSink | None = None,
 ) -> SearchRunResult:
     """Run an active-search session.
 
@@ -350,6 +354,16 @@ def run_search(
     persisted as ``pending`` candidate records so a follow-up
     ``run_search(..., resume=True)`` can replay them in the same order before
     continuing the algorithm.
+
+    ``progress_sink`` is an optional :class:`GenerativeJobProgressSink`
+    (RFC 0057). When provided, the runner calls
+    ``progress_sink.candidate_completed(...)`` after each candidate-record
+    write, ``progress_sink.checkpoint(...)`` after each ``state.json``
+    write, and ``progress_sink.should_cancel()`` between candidate
+    emissions. A ``True`` cancel result sets the termination reason to
+    ``"operator_stop"`` and the runner shuts down cleanly at the next
+    safe point. Default ``progress_sink=None`` is byte-equal to the
+    historical runner.
     """
 
     if isinstance(spec_path, Path):
@@ -407,6 +421,7 @@ def run_search(
             resume=resume,
             store=store,
             run_id=run_id,
+            progress_sink=progress_sink,
         )
 
     sweep_shim = _make_sweep_spec_shim(spec)
@@ -506,8 +521,18 @@ def run_search(
         )
         records_by_key[entry.candidate_key] = record
         evaluations += 1
+        if progress_sink is not None:
+            progress_sink.candidate_completed(
+                candidate_key=record.candidate_key,
+                status=record.status,
+                generation=entry.generation_index,
+                iteration=None,
+                realized_evaluations=evaluations,
+            )
+            if progress_sink.should_cancel():
+                termination_reason = "operator_stop"
         reason = _budget_remaining(spec, evaluations, started_at)
-        if reason is not None:
+        if reason is not None and termination_reason is None:
             termination_reason = reason
 
     # ---- Algorithm iteration ----------------------------------------------
@@ -539,10 +564,20 @@ def run_search(
                 )
                 records_by_key[candidate_key] = record
                 evaluations += 1
+                if progress_sink is not None:
+                    progress_sink.candidate_completed(
+                        candidate_key=record.candidate_key,
+                        status=record.status,
+                        generation=state.next_generation_index,
+                        iteration=None,
+                        realized_evaluations=evaluations,
+                    )
+                    if progress_sink.should_cancel():
+                        termination_reason = "operator_stop"
             else:
                 record = existing
             reason = _budget_remaining(spec, evaluations, started_at)
-            if reason is not None:
+            if reason is not None and termination_reason is None:
                 termination_reason = reason
             obj = _signed_objective(record, objectives)
             feasible = record.status == "complete"
@@ -565,6 +600,12 @@ def run_search(
                 state.history = history
                 state.finished_generations = generation.index + 1
                 _write_state(state, out)
+                if progress_sink is not None:
+                    progress_sink.checkpoint(
+                        generation=state.next_generation_index,
+                        iteration=None,
+                        realized_evaluations=evaluations,
+                    )
                 if termination_reason is not None:
                     # Queue any in-flight unevaluated members of the *next*
                     # generation for resume.
@@ -646,6 +687,12 @@ def run_search(
     )
     store.put_file("sweep_failures_jsonl", out / "failures.jsonl")
     _write_state(state, out)
+    if progress_sink is not None:
+        progress_sink.checkpoint(
+            generation=state.next_generation_index,
+            iteration=None,
+            realized_evaluations=evaluations,
+        )
     index_candidates(
         run_id=run_id,
         candidate_rows=[_index_row_for_candidate(rec) for rec in ordered],
@@ -854,6 +901,7 @@ def _run_ehvi_search(
     resume: bool,
     store: Any | None = None,
     run_id: str | None = None,
+    progress_sink: GenerativeJobProgressSink | None = None,
 ) -> SearchRunResult:
     """RFC 0047 v2: Latin-hypercube initialisation + EHVI acquisition loop."""
 
@@ -1006,9 +1054,19 @@ def _run_ehvi_search(
             state.next_candidate_index += 1
             records_by_key[candidate_key] = record
             evaluations += 1
+            if progress_sink is not None:
+                progress_sink.candidate_completed(
+                    candidate_key=record.candidate_key,
+                    status=record.status,
+                    generation=None,
+                    iteration=i,
+                    realized_evaluations=evaluations,
+                )
+                if progress_sink.should_cancel():
+                    termination_reason = "operator_stop"
         _append_history(iteration=i, ehvi_score=0.0)
         reason = _budget_remaining(spec, evaluations, started_at)
-        if reason is not None:
+        if reason is not None and termination_reason is None:
             termination_reason = reason
 
     # ---- EHVI acquisition loop ------------------------------------------
@@ -1031,12 +1089,22 @@ def _run_ehvi_search(
                 state.next_candidate_index += 1
                 records_by_key[candidate_key] = record
                 evaluations += 1
+                if progress_sink is not None:
+                    progress_sink.candidate_completed(
+                        candidate_key=record.candidate_key,
+                        status=record.status,
+                        generation=None,
+                        iteration=algorithm.initial_population_size + iteration_idx,
+                        realized_evaluations=evaluations,
+                    )
+                    if progress_sink.should_cancel():
+                        termination_reason = "operator_stop"
             _append_history(
                 iteration=algorithm.initial_population_size + iteration_idx,
                 ehvi_score=0.0,
             )
             reason = _budget_remaining(spec, evaluations, started_at)
-            if reason is not None:
+            if reason is not None and termination_reason is None:
                 termination_reason = reason
             continue
 
@@ -1069,12 +1137,22 @@ def _run_ehvi_search(
                 state.next_candidate_index += 1
                 records_by_key[candidate_key] = record
                 evaluations += 1
+                if progress_sink is not None:
+                    progress_sink.candidate_completed(
+                        candidate_key=record.candidate_key,
+                        status=record.status,
+                        generation=None,
+                        iteration=algorithm.initial_population_size + iteration_idx,
+                        realized_evaluations=evaluations,
+                    )
+                    if progress_sink.should_cancel():
+                        termination_reason = "operator_stop"
             _append_history(
                 iteration=algorithm.initial_population_size + iteration_idx,
                 ehvi_score=0.0,
             )
             reason = _budget_remaining(spec, evaluations, started_at)
-            if reason is not None:
+            if reason is not None and termination_reason is None:
                 termination_reason = reason
             continue
 
@@ -1128,12 +1206,22 @@ def _run_ehvi_search(
             state.next_candidate_index += 1
             records_by_key[candidate_key] = record
             evaluations += 1
+            if progress_sink is not None:
+                progress_sink.candidate_completed(
+                    candidate_key=record.candidate_key,
+                    status=record.status,
+                    generation=None,
+                    iteration=algorithm.initial_population_size + iteration_idx,
+                    realized_evaluations=evaluations,
+                )
+                if progress_sink.should_cancel():
+                    termination_reason = "operator_stop"
         _append_history(
             iteration=algorithm.initial_population_size + iteration_idx,
             ehvi_score=best_score,
         )
         reason = _budget_remaining(spec, evaluations, started_at)
-        if reason is not None:
+        if reason is not None and termination_reason is None:
             termination_reason = reason
 
     if termination_reason is None:
@@ -1196,6 +1284,13 @@ def _run_ehvi_search(
     if store is not None:
         store.put_file("sweep_failures_jsonl", out / "failures.jsonl")
     _write_state(state, out)
+    if progress_sink is not None:
+        progress_sink.checkpoint(
+            generation=None,
+            iteration=algorithm.initial_population_size
+            + algorithm.iteration_budget,
+            realized_evaluations=evaluations,
+        )
     if store is not None and run_id is not None:
         from kayakgen.services.artifact_store import index_candidates as _index_candidates
 

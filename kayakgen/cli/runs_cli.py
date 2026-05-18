@@ -112,6 +112,43 @@ def runs_query_command(
         typer.echo(json.dumps(payload, sort_keys=True))
 
 
+@runs_app.command("jobs")
+def runs_jobs_command(
+    state: str | None = typer.Option(
+        None,
+        "--state",
+        help="Filter by job state: queued | running | succeeded | failed | cancelled | resumable.",
+    ),
+    kind: str | None = typer.Option(
+        None,
+        "--kind",
+        help="Filter by job kind: sweep | search.",
+    ),
+    limit: int | None = typer.Option(
+        None,
+        "--limit",
+        help="Max number of jobs to print.",
+    ),
+) -> None:
+    """List long-lived generative jobs from the SQLite index (RFC 0057)."""
+
+    index = SqliteIndex()
+    rows = index.list_generative_jobs(
+        state=state,
+        job_kind=kind,
+        limit=limit,
+    )
+    if not rows:
+        typer.echo("(no generative jobs indexed)")
+        return
+    for row in rows:
+        typer.echo(
+            f"{row['job_id']}\t{row['job_kind']}\t{row['state']}\t"
+            f"{row['realized_evaluations']}/{row['completed_count']}c/"
+            f"{row['failed_count']}f\t{row['output_dir']}"
+        )
+
+
 @runs_app.command("reindex")
 def runs_reindex_command(
     run_dir: Path = typer.Argument(
@@ -174,6 +211,7 @@ def runs_reindex_command(
 
 __all__ = [
     "runs_app",
+    "runs_jobs_command",
     "runs_list_command",
     "runs_query_command",
     "runs_reindex_command",

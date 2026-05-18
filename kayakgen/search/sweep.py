@@ -7,7 +7,10 @@ import hashlib
 import json
 from itertools import product
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
+
+if TYPE_CHECKING:  # pragma: no cover - import only for type hints
+    from kayakgen.services.generative_jobs import GenerativeJobProgressSink
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -179,7 +182,13 @@ def expand_candidates(spec: SweepSpec) -> list[tuple[int, str, dict[str, Any], d
     return rows
 
 
-def run_sweep(spec: SweepSpec, out_dir: str | Path, resume: bool = False) -> SweepRunRecord:
+def run_sweep(
+    spec: SweepSpec,
+    out_dir: str | Path,
+    resume: bool = False,
+    *,
+    progress_sink: "GenerativeJobProgressSink | None" = None,
+) -> SweepRunRecord:
     """Run a deterministic sweep and write candidate/run artifacts.
 
     Routes every persisted artifact through
@@ -188,6 +197,14 @@ def run_sweep(spec: SweepSpec, out_dir: str | Path, resume: bool = False) -> Swe
     mirror and the SQLite index records the run + candidates + metrics +
     artifacts. The canonical paths under ``out_dir`` remain byte-stable
     with prior releases.
+
+    ``progress_sink`` is an optional :class:`GenerativeJobProgressSink`
+    (RFC 0057). When provided, the runner calls
+    ``progress_sink.candidate_completed(...)`` after every candidate
+    write and checks ``progress_sink.should_cancel()`` between
+    emissions; a ``True`` cancel breaks the iteration loop after the
+    in-flight candidate finishes. Default ``progress_sink=None`` is
+    byte-equal to the historical runner.
     """
     from kayakgen import __version__ as kayakgen_version
     from kayakgen.services.artifact_store import (
@@ -219,7 +236,10 @@ def run_sweep(spec: SweepSpec, out_dir: str | Path, resume: bool = False) -> Swe
 
     records: list[CandidateRecord] = []
     failures: list[CandidateRecord] = []
+    cancelled = False
     for index, candidate_key, params, attempted in expand_candidates(spec):
+        if cancelled:
+            break
         record_path = candidates_dir / f"{candidate_key}.record.json"
         if resume and record_path.exists():
             prior = CandidateRecord.model_validate_json(record_path.read_text())
@@ -262,6 +282,16 @@ def run_sweep(spec: SweepSpec, out_dir: str | Path, resume: bool = False) -> Swe
             canonical_path=record_path,
         )
         records.append(record)
+        if progress_sink is not None:
+            progress_sink.candidate_completed(
+                candidate_key=record.candidate_key,
+                status=record.status,
+                generation=None,
+                iteration=index,
+                realized_evaluations=len(records),
+            )
+            if progress_sink.should_cancel():
+                cancelled = True
 
     run = SweepRunRecord(
         name=spec.name,
