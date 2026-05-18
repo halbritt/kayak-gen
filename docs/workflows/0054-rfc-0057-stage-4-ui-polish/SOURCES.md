@@ -1,0 +1,27 @@
+# Workflow 0054 Sources
+
+- `AGENTS.md`
+- `docs/PRD.md`
+- `docs/USER_GUIDE.md`
+- `docs/ROADMAP.md`
+- `docs/DECISION_LOG.md`
+- `docs/rfcs/README.md`
+- `docs/rfcs/0057-generative-search-jobs-and-web-workspace.md`
+- `docs/workflows/0054-rfc-0057-stage-4-ui-polish/STAGE_4_DECISIONS.md`
+- `kayakgen/services/generative_jobs.py`
+- `kayakgen/services/generative_jobs_runner.py`
+- `kayakgen/ui/web/app.py`
+- `kayakgen/ui/web/controllers.py`
+- `kayakgen/cli/main.py`
+- `tests/test_generative_jobs.py`
+- `tests/test_generative_jobs_index.py`
+- `tests/test_generative_jobs_manager.py`
+- `tests/test_generative_jobs_progress_sink.py`
+- `tests/test_generative_jobs_subprocess.py`
+- `tests/test_generative_jobs_web.py`
+- `tests/test_web.py`
+- `tests/test_web_layout.py`
+- `tests/test_web_read_models.py`
+- `tests/test_ui_theme.py`
+- `tests/test_services_boundaries.py`
+- `tests/test_import_boundaries.py`

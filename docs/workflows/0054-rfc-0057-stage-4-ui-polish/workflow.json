@@ -1,0 +1,422 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0054-rfc-0057-stage-4-ui-polish",
+  "workflow_version": "2026-05-18",
+  "name": "0054 - RFC 0057 Stage 4 Generate-panel UI polish",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0054-rfc-0057-stage-4-ui-polish",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "codex"
+  },
+  "lanes": {
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "--dangerously-bypass-approvals-and-sandbox",
+        "-"
+      ],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["claude", "--model", "opus", "-p", "--dangerously-skip-permissions", "--output-format", "text"],
+      "capabilities": ["review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["bash", "-lc", "gemini --model gemini-3.1-pro-preview --yolo -p \"\""],
+      "capabilities": ["review", "synthesis"]
+    }
+  },
+  "roles": {
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "integrator": {"definition_path": "roles/integrator.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_claims": {"definition_path": "roles/reviewer_claims.md"},
+    "reviewer_ops_tests": {"definition_path": "roles/reviewer_ops_tests.md"},
+    "findings_ledger": {"definition_path": "roles/findings_ledger.md"},
+    "remediator": {"definition_path": "roles/remediator.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/PRD.md", "required": true},
+    {"path": "docs/USER_GUIDE.md", "required": true},
+    {"path": "docs/ROADMAP.md", "required": true},
+    {"path": "docs/DECISION_LOG.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/rfcs/0057-generative-search-jobs-and-web-workspace.md", "required": true},
+    {"path": "docs/workflows/0054-rfc-0057-stage-4-ui-polish/STAGE_4_DECISIONS.md", "required": true},
+    {"path": "kayakgen/services/generative_jobs.py", "required": true},
+    {"path": "kayakgen/services/generative_jobs_runner.py", "required": true},
+    {"path": "kayakgen/ui/web/app.py", "required": true},
+    {"path": "kayakgen/ui/web/controllers.py", "required": true},
+    {"path": "kayakgen/cli/main.py", "required": true},
+    {"path": "tests/test_generative_jobs_web.py", "required": true},
+    {"path": "tests/test_generative_jobs_manager.py", "required": true},
+    {"path": "tests/test_generative_jobs_subprocess.py", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 7,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement_form_builder_module",
+      "type": "synthesis",
+      "title": "Implement the spec form-builder module",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage4_implementation",
+      "fresh_session_required": true,
+      "objective": "Build kayakgen/ui/web/generate_spec_form.py with a public render_spec_form_section(app) that renders a form-builder primary view (variables, algorithm radio with per-algorithm sub-fields, objectives multi-select filtered live by claim-admissibility, evaluators toggles including a per-job CFD-in-loop opt-in row with explicit acknowledgement, budget, soft 4-job in-flight warning) plus a collapsible raw-JSON escape hatch. Pre-fill base_hull from the current single-hull view and seed sensible defaults (NSGA-II population_size=12 generations=4, budget=64). Display-only metrics (RFC 0043) and claim-admissibility refusals (RFC 0044) must never appear in the objectives picklist; admissibility errors surface inline next to the offending row. Do not edit app.py — the integrator wires this module into the Generate tab.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/ui/web/generate_spec_form.py",
+          "tests/test_generate_spec_form.py",
+          "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/form_builder/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/form_builder/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_frontier_view_module",
+      "type": "synthesis",
+      "title": "Implement the Pareto frontier view module",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage4_implementation",
+      "fresh_session_required": true,
+      "objective": "Build kayakgen/ui/web/generate_frontier_view.py with a public render_frontier_view_section(app) that renders a 2D scatter (objective-pair picker; point color by claim_state, shape by ConvergenceFlag from RFC 0052) synced with a sortable table. For 3-objective EHVI runs, expose an objective-pair selector and surface the third objective as a colour-mapped axis on the scatter plus a column in the table. Clicking a candidate row triggers full handoff into the single-hull view (replace parameter rail, rebuild 3D scene) with a one-click undo toast. Stay within forbidden-copy: no max_gz_m / heel_at_max_gz_deg / range_positive_stability_deg / fixture_only / OpenFOAM / hosted strings. Do not edit app.py — the integrator wires this module into the Generate tab.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/ui/web/generate_frontier_view.py",
+          "tests/test_generate_frontier_view.py",
+          "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/frontier_view/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/frontier_view/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_auto_poll_module",
+      "type": "synthesis",
+      "title": "Implement the Generate panel auto-poll state listener",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage4_implementation",
+      "fresh_session_required": true,
+      "objective": "Build kayakgen/ui/web/generate_state_listener.py with a public install_generate_state_listener(app) that uses Trame timers or state-change callbacks to auto-refresh the Generate panel: 1-second cadence while any job state is in (queued, running), 10-second cadence otherwise. Poll calls into the existing manager.list() helper; on transition succeeded/failed/resumable, fire one additional refresh of the per-job detail panels. The listener must be cancellable and must not duplicate manual Refresh Jobs presses. Do not edit app.py — the integrator wires this module into the Generate tab.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/ui/web/generate_state_listener.py",
+          "tests/test_generate_state_listener.py",
+          "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/auto_poll/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/auto_poll/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_subprocess_default",
+      "type": "synthesis",
+      "title": "Flip kayakgen serve to subprocess by default",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage4_implementation",
+      "fresh_session_required": true,
+      "objective": "Flip the kayakgen serve default generative-job manager from InProcessGenerativeJobManager to SubprocessGenerativeJobManager. Rename the existing --jobs-subprocess flag: --jobs-in-process becomes the explicit in-process opt-in. Default behavior with no flag is now subprocess. Update tests/test_cli_serve.py (or its equivalent) to cover both paths. Print the chosen manager kind to the operator on startup so the deviation is visible. Do not touch app.py — the integrator wires the manager construction; only the CLI flag plumbing changes here.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/cli/main.py",
+          "tests/test_cli_serve.py",
+          "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/subprocess_default/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/subprocess_default/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_log_redaction",
+      "type": "synthesis",
+      "title": "Implement log redaction for the generative-jobs log payload",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage4_implementation",
+      "fresh_session_required": true,
+      "objective": "Add a _redact_log_text(text, *, home_dir, jobs_root) helper to kayakgen/services/generative_jobs.py and route generative_job_log_payload through it before returning. Replace any occurrence of the operator's $HOME prefix with ~, and rewrite paths that begin with the resolved jobs_root to start with <jobs_root>. Preserve byte-stable behavior for log payloads whose lines contain no absolute paths. Add a dedicated tests/test_log_redaction.py module that asserts redaction for a fabricated log containing both $HOME and jobs_root paths, and a no-op assertion for a log without any.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/services/generative_jobs.py",
+          "tests/test_log_redaction.py",
+          "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/log_redaction/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/log_redaction/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_fork_with_seed",
+      "type": "synthesis",
+      "title": "Implement Fork-with-new-seed route + manager primitive + button module",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage4_implementation",
+      "fresh_session_required": true,
+      "objective": "Add kayakgen/services/generative_jobs_fork.py with fork_generative_job_payload(manager, source_job_id, *, new_seed) that loads the source spec, patches algorithm.seed (NSGA-II) or algorithm.seed (EHVI), and calls manager.start with the patched spec_payload. The new job's GenerativeJob carries the forked-from job_id in a new optional forked_from field. Add POST /api/generative-jobs/{job_id}/fork to kayakgen/ui/web/controllers.py (accepts {\"new_seed\": int}). Add kayakgen/ui/web/generate_fork_button.py with render_fork_button(app, job_summary) that displays a 'Fork with new seed' button on succeeded rows; click POSTs to the new route and refreshes the jobs list. New tests in tests/test_generative_jobs_fork.py.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/services/generative_jobs_fork.py",
+          "kayakgen/ui/web/controllers.py",
+          "kayakgen/ui/web/generate_fork_button.py",
+          "tests/test_generative_jobs_fork.py",
+          "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/fork_with_seed/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/fork_with_seed/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "synchronize_docs",
+      "type": "synthesis",
+      "title": "Synchronize docs and operator report",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage4_implementation",
+      "fresh_session_required": true,
+      "objective": "Update docs/USER_GUIDE.md, docs/ROADMAP.md, docs/DECISION_LOG.md (new row D037 capturing the stage-4 decisions), docs/rfcs/0057-generative-search-jobs-and-web-workspace.md (resolve Open Questions section with the 12 captured decisions and add a Stage 4 implementation note), docs/rfcs/README.md (status update for RFC 0057), CHANGELOG.md, and this workflow's OPERATOR_REPORT.md. Do not change runtime behavior or no-claims boundaries. Do not touch tracks 1-6 implementation files; doc sync runs in parallel.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "CHANGELOG.md",
+          "docs/DECISION_LOG.md",
+          "docs/ROADMAP.md",
+          "docs/USER_GUIDE.md",
+          "docs/rfcs/README.md",
+          "docs/rfcs/0057-generative-search-jobs-and-web-workspace.md",
+          "docs/workflows/0054-rfc-0057-stage-4-ui-polish/OPERATOR_REPORT.md",
+          "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/docs_sync/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/docs_sync/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "integrate_generate_panel",
+      "type": "synthesis",
+      "title": "Integrate the new modules into the Generate tab",
+      "role_id": "integrator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Edit kayakgen/ui/web/app.py _render_generate_tab() to import and call render_spec_form_section(self), render_frontier_view_section(self), and per-row render_fork_button(self, summary). Invoke install_generate_state_listener(self) once during KayakgenApp construction (after the existing controller callback wiring). Wire the SubprocessGenerativeJobManager-by-default change through KayakgenApp.__init__ if needed (subprocess_default track may have constrained scope). Remove the legacy raw-JSON-textarea-only render. Update tests/test_generative_jobs_web.py panel-level tests to exercise the new wiring through controller callbacks. The integrator runs only after all six implementer tracks complete; the forbidden-claim scan (tests/test_web_layout.py) must stay green.",
+      "task_prompt": {"path": "prompts/integrate.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/ui/web/app.py",
+          "tests/test_generative_jobs_web.py",
+          "tests/test_web_layout.py",
+          "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/integration/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/implementation/integration/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review traceability to RFC 0057 stage-4 decisions",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Review every workflow 0054 change for traceability to the 12 captured stage-4 decisions and the RFC 0057 Open Questions section. Confirm the decisions doc, the workflow track scopes, and the resulting commits all line up; flag any deviation or scope creep.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0054-rfc-0057-stage-4-ui-polish/reviews/traceability/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/reviews/traceability/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_claims",
+      "type": "review",
+      "title": "Review claims and user-facing boundaries",
+      "role_id": "reviewer_claims",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Review every workflow 0054 change for overclaiming, user-facing copy, and forbidden-claim boundaries. The Generate panel's banners, CFD-in-loop acknowledgement copy, fork button labels, and Pareto-frontier captions must all stay inside the existing allowed phrasing in tests/test_web_layout.py.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0054-rfc-0057-stage-4-ui-polish/reviews/claims/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/reviews/claims/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_ops_tests",
+      "type": "review",
+      "title": "Review tests, determinism, and operational behavior",
+      "role_id": "reviewer_ops_tests",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Review workflow 0054's tests for determinism, coverage of the new surfaces (form-builder, scatter, auto-poll, fork, redaction, subprocess-default), and operational risk. Confirm the full repo suite stays green and that the forbidden-copy scan + ui-theme orphan scan still pass.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0054-rfc-0057-stage-4-ui-polish/reviews/ops_tests/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/reviews/ops_tests/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "synthesis",
+      "title": "Build findings ledger",
+      "role_id": "findings_ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate review findings into must-fix remediation items and non-blocking successor items without inventing new design scope.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0054-rfc-0057-stage-4-ui-polish/ledger/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "findings_ledger", "kind": "findings_ledger", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/ledger/FINDINGS_LEDGER.md", "required": true}
+      ]
+    },
+    {
+      "id": "remediate_findings",
+      "type": "synthesis",
+      "title": "Remediate review findings",
+      "role_id": "remediator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Fix must-fix findings from the ledger, update changelog and workflow report, and preserve all stage-4 decisions and no-claims boundaries.",
+      "task_prompt": {"path": "prompts/remediate.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "CHANGELOG.md",
+          "docs/DECISION_LOG.md",
+          "docs/ROADMAP.md",
+          "docs/USER_GUIDE.md",
+          "docs/rfcs/README.md",
+          "docs/rfcs/0057-generative-search-jobs-and-web-workspace.md",
+          "docs/workflows/0054-rfc-0057-stage-4-ui-polish/OPERATOR_REPORT.md",
+          "kayakgen/cli/main.py",
+          "kayakgen/services/",
+          "kayakgen/ui/web/",
+          "tests/",
+          "striatum/0054-rfc-0057-stage-4-ui-polish/remediation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/remediation/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final review workflow 0054",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Final-review workflow 0054 for accepted scope, findings resolution, no-claims boundaries, and validation evidence. Confirm the Generate panel ships the form-builder, scatter, auto-poll, fork-button, log-redaction, and subprocess-by-default decisions captured in STAGE_4_DECISIONS.md.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0054-rfc-0057-stage-4-ui-polish/final/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "final_review", "kind": "finding", "path": "striatum/0054-rfc-0057-stage-4-ui-polish/final/FINAL_REVIEW.md", "required": true}
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "implement_form_builder_module", "to": "integrate_generate_panel", "on": "completed"},
+    {"from": "implement_frontier_view_module", "to": "integrate_generate_panel", "on": "completed"},
+    {"from": "implement_auto_poll_module", "to": "integrate_generate_panel", "on": "completed"},
+    {"from": "implement_subprocess_default", "to": "integrate_generate_panel", "on": "completed"},
+    {"from": "implement_log_redaction", "to": "integrate_generate_panel", "on": "completed"},
+    {"from": "implement_fork_with_seed", "to": "integrate_generate_panel", "on": "completed"},
+
+    {"from": "implement_form_builder_module", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_frontier_view_module", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_auto_poll_module", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_subprocess_default", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_log_redaction", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_fork_with_seed", "to": "review_traceability", "on": "completed"},
+    {"from": "synchronize_docs", "to": "review_traceability", "on": "completed"},
+    {"from": "integrate_generate_panel", "to": "review_traceability", "on": "completed"},
+
+    {"from": "implement_form_builder_module", "to": "review_claims", "on": "completed"},
+    {"from": "implement_frontier_view_module", "to": "review_claims", "on": "completed"},
+    {"from": "implement_auto_poll_module", "to": "review_claims", "on": "completed"},
+    {"from": "implement_subprocess_default", "to": "review_claims", "on": "completed"},
+    {"from": "implement_log_redaction", "to": "review_claims", "on": "completed"},
+    {"from": "implement_fork_with_seed", "to": "review_claims", "on": "completed"},
+    {"from": "synchronize_docs", "to": "review_claims", "on": "completed"},
+    {"from": "integrate_generate_panel", "to": "review_claims", "on": "completed"},
+
+    {"from": "implement_form_builder_module", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_frontier_view_module", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_auto_poll_module", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_subprocess_default", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_log_redaction", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_fork_with_seed", "to": "review_ops_tests", "on": "completed"},
+    {"from": "synchronize_docs", "to": "review_ops_tests", "on": "completed"},
+    {"from": "integrate_generate_panel", "to": "review_ops_tests", "on": "completed"},
+
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_claims", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops_tests", "to": "findings_ledger", "on": "completed"},
+    {"from": "findings_ledger", "to": "remediate_findings", "on": "completed"},
+    {"from": "remediate_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {"from": "final_review", "to": "remediate_findings", "on_verdict": "needs_revision", "max_iterations": 1}
+  ]
+}
