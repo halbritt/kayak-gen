@@ -447,6 +447,14 @@ def test_register_rest_routes_on_router_like_app() -> None:
     assert ("POST", "/api/cfd/jobs/{job_id}/run") in app.router.routes
     assert ("GET", "/api/cfd/jobs/{job_id}/logs") in app.router.routes
     assert ("GET", "/api/cfd/jobs/{job_id}/raw-result") in app.router.routes
+    assert ("GET", "/api/generative-jobs") in app.router.routes
+    assert ("POST", "/api/generative-jobs/search") in app.router.routes
+    assert ("POST", "/api/generative-jobs/sweep") in app.router.routes
+    assert ("GET", "/api/generative-jobs/{job_id}") in app.router.routes
+    assert ("GET", "/api/generative-jobs/{job_id}/log") in app.router.routes
+    assert ("GET", "/api/generative-jobs/{job_id}/frontier") in app.router.routes
+    assert ("POST", "/api/generative-jobs/{job_id}/cancel") in app.router.routes
+    assert ("POST", "/api/generative-jobs/{job_id}/resume") in app.router.routes
 
 
 def test_cfd_routes_prepare_status_run_and_raw_absence(tmp_path) -> None:

@@ -39,6 +39,18 @@ from kayakgen.services.cfd_jobs import (
     create_cfd_job_payload,
     run_cfd_job_payload,
 )
+from kayakgen.services.generative_jobs import (
+    GenerativeJobManager,
+    GenerativeJobWebError,
+    InProcessGenerativeJobManager,
+    cancel_generative_job_payload,
+    generative_job_frontier_payload,
+    generative_job_full_payload,
+    generative_job_list_payload,
+    generative_job_log_payload,
+    resume_generative_job_payload,
+    start_generative_job_payload,
+)
 from kayakgen.services.comparison import (
     candidate_state_from_report_json,
     comparison_view_model_from_json,
@@ -77,11 +89,19 @@ CFD_LOCAL_FILESYSTEM_NOTICE = (
     "Local filesystem CFD jobs on this server only; no hosted worker is running."
 )
 
+GENERATIVE_JOBS_ROOT_ENV = "KAYAKGEN_GENERATIVE_JOBS_ROOT"
+"""Env var for the in-process generative-job manager's on-disk root."""
+
+
 __all__ = [
     "CFD_ARTIFACT_MAX_BYTES",
     "CFD_JOBS_ROOT_ENV",
     "CFD_LOCAL_FILESYSTEM_NOTICE",
     "CFD_RAW_RESULTS_WARNING",
+    "GENERATIVE_JOBS_ROOT_ENV",
+    "GenerativeJobManager",
+    "GenerativeJobWebError",
+    "InProcessGenerativeJobManager",
     "CLASS_PRESET_HULL_FIELDS",
     "DISPLAY_CURVE_SPEEDS_KT",
     "MESH_PROFILE_ID_TO_LABEL",
@@ -103,12 +123,19 @@ __all__ = [
     "cfd_profiles_payload",
     "cfd_raw_result_lines_from_payload",
     "cfd_status_lines_from_payload",
+    "cancel_generative_job_payload",
     "clamp_beam_wl_state",
     "class_preset_options",
     "class_preset_read_model",
     "comparison_view_model_from_json",
     "create_cfd_job_payload",
     "evaluation_for_state",
+    "generative_job_frontier_payload",
+    "generative_job_full_payload",
+    "generative_job_list_payload",
+    "generative_job_log_payload",
+    "resume_generative_job_payload",
+    "start_generative_job_payload",
     "evaluation_payload",
     "evaluation_summary",
     "hull_from_web_state",
@@ -133,12 +160,17 @@ def register_rest_routes(
     store: HullStore | None = None,
     cfd_store: CfdWebStore | None = None,
     cfd_jobs_root: str | Path | None = None,
+    generative_manager: GenerativeJobManager | None = None,
+    generative_jobs_root: str | Path | None = None,
 ) -> HullStore:
-    """Mount the RFC 0008 and local RFC 0018 REST APIs on an aiohttp app."""
+    """Mount the RFC 0008, local RFC 0018, and RFC 0057 REST APIs on an aiohttp app."""
     from aiohttp import web
 
     store = store or HullStore()
     cfd_store = cfd_store or CfdWebStore(cfd_jobs_root)
+    if generative_manager is None:
+        resolved_root = generative_jobs_root or _default_generative_jobs_root()
+        generative_manager = InProcessGenerativeJobManager(jobs_root=resolved_root)
 
     async def request_json(request: Any) -> dict[str, Any]:
         try:
@@ -261,6 +293,132 @@ def register_rest_routes(
         except Exception as exc:
             return cfd_unexpected_response(exc)
 
+    def generative_error_response(exc: GenerativeJobWebError) -> Any:
+        return web.json_response(exc.payload, status=exc.status)
+
+    def generative_unexpected_response(exc: Exception) -> Any:
+        return web.json_response(
+            {
+                "result_semantics": "raw_unvalidated",
+                "error": "generative_dispatch_failed",
+                "message": f"Unexpected generative-job route failure: {type(exc).__name__}",
+            },
+            status=500,
+        )
+
+    async def get_generative_jobs(request: Any) -> Any:
+        try:
+            state = request.query.get("state")
+            kind = request.query.get("kind")
+            return web.json_response(
+                generative_job_list_payload(
+                    generative_manager,
+                    state=state,  # type: ignore[arg-type]
+                    job_kind=kind,  # type: ignore[arg-type]
+                )
+            )
+        except GenerativeJobWebError as exc:
+            return generative_error_response(exc)
+        except Exception as exc:
+            return generative_unexpected_response(exc)
+
+    async def post_generative_search(request: Any) -> Any:
+        try:
+            body = await request.json()
+            return web.json_response(
+                start_generative_job_payload(
+                    body, generative_manager, job_kind="search"
+                ),
+                status=201,
+            )
+        except GenerativeJobWebError as exc:
+            return generative_error_response(exc)
+        except Exception as exc:
+            return generative_unexpected_response(exc)
+
+    async def post_generative_sweep(request: Any) -> Any:
+        try:
+            body = await request.json()
+            return web.json_response(
+                start_generative_job_payload(
+                    body, generative_manager, job_kind="sweep"
+                ),
+                status=201,
+            )
+        except GenerativeJobWebError as exc:
+            return generative_error_response(exc)
+        except Exception as exc:
+            return generative_unexpected_response(exc)
+
+    async def get_generative_job(request: Any) -> Any:
+        try:
+            return web.json_response(
+                generative_job_full_payload(
+                    generative_manager, request.match_info["job_id"]
+                )
+            )
+        except GenerativeJobWebError as exc:
+            return generative_error_response(exc)
+        except Exception as exc:
+            return generative_unexpected_response(exc)
+
+    async def get_generative_job_log(request: Any) -> Any:
+        try:
+            since_raw = request.query.get("since")
+            since_byte = 0
+            if since_raw is not None:
+                try:
+                    since_byte = int(since_raw)
+                except ValueError:
+                    since_byte = 0
+            return web.json_response(
+                generative_job_log_payload(
+                    generative_manager,
+                    request.match_info["job_id"],
+                    since_byte=since_byte,
+                )
+            )
+        except GenerativeJobWebError as exc:
+            return generative_error_response(exc)
+        except Exception as exc:
+            return generative_unexpected_response(exc)
+
+    async def get_generative_job_frontier(request: Any) -> Any:
+        try:
+            return web.json_response(
+                generative_job_frontier_payload(
+                    generative_manager, request.match_info["job_id"]
+                )
+            )
+        except GenerativeJobWebError as exc:
+            return generative_error_response(exc)
+        except Exception as exc:
+            return generative_unexpected_response(exc)
+
+    async def post_generative_cancel(request: Any) -> Any:
+        try:
+            return web.json_response(
+                cancel_generative_job_payload(
+                    generative_manager, request.match_info["job_id"]
+                )
+            )
+        except GenerativeJobWebError as exc:
+            return generative_error_response(exc)
+        except Exception as exc:
+            return generative_unexpected_response(exc)
+
+    async def post_generative_resume(request: Any) -> Any:
+        try:
+            return web.json_response(
+                resume_generative_job_payload(
+                    generative_manager, request.match_info["job_id"]
+                )
+            )
+        except GenerativeJobWebError as exc:
+            return generative_error_response(exc)
+        except Exception as exc:
+            return generative_unexpected_response(exc)
+
     router = aiohttp_app.router
     router.add_post("/api/evaluate", post_evaluate)
     router.add_post("/api/stl", post_stl)
@@ -274,7 +432,33 @@ def register_rest_routes(
     router.add_post("/api/cfd/jobs/{job_id}/run", post_cfd_run)
     router.add_get("/api/cfd/jobs/{job_id}/logs", get_cfd_logs)
     router.add_get("/api/cfd/jobs/{job_id}/raw-result", get_cfd_raw_result)
+    router.add_get("/api/generative-jobs", get_generative_jobs)
+    router.add_post("/api/generative-jobs/search", post_generative_search)
+    router.add_post("/api/generative-jobs/sweep", post_generative_sweep)
+    router.add_get("/api/generative-jobs/{job_id}", get_generative_job)
+    router.add_get("/api/generative-jobs/{job_id}/log", get_generative_job_log)
+    router.add_get(
+        "/api/generative-jobs/{job_id}/frontier", get_generative_job_frontier
+    )
+    router.add_post("/api/generative-jobs/{job_id}/cancel", post_generative_cancel)
+    router.add_post("/api/generative-jobs/{job_id}/resume", post_generative_resume)
     return store
+
+
+def _default_generative_jobs_root() -> Path:
+    """Default jobs root for the in-process generative manager.
+
+    Honors ``KAYAKGEN_GENERATIVE_JOBS_ROOT`` for tests/operators that
+    want to relocate the on-disk root; otherwise falls back to
+    ``~/.local/share/kayakgen/generative_jobs/``.
+    """
+
+    import os
+
+    override = os.environ.get(GENERATIVE_JOBS_ROOT_ENV)
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".local" / "share" / "kayakgen" / "generative_jobs"
 
 
 def _cfd_invalid_json_payload(message: str) -> dict[str, Any]:

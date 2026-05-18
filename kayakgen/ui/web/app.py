@@ -26,11 +26,13 @@ from kayakgen.ui.web.controllers import (
     CfdWebError,
     CfdWebStore,
     HullStore,
+    InProcessGenerativeJobManager,
     class_preset_options,
     class_preset_read_model,
     candidate_state_from_report_json,
     clamp_beam_wl_state,
     comparison_view_model_from_json,
+    cancel_generative_job_payload,
     cfd_error_lines_from_payload,
     cfd_job_logs_payload,
     cfd_job_raw_result_payload,
@@ -42,6 +44,9 @@ from kayakgen.ui.web.controllers import (
     create_cfd_job_payload,
     evaluation_payload,
     evaluation_summary,
+    generative_job_frontier_payload,
+    generative_job_list_payload,
+    generative_job_log_payload,
     hydro_lines_from_state,
     hull_from_web_state,
     mesh_diagnostics_lines_from_state,
@@ -49,7 +54,9 @@ from kayakgen.ui.web.controllers import (
     metrics_from_state,
     register_rest_routes,
     resistance_table_view_model,
+    resume_generative_job_payload,
     run_cfd_job_payload,
+    start_generative_job_payload,
     validation_error_payload,
     validity_badge_from_state,
 )
@@ -167,6 +174,7 @@ REVIEW_TABS: tuple[dict[str, str], ...] = (
     {"label": "Mesh", "value": "mesh", "test_id": "tab-mesh"},
     {"label": "Comparison", "value": "comparison", "test_id": "tab-comparison"},
     {"label": "CFD", "value": "cfd", "test_id": "tab-cfd"},
+    {"label": "Generate", "value": "generate", "test_id": "tab-generate"},
     {"label": "Advisories", "value": "advisories", "test_id": "tab-advisories"},
 )
 
@@ -317,6 +325,22 @@ def _make_actor(
     return actor
 
 
+def _default_generative_jobs_root_for_app() -> str:
+    """Default jobs root for the Trame app's in-process job manager.
+
+    Honors ``KAYAKGEN_GENERATIVE_JOBS_ROOT`` for tests/operators; otherwise
+    falls back to ``~/.local/share/kayakgen/generative_jobs/``.
+    """
+
+    import os
+    from pathlib import Path as _Path
+
+    override = os.environ.get("KAYAKGEN_GENERATIVE_JOBS_ROOT")
+    if override:
+        return str(_Path(override).expanduser())
+    return str(_Path.home() / ".local" / "share" / "kayakgen" / "generative_jobs")
+
+
 def _pre_html(lines: list[str]) -> str:
     body = "\n".join(html.escape(str(line)) for line in lines)
     return f"<pre>{body}</pre>"
@@ -444,6 +468,18 @@ class KayakgenApp:
         self._hull_store = HullStore()
         self._cfd_store = CfdWebStore()
         self.state.cfd_jobs_root = str(self._cfd_store.jobs_root)
+        self._generative_manager = InProcessGenerativeJobManager(
+            jobs_root=_default_generative_jobs_root_for_app(),
+        )
+        self.state.generative_jobs_root = str(self._generative_manager.jobs_root)
+        self.state.generative_spec_json = ""
+        self.state.generative_job_id = ""
+        self.state.generative_status = (
+            "Paste a sweep or search spec JSON and submit to start a new job."
+        )
+        self.state.generative_jobs_lines = []
+        self.state.generative_log_lines = []
+        self.state.generative_frontier_lines = []
         self._rebuild_scene(hull)
 
         self.ctrl.export_stl = lambda part: self._export_stl(part)
@@ -458,6 +494,13 @@ class KayakgenApp:
         self.ctrl.run_cfd_job = lambda: self._run_cfd_job()
         self.ctrl.load_cfd_logs = lambda: self._load_cfd_logs()
         self.ctrl.load_cfd_raw_result = lambda: self._load_cfd_raw_result()
+        self.ctrl.submit_generative_search = lambda: self._submit_generative_job("search")
+        self.ctrl.submit_generative_sweep = lambda: self._submit_generative_job("sweep")
+        self.ctrl.refresh_generative_jobs = lambda: self._refresh_generative_jobs()
+        self.ctrl.cancel_generative_job = lambda: self._cancel_generative_job()
+        self.ctrl.resume_generative_job = lambda: self._resume_generative_job()
+        self.ctrl.load_generative_log = lambda: self._load_generative_log()
+        self.ctrl.load_generative_frontier = lambda: self._load_generative_frontier()
         self.ctrl.focus_review_tab = lambda tab: self._focus_review_tab(tab)
         self.ctrl.on_server_bind.add(self._on_server_bind)
 
@@ -776,6 +819,7 @@ class KayakgenApp:
             ws_server.app,
             self._hull_store,
             cfd_store=self._cfd_store,
+            generative_manager=self._generative_manager,
         )
         self._install_browser_request_middleware(ws_server.app)
 
@@ -933,6 +977,127 @@ class KayakgenApp:
             )
             return
         self.state.cfd_raw_result_lines = cfd_raw_result_lines_from_payload(payload)
+
+    # ----- generative-jobs panel -----
+
+    def _submit_generative_job(self, kind: str) -> None:
+        text = str(self.state.generative_spec_json or "").strip()
+        if not text:
+            self.state.generative_status = (
+                "Paste a sweep or search spec JSON before submitting."
+            )
+            return
+        try:
+            spec_payload = json.loads(text)
+        except ValueError as exc:
+            self.state.generative_status = f"Spec is not valid JSON: {exc}"
+            return
+        try:
+            payload = start_generative_job_payload(
+                {"spec": spec_payload},
+                self._generative_manager,
+                job_kind=kind,  # type: ignore[arg-type]
+            )
+        except Exception as exc:  # noqa: BLE001 - surface a clean message
+            self.state.generative_status = f"Submit failed: {exc}"
+            return
+        job_id = payload["job_id"]
+        self.state.generative_job_id = job_id
+        self.state.generative_status = (
+            f"Submitted {kind} job {job_id}; state={payload['state']}."
+        )
+        self._refresh_generative_jobs()
+
+    def _refresh_generative_jobs(self) -> None:
+        listing = generative_job_list_payload(self._generative_manager)
+        rows: list[str] = []
+        for job in listing.get("jobs", []):
+            rows.append(
+                f"{job['job_id']}\t{job['job_kind']}\t{job['state']}\t"
+                f"{job['realized_evaluations']}/{job['completed_count']}c/"
+                f"{job['failed_count']}f"
+            )
+        if not rows:
+            rows = ["(no generative jobs yet)"]
+        self.state.generative_jobs_lines = rows
+
+    def _cancel_generative_job(self) -> None:
+        job_id = str(self.state.generative_job_id or "").strip()
+        if not job_id:
+            self.state.generative_status = "Enter a job id to cancel."
+            return
+        try:
+            payload = cancel_generative_job_payload(
+                self._generative_manager, job_id
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.state.generative_status = f"Cancel failed: {exc}"
+            return
+        self.state.generative_status = (
+            f"Cancel requested for {payload['job_id']}; state={payload['state']}."
+        )
+        self._refresh_generative_jobs()
+
+    def _resume_generative_job(self) -> None:
+        job_id = str(self.state.generative_job_id or "").strip()
+        if not job_id:
+            self.state.generative_status = "Enter a job id to resume."
+            return
+        try:
+            payload = resume_generative_job_payload(
+                self._generative_manager, job_id
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.state.generative_status = f"Resume failed: {exc}"
+            return
+        self.state.generative_status = (
+            f"Resumed {payload['job_id']}; state={payload['state']}."
+        )
+        self._refresh_generative_jobs()
+
+    def _load_generative_log(self) -> None:
+        job_id = str(self.state.generative_job_id or "").strip()
+        if not job_id:
+            self.state.generative_log_lines = ["(enter a job id)"]
+            return
+        try:
+            payload = generative_job_log_payload(
+                self._generative_manager, job_id, since_byte=0
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.state.generative_log_lines = [f"log unavailable: {exc}"]
+            return
+        log_text = payload.get("log", "")
+        if not log_text.strip():
+            self.state.generative_log_lines = ["(no log lines yet)"]
+            return
+        self.state.generative_log_lines = log_text.splitlines()[-200:]
+
+    def _load_generative_frontier(self) -> None:
+        job_id = str(self.state.generative_job_id or "").strip()
+        if not job_id:
+            self.state.generative_frontier_lines = ["(enter a job id)"]
+            return
+        try:
+            payload = generative_job_frontier_payload(
+                self._generative_manager, job_id
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.state.generative_frontier_lines = [f"frontier unavailable: {exc}"]
+            return
+        if not payload.get("frontier_available"):
+            note = payload.get("note") or "frontier not available yet"
+            self.state.generative_frontier_lines = [note]
+            return
+        rows: list[str] = []
+        for row in payload.get("frontier", []):
+            params = ", ".join(
+                f"{k}={v}" for k, v in sorted((row.get("parameters") or {}).items())
+            )
+            rows.append(
+                f"{row.get('candidate_key')}\t{row.get('status')}\t{params}"
+            )
+        self.state.generative_frontier_lines = rows or ["(empty frontier)"]
 
     def load_from_query(self, query: str) -> None:
         try:
@@ -1097,6 +1262,7 @@ class KayakgenApp:
                                     self._render_mesh_tab()
                                     self._render_comparison_tab()
                                     self._render_cfd_tab()
+                                    self._render_generate_tab()
                                     self._render_advisories_tab()
                     self._render_status_bar()
 
@@ -1342,6 +1508,95 @@ class KayakgenApp:
                     )
                     v3.VCardText(
                         "<pre>{{ cfd_raw_result_lines.join('\\n') }}</pre>",
+                        classes="font-mono text-caption",
+                        html=True,
+                    )
+
+    def _render_generate_tab(self) -> None:
+        with v3.VWindowItem(value="generate"):
+            with v3.VCard(classes="kg-review-card kg-generate-card"):
+                v3.VCardTitle("Generate")
+                v3.VCardText(
+                    "Submit a sweep or search spec JSON. Jobs run server-local "
+                    "in the same process; no hosted worker is running.",
+                    classes="kg-generate-banner",
+                )
+                v3.VCardText("{{ generative_status }}", classes="kg-generate-status")
+                with v3.VCardText():
+                    v3.VTextField(
+                        v_model=("generative_jobs_root",),
+                        label="Generative jobs root",
+                        readonly=True,
+                        density="compact",
+                    )
+                    v3.VTextarea(
+                        v_model=("generative_spec_json",),
+                        label="Spec JSON (sweep or search)",
+                        rows=8,
+                        auto_grow=True,
+                        density="compact",
+                        **{"data-testid": "generative-spec-textarea"},
+                    )
+                    v3.VBtn(
+                        "Submit Search",
+                        click=self.ctrl.submit_generative_search,
+                        density="compact",
+                        classes="mr-2",
+                        **{"data-testid": "submit-generative-search"},
+                    )
+                    v3.VBtn(
+                        "Submit Sweep",
+                        click=self.ctrl.submit_generative_sweep,
+                        density="compact",
+                        classes="mr-2",
+                        **{"data-testid": "submit-generative-sweep"},
+                    )
+                    v3.VBtn(
+                        "Refresh Jobs",
+                        click=self.ctrl.refresh_generative_jobs,
+                        density="compact",
+                        classes="mr-2",
+                    )
+                    v3.VTextField(
+                        v_model=("generative_job_id",),
+                        label="Selected job id",
+                        density="compact",
+                    )
+                    v3.VBtn(
+                        "Cancel",
+                        click=self.ctrl.cancel_generative_job,
+                        density="compact",
+                        classes="mr-2",
+                    )
+                    v3.VBtn(
+                        "Resume",
+                        click=self.ctrl.resume_generative_job,
+                        density="compact",
+                        classes="mr-2",
+                    )
+                    v3.VBtn(
+                        "Load Log",
+                        click=self.ctrl.load_generative_log,
+                        density="compact",
+                        classes="mr-2",
+                    )
+                    v3.VBtn(
+                        "Load Frontier",
+                        click=self.ctrl.load_generative_frontier,
+                        density="compact",
+                    )
+                    v3.VCardText(
+                        "<pre>{{ generative_jobs_lines.join('\\n') }}</pre>",
+                        classes="font-mono text-caption mt-2",
+                        html=True,
+                    )
+                    v3.VCardText(
+                        "<pre>{{ generative_log_lines.join('\\n') }}</pre>",
+                        classes="font-mono text-caption",
+                        html=True,
+                    )
+                    v3.VCardText(
+                        "<pre>{{ generative_frontier_lines.join('\\n') }}</pre>",
                         classes="font-mono text-caption",
                         html=True,
                     )

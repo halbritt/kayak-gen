@@ -129,6 +129,7 @@ def test_review_tabs_and_status_segments_match_workspace_contract() -> None:
         "Mesh",
         "Comparison",
         "CFD",
+        "Generate",
         "Advisories",
     ]
     assert [segment["key"] for segment in web_app.STATUS_SEGMENTS] == [

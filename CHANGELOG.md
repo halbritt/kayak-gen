@@ -32,6 +32,33 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed RFC 0057 stage 2: web routes + Trame Generate panel.
+  `register_rest_routes` now accepts a `GenerativeJobManager`
+  (defaulting to a lazily-built `InProcessGenerativeJobManager` under
+  `~/.local/share/kayakgen/generative_jobs/` or
+  `KAYAKGEN_GENERATIVE_JOBS_ROOT`) and mounts eight new routes:
+  `GET /api/generative-jobs`,
+  `POST /api/generative-jobs/{search,sweep}`,
+  `GET /api/generative-jobs/{job_id}`,
+  `GET /api/generative-jobs/{job_id}/log`,
+  `GET /api/generative-jobs/{job_id}/frontier`,
+  `POST /api/generative-jobs/{job_id}/{cancel,resume}`. Every payload
+  carries `result_semantics: "raw_unvalidated"`. Service-layer helpers
+  (`start_generative_job_payload`, `generative_job_list_payload`,
+  `generative_job_full_payload`, `generative_job_log_payload`,
+  `generative_job_frontier_payload`, `cancel_generative_job_payload`,
+  `resume_generative_job_payload`) plus a structured
+  `GenerativeJobWebError` envelope mirror the RFC 0018 CFD-route
+  pattern; rejection cases return 400/404/409 with explicit `error`
+  tokens. The Trame workspace gains a new "Generate" tab (between CFD
+  and Advisories) with a spec-JSON textarea, Submit Search / Submit
+  Sweep / Refresh Jobs / Cancel / Resume / Load Log / Load Frontier
+  buttons, and three bounded text panels for the jobs index, log
+  tail, and resolved Pareto-frontier rows. Forbidden-claim scan stays
+  green: no new banned tokens introduced; the panel banner reuses the
+  existing "no hosted worker is running" allowed phrase. +13 new web
+  tests in `tests/test_generative_jobs_web.py`; full RFC 0057 + web
+  + boundary slice 203 passed.
 - Landed RFC 0057 stage 1: long-lived generative-job foundation. New
   `kayakgen.services.generative_jobs` module ships `GenerativeJob`,
   `GenerativeJobProgress`, `GenerativeJobError`, `GenerativeJobSummary`

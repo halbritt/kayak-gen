@@ -683,18 +683,290 @@ class InProcessGenerativeJobManager:
                 del self._cancel_events[job_id]
 
 
+# ---------------------------------------------------------------------------
+# Web payload helpers (RFC 0057 stage 2)
+# ---------------------------------------------------------------------------
+
+
+GENERATIVE_JOBS_RESULT_SEMANTICS = "raw_unvalidated"
+"""Result-semantics literal carried on every generative-job payload.
+
+The frontier metrics surfaced by the web routes inherit the claim_state of
+their underlying candidate records (typically ``raw_unvalidated`` or
+``uncalibrated_comparative``). The route envelope publishes the most
+conservative state so the panel cannot accidentally elevate the claim.
+"""
+
+
+class GenerativeJobWebError(Exception):
+    """Structured generative-job web error (mirrors :class:`CfdWebError`)."""
+
+    def __init__(self, status: int, payload: dict[str, Any]) -> None:
+        super().__init__(
+            str(payload.get("message", payload.get("error", "generative-job error")))
+        )
+        self.status = status
+        self.payload = payload
+
+
+def _generative_error_payload(
+    error: str,
+    message: str,
+    **extra: Any,
+) -> dict[str, Any]:
+    """Structured error envelope returned by the route handlers."""
+
+    payload: dict[str, Any] = {
+        "result_semantics": GENERATIVE_JOBS_RESULT_SEMANTICS,
+        "error": error,
+        "message": message,
+    }
+    payload.update(extra)
+    return payload
+
+
+def _serialize_job(job: GenerativeJob) -> dict[str, Any]:
+    payload = job.model_dump(mode="json")
+    payload["result_semantics"] = GENERATIVE_JOBS_RESULT_SEMANTICS
+    return payload
+
+
+def _serialize_summary(summary: GenerativeJobSummary) -> dict[str, Any]:
+    payload = summary.model_dump(mode="json")
+    payload["result_semantics"] = GENERATIVE_JOBS_RESULT_SEMANTICS
+    return payload
+
+
+def start_generative_job_payload(
+    request_body: dict[str, Any],
+    manager: "GenerativeJobManager",
+    *,
+    job_kind: JobKind,
+) -> dict[str, Any]:
+    """Validate ``spec`` from the request body and start a new job."""
+
+    if not isinstance(request_body, dict):
+        raise GenerativeJobWebError(
+            400,
+            _generative_error_payload(
+                "invalid_request_body",
+                "Request body must be a JSON object.",
+            ),
+        )
+    spec_payload = request_body.get("spec")
+    if not isinstance(spec_payload, dict):
+        raise GenerativeJobWebError(
+            400,
+            _generative_error_payload(
+                "missing_spec",
+                "Request body must include a 'spec' object.",
+            ),
+        )
+    try:
+        job = manager.start(spec_payload=spec_payload, job_kind=job_kind)
+    except ValidationError as exc:
+        raise GenerativeJobWebError(
+            400,
+            _generative_error_payload(
+                "spec_validation_failed",
+                str(exc),
+            ),
+        ) from exc
+    return _serialize_job(job)
+
+
+def generative_job_list_payload(
+    manager: "GenerativeJobManager",
+    *,
+    state: JobState | None = None,
+    job_kind: JobKind | None = None,
+) -> dict[str, Any]:
+    """List jobs as a JSON payload (used by ``GET /api/generative-jobs``)."""
+
+    summaries = manager.list(state=state, job_kind=job_kind)
+    return {
+        "result_semantics": GENERATIVE_JOBS_RESULT_SEMANTICS,
+        "jobs": [_serialize_summary(summary) for summary in summaries],
+    }
+
+
+def generative_job_full_payload(
+    manager: "GenerativeJobManager",
+    job_id: str,
+) -> dict[str, Any]:
+    """Return the full :class:`GenerativeJob` payload."""
+
+    try:
+        job = manager.get(job_id)
+    except FileNotFoundError as exc:
+        raise GenerativeJobWebError(
+            404,
+            _generative_error_payload(
+                "job_not_found",
+                f"No generative job recorded for job_id={job_id!r}.",
+                job_id=job_id,
+            ),
+        ) from exc
+    return _serialize_job(job)
+
+
+def cancel_generative_job_payload(
+    manager: "GenerativeJobManager",
+    job_id: str,
+) -> dict[str, Any]:
+    """Signal cancellation; return the latest job payload."""
+
+    try:
+        job = manager.cancel(job_id)
+    except FileNotFoundError as exc:
+        raise GenerativeJobWebError(
+            404,
+            _generative_error_payload(
+                "job_not_found",
+                f"No generative job recorded for job_id={job_id!r}.",
+                job_id=job_id,
+            ),
+        ) from exc
+    return _serialize_job(job)
+
+
+def resume_generative_job_payload(
+    manager: "GenerativeJobManager",
+    job_id: str,
+) -> dict[str, Any]:
+    """Resume a ``resumable`` job; return the post-resume job payload."""
+
+    try:
+        job = manager.resume(job_id)
+    except FileNotFoundError as exc:
+        raise GenerativeJobWebError(
+            404,
+            _generative_error_payload(
+                "job_not_found",
+                f"No generative job recorded for job_id={job_id!r}.",
+                job_id=job_id,
+            ),
+        ) from exc
+    except ValueError as exc:
+        raise GenerativeJobWebError(
+            409,
+            _generative_error_payload(
+                "job_not_resumable",
+                str(exc),
+                job_id=job_id,
+            ),
+        ) from exc
+    return _serialize_job(job)
+
+
+def generative_job_log_payload(
+    manager: "GenerativeJobManager",
+    job_id: str,
+    *,
+    since_byte: int = 0,
+) -> dict[str, Any]:
+    """Bounded log tail (RFC 0057). Returns text plus the byte cursor."""
+
+    try:
+        text, cursor = manager.tail_log(job_id, since_byte=since_byte)
+    except FileNotFoundError as exc:
+        raise GenerativeJobWebError(
+            404,
+            _generative_error_payload(
+                "job_not_found",
+                f"No generative job recorded for job_id={job_id!r}.",
+                job_id=job_id,
+            ),
+        ) from exc
+    return {
+        "result_semantics": GENERATIVE_JOBS_RESULT_SEMANTICS,
+        "job_id": job_id,
+        "log": text,
+        "cursor": cursor,
+    }
+
+
+def generative_job_frontier_payload(
+    manager: "GenerativeJobManager",
+    job_id: str,
+) -> dict[str, Any]:
+    """Resolved Pareto frontier rows from a completed search-job ``run.json``.
+
+    Only ``search`` jobs produce a Pareto frontier; sweep jobs return
+    an empty list with an explanatory note. Rows carry candidate_key,
+    status, parameters, hull_hash, claim_state, and the candidate-level
+    summary dict — no derived ``max_gz_m`` / ``heel_at_max_gz_deg`` /
+    ``range_positive_stability_deg`` are projected onto the envelope.
+    """
+
+    job = manager.get(job_id)
+    run_json_path = Path(job.output_dir) / "run.json"
+    if not run_json_path.exists():
+        return {
+            "result_semantics": GENERATIVE_JOBS_RESULT_SEMANTICS,
+            "job_id": job_id,
+            "frontier": [],
+            "frontier_available": False,
+            "note": "run.json not yet written",
+        }
+    try:
+        run_payload = json.loads(run_json_path.read_text())
+    except (OSError, ValueError):
+        return {
+            "result_semantics": GENERATIVE_JOBS_RESULT_SEMANTICS,
+            "job_id": job_id,
+            "frontier": [],
+            "frontier_available": False,
+            "note": "run.json could not be parsed",
+        }
+    candidates = run_payload.get("candidates") or []
+    frontier_keys = set(run_payload.get("final_frontier_keys") or [])
+    rows: list[dict[str, Any]] = []
+    for cand in candidates:
+        if not isinstance(cand, dict):
+            continue
+        key = cand.get("candidate_key")
+        if key not in frontier_keys:
+            continue
+        rows.append(
+            {
+                "candidate_key": key,
+                "status": cand.get("status"),
+                "parameters": cand.get("parameters", {}),
+                "hull_record_hash": cand.get("hull_hash"),
+                "summary": cand.get("summary", {}),
+            }
+        )
+    rows.sort(key=lambda r: r.get("candidate_key") or "")
+    return {
+        "result_semantics": GENERATIVE_JOBS_RESULT_SEMANTICS,
+        "job_id": job_id,
+        "frontier": rows,
+        "frontier_available": bool(rows),
+    }
+
+
 __all__ = [
+    "GENERATIVE_JOBS_RESULT_SEMANTICS",
     "GenerativeJob",
     "GenerativeJobError",
     "GenerativeJobManager",
     "GenerativeJobProgress",
     "GenerativeJobProgressSink",
     "GenerativeJobSummary",
+    "GenerativeJobWebError",
     "InProcessGenerativeJobManager",
     "JOB_LOG_MAX_BYTES",
     "JobErrorKind",
     "JobKind",
     "JobState",
     "canonical_job_json",
+    "cancel_generative_job_payload",
+    "generative_job_frontier_payload",
+    "generative_job_full_payload",
+    "generative_job_list_payload",
+    "generative_job_log_payload",
+    "resume_generative_job_payload",
+    "start_generative_job_payload",
     "summarize_job",
 ]
