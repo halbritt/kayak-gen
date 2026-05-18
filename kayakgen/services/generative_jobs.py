@@ -233,6 +233,178 @@ def _new_job_id() -> str:
     return uuid.uuid4().hex[:12]
 
 
+# ---------------------------------------------------------------------------
+# Shared file-based job-store helpers used by both managers and the
+# subprocess runner entry.
+# ---------------------------------------------------------------------------
+
+
+def read_job_from_dir(jobs_root: Path, job_id: str) -> GenerativeJob:
+    """Load and validate the persisted ``job.json`` for ``job_id``."""
+
+    path = jobs_root / job_id / "job.json"
+    if not path.exists():
+        raise FileNotFoundError(f"job.json missing for job_id={job_id}")
+    return GenerativeJob.model_validate_json(path.read_text())
+
+
+def list_jobs_in_dir(
+    jobs_root: Path,
+    *,
+    state: JobState | None = None,
+    job_kind: JobKind | None = None,
+) -> list[GenerativeJobSummary]:
+    """List every job whose ``job.json`` parses under ``jobs_root``."""
+
+    summaries: list[GenerativeJobSummary] = []
+    if not jobs_root.is_dir():
+        return summaries
+    for entry in sorted(jobs_root.iterdir()):
+        job_json = entry / "job.json"
+        if not job_json.is_file():
+            continue
+        try:
+            job = GenerativeJob.model_validate_json(job_json.read_text())
+        except (ValidationError, ValueError):
+            continue
+        if state is not None and job.state != state:
+            continue
+        if job_kind is not None and job.job_kind != job_kind:
+            continue
+        summaries.append(summarize_job(job))
+    return summaries
+
+
+def tail_log_file(
+    jobs_root: Path, job_id: str, *, since_byte: int = 0
+) -> tuple[str, int]:
+    """Return the (text, cursor) tail of a job's ``log.txt``."""
+
+    path = jobs_root / job_id / "log.txt"
+    if not path.exists():
+        return "", 0
+    data = path.read_bytes()
+    if since_byte < 0:
+        since_byte = 0
+    return data[since_byte:].decode("utf-8", errors="replace"), len(data)
+
+
+def append_log_to_file(jobs_root: Path, job_id: str, line: str) -> None:
+    """Append a line to ``log.txt``, truncating to :data:`JOB_LOG_MAX_BYTES`."""
+
+    path = jobs_root / job_id / "log.txt"
+    existing = path.read_bytes() if path.exists() else b""
+    new_bytes = (line.rstrip("\n") + "\n").encode("utf-8")
+    buffer = existing + new_bytes
+    if len(buffer) > JOB_LOG_MAX_BYTES:
+        buffer = buffer[-JOB_LOG_MAX_BYTES:]
+    path.write_bytes(buffer)
+
+
+def persist_job_to_dir(
+    jobs_root: Path,
+    job: GenerativeJob,
+    *,
+    index: Any | None = None,
+) -> None:
+    """Write canonical ``job.json`` and (optionally) upsert to SqliteIndex.
+
+    Uses an atomic temp-file + ``os.replace`` swap so concurrent readers
+    never observe a half-written or truncated ``job.json``.
+    """
+
+    import os as _os
+
+    path = jobs_root / job.job_id / "job.json"
+    tmp_path = path.with_suffix(".json.tmp")
+    tmp_path.write_text(canonical_job_json(job) + "\n")
+    _os.replace(tmp_path, path)
+    if index is not None:
+        try:
+            index.upsert_generative_job(
+                job_id=job.job_id,
+                job_kind=job.job_kind,
+                spec_hash=job.spec_hash,
+                state=job.state,
+                output_dir=job.output_dir,
+                run_id=None,
+                run_hash=None,
+                started_at=job.started_at,
+                completed_at=job.completed_at,
+                realized_evaluations=job.progress.realized_evaluations,
+                completed_count=job.progress.completed_count,
+                failed_count=job.progress.failed_count,
+                constraint_failed_count=job.progress.constraint_failed_count,
+                pending_count=job.progress.pending_count,
+            )
+        except Exception:  # pragma: no cover - index errors are non-fatal
+            pass
+
+
+def initialize_job_dir(
+    jobs_root: Path,
+    *,
+    spec_payload: dict[str, Any],
+    job_kind: JobKind,
+) -> GenerativeJob:
+    """Allocate a job_id and persist the initial ``queued`` :class:`GenerativeJob`.
+
+    Creates the per-job directory layout (``spec.json``, ``log.txt``,
+    ``output/``) and returns the initial :class:`GenerativeJob` record.
+    The caller is responsible for actually starting the worker (thread
+    or subprocess).
+    """
+
+    job_id = _new_job_id()
+    job_dir = jobs_root / job_id
+    job_dir.mkdir(parents=True)
+    output_dir = job_dir / "output"
+    output_dir.mkdir()
+
+    spec_path = job_dir / "spec.json"
+    spec_path.write_text(
+        json.dumps(spec_payload, sort_keys=True, separators=(",", ":")) + "\n"
+    )
+    log_path = job_dir / "log.txt"
+    log_path.write_text("")
+
+    job = GenerativeJob(
+        job_id=job_id,
+        job_kind=job_kind,
+        spec_ref=str(spec_path.relative_to(jobs_root)),
+        spec_hash=_hash_spec_payload(spec_payload),
+        output_dir=str(output_dir),
+        state="queued",
+        log_tail_ref=str(log_path.relative_to(jobs_root)),
+    )
+    return job
+
+
+def classify_runner_error(exc: Exception) -> GenerativeJobError:
+    """Map a runner exception onto a structured :class:`GenerativeJobError`.
+
+    Shared by both the in-process and subprocess paths so terminal-state
+    error classification is identical regardless of which manager ran the
+    job.
+    """
+
+    if isinstance(exc, ValidationError):
+        return GenerativeJobError(
+            kind="spec_validation_failed",
+            message=str(exc),
+        )
+    message = str(exc)
+    exc_name = type(exc).__name__
+    kind: JobErrorKind = "internal_error"
+    if exc_name == "EhviDimensionError":
+        kind = "ehvi_dimension_unsupported"
+    elif exc_name == "HighAngleGzObjectiveRefusedError":
+        kind = "high_angle_gz_display_only"
+    elif "claim_state" in message and "admissible" in message:
+        kind = "objective_claim_state_inadmissible"
+    return GenerativeJobError(kind=kind, message=message)
+
+
 class GenerativeJobManager(Protocol):
     """Manager-protocol for long-lived generative jobs (RFC 0057)."""
 
@@ -364,51 +536,29 @@ class InProcessGenerativeJobManager:
         spec_payload: dict[str, Any],
         job_kind: JobKind,
     ) -> GenerativeJob:
-        job_id = _new_job_id()
-        job_dir = self.jobs_root / job_id
-        job_dir.mkdir(parents=True)
-        output_dir = job_dir / "output"
-        output_dir.mkdir()
-
-        spec_path = job_dir / "spec.json"
-        spec_path.write_text(
-            json.dumps(spec_payload, sort_keys=True, separators=(",", ":")) + "\n"
-        )
-        log_path = job_dir / "log.txt"
-        log_path.write_text("")
-
-        job = GenerativeJob(
-            job_id=job_id,
-            job_kind=job_kind,
-            spec_ref=str(spec_path.relative_to(self.jobs_root)),
-            spec_hash=_hash_spec_payload(spec_payload),
-            output_dir=str(output_dir),
-            state="queued",
-            log_tail_ref=str(log_path.relative_to(self.jobs_root)),
+        job = initialize_job_dir(
+            self.jobs_root, spec_payload=spec_payload, job_kind=job_kind
         )
         self._persist_job(job)
 
         cancel_event = threading.Event()
         with self._global_lock:
-            self._cancel_events[job_id] = cancel_event
-            self._job_locks[job_id] = threading.Lock()
+            self._cancel_events[job.job_id] = cancel_event
+            self._job_locks[job.job_id] = threading.Lock()
 
         thread = threading.Thread(
             target=self._run_job,
-            name=f"generative-job-{job_id}",
-            kwargs={"job_id": job_id, "resume": False},
+            name=f"generative-job-{job.job_id}",
+            kwargs={"job_id": job.job_id, "resume": False},
             daemon=False,
         )
         with self._global_lock:
-            self._threads[job_id] = thread
+            self._threads[job.job_id] = thread
         thread.start()
         return job
 
     def get(self, job_id: str) -> GenerativeJob:
-        path = self._job_dir(job_id) / "job.json"
-        if not path.exists():
-            raise FileNotFoundError(f"job.json missing for job_id={job_id}")
-        return GenerativeJob.model_validate_json(path.read_text())
+        return read_job_from_dir(self.jobs_root, job_id)
 
     def list(
         self,
@@ -416,23 +566,7 @@ class InProcessGenerativeJobManager:
         state: JobState | None = None,
         job_kind: JobKind | None = None,
     ) -> list[GenerativeJobSummary]:
-        summaries: list[GenerativeJobSummary] = []
-        if not self.jobs_root.is_dir():
-            return summaries
-        for entry in sorted(self.jobs_root.iterdir()):
-            job_json = entry / "job.json"
-            if not job_json.is_file():
-                continue
-            try:
-                job = GenerativeJob.model_validate_json(job_json.read_text())
-            except (ValidationError, ValueError):
-                continue
-            if state is not None and job.state != state:
-                continue
-            if job_kind is not None and job.job_kind != job_kind:
-                continue
-            summaries.append(summarize_job(job))
-        return summaries
+        return list_jobs_in_dir(self.jobs_root, state=state, job_kind=job_kind)
 
     def cancel(self, job_id: str) -> GenerativeJob:
         event = self._cancel_events.get(job_id)
@@ -469,13 +603,7 @@ class InProcessGenerativeJobManager:
         return self.get(job_id)
 
     def tail_log(self, job_id: str, *, since_byte: int = 0) -> tuple[str, int]:
-        path = self._job_dir(job_id) / "log.txt"
-        if not path.exists():
-            return "", 0
-        data = path.read_bytes()
-        if since_byte < 0:
-            since_byte = 0
-        return data[since_byte:].decode("utf-8", errors="replace"), len(data)
+        return tail_log_file(self.jobs_root, job_id, since_byte=since_byte)
 
     def join(self, job_id: str, *, timeout: float | None = None) -> None:
         """Block until the named job's thread exits. Test helper."""
@@ -494,40 +622,11 @@ class InProcessGenerativeJobManager:
             return self._job_locks.setdefault(job_id, threading.Lock())
 
     def _persist_job(self, job: GenerativeJob) -> None:
-        path = self._job_dir(job.job_id) / "job.json"
-        path.write_text(canonical_job_json(job) + "\n")
-        if self._index is not None:
-            run_hash = None
-            run_id_in_store = None
-            try:
-                self._index.upsert_generative_job(
-                    job_id=job.job_id,
-                    job_kind=job.job_kind,
-                    spec_hash=job.spec_hash,
-                    state=job.state,
-                    output_dir=job.output_dir,
-                    run_id=run_id_in_store,
-                    run_hash=run_hash,
-                    started_at=job.started_at,
-                    completed_at=job.completed_at,
-                    realized_evaluations=job.progress.realized_evaluations,
-                    completed_count=job.progress.completed_count,
-                    failed_count=job.progress.failed_count,
-                    constraint_failed_count=job.progress.constraint_failed_count,
-                    pending_count=job.progress.pending_count,
-                )
-            except Exception:  # pragma: no cover - index errors are non-fatal
-                pass
+        persist_job_to_dir(self.jobs_root, job, index=self._index)
 
     def _append_log(self, job_id: str, line: str) -> None:
-        path = self._job_dir(job_id) / "log.txt"
         with self._lock_for(job_id):
-            existing = path.read_bytes() if path.exists() else b""
-            new_bytes = (line.rstrip("\n") + "\n").encode("utf-8")
-            buffer = existing + new_bytes
-            if len(buffer) > JOB_LOG_MAX_BYTES:
-                buffer = buffer[-JOB_LOG_MAX_BYTES:]
-            path.write_bytes(buffer)
+            append_log_to_file(self.jobs_root, job_id, line)
 
     def _should_cancel(self, job_id: str) -> bool:
         event = self._cancel_events.get(job_id)
@@ -633,22 +732,8 @@ class InProcessGenerativeJobManager:
                 )
             else:  # pragma: no cover - JobKind is a Literal
                 raise ValueError(f"unknown job_kind={job_kind!r}")
-        except ValidationError as exc:
-            error = GenerativeJobError(
-                kind="spec_validation_failed",
-                message=str(exc),
-            )
         except Exception as exc:  # noqa: BLE001 - re-classify at boundary
-            kind: JobErrorKind = "internal_error"
-            message = str(exc)
-            exc_name = type(exc).__name__
-            if exc_name == "EhviDimensionError":
-                kind = "ehvi_dimension_unsupported"
-            elif exc_name == "HighAngleGzObjectiveRefusedError":
-                kind = "high_angle_gz_display_only"
-            elif "claim_state" in message and "admissible" in message:
-                kind = "objective_claim_state_inadmissible"
-            error = GenerativeJobError(kind=kind, message=message)
+            error = classify_runner_error(exc)
 
         terminal_state: JobState
         if error is not None:
@@ -681,6 +766,194 @@ class InProcessGenerativeJobManager:
         with self._global_lock:
             with contextlib.suppress(KeyError):
                 del self._cancel_events[job_id]
+
+
+# ---------------------------------------------------------------------------
+# Subprocess manager (RFC 0057 stage 3)
+# ---------------------------------------------------------------------------
+
+
+class SubprocessGenerativeJobManager:
+    """Run generative jobs as detached subprocesses (RFC 0057 stage 3).
+
+    Each ``start`` allocates a job directory and spawns a child Python
+    process invoking
+    :mod:`kayakgen.services.generative_jobs_runner`. The child writes
+    ``job.json`` updates directly to disk via the same helpers the
+    in-process manager uses; the parent's ``get/list/tail_log`` only
+    read from disk and never need IPC.
+
+    Cancellation is signalled by touching ``<job_dir>/cancel.flag``.
+    The child polls the flag between candidate emissions and shuts down
+    cleanly to ``state="resumable"`` when it sees the file.
+
+    Crash survival: if the child is ``SIGKILL``'d, the parent's
+    :meth:`get` detects that the process handle is no longer alive and
+    transitions the stale ``running`` state to ``resumable`` on disk so
+    subsequent :meth:`resume` calls work. Re-resume spawns a fresh
+    child with ``--resume`` and the runner reuses the persisted
+    ``state.json`` checkpoint.
+    """
+
+    def __init__(
+        self,
+        *,
+        jobs_root: Path | str,
+        index: Any | None = None,
+        python_executable: str | None = None,
+    ) -> None:
+        import subprocess as _subprocess
+        import sys as _sys
+
+        self.jobs_root = Path(jobs_root).expanduser().resolve()
+        self.jobs_root.mkdir(parents=True, exist_ok=True)
+        self._index = index
+        self._python = python_executable or _sys.executable
+        self._processes: dict[str, "_subprocess.Popen[bytes]"] = {}
+        self._global_lock = threading.Lock()
+
+    # -- public --------------------------------------------------------------
+
+    def start(
+        self,
+        *,
+        spec_payload: dict[str, Any],
+        job_kind: JobKind,
+    ) -> GenerativeJob:
+        job = initialize_job_dir(
+            self.jobs_root, spec_payload=spec_payload, job_kind=job_kind
+        )
+        persist_job_to_dir(self.jobs_root, job, index=self._index)
+        self._spawn(job.job_id, resume=False)
+        return job
+
+    def get(self, job_id: str) -> GenerativeJob:
+        job = read_job_from_dir(self.jobs_root, job_id)
+        # Crash-survival: if the on-disk state says "running" but the
+        # child process is no longer alive, reconcile to "resumable".
+        if job.state == "running" and not self._is_alive(job_id):
+            reconciled = job.model_copy(
+                update={
+                    "state": "resumable",
+                    "resumable_from_checkpoint": True,
+                    "completed_at": job.completed_at or float(time.time()),
+                    "error": job.error
+                    or GenerativeJobError(
+                        kind="internal_error",
+                        message="subprocess exited without writing terminal state",
+                    ),
+                }
+            )
+            persist_job_to_dir(self.jobs_root, reconciled, index=self._index)
+            append_log_to_file(
+                self.jobs_root,
+                job_id,
+                f"job {job_id} state=resumable reconciled subprocess_crash",
+            )
+            return reconciled
+        return job
+
+    def list(
+        self,
+        *,
+        state: JobState | None = None,
+        job_kind: JobKind | None = None,
+    ) -> list[GenerativeJobSummary]:
+        # Reconcile any running-but-dead jobs first so the list view is
+        # consistent with what :meth:`get` would return for each row.
+        if self.jobs_root.is_dir():
+            for entry in sorted(self.jobs_root.iterdir()):
+                if not (entry / "job.json").is_file():
+                    continue
+                try:
+                    self.get(entry.name)
+                except (FileNotFoundError, ValidationError, ValueError):
+                    continue
+        return list_jobs_in_dir(
+            self.jobs_root, state=state, job_kind=job_kind
+        )
+
+    def cancel(self, job_id: str) -> GenerativeJob:
+        cancel_flag = self.jobs_root / job_id / CANCEL_FLAG_FILENAME
+        cancel_flag.touch()
+        job = read_job_from_dir(self.jobs_root, job_id)
+        if job.cancellation_requested_at is None:
+            job = job.model_copy(
+                update={"cancellation_requested_at": float(time.time())}
+            )
+            persist_job_to_dir(self.jobs_root, job, index=self._index)
+        return job
+
+    def resume(self, job_id: str) -> GenerativeJob:
+        job = self.get(job_id)  # reconcile crashed state first
+        if job.state not in ("resumable", "failed", "cancelled"):
+            raise ValueError(
+                f"job_id={job_id} state={job.state!r} is not resumable"
+            )
+        # Clear any leftover cancel flag from the previous run.
+        cancel_flag = self.jobs_root / job_id / CANCEL_FLAG_FILENAME
+        if cancel_flag.exists():
+            try:
+                cancel_flag.unlink()
+            except OSError:  # pragma: no cover
+                pass
+        self._spawn(job_id, resume=True)
+        return self.get(job_id)
+
+    def tail_log(self, job_id: str, *, since_byte: int = 0) -> tuple[str, int]:
+        return tail_log_file(self.jobs_root, job_id, since_byte=since_byte)
+
+    def join(self, job_id: str, *, timeout: float | None = None) -> None:
+        """Block until the named job's subprocess exits. Test helper."""
+
+        proc = self._processes.get(job_id)
+        if proc is None:
+            return
+        try:
+            proc.wait(timeout=timeout)
+        except Exception:  # pragma: no cover - best-effort
+            pass
+
+    # -- internal ------------------------------------------------------------
+
+    def _spawn(self, job_id: str, *, resume: bool) -> None:
+        import subprocess as _subprocess
+
+        argv: list[str] = [
+            self._python,
+            "-m",
+            "kayakgen.services.generative_jobs_runner",
+            job_id,
+            str(self.jobs_root),
+        ]
+        if resume:
+            argv.append("--resume")
+        proc = _subprocess.Popen(
+            argv,
+            stdout=_subprocess.DEVNULL,
+            stderr=_subprocess.DEVNULL,
+            cwd=str(self.jobs_root),
+            start_new_session=True,
+        )
+        with self._global_lock:
+            self._processes[job_id] = proc
+
+    def _is_alive(self, job_id: str) -> bool:
+        proc = self._processes.get(job_id)
+        if proc is None:
+            # No process handle: either the job was started by a previous
+            # parent and we don't know its PID, or it never spawned. The
+            # safe assumption is "not alive" so reconciliation kicks in.
+            return False
+        return proc.poll() is None
+
+
+CANCEL_FLAG_FILENAME = "cancel.flag"
+"""Per-job filename touched by the subprocess manager to request cancellation.
+
+Lives at ``<jobs_root>/<job_id>/<filename>``; the subprocess runner polls
+this file between candidate emissions via the file-backed progress sink.
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -947,6 +1220,7 @@ def generative_job_frontier_payload(
 
 
 __all__ = [
+    "CANCEL_FLAG_FILENAME",
     "GENERATIVE_JOBS_RESULT_SEMANTICS",
     "GenerativeJob",
     "GenerativeJobError",
@@ -960,13 +1234,21 @@ __all__ = [
     "JobErrorKind",
     "JobKind",
     "JobState",
+    "SubprocessGenerativeJobManager",
+    "append_log_to_file",
     "canonical_job_json",
     "cancel_generative_job_payload",
+    "classify_runner_error",
     "generative_job_frontier_payload",
     "generative_job_full_payload",
     "generative_job_list_payload",
     "generative_job_log_payload",
+    "initialize_job_dir",
+    "list_jobs_in_dir",
+    "persist_job_to_dir",
+    "read_job_from_dir",
     "resume_generative_job_payload",
     "start_generative_job_payload",
     "summarize_job",
+    "tail_log_file",
 ]

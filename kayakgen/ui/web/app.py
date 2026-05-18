@@ -378,6 +378,7 @@ class KayakgenApp:
         server: Any | None = None,
         initial_hull: Hull | None = None,
         initial_query: str | None = None,
+        generative_manager: Any | None = None,
     ) -> None:
         self.server = server if server is not None else get_server(client_type="vue3")
         self.state = self.server.state
@@ -468,9 +469,12 @@ class KayakgenApp:
         self._hull_store = HullStore()
         self._cfd_store = CfdWebStore()
         self.state.cfd_jobs_root = str(self._cfd_store.jobs_root)
-        self._generative_manager = InProcessGenerativeJobManager(
-            jobs_root=_default_generative_jobs_root_for_app(),
-        )
+        if generative_manager is None:
+            self._generative_manager = InProcessGenerativeJobManager(
+                jobs_root=_default_generative_jobs_root_for_app(),
+            )
+        else:
+            self._generative_manager = generative_manager
         self.state.generative_jobs_root = str(self._generative_manager.jobs_root)
         self.state.generative_spec_json = ""
         self.state.generative_job_id = ""
@@ -1641,6 +1645,18 @@ def create_app(
     initial_hull: Hull | None = None,
     server: Any | None = None,
     initial_query: str | None = None,
+    generative_manager: Any | None = None,
 ) -> KayakgenApp:
-    """Factory: build and return a configured :class:`KayakgenApp`."""
-    return KayakgenApp(server=server, initial_hull=initial_hull, initial_query=initial_query)
+    """Factory: build and return a configured :class:`KayakgenApp`.
+
+    ``generative_manager`` (RFC 0057) may be supplied to override the
+    default in-process generative-job manager — for example, the
+    ``kayakgen serve --jobs-subprocess`` opt-in passes a
+    :class:`SubprocessGenerativeJobManager`.
+    """
+    return KayakgenApp(
+        server=server,
+        initial_hull=initial_hull,
+        initial_query=initial_query,
+        generative_manager=generative_manager,
+    )

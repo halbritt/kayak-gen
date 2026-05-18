@@ -618,6 +618,14 @@ def serve(
     ),
     host: str = typer.Option("127.0.0.1", "--host", help="Bind host."),
     port: int = typer.Option(8080, "--port", help="Bind port."),
+    jobs_subprocess: bool = typer.Option(
+        False,
+        "--jobs-subprocess",
+        help=(
+            "RFC 0057 stage 3: run generative jobs in detached subprocesses "
+            "instead of background threads. Survives web-process crashes."
+        ),
+    ),
 ) -> None:
     """Run the Trame web frontend (RFC 0008) locally."""
     try:
@@ -626,8 +634,21 @@ def serve(
         typer.echo(f"web extras not installed (pip install 'kayakgen[web]'): {exc}", err=True)
         raise typer.Exit(code=1)
 
+    generative_manager = None
+    if jobs_subprocess:
+        from kayakgen.services.generative_jobs import SubprocessGenerativeJobManager
+        from kayakgen.ui.web.app import _default_generative_jobs_root_for_app
+
+        generative_manager = SubprocessGenerativeJobManager(
+            jobs_root=_default_generative_jobs_root_for_app(),
+        )
+        typer.echo(
+            "serve: generative jobs will run as detached subprocesses "
+            f"(jobs_root={generative_manager.jobs_root})"
+        )
+
     initial_hull = load_hull(hull_path) if hull_path is not None else None
-    web = create_app(initial_hull=initial_hull)
+    web = create_app(initial_hull=initial_hull, generative_manager=generative_manager)
     web.server.start(host=host, port=port)
 
 

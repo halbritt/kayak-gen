@@ -32,6 +32,38 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed RFC 0057 stage 3: subprocess manager + crash survival.
+  `persist_job_to_dir` now writes ``job.json`` atomically (temp-file
+  + ``os.replace``) so concurrent readers never observe a truncated
+  payload — this also closes a latent race the in-process manager
+  could hit when ``resume()`` raced against the worker thread's first
+  write. New `SubprocessGenerativeJobManager` spawns each job as a
+  detached
+  Python subprocess invoking the new
+  `kayakgen.services.generative_jobs_runner` entry point
+  (`python -m kayakgen.services.generative_jobs_runner <job_id>
+  <jobs_root> [--resume]`). The child reads `spec.json` + `job.json`,
+  transitions to `running`, drives `run_search` / `run_sweep` with a
+  file-backed cancel sink (polls `<job_dir>/cancel.flag`), and writes
+  terminal state (`succeeded` / `failed` / `resumable`) back to disk.
+  Parent reads are file-only — no IPC. The runner cleans up the
+  `cancel.flag` on terminal write so a subsequent resume does not
+  immediately re-cancel. Crash-survival: if the child is `SIGKILL`-ed,
+  the parent's `get()` and `list()` detect a stale `running` state
+  with no live process handle and reconcile to `resumable` on disk so
+  a follow-up `resume()` can re-spawn against the persisted
+  `state.json` checkpoint. File-store helpers
+  (`read_job_from_dir`, `list_jobs_in_dir`, `tail_log_file`,
+  `append_log_to_file`, `persist_job_to_dir`, `initialize_job_dir`,
+  `classify_runner_error`) are now module-level so both managers and
+  the subprocess runner share them. New `kayakgen serve
+  --jobs-subprocess` flag threads a `SubprocessGenerativeJobManager`
+  through `create_app` and `KayakgenApp`; default (no flag) keeps the
+  in-process manager. +7 new tests in
+  `tests/test_generative_jobs_subprocess.py` (sweep, search, cancel,
+  resume, SIGKILL crash + resume, stale-running reconciliation in
+  `list()`, direct resume of a stale-running job). RFC 0057 + web +
+  boundary slice 211 passed.
 - Landed RFC 0057 stage 2: web routes + Trame Generate panel.
   `register_rest_routes` now accepts a `GenerativeJobManager`
   (defaulting to a lazily-built `InProcessGenerativeJobManager` under
