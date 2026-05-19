@@ -32,6 +32,43 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Workflow 0054 cowboy-mode review trail: three review artefacts
+  (traceability / claims / ops+tests) + findings ledger + remediation
+  patch summary + final review committed under
+  `striatum/0054-rfc-0057-stage-4-ui-polish/`. Zero must-fix
+  findings; four non-blocking successors (per-row Fork buttons,
+  redactor snapshot-byte-equality, widget-tree integration tests,
+  `REVIEW_TABS` tab-value constants). Final verdict: `accept`. The
+  scaffold workflow on `docs/workflows/0054-...` remains re-runnable
+  once striatum#24 lands; the cowboy artefacts stand as the
+  authoritative review record.
+- Landed RFC 0056 schemas (status: `landed (schemas only)`). New
+  `kayakgen/eval/stability/measured_fixture.py` ships
+  `MeasuredStabilityFixture` plus value objects (`HullIdentityRef`,
+  `LoadingConfiguration`, `CalibrationTrace`, `FreeEquilibriumTrace`,
+  `HysteresisBound`, `MeasuredStabilityRow`) with validators enforcing
+  the RFC 0056 acceptance gates: `intended_use` enumeration, hull
+  identity (64-char SHA-256 scan hash), calibration drift below bound
+  (default 0.5%), hysteresis bound (default 3% of GZ_max), free-
+  equilibrium-trace presence, constrained-trace blocks promotion.
+  Defaults to `intended_use="validation_candidate"`; no fixture is
+  promoted by this RFC. +15 focused tests in
+  `tests/test_measured_stability_fixture.py`.
+- Drafted RFC 0058 (status: `proposed`):
+  `docs/rfcs/0058-stability-calibration-acceptance.md`. Defines the
+  `StabilityFitRecord` aggregate, the
+  `resolve_analytical_claim_label(hull, fit_registry)` upgrade contract
+  for RFC 0043's analytical `GZCurve` output (default stays
+  `unvalidated_hydrostatic_comparison`; only an accepted fit covering
+  a hull family upgrades to `validated_hydrostatic_comparison`), the
+  `cfd_in_loop_evaluator_status(...)` graduation contract for RFC
+  0057's Generate-panel CFD-in-loop opt-in row (default
+  `opt_in_only`; first-class only with both analytical and CFD-vs-
+  measured accepted fits), and a `kayakgen stability` sub-app
+  (`ingest-rig-run`, `promote-fixture`, `accept-fit`, `residual-plot`).
+  Mirrors RFC 0027's resistance-side acceptance pattern. No fixture
+  or fit promoted by this RFC; the first concrete promotion happens
+  in a later workflow once a real measured dataset arrives.
 - Landed RFC 0057 stage 4: Generate-panel UI polish, captured against the
   12 operator-affirmed decisions in
   `docs/workflows/0054-rfc-0057-stage-4-ui-polish/STAGE_4_DECISIONS.md`.

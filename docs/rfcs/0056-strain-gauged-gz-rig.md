@@ -1,7 +1,7 @@
 # RFC 0056: Strain-Gauged Moment-Arm Rig for Measured High-Angle GZ
 
-Status: proposed
-Date: 2026-05-16
+Status: landed (schemas only)
+Date: 2026-05-16; schema landing 2026-05-19
 Context: extends the calibration-fixture family (RFC 0019, RFC 0027,
 RFC 0042) into measured *stability* data, and supplies the validation
 input that RFC 0043's analytical high-angle `GZ` evaluator currently
