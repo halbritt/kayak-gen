@@ -44,6 +44,7 @@ from kayakgen.services.generative_jobs import (
     GenerativeJobWebError,
     InProcessGenerativeJobManager,
     cancel_generative_job_payload,
+    fork_generative_job_payload,
     generative_job_frontier_payload,
     generative_job_full_payload,
     generative_job_list_payload,
@@ -124,6 +125,7 @@ __all__ = [
     "cfd_raw_result_lines_from_payload",
     "cfd_status_lines_from_payload",
     "cancel_generative_job_payload",
+    "fork_generative_job_payload",
     "clamp_beam_wl_state",
     "class_preset_options",
     "class_preset_read_model",
@@ -419,6 +421,53 @@ def register_rest_routes(
         except Exception as exc:
             return generative_unexpected_response(exc)
 
+    async def post_generative_fork(request: Any) -> Any:
+        try:
+            try:
+                body = await request.json()
+            except Exception as exc:
+                raise GenerativeJobWebError(
+                    400,
+                    {
+                        "result_semantics": "raw_unvalidated",
+                        "error": "invalid_json",
+                        "message": "Request body must be valid JSON.",
+                    },
+                ) from exc
+            if not isinstance(body, dict):
+                raise GenerativeJobWebError(
+                    400,
+                    {
+                        "result_semantics": "raw_unvalidated",
+                        "error": "invalid_request_body",
+                        "message": "Request body must be a JSON object.",
+                    },
+                )
+            new_seed = body.get("new_seed")
+            if not isinstance(new_seed, int) or isinstance(new_seed, bool):
+                raise GenerativeJobWebError(
+                    400,
+                    {
+                        "result_semantics": "raw_unvalidated",
+                        "error": "missing_new_seed",
+                        "message": (
+                            "Request body must include integer 'new_seed'."
+                        ),
+                    },
+                )
+            return web.json_response(
+                fork_generative_job_payload(
+                    generative_manager,
+                    request.match_info["job_id"],
+                    new_seed=new_seed,
+                ),
+                status=201,
+            )
+        except GenerativeJobWebError as exc:
+            return generative_error_response(exc)
+        except Exception as exc:
+            return generative_unexpected_response(exc)
+
     router = aiohttp_app.router
     router.add_post("/api/evaluate", post_evaluate)
     router.add_post("/api/stl", post_stl)
@@ -442,6 +491,7 @@ def register_rest_routes(
     )
     router.add_post("/api/generative-jobs/{job_id}/cancel", post_generative_cancel)
     router.add_post("/api/generative-jobs/{job_id}/resume", post_generative_resume)
+    router.add_post("/api/generative-jobs/{job_id}/fork", post_generative_fork)
     return store
 
 

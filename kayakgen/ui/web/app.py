@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import html
 import json
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -44,6 +45,7 @@ from kayakgen.ui.web.controllers import (
     create_cfd_job_payload,
     evaluation_payload,
     evaluation_summary,
+    fork_generative_job_payload,
     generative_job_frontier_payload,
     generative_job_list_payload,
     generative_job_log_payload,
@@ -60,6 +62,19 @@ from kayakgen.ui.web.controllers import (
     validation_error_payload,
     validity_badge_from_state,
 )
+from kayakgen.ui.web.generate_fork_button import next_default_seed
+from kayakgen.ui.web.generate_frontier_view import (
+    apply_candidate_to_hull,
+    refresh_frontier_view,
+    render_frontier_view_section,
+    undo_candidate_handoff,
+)
+from kayakgen.ui.web.generate_spec_form import (
+    initialize_form_state,
+    refresh_concurrency_advisory,
+    render_spec_form_section,
+)
+from kayakgen.ui.web.generate_state_listener import install_generate_state_listener
 from kayakgen.ui.web.read_models import (
     web_high_angle_gz_section_html,
     web_high_angle_gz_view_model_from_json,
@@ -505,15 +520,27 @@ class KayakgenApp:
         self.ctrl.resume_generative_job = lambda: self._resume_generative_job()
         self.ctrl.load_generative_log = lambda: self._load_generative_log()
         self.ctrl.load_generative_frontier = lambda: self._load_generative_frontier()
+        self.ctrl.refresh_generative_frontier_view = (
+            lambda: self._refresh_generative_frontier_view()
+        )
+        self.ctrl.fork_generative_job = (
+            lambda job_id, new_seed=None: self._fork_generative_job(job_id, new_seed)
+        )
+        self.ctrl.load_generative_candidate = (
+            lambda candidate_payload: self._load_generative_candidate(candidate_payload)
+        )
+        self.ctrl.undo_generative_handoff = lambda: self._undo_generative_handoff()
         self.ctrl.focus_review_tab = lambda tab: self._focus_review_tab(tab)
         self.ctrl.on_server_bind.add(self._on_server_bind)
 
         self._wire_state_listeners()
+        initialize_form_state(self)
         self._build_layout()
         self._refresh_metrics()
         self._refresh_analysis()
         self._refresh_status_segments()
         self._refresh_mesh()
+        install_generate_state_listener(self)
 
     # ----- parameter rail state -----
 
@@ -1024,6 +1051,7 @@ class KayakgenApp:
         if not rows:
             rows = ["(no generative jobs yet)"]
         self.state.generative_jobs_lines = rows
+        refresh_concurrency_advisory(self)
 
     def _cancel_generative_job(self) -> None:
         job_id = str(self.state.generative_job_id or "").strip()
@@ -1078,6 +1106,9 @@ class KayakgenApp:
         self.state.generative_log_lines = log_text.splitlines()[-200:]
 
     def _load_generative_frontier(self) -> None:
+        # Legacy text-list surface; kept for the existing `Load Frontier`
+        # button. Stage 4 also drives the 2D-scatter view via
+        # ``_refresh_generative_frontier_view``.
         job_id = str(self.state.generative_job_id or "").strip()
         if not job_id:
             self.state.generative_frontier_lines = ["(enter a job id)"]
@@ -1102,6 +1133,80 @@ class KayakgenApp:
                 f"{row.get('candidate_key')}\t{row.get('status')}\t{params}"
             )
         self.state.generative_frontier_lines = rows or ["(empty frontier)"]
+        # Mirror into the scatter+table view-model so the stage 4 widgets
+        # update at the same time.
+        self._refresh_generative_frontier_view()
+
+    def _refresh_generative_frontier_view(self) -> None:
+        job_id = str(self.state.generative_job_id or "").strip()
+        if not job_id:
+            return
+        try:
+            refresh_frontier_view(self, job_id)
+        except Exception:  # noqa: BLE001
+            # Frontier view is read-only; refusal is non-fatal.
+            return
+
+    def _fork_generative_job(
+        self, job_id: str, new_seed: int | None
+    ) -> None:
+        job_id = str(job_id or "").strip()
+        if not job_id:
+            self.state.generative_status = "Enter a job id to fork."
+            return
+        if new_seed is None:
+            try:
+                current = self._generative_manager.get(job_id)
+                spec_path = (
+                    Path(current.output_dir).parent / "spec.json"
+                    if current.output_dir
+                    else None
+                )
+                source_seed = 0
+                if spec_path is not None and spec_path.exists():
+                    spec_data = json.loads(spec_path.read_text())
+                    source_seed = int(
+                        ((spec_data.get("algorithm") or {}).get("seed") or 0)
+                    )
+                new_seed = next_default_seed(source_seed)
+            except Exception:  # noqa: BLE001
+                new_seed = next_default_seed(0)
+        try:
+            payload = fork_generative_job_payload(
+                self._generative_manager,
+                job_id,
+                new_seed=int(new_seed),
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.state.generative_status = f"Fork failed: {exc}"
+            return
+        forked_id = payload.get("job_id")
+        self.state.generative_job_id = forked_id or job_id
+        self.state.generative_status = (
+            f"Forked {job_id} → {forked_id} with seed={new_seed}."
+        )
+        self._refresh_generative_jobs()
+
+    def _load_generative_candidate(
+        self, candidate_payload: Any
+    ) -> None:
+        try:
+            apply_candidate_to_hull(self, candidate_payload)
+        except Exception as exc:  # noqa: BLE001
+            self.state.generative_status = f"Candidate load failed: {exc}"
+            return
+        candidate_key = ""
+        if isinstance(candidate_payload, dict):
+            candidate_key = str(candidate_payload.get("candidate_key", ""))
+        self.state.generative_status = (
+            f"Loaded {candidate_key} into the single-hull view."
+            if candidate_key
+            else "Loaded candidate into the single-hull view."
+        )
+
+    def _undo_generative_handoff(self) -> None:
+        if undo_candidate_handoff(self):
+            self.state.generative_status = "Undid the most recent candidate handoff."
 
     def load_from_query(self, query: str) -> None:
         try:
@@ -1521,11 +1626,19 @@ class KayakgenApp:
             with v3.VCard(classes="kg-review-card kg-generate-card"):
                 v3.VCardTitle("Generate")
                 v3.VCardText(
-                    "Submit a sweep or search spec JSON. Jobs run server-local "
-                    "in the same process; no hosted worker is running.",
+                    (
+                        "Submit a sweep or search spec via the form below. "
+                        "Jobs run server-local in the same process; "
+                        "no hosted worker is running."
+                    ),
                     classes="kg-generate-banner",
                 )
                 v3.VCardText("{{ generative_status }}", classes="kg-generate-status")
+                v3.VCardText(
+                    "{{ generative_concurrency_advisory }}",
+                    classes="kg-generate-advisory",
+                    v_show=("generative_concurrency_advisory",),
+                )
                 with v3.VCardText():
                     v3.VTextField(
                         v_model=("generative_jobs_root",),
@@ -1533,28 +1646,7 @@ class KayakgenApp:
                         readonly=True,
                         density="compact",
                     )
-                    v3.VTextarea(
-                        v_model=("generative_spec_json",),
-                        label="Spec JSON (sweep or search)",
-                        rows=8,
-                        auto_grow=True,
-                        density="compact",
-                        **{"data-testid": "generative-spec-textarea"},
-                    )
-                    v3.VBtn(
-                        "Submit Search",
-                        click=self.ctrl.submit_generative_search,
-                        density="compact",
-                        classes="mr-2",
-                        **{"data-testid": "submit-generative-search"},
-                    )
-                    v3.VBtn(
-                        "Submit Sweep",
-                        click=self.ctrl.submit_generative_sweep,
-                        density="compact",
-                        classes="mr-2",
-                        **{"data-testid": "submit-generative-sweep"},
-                    )
+                    render_spec_form_section(self)
                     v3.VBtn(
                         "Refresh Jobs",
                         click=self.ctrl.refresh_generative_jobs,
@@ -1579,6 +1671,17 @@ class KayakgenApp:
                         classes="mr-2",
                     )
                     v3.VBtn(
+                        "Fork with new seed",
+                        click=(
+                            "fork_generative_job("
+                            "generative_job_id, "
+                            "Math.floor(Math.random() * 1000000))"
+                        ),
+                        density="compact",
+                        classes="mr-2",
+                        v_show=("generative_job_id",),
+                    )
+                    v3.VBtn(
                         "Load Log",
                         click=self.ctrl.load_generative_log,
                         density="compact",
@@ -1599,11 +1702,7 @@ class KayakgenApp:
                         classes="font-mono text-caption",
                         html=True,
                     )
-                    v3.VCardText(
-                        "<pre>{{ generative_frontier_lines.join('\\n') }}</pre>",
-                        classes="font-mono text-caption",
-                        html=True,
-                    )
+                    render_frontier_view_section(self)
 
     def _render_advisories_tab(self) -> None:
         with v3.VWindowItem(value="advisories"):

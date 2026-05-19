@@ -333,34 +333,47 @@ existing per-candidate records.
 
 ## Open Questions
 
-- Should `InProcessGenerativeJobManager` or
-  `SubprocessGenerativeJobManager` be the default for `kayakgen
-  serve`? In-process is simpler and survives the common case; the
-  subprocess variant is more robust but adds a child-process surface
-  to test. Recommended default: in-process for stage 1, with the
-  subprocess implementation behind an opt-in `serve --jobs-subprocess`
-  flag landed in stage 2.
-- Should the `/api/jobs/*` route family also accept a CLI-shaped
-  search-spec JSON body, or only a panel-builder shape that the panel
-  serializes? Reusing the CLI shape is cheaper and keeps the spec
-  byte-identical between surfaces; recommended yes.
-- Should the Pareto picker support 3D objective scatter, or stay 2D
-  with a "pick two objectives" selector? 2D with selector is simpler
-  and matches EHVI's 1/2/3-objective range; 3D requires a Trame VTK
-  scatter renderer. Recommended 2D with selector for stage 1.
-- Should the panel offer a "rerun with new seed" affordance that
-  forks an existing successful job? Useful for variance-of-seed
-  diagnostics; defer to a follow-up if not implemented in stage 1.
-- Should log lines be redacted for absolute filesystem paths before
-  surfacing in the browser? Recommended: redact home-dir prefix and
-  show paths relative to the artifact root.
-- Where do active CFD jobs (RFC 0046 `succeeded` path) attach? An
-  in-loop search that triggers real-solver CFD per candidate could
-  multiply runtime by orders of magnitude. Recommended: stage 1
-  exposes only hydrostatics/stability/mesh-diagnostics evaluators in
-  the panel's evaluator picker; CFD-in-loop is a separate stage with
-  its own evaluator opt-in row and an explicit per-job opt-in
-  acknowledgment.
+All open questions are resolved by the stage-4 operator interview captured
+in `docs/workflows/0054-rfc-0057-stage-4-ui-polish/STAGE_4_DECISIONS.md`.
+Summary of the resolutions:
+
+- **Default manager for `kayakgen serve`** — Subprocess by default; the
+  `--jobs-in-process` flag is the explicit in-process opt-in (deviates from
+  the original "in-process default" recommendation). Stage 4.
+- **Route body shape** — Reuse the CLI spec shape verbatim. The
+  form-builder serializes its UI state into the same wire format that the
+  CLI consumes (`SweepSpec`/`SearchSpec`). Stage 4.
+- **Pareto picker dimensionality** — 2D scatter with an objective-pair
+  selector. The third objective in 3-objective EHVI runs surfaces as a
+  colour-mapped axis on points plus a table column. Stage 4.
+- **Fork-with-new-seed affordance** — Shipped in stage 4 as a one-click
+  button on succeeded rows; new manager primitive in
+  `kayakgen/services/generative_jobs_fork.py` plus a new
+  `POST /api/generative-jobs/{job_id}/fork` route.
+- **Log redaction** — Strip `$HOME` (→ `~`) and rewrite paths under the
+  resolved `jobs_root` (→ `<jobs_root>`); byte-stable for redaction-free
+  payloads. Stage 4.
+- **CFD-in-loop attachment** — A per-job evaluator-block opt-in row with
+  the explicit acknowledgement copy "I accept evaluation may take orders
+  of magnitude longer". The runner-side RFC 0046 opt-in mechanisms still
+  gate any real-solver execution; this surface only collects the form's
+  acknowledgement. Stage 4.
+
+Additional stage-4 decisions (also captured in
+`STAGE_4_DECISIONS.md`):
+
+- Live admissibility filtering in the objective picklist; display-only
+  metrics never appear; non-admissible objectives surface inline
+  refusals.
+- Form defaults pre-fill `base_hull` from the current single-hull view;
+  algorithm defaults to NSGA-II `population_size=12`, `generations=4`;
+  budget defaults to `max_evaluations=64`.
+- Auto-poll cadence: 1 s while any job is in `{queued, running}`,
+  10 s otherwise. Pauses when the Generate tab is not the active review
+  tab.
+- Soft warning banner at `>=4` in-flight jobs; no hard cap.
+- Click-to-load handoff: full handoff into the single-hull view (param
+  rail + 3D scene rebuild) with a one-click undo toast.
 
 ## Implementation Path
 

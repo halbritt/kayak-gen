@@ -71,7 +71,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0054](0054-calibration-campaign-tooling.md) | landed kayakgen calibration sub-app + tank/inclining/AcceptedFitRecord schemas + accepted-fit gate wiring | Calibration-campaign tooling |
 | [0055](0055-design-report-export.md) | landed kayakgen design-report + jinja2 template + forbidden-copy scan + optional [report] PDF extras | Single-file design report export |
 | [0056](0056-strain-gauged-gz-rig.md) | proposed | Strain-gauged moment-arm rig for measured high-angle GZ (continuous-trace sibling to RFC 0054 inclining) |
-| [0057](0057-generative-search-jobs-and-web-workspace.md) | proposed | Generative-search jobs and web workspace (long-lived job surface + Trame Generate panel for sweep/NSGA-II/EHVI) |
+| [0057](0057-generative-search-jobs-and-web-workspace.md) | landed | Generative-search jobs and web workspace — records, in-process + subprocess managers, /api/generative-jobs/* routes, Trame Generate panel with form-builder + 2D Pareto scatter + auto-poll + fork-with-seed + log redaction (stages 1-4) |
 
 Architecture-plan landing notes (not RFCs themselves; see
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`):

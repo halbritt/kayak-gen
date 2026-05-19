@@ -32,6 +32,52 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed RFC 0057 stage 4: Generate-panel UI polish, captured against the
+  12 operator-affirmed decisions in
+  `docs/workflows/0054-rfc-0057-stage-4-ui-polish/STAGE_4_DECISIONS.md`.
+  Six new modules under `kayakgen/ui/web/` and `kayakgen/services/`:
+  - `generate_spec_form.py` — form-builder primary input (variables,
+    NSGA-II/EHVI algorithm radio with per-algorithm sub-forms,
+    objectives multi-select filtered live by claim-admissibility, RFC
+    0046 CFD-in-loop opt-in row with the pre-vetted ack copy, soft
+    advisory at >=4 in-flight jobs, base-hull defaults pre-filled from
+    the current single-hull view) plus the collapsible raw-JSON
+    escape hatch. `admissible_objective_metrics()` + the
+    `GenerateSpecFormError` envelope let tests assert the live filter
+    without driving Trame widgets.
+  - `generate_frontier_view.py` — 2D scatter synced with a sortable
+    table (matplotlib widget with an SVG fallback for headless),
+    objective-pair selector + colour-mapped third axis for 3-objective
+    EHVI runs, candidate handoff that loads a Pareto candidate into
+    the single-hull view with a one-click undo toast.
+  - `generate_state_listener.py` — auto-poll listener: 1 s cadence
+    while any job is in `{queued, running}`, 10 s otherwise; pauses
+    while the Generate tab is not the active review tab; cancellable.
+  - `generate_fork_button.py` + `services/generative_jobs_fork.py` +
+    new `POST /api/generative-jobs/{job_id}/fork` route — one-click
+    "Fork with new seed" for succeeded jobs. The forked job carries a
+    new `forked_from` field on `GenerativeJob`; sweep jobs refuse the
+    fork (deterministic).
+  - `services/generative_jobs._redact_log_text` — strips `$HOME` and
+    rewrites paths under `jobs_root` to `<jobs_root>`; routed through
+    `generative_job_log_payload`. Byte-stable for redaction-free logs.
+  - `kayakgen serve` defaults flipped to the subprocess manager;
+    `--jobs-in-process` is the new explicit in-process opt-in. Prints
+    the chosen manager kind on startup.
+  +49 new tests across `tests/test_generate_spec_form.py` (13),
+  `tests/test_generate_frontier_view.py` (9),
+  `tests/test_generate_state_listener.py` (11),
+  `tests/test_cli_serve.py` (3), `tests/test_log_redaction.py` (11),
+  and `tests/test_generative_jobs_fork.py` (6). The RFC 0057 + web +
+  boundary slice now totals 274 passed; the forbidden-claim
+  scrub-list and ui-theme orphan-color scan stay green. The fork
+  + redaction + form-builder modules contribute zero new banned
+  tokens. Workflow 0054 scaffold (`docs/workflows/0054-...`) shipped
+  on `main` ahead of execution; the actual stage-4 land happened in
+  cowboy mode under operator authorisation because the v1.55.0
+  `striatum supervise send --packet-id` flow rejected every
+  identifier surfaced by `claim-next` (filed upstream as
+  halbritt/striatum#24).
 - Landed RFC 0057 stage 3: subprocess manager + crash survival.
   `persist_job_to_dir` now writes ``job.json`` atomically (temp-file
   + ``os.replace``) so concurrent readers never observe a truncated

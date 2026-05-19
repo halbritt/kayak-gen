@@ -110,6 +110,7 @@ class GenerativeJob(BaseModel):
     error: GenerativeJobError | None = None
     log_tail_ref: str
     resumable_from_checkpoint: bool = False
+    forked_from: str | None = None
 
 
 class GenerativeJobSummary(BaseModel):
@@ -1132,13 +1133,57 @@ def resume_generative_job_payload(
     return _serialize_job(job)
 
 
+def _redact_log_text(
+    text: str,
+    *,
+    home_dir: str | None = None,
+    jobs_root: str | None = None,
+) -> str:
+    """Redact filesystem-disclosing prefixes from a log tail (RFC 0057 / D-11).
+
+    - Replaces any occurrence of ``home_dir`` with ``~``.
+    - Replaces any occurrence of ``jobs_root`` with ``<jobs_root>``.
+
+    The substitutions are applied longest-prefix-first so that
+    ``jobs_root`` (which often lives under ``home_dir``) is rewritten to
+    its ``<jobs_root>`` token *before* the home-dir rewrite touches it.
+
+    Byte-stable for inputs that contain neither prefix.
+    """
+
+    if not text:
+        return text
+
+    redacted = text
+
+    candidates: list[tuple[str, str]] = []
+    if jobs_root:
+        candidates.append((str(jobs_root), "<jobs_root>"))
+    if home_dir:
+        candidates.append((str(home_dir), "~"))
+
+    # Longest replacement target first so that a jobs_root nested inside
+    # home_dir is rewritten before the home-dir substitution runs.
+    candidates.sort(key=lambda pair: len(pair[0]), reverse=True)
+    for needle, replacement in candidates:
+        if needle and needle in redacted:
+            redacted = redacted.replace(needle, replacement)
+    return redacted
+
+
 def generative_job_log_payload(
     manager: "GenerativeJobManager",
     job_id: str,
     *,
     since_byte: int = 0,
 ) -> dict[str, Any]:
-    """Bounded log tail (RFC 0057). Returns text plus the byte cursor."""
+    """Bounded log tail (RFC 0057). Returns text plus the byte cursor.
+
+    Stage 4 / D-11 redaction: the operator's ``$HOME`` prefix is replaced
+    with ``~`` and paths under the manager's resolved ``jobs_root`` are
+    rewritten to begin with ``<jobs_root>`` before the payload leaves the
+    process. Byte-stable for redaction-free inputs.
+    """
 
     try:
         text, cursor = manager.tail_log(job_id, since_byte=since_byte)
@@ -1151,10 +1196,19 @@ def generative_job_log_payload(
                 job_id=job_id,
             ),
         ) from exc
+
+    import os as _os
+
+    jobs_root = getattr(manager, "jobs_root", None)
+    redacted_log = _redact_log_text(
+        text,
+        home_dir=_os.path.expanduser("~"),
+        jobs_root=str(jobs_root) if jobs_root is not None else None,
+    )
     return {
         "result_semantics": GENERATIVE_JOBS_RESULT_SEMANTICS,
         "job_id": job_id,
-        "log": text,
+        "log": redacted_log,
         "cursor": cursor,
     }
 
@@ -1222,6 +1276,7 @@ def generative_job_frontier_payload(
 __all__ = [
     "CANCEL_FLAG_FILENAME",
     "GENERATIVE_JOBS_RESULT_SEMANTICS",
+    "ForkError",
     "GenerativeJob",
     "GenerativeJobError",
     "GenerativeJobManager",
@@ -1239,6 +1294,8 @@ __all__ = [
     "canonical_job_json",
     "cancel_generative_job_payload",
     "classify_runner_error",
+    "fork_generative_job",
+    "fork_generative_job_payload",
     "generative_job_frontier_payload",
     "generative_job_full_payload",
     "generative_job_list_payload",
@@ -1252,3 +1309,13 @@ __all__ = [
     "summarize_job",
     "tail_log_file",
 ]
+
+
+# Re-export the fork helpers at module bottom so the
+# ``kayakgen.services.generative_jobs`` surface includes them without
+# creating an import cycle at module-load time.
+from kayakgen.services.generative_jobs_fork import (  # noqa: E402
+    ForkError,
+    fork_generative_job,
+    fork_generative_job_payload,
+)

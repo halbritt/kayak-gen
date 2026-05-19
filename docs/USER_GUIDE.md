@@ -736,14 +736,26 @@ Run the local Trame web frontend:
 ```bash
 kayakgen serve
 kayakgen serve hull.json --host 127.0.0.1 --port 8080
+kayakgen serve --jobs-in-process   # opt out of the subprocess runner
 ```
 
 Install `kayakgen[web]` first, then open the printed local URL. The web shell
 supports interactive hull inspection, compact analysis views, comparison report
-loading, and a local CFD job panel. Required local browser acceptance and
-hosted-demo documentation are covered by the web verification runbook; public
-hosting, full dashboard parity, hosted CFD workers, cancellation guarantees,
-authentication, and real solver adapters are not complete.
+loading, a local CFD job panel, and the **Generate** tab for parametric
+sweep / NSGA-II / EHVI runs (RFC 0057). The Generate tab ships a form-builder
+primary input (variables, algorithm radio, claim-admissibility-filtered
+objective picklist, RFC 0046 CFD-in-loop opt-in row with explicit
+acknowledgement, soft 4-job in-flight advisory) and a collapsible raw-JSON
+escape hatch; submitted jobs surface in a live-refreshing jobs index, with a
+2D Pareto scatter + sortable table that loads a chosen candidate into the
+single-hull view (one-click undo), a "Fork with new seed" button on succeeded
+rows, and bounded log tails with home-dir / `<jobs_root>` redaction. Generative
+jobs run as detached subprocesses by default (RFC 0057 stage 3); pass
+`--jobs-in-process` to run them as background threads instead. Required local
+browser acceptance and hosted-demo documentation are covered by the web
+verification runbook; public hosting, full dashboard parity, hosted CFD
+workers, cancellation guarantees, authentication, and real solver adapters
+are not complete.
 
 Browser share or reload links can seed the current hull state from the query
 string, so a saved URL restores the same design inputs that were open when the
