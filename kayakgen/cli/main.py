@@ -618,12 +618,13 @@ def serve(
     ),
     host: str = typer.Option("127.0.0.1", "--host", help="Bind host."),
     port: int = typer.Option(8080, "--port", help="Bind port."),
-    jobs_subprocess: bool = typer.Option(
+    jobs_in_process: bool = typer.Option(
         False,
-        "--jobs-subprocess",
+        "--jobs-in-process",
         help=(
-            "RFC 0057 stage 3: run generative jobs in detached subprocesses "
-            "instead of background threads. Survives web-process crashes."
+            "RFC 0057 stage 4: opt out of the subprocess generative-job "
+            "manager and run jobs in threads inside the web process. The "
+            "default is detached subprocesses for crash survival."
         ),
     ),
 ) -> None:
@@ -634,14 +635,21 @@ def serve(
         typer.echo(f"web extras not installed (pip install 'kayakgen[web]'): {exc}", err=True)
         raise typer.Exit(code=1)
 
-    generative_manager = None
-    if jobs_subprocess:
-        from kayakgen.services.generative_jobs import SubprocessGenerativeJobManager
-        from kayakgen.ui.web.app import _default_generative_jobs_root_for_app
+    from kayakgen.services.generative_jobs import (
+        InProcessGenerativeJobManager,
+        SubprocessGenerativeJobManager,
+    )
+    from kayakgen.ui.web.app import _default_generative_jobs_root_for_app
 
-        generative_manager = SubprocessGenerativeJobManager(
-            jobs_root=_default_generative_jobs_root_for_app(),
+    jobs_root = _default_generative_jobs_root_for_app()
+    if jobs_in_process:
+        generative_manager = InProcessGenerativeJobManager(jobs_root=jobs_root)
+        typer.echo(
+            "serve: generative jobs will run as in-process threads "
+            f"(jobs_root={generative_manager.jobs_root})"
         )
+    else:
+        generative_manager = SubprocessGenerativeJobManager(jobs_root=jobs_root)
         typer.echo(
             "serve: generative jobs will run as detached subprocesses "
             f"(jobs_root={generative_manager.jobs_root})"

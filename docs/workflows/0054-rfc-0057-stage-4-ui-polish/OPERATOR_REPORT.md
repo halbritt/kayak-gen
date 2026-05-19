@@ -25,3 +25,24 @@ Started: 2026-05-18
   prediction, hosted deployment, safety/seaworthiness/design-fitness
   claims. The forbidden-copy + ui-theme + import-boundary scans are
   the enforcement points.
+- 2026-05-19: workflow was prepared (`run_971f9a5aa58786f53499eeca0969a7d2`)
+  and started on the `striatum/0054-rfc-0057-stage-4-ui-polish`
+  branch, with seven attached codex supervisors. Delivery via
+  `striatum supervise send --packet-id <msg_id>` returned
+  `not_found` for every identifier surfaced by `claim-next` — the
+  packet-id field is not currently exposed in the CLI response.
+  Filed upstream as <https://github.com/halbritt/striatum/issues/24>.
+  Run cancelled (`run_971f9a5aa58786f53499eeca0969a7d2` → `canceled`)
+  and stage-4 execution proceeded cowboy-mode under the operator's
+  standing kayak-gen authorisation. The workflow scaffold remains on
+  `main`; once the upstream issue is resolved the same scope is
+  re-runnable as-is.
+- 2026-05-19: stage 4 landed end-to-end. Six author tracks
+  + integration + docs sync, ruff-clean, with the full repo suite
+  (minus the env-gated OpenFOAM smoke) green. The three parallel
+  Agent subagents that built the form-builder, frontier-view, and
+  fork-with-seed modules each published a clean focused-test pass;
+  the inline tracks (auto-poll, subprocess-default, log-redaction)
+  landed under direct authorship. Forbidden-copy + ui-theme orphan
+  scans stayed green; no banned claim copy or grayscale-color
+  literal was introduced.
