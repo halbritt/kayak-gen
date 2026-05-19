@@ -17,12 +17,8 @@
       "adapter": "process",
       "display_model": "Codex GPT-5.5",
       "command": [
-        "codex",
-        "exec",
-        "--model",
-        "gpt-5.5",
-        "--dangerously-bypass-approvals-and-sandbox",
-        "-"
+        "bash",
+        "scripts/codex-supervised-wrapper.sh"
       ],
       "capabilities": ["write", "review", "synthesis"]
     },
