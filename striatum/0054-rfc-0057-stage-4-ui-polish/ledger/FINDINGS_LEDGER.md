@@ -1,96 +1,86 @@
 ---
+schema_version: striatum.findings_ledger.v1
+artifact_kind: findings_ledger
+summary_count: 2
+---
+
+author: findings-ledger-codex-gpt-5.5-001
+schema_version: striatum.findings_ledger.v1
 kind: findings_ledger
+logical_name: findings_ledger
 workflow_id: 0054-rfc-0057-stage-4-ui-polish
 role: findings_ledger
-authored_by: claude-opus-4-7 (cowboy mode; striatum runner blocked by halbritt/striatum#24)
----
 
 # Workflow 0054 Findings Ledger
 
-## Must-fix (remediation lane)
+## Source Reviews
 
-*(empty)*
+- `reviews/claims/REVIEW.md` — passed; no claim-boundary remediation.
+- `reviews/ops_tests/REVIEW.md` — accepted with one medium operational test finding.
+- `reviews/traceability/REVIEW.md` — accepted with non-blocking traceability notes; one prior fork-button note is already closed in this rerun.
+- `final/FINAL_REVIEW.md` — historical cowboy-mode final review retained for context, but this daemon-run ledger is based on the current review artifacts above.
 
-No reviewer raised a must-fix finding. Each accepted-with-findings
-verdict explicitly scoped its findings as non-blocking.
+## Must-fix Remediation Items
 
-## Non-blocking successor items
+### MF-1: Cancellation tests can pass when cancellation is ignored
 
-These are recorded for a future workflow or RFC; they are NOT
-remediation items in this workflow's cycle.
+**Origin:** `reviews/ops_tests/REVIEW.md`
 
-### NB-1: Per-row Fork buttons in the frontier table
+**Decision / contract:** RFC 0057 stage 4 D-10 makes subprocess execution the default for `kayakgen serve`, and RFC 0057 defines cancellation as a durable job-manager route/manager operation that should leave a resumable checkpoint when observed between candidate emissions.
 
-**Origin:** Traceability review.
+**Finding:** Current cancellation coverage accepts successful completion as a passing outcome after cancellation is requested. In `tests/test_generative_jobs_manager.py`, `test_manager_cancel_transitions_to_resumable` permits `state in ("resumable", "succeeded")`, and `test_manager_resume_after_cancel` returns early if the job finishes before reaching `resumable`. The same pattern appears in `tests/test_generative_jobs_subprocess.py::test_subprocess_manager_cancel_via_flag`, `tests/test_generative_jobs_subprocess.py::test_subprocess_manager_resume_after_cancel`, and `tests/test_generative_jobs_web.py::test_post_cancel_and_resume_lifecycle`.
 
-**Decision row:** STAGE_4_DECISIONS.md D-12 — "one-click 'Fork with new
-seed' button on succeeded rows".
+**Risk:** A regression where the in-process runner or subprocess runner stops polling `progress_sink.should_cancel()` / `cancel.flag` can still pass the fast-sweep tests because the job reaches `succeeded` before the assertion requires cancellation semantics. That leaves the stage-4 operational cancellation path under-tested.
 
-**Current state:** A single panel-level Fork button is bound to
-`state.generative_job_id`. The `render_fork_button(app, *, job_summary)`
-helper exists in `kayakgen/ui/web/generate_fork_button.py` but is not
-called from the frontier-view table render loop.
+**Required remediation scope:** Add at least one deterministic cancellation test that controls the candidate-emission seam or runner progress sink so cancellation is observed before terminal completion. The test should require:
 
-**Successor scope:** Modify `render_frontier_view_section` to call
-`render_fork_button` per row when `summary["state"] == "succeeded"`.
-Mechanical wiring; no new design surface.
+- terminal `state == "resumable"`;
+- `error.kind == "cancelled_by_operator"`;
+- `resumable_from_checkpoint is True`;
+- subprocess `cancel.flag` cleanup after the child writes terminal state, for the subprocess-manager path.
 
-**Why deferred:** The current panel-level button satisfies the
-common case (operator selects a job, clicks Fork). The per-row
-pattern is a polish item; deferring does not block any decision.
+This is a test-strengthening item only. It does not authorize a new cancellation API, hard job cap, queue system, SSE/WebSocket progress channel, or any change to the existing RFC 0057 state vocabulary.
 
-### NB-2: Snapshot-assert literal byte-stability of `_redact_log_text`
+## Non-blocking Successor Items
 
-**Origin:** Ops/tests review (OQ-1).
+### NB-1: Replace sleep-sensitive auto-poll assertions with a stepped clock or loop seam
 
-**Successor scope:** Add a fixture log captured from a runner-produced
-session that contains no `$HOME` / `<jobs_root>` substrings, and assert
-`_redact_log_text(snapshot) == snapshot` literally.
+**Origin:** `reviews/ops_tests/REVIEW.md` coverage note.
 
-**Why deferred:** The existing
-`test_generative_job_log_payload_byte_stable_when_no_paths_present`
-proves redactor idempotency, which is the spirit of the contract.
-Tightening the assertion is a documentation gain, not a correctness
-gain.
+**Current state:** Auto-poll listener coverage passed locally, but it uses short wall-clock sleeps. That is acceptable for this workflow, but remains more scheduler-sensitive than a fake clock or directly stepped poll loop.
 
-### NB-3: Direct widget-tree integration tests for the form-builder
+**Successor scope:** In a future UI-test hardening pass, add a fake-clock or stepped-poll seam for `kayakgen.ui.web.generate_state_listener` tests so cadence, terminal refresh, teardown, reinstall, and coalescing behavior can be asserted without relying on real sleeps.
 
-**Origin:** Ops/tests review (OQ-2).
+**Why non-blocking:** The reviewer reported the full focused and full-suite test runs as passing. This is residual test robustness, not a functional defect in stage-4 behavior.
 
-**Successor scope:** Drive Trame widgets through the test client
-rather than the controller callback layer; assert the rendered DOM
-matches the form schema.
+## Closed / No-action Findings
 
-**Why deferred:** RFC 0008's browser-acceptance verification is the
-upstream gate. Adding widget-tree tests duplicates effort without
-catching new regressions in practice.
+### C-1: Claims and user-facing boundaries
 
-### NB-4: Constant-ify `REVIEW_TABS` tab values
+**Origin:** `reviews/claims/REVIEW.md`.
 
-**Origin:** Ops/tests review (OQ-3).
+**Disposition:** No action. The review passed the Generate panel copy, objective admissibility filtering, frontier metric scrubbing, fork label, log redaction, and forbidden-claim verification. No remediation or successor item is needed.
 
-**Successor scope:** Promote the `"generate"` / `"analysis"` /
-`"mesh"` / `"comparison"` / `"cfd"` / `"advisories"` literals into
-module-level constants and have the auto-poll listener (and any
-future tab-aware code) reference the constant rather than the
-string.
+### C-2: Per-row fork buttons
 
-**Why deferred:** Touches an RFC 0033-shaped surface; deserves its
-own RFC if it goes beyond the auto-poll listener.
+**Origin:** `reviews/traceability/REVIEW.md` NB-T1.
 
-## Accepted review concerns (no action)
+**Disposition:** Closed in this rerun. The traceability review records that the prior panel-level fork affordance was replaced with per-succeeded-job rendering via `_render_generate_job_fork_buttons()` and `render_fork_button(self, job_summary=payload)`.
 
-None — all reviewer findings landed as non-blocking successors or
-acceptance evidence.
+### C-3: Integrator-scoped form serialization callback
 
-## Workflow execution note
+**Origin:** `reviews/traceability/REVIEW.md` NB-T2.
 
-This ledger was produced cowboy-mode under operator authorisation
-because the v1.55.0 `striatum supervise send --packet-id` flow
-rejected the IDs returned by `claim-next`, blocking the runner from
-dispatching the review packets. Tracking the underlying striatum
-gap at <https://github.com/halbritt/striatum/issues/24>. When the
-upstream fix lands, this same workflow scaffold
-(`docs/workflows/0054-...`) is re-runnable end-to-end on the daemon
-for a clean review trail; the reviews above stand as the current
-authoritative cowboy-mode record.
+**Disposition:** No action. `app.ctrl.apply_form_to_json` and the Submit Search / Submit Sweep callbacks are traced to D-1's form-builder primary path and preserve the existing CLI spec wire format.
+
+### C-4: `forked_from` lineage field
+
+**Origin:** `reviews/traceability/REVIEW.md` NB-T3.
+
+**Disposition:** No action. The optional `GenerativeJob.forked_from` field is the minimum informational schema addition needed for fork lineage. It does not change source-job claim state or read-model semantics.
+
+### C-5: Documentation sync scope
+
+**Origin:** `reviews/traceability/REVIEW.md` NB-T4.
+
+**Disposition:** No action. The docs-sync changes stayed within the authorized files and did not widen runtime behavior or design scope.

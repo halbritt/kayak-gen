@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -60,6 +62,49 @@ def _search_spec_payload() -> dict[str, object]:
         "evaluators": {"hydrostatics": True},
         "budget": {"max_evaluations": 999},
     }
+
+
+def _wait_for_realized_evaluation(
+    mgr: InProcessGenerativeJobManager,
+    job_id: str,
+    *,
+    timeout: float = 10.0,
+) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if mgr.get(job_id).progress.realized_evaluations >= 1:
+            return
+        time.sleep(0.01)
+    raise AssertionError("job did not emit a candidate before timeout")
+
+
+def _controlled_cancel_runner(
+    _spec: Any,
+    _out_dir: str | Path,
+    resume: bool = False,
+    *,
+    progress_sink: Any | None = None,
+) -> object:
+    assert resume is False
+    assert progress_sink is not None
+    progress_sink.candidate_completed(
+        candidate_key="controlled-candidate",
+        status="complete",
+        generation=None,
+        iteration=0,
+        realized_evaluations=1,
+    )
+    progress_sink.checkpoint(
+        generation=None,
+        iteration=0,
+        realized_evaluations=1,
+    )
+    deadline = time.monotonic() + 10.0
+    while time.monotonic() < deadline:
+        if progress_sink.should_cancel():
+            return object()
+        time.sleep(0.01)
+    raise AssertionError("controlled runner did not observe cancellation")
 
 
 def test_manager_runs_sweep_job_to_succeeded(tmp_path: Path) -> None:
@@ -130,6 +175,28 @@ def test_manager_cancel_transitions_to_resumable(tmp_path: Path) -> None:
         assert final.error is not None
         assert final.error.kind == "cancelled_by_operator"
         assert final.resumable_from_checkpoint is True
+
+
+def test_manager_cancel_requires_observed_cancel_seam(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "kayakgen.search.sweep.run_sweep",
+        _controlled_cancel_runner,
+    )
+    mgr = InProcessGenerativeJobManager(jobs_root=tmp_path)
+
+    job = mgr.start(spec_payload=_sweep_spec_payload(), job_kind="sweep")
+    _wait_for_realized_evaluation(mgr, job.job_id)
+    mgr.cancel(job.job_id)
+    mgr.join(job.job_id, timeout=30.0)
+
+    final = mgr.get(job.job_id)
+    assert final.cancellation_requested_at is not None
+    assert final.state == "resumable"
+    assert final.error is not None
+    assert final.error.kind == "cancelled_by_operator"
+    assert final.resumable_from_checkpoint is True
 
 
 def test_manager_list_filters_by_state_and_kind(tmp_path: Path) -> None:

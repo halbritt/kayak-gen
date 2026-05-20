@@ -46,3 +46,17 @@ Started: 2026-05-18
   landed under direct authorship. Forbidden-copy + ui-theme orphan
   scans stayed green; no banned claim copy or grayscale-color
   literal was introduced.
+- 2026-05-20: docs-sync pass reconciled the user guide, roadmap, RFC
+  index/RFC 0057 text, D037 decision receipt, changelog, and this operator
+  report with the stage-4 landing. Runtime files and tracks 1-6
+  implementation files were intentionally left unchanged.
+- 2026-05-20: daemon-run remediation pass processed
+  `striatum/0054-rfc-0057-stage-4-ui-polish/ledger/FINDINGS_LEDGER.md`.
+  MF-1 was fixed by strengthening cancellation tests for the RFC 0057
+  in-process manager, REST cancel route, and file-backed subprocess runner
+  so ignored cancellation can no longer pass as successful completion.
+  Focused validation:
+  `.venv/bin/pytest tests/test_generative_jobs_manager.py tests/test_generative_jobs_subprocess.py tests/test_generative_jobs_web.py`
+  (`34 passed`). Full validation:
+  `.venv/bin/pytest` (`1047 passed, 4 skipped`; skips are the existing
+  opt-in OpenFOAM-v2512 smoke/stage tests).

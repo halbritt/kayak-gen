@@ -21,6 +21,7 @@ from kayakgen.ui.web.generate_state_listener import (
 @dataclass
 class _StubSummary:
     state: str
+    job_id: str = "job-1"
 
 
 @dataclass
@@ -41,9 +42,21 @@ class _StubState:
 class _StubCtrl:
     def __init__(self) -> None:
         self.refresh_calls = 0
+        self.log_calls = 0
+        self.frontier_calls = 0
+        self.frontier_view_calls = 0
 
     def refresh_generative_jobs(self) -> None:
         self.refresh_calls += 1
+
+    def load_generative_log(self) -> None:
+        self.log_calls += 1
+
+    def load_generative_frontier(self) -> None:
+        self.frontier_calls += 1
+
+    def refresh_generative_frontier_view(self) -> None:
+        self.frontier_view_calls += 1
 
 
 @dataclass
@@ -143,21 +156,68 @@ def test_install_listener_idle_cadence() -> None:
     assert app.ctrl.refresh_calls == 1
 
 
-def test_install_listener_idle_when_panel_hidden() -> None:
-    """Listener skips refresh when the panel tab is not active."""
-
-    app = _StubApp(state=_StubState(analysis_tab="analysis"))
-    app._generative_manager.summaries = [_StubSummary(state="running")]
+def test_listener_refreshes_terminal_detail_panels_once_on_transition() -> None:
+    app = _StubApp()
+    app.state.generative_job_id = "job-1"  # type: ignore[attr-defined]
+    app._generative_manager.summaries = [_StubSummary(job_id="job-1", state="running")]
 
     install_generate_state_listener(
         app, running_seconds=0.05, idle_seconds=0.05
     )
-    time.sleep(0.2)
+    time.sleep(0.12)
+    assert app.ctrl.log_calls == 0
+
+    app._generative_manager.summaries = [_StubSummary(job_id="job-1", state="succeeded")]
+    time.sleep(0.12)
+    first_detail_counts = (
+        app.ctrl.log_calls,
+        app.ctrl.frontier_calls,
+        app.ctrl.frontier_view_calls,
+    )
+    time.sleep(0.12)
     stop_generate_state_listener(app)
 
-    # The initial tick fires regardless; subsequent ticks are skipped while
-    # the panel is hidden.
-    assert app.ctrl.refresh_calls == 1
+    assert first_detail_counts == (1, 1, 1)
+    assert (
+        app.ctrl.log_calls,
+        app.ctrl.frontier_calls,
+        app.ctrl.frontier_view_calls,
+    ) == first_detail_counts
+
+
+def test_listener_does_not_refresh_other_job_detail_panel() -> None:
+    app = _StubApp()
+    app.state.generative_job_id = "job-2"  # type: ignore[attr-defined]
+    app._generative_manager.summaries = [_StubSummary(job_id="job-1", state="running")]
+
+    install_generate_state_listener(
+        app, running_seconds=0.05, idle_seconds=0.05
+    )
+    time.sleep(0.12)
+    app._generative_manager.summaries = [_StubSummary(job_id="job-1", state="failed")]
+    time.sleep(0.12)
+    stop_generate_state_listener(app)
+
+    assert app.ctrl.log_calls == 0
+    assert app.ctrl.frontier_calls == 0
+    assert app.ctrl.frontier_view_calls == 0
+
+
+def test_listener_skips_detail_refresh_without_selected_job() -> None:
+    app = _StubApp()
+    app._generative_manager.summaries = [_StubSummary(job_id="job-1", state="running")]
+
+    install_generate_state_listener(
+        app, running_seconds=0.05, idle_seconds=0.05
+    )
+    time.sleep(0.12)
+    app._generative_manager.summaries = [_StubSummary(job_id="job-1", state="resumable")]
+    time.sleep(0.12)
+    stop_generate_state_listener(app)
+
+    assert app.ctrl.log_calls == 0
+    assert app.ctrl.frontier_calls == 0
+    assert app.ctrl.frontier_view_calls == 0
 
 
 def test_stop_listener_is_idempotent() -> None:
@@ -182,6 +242,22 @@ def test_reinstall_listener_stops_prior_thread() -> None:
 
     assert first_handle is not second_handle
     stop_generate_state_listener(app)
+
+
+def test_listener_coalesces_nearby_manual_refresh() -> None:
+    app = _StubApp()
+    app._generative_manager.summaries = [_StubSummary(state="running")]
+
+    install_generate_state_listener(
+        app, running_seconds=0.05, idle_seconds=0.05
+    )
+    time.sleep(0.08)
+    app.ctrl.refresh_generative_jobs()
+    calls_after_manual = app.ctrl.refresh_calls
+    time.sleep(0.03)
+    stop_generate_state_listener(app)
+
+    assert app.ctrl.refresh_calls == calls_after_manual
 
 
 @pytest.mark.parametrize("manager_raises", [True, False])
