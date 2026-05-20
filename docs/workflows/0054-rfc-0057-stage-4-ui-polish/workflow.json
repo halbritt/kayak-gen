@@ -16,22 +16,19 @@
     "codex": {
       "adapter": "process",
       "display_model": "Codex GPT-5.5",
-      "command": [
-        "bash",
-        "scripts/codex-supervised-wrapper.sh"
-      ],
+      "command": ["bash", ".striatum/bin/codex-supervised-wrapper.sh"],
       "capabilities": ["write", "review", "synthesis"]
     },
     "claude": {
       "adapter": "process",
       "display_model": "Claude Opus 4.7",
-      "command": ["claude", "--model", "opus", "-p", "--dangerously-skip-permissions", "--output-format", "text"],
+      "command": ["bash", ".striatum/bin/claude-supervised-wrapper.sh"],
       "capabilities": ["review", "synthesis"]
     },
     "gemini": {
       "adapter": "process",
       "display_model": "Gemini Pro 3.1",
-      "command": ["bash", "-lc", "gemini --model gemini-3.1-pro-preview --yolo -p \"\""],
+      "command": ["bash", ".striatum/bin/gemini-supervised-wrapper.sh"],
       "capabilities": ["review", "synthesis"]
     }
   },
