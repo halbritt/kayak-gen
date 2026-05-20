@@ -474,6 +474,8 @@ Cross-run inspection over the RFC 0049 artifact store:
 kayakgen runs list [--kind sweep|search|cfd|comparison] [--limit N]
 kayakgen runs query <run_id> [--metric NAME ...] [--filter key:value ...]
 kayakgen runs reindex <run_dir> [--run-id ID]
+kayakgen runs jobs [--state queued|running|succeeded|failed|cancelled|resumable] \
+    [--kind sweep|search] [--limit N]
 ```
 
 The SQLite index lives at `~/.local/share/kayakgen/index.sqlite` by
@@ -483,6 +485,13 @@ itself in `runs`, `candidates`, `metrics`, `artifacts`, and `events`
 tables on completion. Legacy run directories produced before RFC
 0049 still load; `kayakgen runs reindex <run_dir>` re-derives index
 rows from disk.
+
+RFC 0057 generative jobs also register in the index. `kayakgen runs jobs`
+lists durable sweep/search job records created by the web Generate tab or the
+service layer, including their kind, state, output directory, counters, and
+timestamps. The job artifacts live under
+`~/.local/share/kayakgen/generative_jobs/` by default; override that root for
+the web app with `KAYAKGEN_GENERATIVE_JOBS_ROOT`.
 
 ### `calibration`
 

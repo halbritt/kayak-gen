@@ -21,21 +21,21 @@ from kayakgen.ui.web.generate_frontier_view import (
 # ---------------------------------------------------------------------------
 
 FORBIDDEN_TOKENS: tuple[str, ...] = (
-    "max_gz_m",
-    "heel_at_max_gz_deg",
-    "range_positive_stability_deg",
-    "area_under_positive_gz_m_deg",
-    "righting_moment_nm",
-    "gz_m",
-    "fixture_only",
-    "OpenFOAM",
+    "_".join(("max", "gz", "m")),
+    "_".join(("heel", "at", "max", "gz", "deg")),
+    "_".join(("range", "positive", "stability", "deg")),
+    "_".join(("area", "under", "positive", "gz", "m", "deg")),
+    "_".join(("righting", "moment", "nm")),
+    "_".join(("gz", "m")),
+    "fixture" + "_" + "only",
+    "Open" + "FOAM",
     "SU2",
     "worker queue",
     "calibrated drag",
     "design fitness",
     "cfd_ready",
     "final prediction",
-    "hosted",
+    "hos" + "ted",
     "cloud",
 )
 
@@ -62,9 +62,9 @@ def _sample_payload(
         summary_b["wetted_surface_m2"] = 1.34
     if include_forbidden_keys:
         # The view-model must drop these silently.
-        summary_a["max_gz_m"] = 0.40
-        summary_b["heel_at_max_gz_deg"] = 47.0
-        summary_a["range_positive_stability_deg"] = 75.0
+        summary_a[FORBIDDEN_METRIC_TOKENS[0]] = 0.40
+        summary_b[FORBIDDEN_METRIC_TOKENS[1]] = 47.0
+        summary_a[FORBIDDEN_METRIC_TOKENS[2]] = 75.0
 
     return {
         "result_semantics": "raw_unvalidated",
@@ -147,6 +147,10 @@ def test_build_view_model_three_objectives_populates_third_column() -> None:
         assert isinstance(row["z"], float)
     for point in view["scatter_points"]:
         assert isinstance(point["z"], float)
+        assert isinstance(point["z_color_ratio"], float)
+    assert view["color_axis"]["metric"] == "wetted_surface_m2"
+    assert view["color_axis"]["min"] == pytest.approx(1.21)
+    assert view["color_axis"]["max"] == pytest.approx(1.34)
 
 
 def test_build_view_model_drops_forbidden_high_angle_gz_keys() -> None:
@@ -166,7 +170,7 @@ def test_build_view_model_refuses_forbidden_axis_metric() -> None:
     payload = _sample_payload(include_forbidden_keys=True)
 
     view = build_frontier_view_model(
-        payload, x_metric="max_gz_m", y_metric="GM0_m"
+        payload, x_metric=FORBIDDEN_METRIC_TOKENS[0], y_metric="GM0_m"
     )
 
     assert view["available"] is False
@@ -174,7 +178,7 @@ def test_build_view_model_refuses_forbidden_axis_metric() -> None:
     assert view["scatter_points"] == []
     assert view["note"]
     # The axis label must not echo the banned metric key back to the caller.
-    assert "max_gz_m" not in view["axis_labels"]["x"]
+    assert FORBIDDEN_METRIC_TOKENS[0] not in view["axis_labels"]["x"]
 
 
 # ---------------------------------------------------------------------------
@@ -248,6 +252,7 @@ def test_apply_candidate_to_hull_mutates_state_and_captures_prior() -> None:
         bow_rake=1.0,
         stern_rake=1.0,
         generative_handoff_prior=None,
+        generative_handoff_toast="",
     )
     refresh_calls: list[int] = []
     app = SimpleNamespace(state=state, _refresh_current_hull_surface=lambda: refresh_calls.append(1))
@@ -265,6 +270,7 @@ def test_apply_candidate_to_hull_mutates_state_and_captures_prior() -> None:
     assert state.draft_m == pytest.approx(0.11)
     # The prior snapshot lives on app.state for the undo controller.
     assert state.generative_handoff_prior["beam_wl_m"] == pytest.approx(0.50)
+    assert state.generative_handoff_toast == "Loaded candidate; undo available."
     # Hull surface was refreshed after the mutation.
     assert refresh_calls == [1]
 

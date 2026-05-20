@@ -6,8 +6,23 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
+### Changed
+
+- Synchronized the RFC 0057 stage-4 documentation set: user-guide Generate
+  / `kayakgen runs jobs` usage, roadmap date/status, RFC 0057 landed status
+  and `/api/generative-jobs/*` route names, D037 decision receipt, RFC index,
+  and workflow operator report. No runtime behavior or no-claims boundary
+  changed.
+
 ### Fixed
 
+- Remediated the daemon-run workflow 0054 MF-1 finding by adding
+  deterministic cancellation coverage for RFC 0057 generative jobs. The new
+  tests force the manager/web route and file-backed subprocess-runner paths to
+  observe the cancellation seam and require `state="resumable"`,
+  `error.kind="cancelled_by_operator"`, `resumable_from_checkpoint=true`, and
+  subprocess `cancel.flag` cleanup. No job API, state vocabulary, solver
+  posture, or no-claims boundary changed.
 - Hardened `parse_openfoam_force_dat` against the real OpenFOAM-v2512
   `forces` function-object tabular schema: rows are 10 numeric fields
   (`time` + total/pressure/viscous triples) by default, or 13 with porous
@@ -35,8 +50,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 - Workflow 0054 cowboy-mode review trail: three review artefacts
   (traceability / claims / ops+tests) + findings ledger + remediation
   patch summary + final review committed under
-  `striatum/0054-rfc-0057-stage-4-ui-polish/`. Zero must-fix
-  findings; four non-blocking successors (per-row Fork buttons,
+  `striatum/0054-rfc-0057-stage-4-ui-polish/`. The later daemon-run
+  ledger superseded the cowboy zero-must-fix disposition with MF-1,
+  remediated above; cowboy successor notes remain historical context
+  (per-row Fork buttons,
   redactor snapshot-byte-equality, widget-tree integration tests,
   `REVIEW_TABS` tab-value constants). Final verdict: `accept`. The
   scaffold workflow on `docs/workflows/0054-...` remains re-runnable

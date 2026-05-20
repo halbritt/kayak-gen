@@ -1,6 +1,6 @@
 # RFC 0057: Generative-Search Jobs and Web Workspace
 
-Status: proposed
+Status: landed
 Date: 2026-05-18
 Context: RFC 0009 introduced the sweep/candidate lifecycle; RFC 0044
 landed v1 NSGA-II active search; RFC 0047 landed the v2 EHVI successor;
@@ -42,7 +42,7 @@ is what makes the generative path effectively expert-only.
   metrics, log tail, cancellation flag, resume pointer.
 - Persist every job as a JSON record on disk so jobs survive web
   restarts and can be enumerated/resumed by any client.
-- Expose a `/api/jobs/*` route family on the Trame web app that lets
+- Expose a `/api/generative-jobs/*` route family on the Trame web app that lets
   the browser start, watch, cancel, and resume jobs against the same
   on-disk store the CLI uses.
 - Land a Trame "Generate" panel that builds a search spec, kicks off a
@@ -161,7 +161,7 @@ GenerativeJobError(
 
 All states are reachable from `queued`; `resumable` is the post-cancel
 or post-process-crash state where a `state.json` checkpoint exists and
-the next `POST /api/jobs/<id>/resume` will pick up from it.
+the next `POST /api/generative-jobs/<id>/resume` will pick up from it.
 
 ### On-disk layout
 
@@ -195,11 +195,13 @@ since)`. Implementations:
   `threading.Thread` inside the same process. Progress events arrive
   on a `queue.Queue`; the manager flushes the latest progress to
   `job.json` after each event and writes log lines through a
-  bounded-file logger. This is the default for `kayakgen serve`.
-- `SubprocessGenerativeJobManager` (opt-in) spawns each job as a
-  detached `python -m kayakgen.services.generative_jobs.run` process
+  bounded-file logger. Since stage 4, this is selected explicitly with
+  `kayakgen serve --jobs-in-process`.
+- `SubprocessGenerativeJobManager` spawns each job as a
+  detached `python -m kayakgen.services.generative_jobs_runner` process
   so a web-process crash does not lose the job. Progress is written
-  by the child directly to `job.json`; the manager only reads.
+  by the child directly to `job.json`; the manager only reads. Since
+  stage 4, this is the default for `kayakgen serve`.
 
 Both implementations enforce the same cancellation protocol: a
 `cancellation_requested_at` write to `job.json` is checked by the
@@ -233,7 +235,8 @@ the existing Parameters / Geometry / Review regions) with three modes:
    clock), `evaluators` (toggles for hydrostatics, stability, mesh
    diagnostics, sensitivity, turning, STL emission). The form
    round-trips a search-spec JSON identical in shape to what the CLI
-   accepts. Submit triggers `POST /api/jobs/search` (or `/sweep`).
+   accepts. Submit triggers `POST /api/generative-jobs/search` (or
+   `/api/generative-jobs/sweep`).
 2. **Watch.** Table of jobs with `job_id`, `kind`, `state`, progress
    bar, started_at, last_update_at, wall_clock_seconds. Selecting a
    row opens a detail card with a log tail (last N bounded lines),
@@ -252,16 +255,15 @@ the existing Parameters / Geometry / Review regions) with three modes:
 ### New routes
 
 ```
-GET    /api/jobs                  → list of GenerativeJobSummary
-POST   /api/jobs/search           → start a search job from a spec body
-POST   /api/jobs/sweep            → start a sweep job from a spec body
-GET    /api/jobs/<id>             → full GenerativeJob
-GET    /api/jobs/<id>/log         → bounded log tail (since cursor)
-GET    /api/jobs/<id>/frontier    → resolved Pareto frontier
-POST   /api/jobs/<id>/cancel      → set cancellation_requested_at
-POST   /api/jobs/<id>/resume      → resume a `resumable` job
-POST   /api/jobs/<id>/load-candidate
-                                  → hand a candidate to single-hull view
+GET    /api/generative-jobs                  → list of GenerativeJobSummary
+POST   /api/generative-jobs/search           → start a search job from a spec body
+POST   /api/generative-jobs/sweep            → start a sweep job from a spec body
+GET    /api/generative-jobs/<id>             → full GenerativeJob
+GET    /api/generative-jobs/<id>/log         → bounded log tail (since cursor)
+GET    /api/generative-jobs/<id>/frontier    → resolved Pareto frontier
+POST   /api/generative-jobs/<id>/cancel      → set cancellation_requested_at
+POST   /api/generative-jobs/<id>/resume      → resume a `resumable` job
+POST   /api/generative-jobs/<id>/fork        → fork a succeeded search with a new seed
 ```
 
 Every spec body passes through the same validators the CLI uses
@@ -279,7 +281,7 @@ seaworthiness, calibrated, validated, or final-prediction claim").
 
 ### Claim admissibility at spec submission
 
-`POST /api/jobs/search` calls
+`POST /api/generative-jobs/search` calls
 `ensure_objectives_claim_admissible_for_search` (RFC 0044) and
 `ensure_objectives_not_high_angle_gz` (RFC 0043) before persisting the
 spec. Rejection returns the structured token to the panel, which
@@ -392,17 +394,31 @@ Stage 1 — core job surface:
 
 Stage 2 — web panel:
 
-5. Add `/api/jobs/*` routes against `InProcessGenerativeJobManager`.
+5. Add `/api/generative-jobs/*` routes against
+   `InProcessGenerativeJobManager`.
 6. Add the "Generate" Trame panel with build/watch/pick modes.
 7. Extend `tests/test_web_forbidden_copy.py` and
    `tests/test_web.py` to cover the new surface.
 
 Stage 3 — robustness:
 
-8. Land `SubprocessGenerativeJobManager` behind
-   `serve --jobs-subprocess` opt-in.
+8. Land `SubprocessGenerativeJobManager` behind a serve opt-in.
 9. Add a resume-after-process-crash integration test that simulates
    `SIGKILL` on the runner subprocess and verifies clean recovery.
+
+Stage 4 — web Generate polish:
+
+10. Switch `kayakgen serve` to subprocess jobs by default and make
+    `--jobs-in-process` the explicit debugging opt-in.
+11. Replace the raw-JSON-first Generate panel with the form-builder
+    primary input, live claim-admissibility filtering, CFD-in-loop
+    acknowledgement row, soft 4-job warning, 2D scatter + sortable
+    frontier table, objective-pair selector, candidate handoff +
+    undo toast, auto-poll listener, redacted log payloads, and one-click
+    fork-with-new-seed.
+12. Record the 12 stage-4 operator decisions in
+    `docs/DECISION_LOG.md` as D037 and keep all no-claim boundaries
+    unchanged.
 
 Each stage lands as its own commit per the project's one-phase-per-RFC
 rule.

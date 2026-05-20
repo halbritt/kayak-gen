@@ -27,7 +27,6 @@ from kayakgen.ui.web.controllers import (
     CfdWebError,
     CfdWebStore,
     HullStore,
-    InProcessGenerativeJobManager,
     class_preset_options,
     class_preset_read_model,
     candidate_state_from_report_json,
@@ -62,7 +61,9 @@ from kayakgen.ui.web.controllers import (
     validation_error_payload,
     validity_badge_from_state,
 )
+from kayakgen.services.generative_jobs import SubprocessGenerativeJobManager
 from kayakgen.ui.web.generate_fork_button import next_default_seed
+from kayakgen.ui.web.generate_fork_button import render_fork_button
 from kayakgen.ui.web.generate_frontier_view import (
     apply_candidate_to_hull,
     refresh_frontier_view,
@@ -70,6 +71,8 @@ from kayakgen.ui.web.generate_frontier_view import (
     undo_candidate_handoff,
 )
 from kayakgen.ui.web.generate_spec_form import (
+    GenerateSpecFormError,
+    build_spec_from_form_state,
     initialize_form_state,
     refresh_concurrency_advisory,
     render_spec_form_section,
@@ -485,7 +488,7 @@ class KayakgenApp:
         self._cfd_store = CfdWebStore()
         self.state.cfd_jobs_root = str(self._cfd_store.jobs_root)
         if generative_manager is None:
-            self._generative_manager = InProcessGenerativeJobManager(
+            self._generative_manager = SubprocessGenerativeJobManager(
                 jobs_root=_default_generative_jobs_root_for_app(),
             )
         else:
@@ -515,6 +518,7 @@ class KayakgenApp:
         self.ctrl.load_cfd_raw_result = lambda: self._load_cfd_raw_result()
         self.ctrl.submit_generative_search = lambda: self._submit_generative_job("search")
         self.ctrl.submit_generative_sweep = lambda: self._submit_generative_job("sweep")
+        self.ctrl.apply_form_to_json = lambda: self._apply_generative_form_to_json()
         self.ctrl.refresh_generative_jobs = lambda: self._refresh_generative_jobs()
         self.ctrl.cancel_generative_job = lambda: self._cancel_generative_job()
         self.ctrl.resume_generative_job = lambda: self._resume_generative_job()
@@ -532,6 +536,7 @@ class KayakgenApp:
         self.ctrl.undo_generative_handoff = lambda: self._undo_generative_handoff()
         self.ctrl.focus_review_tab = lambda tab: self._focus_review_tab(tab)
         self.ctrl.on_server_bind.add(self._on_server_bind)
+        install_generate_state_listener(self)
 
         self._wire_state_listeners()
         initialize_form_state(self)
@@ -540,7 +545,6 @@ class KayakgenApp:
         self._refresh_analysis()
         self._refresh_status_segments()
         self._refresh_mesh()
-        install_generate_state_listener(self)
 
     # ----- parameter rail state -----
 
@@ -1011,17 +1015,49 @@ class KayakgenApp:
 
     # ----- generative-jobs panel -----
 
-    def _submit_generative_job(self, kind: str) -> None:
+    def _generative_spec_payload_for_submit(self, kind: str) -> dict[str, Any] | None:
         text = str(self.state.generative_spec_json or "").strip()
-        if not text:
-            self.state.generative_status = (
-                "Paste a sweep or search spec JSON before submitting."
-            )
-            return
+        if text:
+            try:
+                spec_payload = json.loads(text)
+            except ValueError as exc:
+                self.state.generative_status = f"Spec is not valid JSON: {exc}"
+                return None
+            if not isinstance(spec_payload, dict):
+                self.state.generative_status = "Spec JSON must be an object."
+                return None
+            return spec_payload
+        self.state.generative_job_kind = kind
         try:
-            spec_payload = json.loads(text)
-        except ValueError as exc:
-            self.state.generative_status = f"Spec is not valid JSON: {exc}"
+            spec_payload = build_spec_from_form_state(self.state)
+        except GenerateSpecFormError as exc:
+            self.state.generative_status = f"Form is incomplete: {exc}"
+            return None
+        except Exception as exc:  # noqa: BLE001 - keep the panel non-throwing
+            self.state.generative_status = f"Form is incomplete: {exc}"
+            return None
+        self.state.generative_spec_json = json.dumps(
+            spec_payload, indent=2, sort_keys=True
+        )
+        return spec_payload
+
+    def _apply_generative_form_to_json(self) -> None:
+        try:
+            spec_payload = build_spec_from_form_state(self.state)
+        except GenerateSpecFormError as exc:
+            self.state.generative_status = f"Form is incomplete: {exc}"
+            return
+        except Exception as exc:  # noqa: BLE001
+            self.state.generative_status = f"Form is incomplete: {exc}"
+            return
+        self.state.generative_spec_json = json.dumps(
+            spec_payload, indent=2, sort_keys=True
+        )
+        self.state.generative_status = "Form spec copied to the raw JSON editor."
+
+    def _submit_generative_job(self, kind: str) -> None:
+        spec_payload = self._generative_spec_payload_for_submit(kind)
+        if spec_payload is None:
             return
         try:
             payload = start_generative_job_payload(
@@ -1627,18 +1663,12 @@ class KayakgenApp:
                 v3.VCardTitle("Generate")
                 v3.VCardText(
                     (
-                        "Submit a sweep or search spec via the form below. "
-                        "Jobs run server-local in the same process; "
-                        "no hosted worker is running."
+                        "Build a sweep or search spec and submit it to the "
+                        "server-local job manager."
                     ),
                     classes="kg-generate-banner",
                 )
                 v3.VCardText("{{ generative_status }}", classes="kg-generate-status")
-                v3.VCardText(
-                    "{{ generative_concurrency_advisory }}",
-                    classes="kg-generate-advisory",
-                    v_show=("generative_concurrency_advisory",),
-                )
                 with v3.VCardText():
                     v3.VTextField(
                         v_model=("generative_jobs_root",),
@@ -1647,6 +1677,18 @@ class KayakgenApp:
                         density="compact",
                     )
                     render_spec_form_section(self)
+                    v3.VBtn(
+                        "Submit Search",
+                        click=self.ctrl.submit_generative_search,
+                        density="compact",
+                        classes="mr-2",
+                    )
+                    v3.VBtn(
+                        "Submit Sweep",
+                        click=self.ctrl.submit_generative_sweep,
+                        density="compact",
+                        classes="mr-2",
+                    )
                     v3.VBtn(
                         "Refresh Jobs",
                         click=self.ctrl.refresh_generative_jobs,
@@ -1671,17 +1713,6 @@ class KayakgenApp:
                         classes="mr-2",
                     )
                     v3.VBtn(
-                        "Fork with new seed",
-                        click=(
-                            "fork_generative_job("
-                            "generative_job_id, "
-                            "Math.floor(Math.random() * 1000000))"
-                        ),
-                        density="compact",
-                        classes="mr-2",
-                        v_show=("generative_job_id",),
-                    )
-                    v3.VBtn(
                         "Load Log",
                         click=self.ctrl.load_generative_log,
                         density="compact",
@@ -1697,12 +1728,34 @@ class KayakgenApp:
                         classes="font-mono text-caption mt-2",
                         html=True,
                     )
+                    self._render_generate_job_fork_buttons()
                     v3.VCardText(
                         "<pre>{{ generative_log_lines.join('\\n') }}</pre>",
                         classes="font-mono text-caption",
                         html=True,
                     )
                     render_frontier_view_section(self)
+
+    def _render_generate_job_fork_buttons(self) -> None:
+        """Render fork buttons for any succeeded rows known at layout build time."""
+
+        try:
+            summaries = self._generative_manager.list()
+        except Exception:  # noqa: BLE001 - render should not depend on the store
+            summaries = []
+        for summary in summaries:
+            if hasattr(summary, "model_dump"):
+                payload = summary.model_dump(mode="json")
+            elif isinstance(summary, dict):
+                payload = dict(summary)
+            else:
+                payload = {
+                    "job_id": getattr(summary, "job_id", ""),
+                    "state": getattr(summary, "state", ""),
+                }
+            if payload.get("state") != "succeeded":
+                continue
+            render_fork_button(self, job_summary=payload)
 
     def _render_advisories_tab(self) -> None:
         with v3.VWindowItem(value="advisories"):
@@ -1749,9 +1802,8 @@ def create_app(
     """Factory: build and return a configured :class:`KayakgenApp`.
 
     ``generative_manager`` (RFC 0057) may be supplied to override the
-    default in-process generative-job manager — for example, the
-    ``kayakgen serve --jobs-subprocess`` opt-in passes a
-    :class:`SubprocessGenerativeJobManager`.
+    default subprocess generative-job manager; tests may pass an in-process
+    manager for synchronous joins.
     """
     return KayakgenApp(
         server=server,

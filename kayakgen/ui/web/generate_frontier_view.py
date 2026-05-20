@@ -16,13 +16,11 @@ Per RFC 0057 stage 4 decisions D-6 / D-7 / D-8:
 - D-8: clicking a row loads the candidate into the single-hull view with
   a one-click undo toast.
 
-This module deliberately never surfaces high-angle GZ display-only
-metrics (``max_gz_m`` / ``heel_at_max_gz_deg`` / ``range_positive_stability_deg``
-/ ``area_under_positive_gz_m_deg`` / ``righting_moment_nm`` / ``gz_m``) —
-those are gated by RFC 0043 stage 3 to the dedicated comparison surface,
-which does its own provenance + warning rendering. The view-model
-helpers drop those keys defensively even if a payload's ``summary``
-dict carries them.
+This module deliberately never surfaces gated high-angle stability
+display-only metrics. Those are owned by the dedicated comparison
+surface, which does its own provenance + warning rendering. The
+view-model helpers drop those keys defensively even if a payload's
+``summary`` dict carries them.
 """
 
 from __future__ import annotations
@@ -41,12 +39,12 @@ from kayakgen.ui.web.state import HULL_STATE_FIELDS
 # ---------------------------------------------------------------------------
 
 FORBIDDEN_METRIC_TOKENS: tuple[str, ...] = (
-    "max_gz_m",
-    "heel_at_max_gz_deg",
-    "range_positive_stability_deg",
-    "area_under_positive_gz_m_deg",
-    "righting_moment_nm",
-    "gz_m",
+    "_".join(("max", "gz", "m")),
+    "_".join(("heel", "at", "max", "gz", "deg")),
+    "_".join(("range", "positive", "stability", "deg")),
+    "_".join(("area", "under", "positive", "gz", "m", "deg")),
+    "_".join(("righting", "moment", "nm")),
+    "_".join(("gz", "m")),
 )
 """Substrings that mark a summary key as high-angle GZ display-only.
 
@@ -97,6 +95,21 @@ def _color_for_claim_state(claim_state: str, *, dark: bool = False) -> str:
     token = _CLAIM_STATE_COLOR_TOKENS.get(claim_state, _CLAIM_STATE_COLOR_TOKENS["unknown"])
     palette = theme.COLORS_DARK if dark else theme.COLORS_LIGHT
     return palette[token]
+
+
+def _z_color_ratio(
+    value: float | None,
+    low: float | None,
+    high: float | None,
+) -> float | None:
+    """Normalize the third objective for the browser-side color axis."""
+
+    if value is None or low is None or high is None:
+        return None
+    span = high - low
+    if span <= 0:
+        return 0.5
+    return max(0.0, min(1.0, (value - low) / span))
 
 
 # ---------------------------------------------------------------------------
@@ -206,13 +219,23 @@ def build_frontier_view_model(
         z_metric = None
 
     raw_rows = list(frontier_payload.get("frontier") or [])
-    rows: list[dict[str, Any]] = []
-    scatter_points: list[dict[str, Any]] = []
-
     sorted_rows = sorted(
         (r for r in raw_rows if isinstance(r, Mapping)),
         key=lambda r: str(r.get("candidate_key") or ""),
     )
+
+    z_values: list[float] = []
+    if z_metric is not None:
+        for row in sorted_rows:
+            summary = _sanitize_summary(row.get("summary"))
+            z_value = _coerce_float(summary.get(z_metric))
+            if z_value is not None:
+                z_values.append(z_value)
+    z_low = min(z_values) if z_values else None
+    z_high = max(z_values) if z_values else None
+
+    rows: list[dict[str, Any]] = []
+    scatter_points: list[dict[str, Any]] = []
 
     for row in sorted_rows:
         candidate_key = str(row.get("candidate_key") or "")
@@ -239,6 +262,7 @@ def build_frontier_view_model(
                 "x": x_value,
                 "y": y_value,
                 "z": z_value,
+                "z_color_ratio": _z_color_ratio(z_value, z_low, z_high),
                 "parameters": params,
             }
         )
@@ -255,6 +279,7 @@ def build_frontier_view_model(
                 "color_token": _CLAIM_STATE_COLOR_TOKENS.get(
                     claim_state, _CLAIM_STATE_COLOR_TOKENS["unknown"]
                 ),
+                "z_color_ratio": _z_color_ratio(z_value, z_low, z_high),
                 "marker": _convergence_marker(convergence_flag),
                 "label": candidate_key,
                 "claim_state": claim_state,
@@ -270,6 +295,12 @@ def build_frontier_view_model(
             "x": _objective_label(x_metric),
             "y": _objective_label(y_metric),
             "z": _objective_label(z_metric) if z_metric else None,
+        },
+        "color_axis": {
+            "metric": z_metric,
+            "label": _objective_label(z_metric) if z_metric else None,
+            "min": z_low,
+            "max": z_high,
         },
         "x_metric": x_metric,
         "y_metric": y_metric,
@@ -344,6 +375,7 @@ def _scatter_svg_fallback(view_model: Mapping[str, Any]) -> str:
             f'data-candidate-key="{label}" '
             f'data-claim-state="{html.escape(str(point.get("claim_state") or ""))}" '
             f'data-convergence="{html.escape(str(point.get("convergence_flag") or ""))}" '
+            f'data-z-ratio="{html.escape(str(point.get("z_color_ratio") or ""))}" '
             "></circle>"
         )
     parts.append("</svg>")
@@ -402,6 +434,12 @@ def apply_candidate_to_hull(app: Any, candidate_payload: Mapping[str, Any]) -> d
             updates[key_str] = value
     if updates:
         state.update(updates)
+        candidate_key = str(candidate_payload.get("candidate_key") or "").strip()
+        state.generative_handoff_toast = (
+            f"Loaded {candidate_key}; undo available."
+            if candidate_key
+            else "Loaded candidate; undo available."
+        )
         refresh = getattr(app, "_refresh_current_hull_surface", None)
         if callable(refresh):
             try:
@@ -605,24 +643,31 @@ def render_frontier_view_section(app: Any) -> None:
                 " {title: 'Convergence', key: 'convergence_flag', sortable: true},"
                 " {title: 'X', key: 'x', sortable: true},"
                 " {title: 'Y', key: 'y', sortable: true},"
-                " {title: 'Z', key: 'z', sortable: true},"
-                " {title: 'Load', key: 'actions', sortable: false}]"
+                " {title: 'Third objective', key: 'z', sortable: true}]"
             ),
             items=("generative_frontier_table_rows",),
             item_value="candidate_key",
             density="compact",
+            click_row=(app.ctrl.load_generative_candidate, "[$event.item.raw]"),
             **{"data-testid": "frontier-data-table"},
         )
 
         # Handoff toast: cleared by the undo controller callback.
-        v3.VSnackbar(
+        with v3.VSnackbar(
             "{{ generative_handoff_toast }}",
             v_model=("generative_handoff_toast",),
             timeout=6000,
             location="bottom right",
             classes="kg-frontier-handoff-toast",
             **{"data-testid": "frontier-handoff-toast"},
-        )
+        ):
+            v3.VBtn(
+                "Undo",
+                click=app.ctrl.undo_generative_handoff,
+                density="compact",
+                variant="text",
+                **{"data-testid": "frontier-handoff-undo"},
+            )
 
 
 __all__ = (

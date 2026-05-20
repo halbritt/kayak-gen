@@ -31,7 +31,10 @@ from typing import Any, Mapping
 from trame.widgets import vuetify3 as v3
 
 from kayakgen.search.active.spec import SearchSpec
-from kayakgen.search.objectives import OBJECTIVE_METADATA
+from kayakgen.search.objectives import (
+    OBJECTIVE_METADATA,
+    is_objective_metric_admissible,
+)
 from kayakgen.search.pareto import HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS
 from kayakgen.search.sweep import SweepSpec
 
@@ -160,6 +163,9 @@ def admissible_objective_metrics() -> list[str]:
 
     * ``role="display_only"`` entries (RFC 0043 / RFC 0053 high-angle GZ
       mirrors and turning metrics).
+    * Claim-gated metrics that require explicit exploratory or accepted-use
+      provenance (RFC 0044), such as raw resistance and reserved design
+      fitness metrics.
     * High-angle GZ display-only metrics by name as a defense-in-depth gate
       (matches the refusal in
       :func:`kayakgen.search.pareto.ensure_objectives_not_high_angle_gz`).
@@ -169,17 +175,34 @@ def admissible_objective_metrics() -> list[str]:
     """
 
     out: list[str] = []
-    for metric, metadata in OBJECTIVE_METADATA.items():
+    for metric in OBJECTIVE_METADATA:
         if metric in HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS:
             continue
-        if metadata.role == "display_only":
+        admissible, _reason = is_objective_metric_admissible(
+            metric,
+            explicit_exploratory=False,
+        )
+        if not admissible:
             continue
         out.append(metric)
     return out
 
 
-def _is_admissible_objective(metric: str) -> bool:
-    return metric in admissible_objective_metrics()
+def objective_refusal_reason(metric: str) -> dict[str, str] | None:
+    """Return the structured objective-refusal reason for ``metric``.
+
+    ``None`` means the metric is selectable in the conservative form. The
+    helper is intentionally backed by the central registry admissibility gate
+    so the form cannot drift from the runner's RFC 0044 policy.
+    """
+
+    admissible, reason = is_objective_metric_admissible(
+        metric,
+        explicit_exploratory=False,
+    )
+    if admissible:
+        return None
+    return reason
 
 
 # ---------------------------------------------------------------------------
@@ -414,7 +437,30 @@ def _evaluators_block(
 
 
 def _objectives_block(state: Any) -> list[dict[str, str]]:
-    raw = _state_get(state, "generative_objectives", list(DEFAULT_OBJECTIVES))
+    selected = _state_get(state, "generative_selected_objective_metrics", None)
+    if isinstance(selected, list):
+        directions = _state_get(state, "generative_objective_directions", {})
+        if not isinstance(directions, Mapping):
+            raise GenerateSpecFormError(
+                "objective_directions_invalid",
+                "Objective directions form state must be a mapping.",
+            )
+        raw = [
+            {
+                "metric": str(metric),
+                "direction": str(
+                    directions.get(
+                        str(metric),
+                        OBJECTIVE_METADATA[str(metric)].direction
+                        if str(metric) in OBJECTIVE_METADATA
+                        else "min",
+                    )
+                ),
+            }
+            for metric in selected
+        ]
+    else:
+        raw = _state_get(state, "generative_objectives", list(DEFAULT_OBJECTIVES))
     if not isinstance(raw, list):
         raise GenerateSpecFormError(
             "objectives_invalid",
@@ -443,18 +489,20 @@ def _objectives_block(state: Any) -> list[dict[str, str]]:
                 row_index=index,
                 direction=direction,
             )
-        if not _is_admissible_objective(metric):
+        refusal = objective_refusal_reason(metric)
+        if refusal is not None:
             # Live filtering refused this metric. Surface the structured
             # refusal so the route layer can render the inline error
             # next to the row.
             raise GenerateSpecFormError(
                 "objective_not_admissible",
                 (
-                    f"Objective metric {metric!r} is not admissible "
-                    "(display-only or unregistered)."
+                    f"Objective metric {metric!r} is not admissible: "
+                    f"{refusal['code']}."
                 ),
                 metric=metric,
                 row_index=index,
+                refusal=refusal,
             )
         out.append({"metric": metric, "direction": direction})
     return out
@@ -686,6 +734,12 @@ def initialize_form_state(app: Any) -> None:
     # Objectives: D-3 conservative pair + admissibility-filtered picklist.
     state.generative_objective_options = admissible_objective_metrics()
     state.generative_objectives = [dict(obj) for obj in DEFAULT_OBJECTIVES]
+    state.generative_selected_objective_metrics = [
+        obj["metric"] for obj in DEFAULT_OBJECTIVES
+    ]
+    state.generative_objective_directions = {
+        obj["metric"]: obj["direction"] for obj in DEFAULT_OBJECTIVES
+    }
 
     # Evaluator toggles. CFD-in-loop opt-in defaults to *closed* (D-4).
     state.generative_evaluators = dict(DEFAULT_EVALUATORS)
@@ -896,28 +950,29 @@ def render_spec_form_section(app: Any) -> None:
         classes="kg-generate-section-help",
     )
     v3.VSelect(
-        v_model=("generative_objective_picklist",),
+        v_model=("generative_selected_objective_metrics",),
         items=("generative_objective_options",),
-        label="Add objective metric",
+        label="Objective metrics",
         density="compact",
-        multiple=False,
+        multiple=True,
         clearable=True,
         **{"data-testid": "generative-objective-picklist"},
     )
     v3.VCardText(
         (
-            "<div v-for='(obj, idx) in generative_objectives' :key='idx'"
+            "<div v-for='(metric, idx) in generative_selected_objective_metrics'"
+            " :key='metric'"
             " class='kg-generate-objective-row'>"
-            "  <span class='kg-generate-objective-metric'>{{ obj.metric }}</span>"
-            "  <select v-model='obj.direction'"
+            "  <span class='kg-generate-objective-metric'>{{ metric }}</span>"
+            "  <select v-model='generative_objective_directions[metric]'"
             "          data-testid='generative-objective-direction'>"
             "    <option value='min'>min</option>"
             "    <option value='max'>max</option>"
             "  </select>"
-            "  <span v-if='!generative_objective_options.includes(obj.metric)'"
+            "  <span v-if='!generative_objective_options.includes(metric)'"
             "        class='kg-generate-objective-refusal'"
             "        data-testid='generative-objective-refusal'>"
-            "    Not admissible (display-only or unregistered)."
+            "    Not admissible for the objective set."
             "  </span>"
             "</div>"
         ),
@@ -1054,6 +1109,7 @@ __all__ = [
     "admissible_objective_metrics",
     "build_spec_from_form_state",
     "initialize_form_state",
+    "objective_refusal_reason",
     "refresh_concurrency_advisory",
     "render_spec_form_section",
 ]

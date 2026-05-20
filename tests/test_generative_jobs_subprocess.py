@@ -6,13 +6,19 @@ import os
 import signal
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from kayakgen.services.generative_jobs import (
     CANCEL_FLAG_FILENAME,
+    GenerativeJob,
+    GenerativeJobError,
     SubprocessGenerativeJobManager,
+    initialize_job_dir,
+    persist_job_to_dir,
 )
+from kayakgen.services.generative_jobs_runner import _run as run_subprocess_entry
 
 
 def _sweep_payload(values: list[float] | None = None) -> dict[str, object]:
@@ -62,6 +68,31 @@ def _search_payload() -> dict[str, object]:
         "evaluators": {"hydrostatics": True},
         "budget": {"max_evaluations": 999},
     }
+
+
+def _controlled_cancel_runner(
+    _spec: Any,
+    _out_dir: str | Path,
+    resume: bool = False,
+    *,
+    progress_sink: Any | None = None,
+) -> object:
+    assert resume is False
+    assert progress_sink is not None
+    progress_sink.candidate_completed(
+        candidate_key="controlled-candidate",
+        status="complete",
+        generation=None,
+        iteration=0,
+        realized_evaluations=1,
+    )
+    progress_sink.checkpoint(
+        generation=None,
+        iteration=0,
+        realized_evaluations=1,
+    )
+    assert progress_sink.should_cancel() is True
+    return object()
 
 
 def test_subprocess_manager_runs_sweep_to_succeeded(tmp_path: Path) -> None:
@@ -122,6 +153,43 @@ def test_subprocess_manager_cancel_via_flag(tmp_path: Path) -> None:
         # Subprocess runner cleans up the flag on terminal write so a
         # subsequent resume doesn't immediately re-cancel.
         assert not (tmp_path / job.job_id / CANCEL_FLAG_FILENAME).exists()
+
+
+def test_subprocess_runner_cancel_flag_requires_resumable_and_cleans_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "kayakgen.search.sweep.run_sweep",
+        _controlled_cancel_runner,
+    )
+    job = initialize_job_dir(
+        tmp_path, spec_payload=_sweep_payload(), job_kind="sweep"
+    )
+    job = job.model_copy(
+        update={
+            "cancellation_requested_at": time.time(),
+            "error": GenerativeJobError(
+                kind="cancelled_by_operator",
+                message="cancellation requested via subprocess manager flag",
+            ),
+        }
+    )
+    persist_job_to_dir(tmp_path, job)
+    cancel_flag = tmp_path / job.job_id / CANCEL_FLAG_FILENAME
+    cancel_flag.touch()
+
+    exit_code = run_subprocess_entry(tmp_path, job.job_id, resume=False)
+
+    assert exit_code == 0
+    assert not cancel_flag.exists()
+    final = GenerativeJob.model_validate_json(
+        (tmp_path / job.job_id / "job.json").read_text()
+    )
+    assert final.cancellation_requested_at is not None
+    assert final.state == "resumable"
+    assert final.error is not None
+    assert final.error.kind == "cancelled_by_operator"
+    assert final.resumable_from_checkpoint is True
 
 
 def test_subprocess_manager_resume_after_cancel(tmp_path: Path) -> None:

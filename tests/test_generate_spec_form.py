@@ -14,6 +14,7 @@ from kayakgen.ui.web.generate_spec_form import (
     GenerateSpecFormError,
     admissible_objective_metrics,
     build_spec_from_form_state,
+    objective_refusal_reason,
 )
 
 
@@ -42,6 +43,18 @@ def test_admissible_objective_metrics_excludes_display_only() -> None:
     # D-3 conservative defaults are admissible.
     assert "GM0_m" in metrics
     assert "displaced_mass_kg" in metrics
+
+
+def test_admissible_objective_metrics_excludes_claim_gated_refusals() -> None:
+    metrics = admissible_objective_metrics()
+    # RFC 0044: raw resistance and reserved design-fitness metrics require
+    # stronger claim/accepted-use provenance and must not be in the picklist.
+    assert "Rt_N_last" not in metrics
+    assert "design_fitness" not in metrics
+
+    resistance_refusal = objective_refusal_reason("Rt_N_last")
+    assert resistance_refusal is not None
+    assert resistance_refusal["code"] == "objective_claim_state_not_admissible"
 
 
 def test_admissible_objective_metrics_returns_stable_registry_order() -> None:
@@ -167,6 +180,27 @@ def test_build_spec_from_form_state_search_round_trip() -> None:
     assert spec.base_hull["length_m"] == 5.2
 
 
+def test_build_spec_from_selected_objective_metrics_round_trip() -> None:
+    state = _search_form_state()
+    state.pop("generative_objectives")
+    state["generative_selected_objective_metrics"] = [
+        "GM0_m",
+        "mesh_problem_count",
+    ]
+    state["generative_objective_directions"] = {
+        "GM0_m": "max",
+        "mesh_problem_count": "min",
+    }
+
+    payload = build_spec_from_form_state(state)
+
+    assert payload["objectives"] == [
+        {"metric": "GM0_m", "direction": "max"},
+        {"metric": "mesh_problem_count", "direction": "min"},
+    ]
+    SearchSpec.model_validate(payload)
+
+
 def test_build_spec_from_form_state_search_ehvi_round_trip() -> None:
     state = _search_form_state()
     state["generative_algorithm_kind"] = "ehvi"
@@ -209,6 +243,23 @@ def test_build_spec_from_form_state_refuses_display_only_objective(
     err = excinfo.value
     assert err.code == "objective_not_admissible"
     assert err.reason["metric"] == display_only_metric
+    assert err.reason["refusal"]["code"] == "high_angle_gz_display_only"
+
+
+@pytest.mark.parametrize("claim_gated_metric", ["Rt_N_last", "design_fitness"])
+def test_build_spec_from_form_state_refuses_claim_gated_objective(
+    claim_gated_metric: str,
+) -> None:
+    state = _search_form_state()
+    state["generative_objectives"] = [
+        {"metric": claim_gated_metric, "direction": "min"}
+    ]
+    with pytest.raises(GenerateSpecFormError) as excinfo:
+        build_spec_from_form_state(state)
+    err = excinfo.value
+    assert err.code == "objective_not_admissible"
+    assert err.reason["metric"] == claim_gated_metric
+    assert err.reason["refusal"]["code"] == "objective_claim_state_not_admissible"
 
 
 # ---------------------------------------------------------------------------
