@@ -18,3 +18,10 @@ Started: 2026-05-21
   (deferred to stage 2), the CFD-in-loop graduation contract
   (deferred to stage 2), the `kayakgen stability` CLI sub-app
   (deferred to stage 2).
+- 2026-05-21: synchronized docs for the schema-only landing:
+  `CHANGELOG.md`, `docs/DECISION_LOG.md` (D038), `docs/ROADMAP.md`,
+  `docs/rfcs/README.md`, and
+  `docs/rfcs/0058-stability-calibration-acceptance.md` now report RFC
+  0058 as `landed (schemas only)`. No runtime behavior, fixture/fit
+  promotion, claim-label wording, CFD-in-loop status, or no-claims
+  boundary changed.

@@ -47,6 +47,16 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed RFC 0058 stage 1 as schemas only. New
+  `kayakgen/eval/stability/accepted_fit.py` pins
+  `FixtureRef`, `HullFamilyScope`, `StabilityFitMetrics`,
+  `ReviewerSignature`, `StabilityFitRecord`, and
+  `StabilityFixturePromotionPacket` with default fit-threshold
+  validators and no filesystem fixture resolution. No fixture or fit is
+  promoted; `resolve_analytical_claim_label`,
+  `cfd_in_loop_evaluator_status`, the `kayakgen stability` sub-app,
+  CFD-in-loop graduation, and any upgrade from
+  `unvalidated_hydrostatic_comparison` remain deferred.
 - Workflow 0054 cowboy-mode review trail: three review artefacts
   (traceability / claims / ops+tests) + findings ledger + remediation
   patch summary + final review committed under
@@ -71,7 +81,8 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   Defaults to `intended_use="validation_candidate"`; no fixture is
   promoted by this RFC. +15 focused tests in
   `tests/test_measured_stability_fixture.py`.
-- Drafted RFC 0058 (status: `proposed`):
+- Drafted the initial RFC 0058 proposal, now followed by the
+  schema-only stage 1 landing above:
   `docs/rfcs/0058-stability-calibration-acceptance.md`. Defines the
   `StabilityFitRecord` aggregate, the
   `resolve_analytical_claim_label(hull, fit_registry)` upgrade contract

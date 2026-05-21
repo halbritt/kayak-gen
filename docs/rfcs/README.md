@@ -72,7 +72,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0055](0055-design-report-export.md) | landed kayakgen design-report + jinja2 template + forbidden-copy scan + optional [report] PDF extras | Single-file design report export |
 | [0056](0056-strain-gauged-gz-rig.md) | landed (schemas only) | Strain-gauged moment-arm rig for measured high-angle GZ — MeasuredStabilityFixture schema + validators landed under `kayakgen/eval/stability/measured_fixture.py`; no fixture promoted by this RFC |
 | [0057](0057-generative-search-jobs-and-web-workspace.md) | landed | Generative-search jobs and web workspace — records, in-process + subprocess managers, /api/generative-jobs/* routes, Trame Generate panel with form-builder + 2D Pareto scatter + auto-poll + fork-with-seed + log redaction (stages 1-4) |
-| [0058](0058-stability-calibration-acceptance.md) | proposed | Stability calibration acceptance and CFD-in-loop graduation — `StabilityFitRecord` aggregate, `resolve_analytical_claim_label`, `cfd_in_loop_evaluator_status`, `kayakgen stability` sub-app gating the upgrade from `unvalidated_hydrostatic_comparison` to `validated_hydrostatic_comparison` and the CFD-in-loop opt-in row to first-class |
+| [0058](0058-stability-calibration-acceptance.md) | landed (schemas only) | Stability calibration acceptance and CFD-in-loop graduation — stage 1 landed `FixtureRef`, `HullFamilyScope`, `StabilityFitMetrics`, `ReviewerSignature`, `StabilityFitRecord`, and `StabilityFixturePromotionPacket`; claim-label resolution, CFD-in-loop graduation, and the `kayakgen stability` sub-app remain deferred |
 
 Architecture-plan landing notes (not RFCs themselves; see
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`):

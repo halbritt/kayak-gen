@@ -1,6 +1,6 @@
 # RFC 0058: Stability Calibration Acceptance and CFD-In-Loop Graduation
 
-Status: proposed
+Status: landed (schemas only)
 Date: 2026-05-19
 Context: RFC 0056 lands the `MeasuredStabilityFixture` schema + validators
 for the strain-gauged moment-arm rig data ingest, but no acceptance gate
@@ -10,6 +10,18 @@ RFC 0027 is the resistance-side parallel; this RFC supplies the
 stability-side parallel and is the final gate that lets the CFD-in-loop
 evaluator in the Generate panel (RFC 0057 stage 4 / D-4) graduate from
 opt-in to first-class.
+
+Stage 1 implementation note (2026-05-21): the schema-only slice landed
+`FixtureRef`, `HullFamilyScope`, `StabilityFitMetrics`,
+`ReviewerSignature`, `StabilityFitRecord`, and
+`StabilityFixturePromotionPacket` in
+`kayakgen/eval/stability/accepted_fit.py`, with default fit-threshold
+validators and promotion-packet gates. This landing does not promote a
+fixture or fit, does not resolve fixture paths on disk, does not add the
+`kayakgen stability` sub-app, does not implement
+`resolve_analytical_claim_label` or `cfd_in_loop_evaluator_status`, and
+does not change RFC 0043's
+`result_semantics="unvalidated_hydrostatic_comparison"` default.
 
 ## Problem
 
