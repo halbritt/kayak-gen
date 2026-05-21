@@ -42,3 +42,15 @@ Started: 2026-05-21
   `generative_cfd_in_loop_status == "first_class"`, the hidden
   acknowledgement is treated as implicit. The default `opt_in_only`
   branch still refuses unacknowledged CFD-in-loop requests.
+- 2026-05-21 NB closure: NB-1 from the workflow findings ledger is
+  recorded as DECISION_LOG row D040 (the hidden
+  `kayakgen stability legacy` compatibility subcommand for the
+  pre-existing top-level invocation form). NB-2 narrows `.gitignore`
+  from `data/stability/` to `data/stability/fixtures/` and
+  `data/stability/fits/` so unrelated future siblings of
+  `data/stability/` remain visible. NB-3 (stepped-clock test driver
+  documentation) is deferred per its conditional successor scope —
+  the listener module already exposes `tick_generate_state_listener`
+  and `GENERATIVE_REFRESH_COALESCE_SECONDS` with docstring references;
+  no further docs are warranted until the listener seam is described
+  in a successor doc pass.
