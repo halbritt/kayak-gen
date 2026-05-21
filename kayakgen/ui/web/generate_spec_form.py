@@ -30,6 +30,7 @@ from typing import Any, Mapping
 
 from trame.widgets import vuetify3 as v3
 
+from kayakgen.eval.stability.accepted_fit import HullFamilyScope
 from kayakgen.search.active.spec import SearchSpec
 from kayakgen.search.objectives import (
     OBJECTIVE_METADATA,
@@ -37,6 +38,10 @@ from kayakgen.search.objectives import (
 )
 from kayakgen.search.pareto import HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS
 from kayakgen.search.sweep import SweepSpec
+from kayakgen.services.generative_jobs import (
+    CFDInLoopEvaluatorStatus,
+    cfd_in_loop_evaluator_status,
+)
 
 
 def _spec_default_schema_version(model: type) -> str:
@@ -619,12 +624,21 @@ def build_spec_from_form_state(state: Any) -> dict[str, Any]:
         _state_get(state, "generative_cfd_in_loop_acknowledged", False)
     )
     # The acknowledgement only matters when the operator has requested the
-    # CFD evaluator block; otherwise the acknowledgement is a no-op.
+    # CFD evaluator block and the evaluator is still opt-in-only. RFC 0058
+    # D-14 makes the acknowledgement implicit once the evaluator graduates
+    # to first-class.
     cfd_requested = bool(
         isinstance(evaluator_state, Mapping)
         and evaluator_state.get("cfd_in_loop", False)
     )
-    if cfd_requested and not cfd_in_loop_acknowledged:
+    cfd_in_loop_status = _state_get(
+        state, "generative_cfd_in_loop_status", "opt_in_only"
+    )
+    if (
+        cfd_requested
+        and cfd_in_loop_status != "first_class"
+        and not cfd_in_loop_acknowledged
+    ):
         raise GenerateSpecFormError(
             "cfd_in_loop_ack_required",
             (
@@ -768,9 +782,56 @@ def initialize_form_state(app: Any) -> None:
     # Concurrency advisory copy + initial banner state.
     state.generative_concurrency_advisory = ""
 
+    # D-14 default: with no accepted fits in the registry the helper always
+    # returns "opt_in_only" so the acknowledgement copy stays visible.
+    state.generative_cfd_in_loop_status = "opt_in_only"
+
     # Soft-warning copy: refreshed whenever the panel is rendered or the
     # manager list changes.
     refresh_concurrency_advisory(app)
+
+
+def _current_hull_family_scope(state: Any) -> HullFamilyScope | None:
+    """Build a one-element :class:`HullFamilyScope` from ``base_hull``.
+
+    Returns ``None`` until ``base_hull`` carries both ``hull_class`` and
+    ``design_hash`` (the spec-form base hull only pre-populates the
+    parameter rail keys today). The CFD-in-loop helper treats ``None`` as
+    "no scope to cover," which keeps the default at ``opt_in_only``.
+    """
+
+    base_hull = _state_get(state, "generative_base_hull", {})
+    if not isinstance(base_hull, Mapping):
+        return None
+    hull_class = base_hull.get("hull_class")
+    design_hash = base_hull.get("design_hash")
+    if not isinstance(hull_class, str) or not hull_class:
+        return None
+    if not isinstance(design_hash, str) or not design_hash:
+        return None
+    try:
+        return HullFamilyScope(
+            hull_class=hull_class,
+            design_hash_envelope=[design_hash],
+        )
+    except Exception:
+        return None
+
+
+def refresh_cfd_in_loop_status(app: Any) -> CFDInLoopEvaluatorStatus:
+    """Recompute CFD-in-loop graduation status for the form (D-14).
+
+    Always passes ``registry=()`` — no real fits land until RFC 0058
+    stage 4. The result is mirrored to
+    ``state.generative_cfd_in_loop_status`` so the rendered
+    acknowledgement checkbox hides reactively when the helper returns
+    ``"first_class"``.
+    """
+
+    scope = _current_hull_family_scope(app.state)
+    status = cfd_in_loop_evaluator_status(registry=(), hull_scope=scope)
+    app.state.generative_cfd_in_loop_status = status
+    return status
 
 
 def refresh_concurrency_advisory(app: Any) -> None:
@@ -818,6 +879,11 @@ def render_spec_form_section(app: Any) -> None:
     """
 
     initialize_form_state(app)
+
+    # D-14: compute CFD-in-loop graduation status from an empty registry
+    # so the acknowledgement checkbox hides reactively when a future
+    # accepted fit promotes the evaluator to "first_class".
+    refresh_cfd_in_loop_status(app)
 
     # D-5 soft advisory.
     v3.VCardText(
@@ -1041,6 +1107,12 @@ def render_spec_form_section(app: Any) -> None:
                     label=CFD_IN_LOOP_ACK_LABEL,
                     density="compact",
                     hide_details=True,
+                    # D-14: hide the acknowledgement copy once the CFD-in-loop
+                    # evaluator graduates to first-class. The toggle above
+                    # still renders.
+                    v_show=(
+                        "generative_cfd_in_loop_status === 'opt_in_only'",
+                    ),
                     **{"data-testid": "generative-cfd-in-loop-ack"},
                 )
 
@@ -1110,6 +1182,7 @@ __all__ = [
     "build_spec_from_form_state",
     "initialize_form_state",
     "objective_refusal_reason",
+    "refresh_cfd_in_loop_status",
     "refresh_concurrency_advisory",
     "render_spec_form_section",
 ]

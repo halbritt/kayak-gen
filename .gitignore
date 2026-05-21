@@ -4,9 +4,11 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .claude/worktrees/
+data/stability/
 
 # Build artifacts at the repo root (AGENTS.md: "*.stl at repo root — build
 # artifacts; generated, not authored"). The historical kayak_*.stl files
 # were removed in 2026-05-16 cleanup; any new root-level STL output from
 # `kayakgen generate` or `python generator.py` is ignored.
 /*.stl
+.claude/

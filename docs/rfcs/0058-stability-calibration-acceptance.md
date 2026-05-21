@@ -1,6 +1,6 @@
 # RFC 0058: Stability Calibration Acceptance and CFD-In-Loop Graduation
 
-Status: landed (schemas only)
+Status: landed
 Date: 2026-05-19
 Context: RFC 0056 lands the `MeasuredStabilityFixture` schema + validators
 for the strain-gauged moment-arm rig data ingest, but no acceptance gate
@@ -11,17 +11,30 @@ stability-side parallel and is the final gate that lets the CFD-in-loop
 evaluator in the Generate panel (RFC 0057 stage 4 / D-4) graduate from
 opt-in to first-class.
 
+Stage 4 caveat: no measured fixture or fit is promoted by this RFC landing.
+The first concrete promotion remains a successor workflow gated on D007/D014
+physical rig data and operator review.
+
 Stage 1 implementation note (2026-05-21): the schema-only slice landed
 `FixtureRef`, `HullFamilyScope`, `StabilityFitMetrics`,
 `ReviewerSignature`, `StabilityFitRecord`, and
 `StabilityFixturePromotionPacket` in
 `kayakgen/eval/stability/accepted_fit.py`, with default fit-threshold
 validators and promotion-packet gates. This landing does not promote a
-fixture or fit, does not resolve fixture paths on disk, does not add the
-`kayakgen stability` sub-app, does not implement
-`resolve_analytical_claim_label` or `cfd_in_loop_evaluator_status`, and
-does not change RFC 0043's
+fixture or fit, does not resolve fixture paths on disk, and does not
+change RFC 0043's
 `result_semantics="unvalidated_hydrostatic_comparison"` default.
+
+Stages 2 and 3 implementation note (2026-05-21): the contracts and
+read-model slice landed. `resolve_analytical_claim_label` returns the
+pre-existing analytical label unless an accepted stability fit covers the
+hull family; `cfd_in_loop_evaluator_status` defaults to `opt_in_only`,
+requires both analytical and CFD-in-loop accepted-fit evidence for
+`first_class`, and lets a persistent operator opt-out win. The
+schema-only `kayakgen stability` sub-app writes canonical fixture/fit
+manifests and a placeholder residual SVG; it does not ingest physical
+sensor data, run a real fit, or promote a fixture. The Generate panel
+uses the contracts for frontier colour and acknowledgement visibility.
 
 ## Problem
 
@@ -299,29 +312,28 @@ appears alongside hydrostatics / stability / mesh-diagnostics.
 
 ## Open Questions
 
-- What metric thresholds are correct? The defaults (`rmse_m ≤ 0.005`,
-  `mape ≤ 0.05`, `max_error_m ≤ 0.01`, `coverage ≥ 0.9`) are placeholders
-  derived from RFC 0056's pilot-run error budget. The first concrete
-  fit record should set production values.
-- Should the analytical-evaluator version pin be a single string or a
-  structured `EvaluatorVersion(record_hash, evaluator_id)` pair? A
-  single string is simpler; structured is more discoverable when
-  multiple evaluators land. Recommended: single string for now,
-  promote to structured when a second evaluator lands.
-- Should `cfd_in_loop_evaluator_status` honor the persistent setting
-  from RFC 0046's three-mechanism opt-in, or does graduation override
-  the operator's persistent choice? Recommended: persistent setting
-  wins. Graduation only changes the *default*; the operator can still
-  opt out per session.
-- Should `StabilityFitRecord` carry a notion of "expires_at" so a
-  fit that drifts from later measurements can age out? Probably yes,
-  but defer to a successor RFC once the first record is real.
-- Should the CFD-in-loop graduation also require a separate
-  `CfdInLoopFitRecord` (different from the analytical-stability one),
-  or is the analytical fit enough? The current proposal requires both.
-  This is conservative but adds another schema; the alternative
-  (analytical fit alone) is simpler but lets CFD-in-loop graduate on
-  evidence about an unrelated pipeline. Recommended: keep both.
+- Q1 — What metric thresholds are correct? Deferred to the first
+  concrete fit record. The defaults (`rmse_m ≤ 0.005`,
+  `mape ≤ 0.05`, `max_error_m ≤ 0.01`, `coverage ≥ 0.9`) remain
+  placeholders derived from RFC 0056's pilot-run error budget until
+  physical rig evidence exists.
+- Q2 — Should the analytical-evaluator version pin be a single string
+  or a structured `EvaluatorVersion(record_hash, evaluator_id)` pair?
+  Deferred to a successor RFC. The stage-1 record keeps the single
+  string.
+- Q3 — Should `cfd_in_loop_evaluator_status` honor the persistent
+  setting from RFC 0046's three-mechanism opt-in, or does graduation
+  override the operator's persistent choice? Resolved: persistent
+  opt-out wins over graduation. Graduation changes the default only.
+- Q4 — Should `StabilityFitRecord` carry a notion of "expires_at" so a
+  fit that drifts from later measurements can age out? Deferred to a
+  successor RFC once the first record is real.
+- Q5 — Should the CFD-in-loop graduation also require a separate
+  `CfdInLoopFitRecord`? Resolved for this landing: CFD-in-loop fit
+  evidence is identified by a structural `.kind` discriminator with
+  values such as `"analytical"` or `"cfd_in_loop"`; the formal
+  discriminator field on `StabilityFitRecord` is deferred to a
+  successor RFC.
 
 ## Implementation Path
 

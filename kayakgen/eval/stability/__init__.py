@@ -47,6 +47,7 @@ from kayakgen.eval.stability.high_angle_contracts import (
     GeneratedBodyGZCurve,
     GZNotImplementedError,
     _normalize_heel_grid,
+    resolve_analytical_claim_label,
 )
 from kayakgen.eval.stability.initial import evaluate_initial_stability
 from kayakgen.eval.stability.load_case import (
@@ -106,6 +107,7 @@ __all__ = [
     "evaluate_equilibrium_stability",
     "evaluate_gz_curve",
     "evaluate_initial_stability",
+    "resolve_analytical_claim_label",
     # Private symbols re-exported for byte-stable import compatibility with the
     # pre-split single-module ``kayakgen.eval.stability``.
     "_body_diagnostic_ref",

@@ -6,6 +6,7 @@ import pytest
 
 from kayakgen.search.active.spec import SearchSpec
 from kayakgen.search.sweep import SweepSpec
+from kayakgen.ui.web import generate_spec_form
 from kayakgen.ui.web.generate_spec_form import (
     CFD_IN_LOOP_ACK_LABEL,
     DEFAULT_EVALUATORS,
@@ -15,6 +16,7 @@ from kayakgen.ui.web.generate_spec_form import (
     admissible_objective_metrics,
     build_spec_from_form_state,
     objective_refusal_reason,
+    refresh_cfd_in_loop_status,
 )
 
 
@@ -286,6 +288,21 @@ def test_cfd_in_loop_block_requires_acknowledgement_when_requested() -> None:
     assert excinfo.value.code == "cfd_in_loop_ack_required"
 
 
+def test_cfd_in_loop_first_class_does_not_require_acknowledgement() -> None:
+    state = _search_form_state()
+    evals = dict(DEFAULT_EVALUATORS)
+    evals["cfd_in_loop"] = True
+    state["generative_evaluators"] = evals
+    state["generative_cfd_in_loop_status"] = "first_class"
+    state["generative_cfd_in_loop_acknowledged"] = False
+
+    payload = build_spec_from_form_state(state)
+
+    assert "cfd_in_loop" not in payload["evaluators"]
+    assert "cfd_in_loop_acknowledged" not in payload["evaluators"]
+    SearchSpec.model_validate(payload)
+
+
 def test_cfd_in_loop_block_emitted_when_acknowledged() -> None:
     state = _search_form_state()
     evals = dict(DEFAULT_EVALUATORS)
@@ -312,3 +329,46 @@ def test_cfd_in_loop_ack_label_is_pre_vetted_copy() -> None:
         CFD_IN_LOOP_ACK_LABEL
         == "I accept evaluation may take orders of magnitude longer"
     )
+
+
+# ---------------------------------------------------------------------------
+# refresh_cfd_in_loop_status — RFC 0058 stage 2 / workflow 0056 D-14
+# ---------------------------------------------------------------------------
+
+
+class _StubState:
+    """Minimal state shim that accepts arbitrary attribute writes."""
+
+
+class _StubApp:
+    def __init__(self) -> None:
+        self.state = _StubState()
+
+
+def test_refresh_cfd_in_loop_status_defaults_to_opt_in_only() -> None:
+    app = _StubApp()
+    status = refresh_cfd_in_loop_status(app)
+    # Empty registry + no scope on the form's base_hull keeps the helper at
+    # the default — the acknowledgement copy stays visible.
+    assert status == "opt_in_only"
+    assert app.state.generative_cfd_in_loop_status == "opt_in_only"
+
+
+def test_refresh_cfd_in_loop_status_mirrors_first_class(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = _StubApp()
+
+    def _stub_status(**_: object) -> str:
+        return "first_class"
+
+    monkeypatch.setattr(
+        generate_spec_form, "cfd_in_loop_evaluator_status", _stub_status
+    )
+
+    status = refresh_cfd_in_loop_status(app)
+    # When the helper graduates the evaluator to first-class, the form
+    # mirrors the literal onto state so the rendered acknowledgement
+    # checkbox hides via Trame's reactive v_show.
+    assert status == "first_class"
+    assert app.state.generative_cfd_in_loop_status == "first_class"

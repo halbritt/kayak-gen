@@ -30,6 +30,7 @@ from kayakgen.eval.stability.heeled_section_integrator import (
 from kayakgen.eval.stability.high_angle_contracts import (
     GeneratedBodyGZCurve,
     _normalize_heel_grid,
+    resolve_analytical_claim_label,
 )
 from kayakgen.eval.stability.load_case import GRAVITY_M_S2
 from kayakgen.eval.stability.warnings import (
@@ -381,6 +382,7 @@ def _generated_body_gz_curve(
     warnings = list(GZ_GENERATED_BODY_WARNINGS)
     if load_case.kg_reference_value_m is not None and load_case.kg_reference != "keel":
         warnings.append("kg_reference_normalized_to_keel")
+    result_semantics = resolve_analytical_claim_label(hull, fit_registry=())
     return GeneratedBodyGZCurve(
         status="computed",
         method="fixed_trim_generated_body_v1",
@@ -400,6 +402,7 @@ def _generated_body_gz_curve(
         ),
         warnings=_dedupe(warnings),
         heel_point_metadata=heel_metadata,
+        result_semantics=result_semantics,
         **_gz_summary_metrics(heel_deg, gz_m),
     )
 
