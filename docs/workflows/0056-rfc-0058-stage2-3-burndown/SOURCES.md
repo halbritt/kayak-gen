@@ -1,0 +1,26 @@
+# Workflow 0056 Sources
+
+- `AGENTS.md`
+- `docs/PRD.md`
+- `docs/ROADMAP.md`
+- `docs/DECISION_LOG.md`
+- `docs/rfcs/README.md`
+- `docs/rfcs/0058-stability-calibration-acceptance.md`
+- `docs/rfcs/0043-web-hosted-browser-acceptance.md`
+- `docs/rfcs/0046-cfd-evaluator-three-mechanism-opt-in.md`
+- `docs/rfcs/0054-resistance-residual-plot.md`
+- `docs/rfcs/0057-generative-search-jobs.md`
+- `docs/workflows/0055-rfc-0058-stage1-stability-fit-schemas/STAGE_1_DECISIONS.md`
+- `docs/workflows/0056-rfc-0058-stage2-3-burndown/STAGE_2_3_DECISIONS.md`
+- `striatum/0054-rfc-0057-stage-4-ui-polish/ledger/FINDINGS_LEDGER.md`
+- `kayakgen/eval/stability/accepted_fit.py`
+- `kayakgen/eval/stability/high_angle_contracts.py`
+- `kayakgen/eval/stability/evaluator.py`
+- `kayakgen/services/generative_jobs.py`
+- `kayakgen/ui/web/generate_spec_form.py`
+- `kayakgen/ui/web/generate_frontier_view.py`
+- `kayakgen/ui/web/generate_state_listener.py`
+- `kayakgen/cli/main.py`
+- `tests/test_stability_accepted_fit.py`
+- `tests/test_high_angle_stability_evaluator.py`
+- `tests/test_generate_state_listener.py`

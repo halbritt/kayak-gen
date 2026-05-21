@@ -1,0 +1,397 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0056-rfc-0058-stage2-3-burndown",
+  "workflow_version": "2026-05-21",
+  "name": "0056 - RFC 0058 stage 2+3 + NB-1 burndown",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0056-rfc-0058-stage2-3-burndown",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "codex"
+  },
+  "lanes": {
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["bash", ".striatum/bin/codex-supervised-wrapper.sh"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["bash", ".striatum/bin/claude-supervised-wrapper.sh"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["bash", ".striatum/bin/gemini-supervised-wrapper.sh"],
+      "capabilities": ["review", "synthesis"]
+    }
+  },
+  "roles": {
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "integrator": {"definition_path": "roles/integrator.md"},
+    "docs_sync": {"definition_path": "roles/docs_sync.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_claims": {"definition_path": "roles/reviewer_claims.md"},
+    "reviewer_ops_tests": {"definition_path": "roles/reviewer_ops_tests.md"},
+    "findings_ledger": {"definition_path": "roles/findings_ledger.md"},
+    "remediator": {"definition_path": "roles/remediator.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/PRD.md", "required": true},
+    {"path": "docs/ROADMAP.md", "required": true},
+    {"path": "docs/DECISION_LOG.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/rfcs/0058-stability-calibration-acceptance.md", "required": true},
+    {"path": "docs/rfcs/0057-generative-search-jobs.md", "required": true},
+    {"path": "docs/workflows/0055-rfc-0058-stage1-stability-fit-schemas/STAGE_1_DECISIONS.md", "required": true},
+    {"path": "docs/workflows/0056-rfc-0058-stage2-3-burndown/STAGE_2_3_DECISIONS.md", "required": true},
+    {"path": "striatum/0054-rfc-0057-stage-4-ui-polish/ledger/FINDINGS_LEDGER.md", "required": true},
+    {"path": "kayakgen/eval/stability/accepted_fit.py", "required": true},
+    {"path": "kayakgen/eval/stability/high_angle_contracts.py", "required": true},
+    {"path": "kayakgen/eval/stability/evaluator.py", "required": true},
+    {"path": "kayakgen/services/generative_jobs.py", "required": true},
+    {"path": "kayakgen/ui/web/generate_spec_form.py", "required": true},
+    {"path": "kayakgen/ui/web/generate_frontier_view.py", "required": true},
+    {"path": "kayakgen/ui/web/generate_state_listener.py", "required": true},
+    {"path": "kayakgen/cli/main.py", "required": true},
+    {"path": "tests/test_stability_accepted_fit.py", "required": true},
+    {"path": "tests/test_generate_state_listener.py", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 6,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement_claim_label",
+      "type": "synthesis",
+      "title": "Implement resolve_analytical_claim_label (RFC 0058 stage 2)",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage2_3_authors",
+      "fresh_session_required": true,
+      "objective": "Land resolve_analytical_claim_label(hull, fit_registry) in kayakgen/eval/stability/high_angle_contracts.py per STAGE_2_3_DECISIONS.md rows D-1 through D-4. Widen GeneratedBodyGZCurve.result_semantics Literal to include validated_hydrostatic_comparison while keeping the default literal. Export the resolver from kayakgen/eval/stability/__init__.py. Cover the empty-registry default, hull-class mismatch, design-hash-envelope mismatch, accepted-record match, and rejected-record paths in tests/test_resolve_analytical_claim_label.py. No new claim-state literal beyond the two named in the RFC.",
+      "task_prompt": {"path": "prompts/implement_claim_label.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/eval/stability/high_angle_contracts.py",
+          "kayakgen/eval/stability/__init__.py",
+          "tests/test_resolve_analytical_claim_label.py",
+          "striatum/0056-rfc-0058-stage2-3-burndown/implementation/claim_label/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0056-rfc-0058-stage2-3-burndown/implementation/claim_label/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_cfd_in_loop_status",
+      "type": "synthesis",
+      "title": "Implement cfd_in_loop_evaluator_status (RFC 0058 stage 2)",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage2_3_authors",
+      "fresh_session_required": true,
+      "objective": "Add cfd_in_loop_evaluator_status(registry, hull_scope, persistent_opt_in) helper to kayakgen/services/generative_jobs.py per STAGE_2_3_DECISIONS.md rows D-5 through D-8. The helper is additive; do not modify any existing function in generative_jobs.py. The default (empty registry) returns 'opt_in_only'. Cover analytical-only, cfd_in_loop-only, both-present, persistent-opt-in branches in tests/test_cfd_in_loop_evaluator_status.py using SimpleNamespace fake records.",
+      "task_prompt": {"path": "prompts/implement_cfd_in_loop_status.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/services/generative_jobs.py",
+          "tests/test_cfd_in_loop_evaluator_status.py",
+          "striatum/0056-rfc-0058-stage2-3-burndown/implementation/cfd_in_loop_status/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0056-rfc-0058-stage2-3-burndown/implementation/cfd_in_loop_status/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_cli_stability",
+      "type": "synthesis",
+      "title": "Implement kayakgen stability CLI sub-app (RFC 0058 stage 3)",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage2_3_authors",
+      "fresh_session_required": true,
+      "objective": "Land kayakgen/cli/stability_cli.py with the four subcommands ingest-rig-run, promote-fixture, accept-fit, residual-plot per STAGE_2_3_DECISIONS.md rows D-9 through D-12. Register the sub-app via a single app.add_typer line in kayakgen/cli/main.py. All four commands are schema-only — they validate inputs, write canonical manifests, refuse overwrites. residual-plot writes a vendored SVG stub containing fit_id, hull_class, and the four metric values; no real curve drawing. Tests in tests/test_cli_stability.py use CliRunner + tmp_path. Add data/stability/ to .gitignore if not present.",
+      "task_prompt": {"path": "prompts/implement_cli_stability.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/cli/stability_cli.py",
+          "kayakgen/cli/main.py",
+          "tests/test_cli_stability.py",
+          ".gitignore",
+          "striatum/0056-rfc-0058-stage2-3-burndown/implementation/cli_stability/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0056-rfc-0058-stage2-3-burndown/implementation/cli_stability/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_frontier_view_colour",
+      "type": "synthesis",
+      "title": "Wire frontier-view scatter colour (RFC 0058 stage 3)",
+      "role_id": "implementer",
+      "lane_id": "claude",
+      "parallel_group": "stage2_3_authors",
+      "fresh_session_required": true,
+      "objective": "Wire resolve_analytical_claim_label into kayakgen/ui/web/generate_frontier_view.py per STAGE_2_3_DECISIONS.md row D-13. Validated points use theme.kg-state-validated; unvalidated points use theme.kg-state-raw. No new theme token, no new claim-state literal, no scatter-API change. Extend tests/test_generate_frontier_view.py with one validated and one unvalidated test using SimpleNamespace fake records.",
+      "task_prompt": {"path": "prompts/implement_frontier_view_colour.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/ui/web/generate_frontier_view.py",
+          "tests/test_generate_frontier_view.py",
+          "striatum/0056-rfc-0058-stage2-3-burndown/implementation/frontier_view_colour/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0056-rfc-0058-stage2-3-burndown/implementation/frontier_view_colour/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "implement_nb1_clock_seam",
+      "type": "synthesis",
+      "title": "Stepped-clock seam for auto-poll listener (workflow 0054 NB-1)",
+      "role_id": "implementer",
+      "lane_id": "claude",
+      "parallel_group": "stage2_3_authors",
+      "fresh_session_required": true,
+      "objective": "Add an opt-in stepped-clock seam to install_generate_state_listener per STAGE_2_3_DECISIONS.md rows D-16 and D-17. The new time_provider and clock_step keyword args default to None / monotonic, preserving existing behavior. Extend tests/test_generate_state_listener.py with stepped-clock variants of cadence/terminal-refresh/coalesce/reinstall tests — verify by monkeypatching time.sleep to raise. Do NOT delete the existing wall-clock tests.",
+      "task_prompt": {"path": "prompts/implement_nb1_clock_seam.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/ui/web/generate_state_listener.py",
+          "tests/test_generate_state_listener.py",
+          "striatum/0056-rfc-0058-stage2-3-burndown/implementation/nb1_clock_seam/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0056-rfc-0058-stage2-3-burndown/implementation/nb1_clock_seam/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "synchronize_docs",
+      "type": "synthesis",
+      "title": "Synchronize docs for RFC 0058 stage 2+3 landing",
+      "role_id": "docs_sync",
+      "lane_id": "codex",
+      "parallel_group": "stage2_3_authors",
+      "fresh_session_required": true,
+      "objective": "Update CHANGELOG.md (new ### Added entry under Unreleased), docs/DECISION_LOG.md (new D039 row), docs/ROADMAP.md (flip 'Stability calibration acceptance' from 'landed (schemas only)' to 'landed'), docs/rfcs/0058-stability-calibration-acceptance.md (flip Status to 'landed' with Stage-4 caveat; resolve/defer the five Open Questions per the docs_sync.md prompt), docs/rfcs/README.md (status update), and this workflow's OPERATOR_REPORT.md. Do not change any code file. Do not introduce new claim-state literals.",
+      "task_prompt": {"path": "prompts/docs_sync.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "CHANGELOG.md",
+          "docs/DECISION_LOG.md",
+          "docs/ROADMAP.md",
+          "docs/rfcs/README.md",
+          "docs/rfcs/0058-stability-calibration-acceptance.md",
+          "docs/workflows/0056-rfc-0058-stage2-3-burndown/OPERATOR_REPORT.md",
+          "striatum/0056-rfc-0058-stage2-3-burndown/implementation/docs_sync/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0056-rfc-0058-stage2-3-burndown/implementation/docs_sync/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "integrate",
+      "type": "synthesis",
+      "title": "Integrate stage 2 contracts at their call sites",
+      "role_id": "integrator",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Wire resolve_analytical_claim_label into kayakgen/eval/stability/evaluator.py at the GeneratedBodyGZCurve construction site (pass fit_registry=()). Wire cfd_in_loop_evaluator_status into kayakgen/ui/web/generate_spec_form.py at the evaluators-block render (pass registry=()). The default behavior must remain byte-stable — no fixture is promoted, no real fit is loaded. Extend tests/test_high_angle_stability_evaluator.py and tests/test_generate_spec_form.py with one wired-default test each. Run the full repo suite minus the env-gated OpenFOAM smoke + ruff + the four boundary scans before publishing.",
+      "task_prompt": {"path": "prompts/integrate.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/eval/stability/evaluator.py",
+          "kayakgen/ui/web/generate_spec_form.py",
+          "tests/test_high_angle_stability_evaluator.py",
+          "tests/test_generate_spec_form.py",
+          "striatum/0056-rfc-0058-stage2-3-burndown/integration/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0056-rfc-0058-stage2-3-burndown/integration/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review traceability to STAGE_2_3_DECISIONS.md",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Review every change made under workflow 0056 for traceability to STAGE_2_3_DECISIONS.md and RFC 0058. Confirm the decision rows map to concrete file/line changes; flag any scope creep.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0056-rfc-0058-stage2-3-burndown/reviews/traceability/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0056-rfc-0058-stage2-3-burndown/reviews/traceability/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_claims",
+      "type": "review",
+      "title": "Review claims and user-facing boundaries",
+      "role_id": "reviewer_claims",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Review every workflow 0056 change for overclaiming. Confirm no new claim-state literal beyond the two named in RFC 0058 was introduced. Confirm the form-builder acknowledgement copy is unchanged in opt_in_only mode (the default with empty registry). Confirm the residual-plot stub does not present its placeholder content as a real validation. Confirm the forbidden-claim scrub list in tests/test_web_layout.py is unaffected.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0056-rfc-0058-stage2-3-burndown/reviews/claims/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0056-rfc-0058-stage2-3-burndown/reviews/claims/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_ops_tests",
+      "type": "review",
+      "title": "Review tests, determinism, and boundary scans",
+      "role_id": "reviewer_ops_tests",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Review workflow 0056's tests for determinism, branch coverage of the two contract functions, every CLI subcommand happy/refuse path, the frontier-view colour wiring, the form-builder hide branch, and the NB-1 clock-seam variants. Confirm the full repo suite stays green and that ruff + the forbidden-copy / ui-theme orphan / import-boundary / services-boundary scans all pass.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0056-rfc-0058-stage2-3-burndown/reviews/ops_tests/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0056-rfc-0058-stage2-3-burndown/reviews/ops_tests/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "synthesis",
+      "title": "Build findings ledger",
+      "role_id": "findings_ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate review findings into must-fix remediation items and non-blocking successor items without inventing new design scope.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0056-rfc-0058-stage2-3-burndown/ledger/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "findings_ledger", "kind": "findings_ledger", "path": "striatum/0056-rfc-0058-stage2-3-burndown/ledger/FINDINGS_LEDGER.md", "required": true}
+      ]
+    },
+    {
+      "id": "remediate_findings",
+      "type": "synthesis",
+      "title": "Remediate review findings",
+      "role_id": "remediator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Fix must-fix findings from the ledger, update CHANGELOG.md and OPERATOR_REPORT.md where appropriate, and preserve every settled decision row and the byte-stable empty-registry default.",
+      "task_prompt": {"path": "prompts/remediate.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "CHANGELOG.md",
+          "docs/DECISION_LOG.md",
+          "docs/ROADMAP.md",
+          "docs/rfcs/README.md",
+          "docs/rfcs/0058-stability-calibration-acceptance.md",
+          "docs/workflows/0056-rfc-0058-stage2-3-burndown/OPERATOR_REPORT.md",
+          "kayakgen/eval/stability/",
+          "kayakgen/services/generative_jobs.py",
+          "kayakgen/ui/web/generate_frontier_view.py",
+          "kayakgen/ui/web/generate_spec_form.py",
+          "kayakgen/ui/web/generate_state_listener.py",
+          "kayakgen/cli/stability_cli.py",
+          "kayakgen/cli/main.py",
+          "tests/",
+          ".gitignore",
+          "striatum/0056-rfc-0058-stage2-3-burndown/remediation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0056-rfc-0058-stage2-3-burndown/remediation/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final review workflow 0056",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Final-review workflow 0056 for accepted scope, decision fidelity, no-claims boundaries, and validation evidence. Confirm RFC 0058 status flipped to 'landed' with Stage-4 caveat and that the empty-registry default still yields the unvalidated_hydrostatic_comparison label and the opt_in_only evaluator status.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0056-rfc-0058-stage2-3-burndown/final/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "final_review", "kind": "finding", "path": "striatum/0056-rfc-0058-stage2-3-burndown/final/FINAL_REVIEW.md", "required": true}
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "implement_claim_label", "to": "implement_frontier_view_colour", "on": "completed"},
+    {"from": "implement_claim_label", "to": "integrate", "on": "completed"},
+    {"from": "implement_cfd_in_loop_status", "to": "integrate", "on": "completed"},
+    {"from": "implement_cli_stability", "to": "integrate", "on": "completed"},
+
+    {"from": "implement_claim_label", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_cfd_in_loop_status", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_cli_stability", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_frontier_view_colour", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_nb1_clock_seam", "to": "review_traceability", "on": "completed"},
+    {"from": "synchronize_docs", "to": "review_traceability", "on": "completed"},
+    {"from": "integrate", "to": "review_traceability", "on": "completed"},
+
+    {"from": "implement_claim_label", "to": "review_claims", "on": "completed"},
+    {"from": "implement_cfd_in_loop_status", "to": "review_claims", "on": "completed"},
+    {"from": "implement_cli_stability", "to": "review_claims", "on": "completed"},
+    {"from": "implement_frontier_view_colour", "to": "review_claims", "on": "completed"},
+    {"from": "implement_nb1_clock_seam", "to": "review_claims", "on": "completed"},
+    {"from": "synchronize_docs", "to": "review_claims", "on": "completed"},
+    {"from": "integrate", "to": "review_claims", "on": "completed"},
+
+    {"from": "implement_claim_label", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_cfd_in_loop_status", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_cli_stability", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_frontier_view_colour", "to": "review_ops_tests", "on": "completed"},
+    {"from": "implement_nb1_clock_seam", "to": "review_ops_tests", "on": "completed"},
+    {"from": "synchronize_docs", "to": "review_ops_tests", "on": "completed"},
+    {"from": "integrate", "to": "review_ops_tests", "on": "completed"},
+
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_claims", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops_tests", "to": "findings_ledger", "on": "completed"},
+
+    {"from": "findings_ledger", "to": "remediate_findings", "on": "completed"},
+    {"from": "remediate_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {"from": "final_review", "to": "remediate_findings", "on_verdict": "needs_revision", "max_iterations": 1}
+  ]
+}
