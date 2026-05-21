@@ -36,6 +36,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 JobKind = Literal["sweep", "search"]
 
+CFDInLoopEvaluatorStatus = Literal["opt_in_only", "first_class"]
+
 JobState = Literal[
     "queued",
     "running",
@@ -54,6 +56,55 @@ JobErrorKind = Literal[
     "cancelled_by_operator",
     "internal_error",
 ]
+
+
+def cfd_in_loop_evaluator_status(
+    *,
+    registry: Any,
+    hull_scope: Any,
+    persistent_opt_in: bool | None = None,
+) -> CFDInLoopEvaluatorStatus:
+    """Return whether CFD-in-loop has graduated from opt-in-only status.
+
+    RFC 0058 stage 2 intentionally uses a structural registry: records are
+    considered only when they expose ``kind`` as either ``"analytical"`` or
+    ``"cfd_in_loop"`` and carry an accepted ``hull_family_scope`` covering
+    the requested scope. The real fit-kind discriminator is deferred.
+    """
+
+    if persistent_opt_in is False:
+        return "opt_in_only"
+
+    has_analytical_fit = False
+    has_cfd_in_loop_fit = False
+    for record in registry:
+        if getattr(record, "acceptance_verdict", None) != "accepted":
+            continue
+        record_scope = getattr(record, "hull_family_scope", None)
+        if not _stability_scope_covers(record_scope, hull_scope):
+            continue
+        kind = getattr(record, "kind", None)
+        if kind == "analytical":
+            has_analytical_fit = True
+        elif kind == "cfd_in_loop":
+            has_cfd_in_loop_fit = True
+
+    if has_analytical_fit and has_cfd_in_loop_fit:
+        return "first_class"
+    return "opt_in_only"
+
+
+def _stability_scope_covers(record_scope: Any, hull_scope: Any) -> bool:
+    if record_scope is None or hull_scope is None:
+        return False
+    if getattr(record_scope, "hull_class", None) != getattr(hull_scope, "hull_class", None):
+        return False
+
+    record_hashes = set(getattr(record_scope, "design_hash_envelope", ()) or ())
+    hull_hashes = set(getattr(hull_scope, "design_hash_envelope", ()) or ())
+    if not record_hashes or not hull_hashes:
+        return False
+    return hull_hashes.issubset(record_hashes)
 
 
 class GenerativeJobError(BaseModel):

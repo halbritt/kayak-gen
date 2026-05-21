@@ -29,3 +29,16 @@ Started: 2026-05-21
   `unvalidated_hydrostatic_comparison` until a future workflow
   lands the first accepted `StabilityFitRecord`. No fixture is
   promoted by this workflow.
+- 2026-05-21 docs sync: updated `CHANGELOG.md`,
+  `docs/DECISION_LOG.md` (D039), `docs/ROADMAP.md`,
+  `docs/rfcs/README.md`, and RFC 0058 for the stages 2 + 3
+  landing. The docs now mark RFC 0058 as `landed`, resolve/defer
+  the five open questions, keep the Stage-4 first-promotion gate on
+  D007/D014 physical rig data, and preserve the existing no-claim
+  boundary.
+- 2026-05-21 remediation: fixed MF-1 from the workflow findings
+  ledger. `build_spec_from_form_state()` now mirrors the renderer's
+  first-class CFD-in-loop branch: if
+  `generative_cfd_in_loop_status == "first_class"`, the hidden
+  acknowledgement is treated as implicit. The default `opt_in_only`
+  branch still refuses unacknowledged CFD-in-loop requests.

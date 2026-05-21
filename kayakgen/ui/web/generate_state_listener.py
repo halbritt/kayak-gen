@@ -10,13 +10,19 @@ It is cancellable: tearing down the app via :func:`stop_generate_state_listener`
 sets a stop flag and the next tick exits cleanly. The listener coalesces its
 own refresh with a near-simultaneous manual "Refresh Jobs" press so one click
 does not double-hit the manager.
+
+RFC 0058 workflow 0056 / D-16: an optional stepped-clock seam lets tests drive
+iterations deterministically. Passing ``clock_step`` to
+:func:`install_generate_state_listener` skips the background thread; callers
+then advance the listener by calling :func:`tick_generate_state_listener`.
+``time_provider`` lets tests substitute the clock used for coalesce timing.
 """
 
 from __future__ import annotations
 
 import threading
 import time
-from typing import Any
+from typing import Any, Callable
 
 GENERATIVE_POLL_RUNNING_SECONDS = 1.0
 """Polling cadence while any job is in flight."""
@@ -42,6 +48,8 @@ class _PollHandle:
         self.last_refresh_at = 0.0
         self.in_auto_refresh = False
         self.original_refresh: Any | None = None
+        self.clock: Callable[[], float] = time.monotonic
+        self.clock_step: float | None = None
 
 
 def install_generate_state_listener(
@@ -49,15 +57,26 @@ def install_generate_state_listener(
     *,
     running_seconds: float = GENERATIVE_POLL_RUNNING_SECONDS,
     idle_seconds: float = GENERATIVE_POLL_IDLE_SECONDS,
+    time_provider: Callable[[], float] | None = None,
+    clock_step: float | None = None,
 ) -> None:
     """Install the auto-poll listener on a :class:`KayakgenApp`.
 
     Idempotent: re-installing on the same app stops the prior listener first.
+
+    ``time_provider`` substitutes the clock used by the listener (defaults to
+    :func:`time.monotonic`). ``clock_step`` opts into the stepped-clock seam
+    (RFC 0058 D-16): when set, no background thread is started; callers drive
+    iterations via :func:`tick_generate_state_listener`. Each tick is treated
+    as advancing the listener by ``clock_step`` seconds — the test owns the
+    ``time_provider`` and is responsible for keeping the two consistent.
     """
 
     stop_generate_state_listener(app)
 
     handle = _PollHandle()
+    handle.clock = time_provider if time_provider is not None else time.monotonic
+    handle.clock_step = clock_step
     handle.original_refresh = getattr(app.ctrl, "refresh_generative_jobs", None)
     app._generative_poll_handle = handle  # noqa: SLF001 - app extension hook
     if _can_wrap_refresh_callback(handle.original_refresh):
@@ -65,6 +84,11 @@ def install_generate_state_listener(
             handle,
             handle.original_refresh,
         )
+
+    if clock_step is not None:
+        # Stepped-clock mode: no thread. Tests advance via
+        # tick_generate_state_listener.
+        return
 
     def _tick() -> None:
         while not handle.stop_event.is_set():
@@ -86,6 +110,26 @@ def install_generate_state_listener(
         daemon=True,
     )
     handle.thread.start()
+
+
+def tick_generate_state_listener(app: Any, *, iterations: int = 1) -> None:
+    """Advance a stepped-clock listener by ``iterations`` ticks.
+
+    A no-op when the listener was installed in wall-clock mode (no
+    ``clock_step``) or is not installed at all. Each iteration runs the same
+    work the wall-clock thread would run in its loop body, minus the sleep.
+    """
+
+    handle = getattr(app, "_generative_poll_handle", None)
+    if handle is None or handle.clock_step is None:
+        return
+    for _ in range(iterations):
+        if handle.stop_event.is_set():
+            return
+        summaries = _list_summaries(app)
+        _refresh_jobs(app, handle, force=not handle.job_states)
+        _refresh_terminal_details(app, handle, summaries)
+        _remember_states(handle, summaries)
 
 
 def stop_generate_state_listener(app: Any) -> None:
@@ -140,7 +184,7 @@ def _wrap_manual_refresh(handle: _PollHandle, callback: Any) -> Any:
         result = callback(*args, **kwargs)
         if not handle.in_auto_refresh:
             with handle.lock:
-                handle.last_refresh_at = time.monotonic()
+                handle.last_refresh_at = handle.clock()
         return result
 
     return _wrapped
@@ -165,7 +209,7 @@ def _refresh_jobs(app: Any, handle: _PollHandle, *, force: bool = False) -> None
     callback = getattr(app.ctrl, "refresh_generative_jobs", None)
     if callback is None:
         return
-    now = time.monotonic()
+    now = handle.clock()
     with handle.lock:
         if (
             not force
@@ -180,7 +224,7 @@ def _refresh_jobs(app: Any, handle: _PollHandle, *, force: bool = False) -> None
     finally:
         with handle.lock:
             handle.in_auto_refresh = False
-            handle.last_refresh_at = time.monotonic()
+            handle.last_refresh_at = handle.clock()
 
 
 def _refresh_terminal_details(app: Any, handle: _PollHandle, summaries: list[Any]) -> None:
@@ -231,4 +275,5 @@ __all__ = [
     "has_in_flight_jobs",
     "install_generate_state_listener",
     "stop_generate_state_listener",
+    "tick_generate_state_listener",
 ]

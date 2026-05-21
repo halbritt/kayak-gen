@@ -13,6 +13,7 @@ from kayakgen.cli.high_angle_gz import build_high_angle_gz_block, parse_heel_gri
 from kayakgen.cli.migrate_geometry_cli import migrate_geometry_command
 from kayakgen.cli.runs_cli import runs_app
 from kayakgen.cli.sensitivity_cli import sensitivity_command
+from kayakgen.cli.stability_cli import stability_app
 from kayakgen.eval.contract import EvaluationResult
 from kayakgen.eval.contract import LoadCase
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
@@ -50,6 +51,7 @@ calibration_app = typer.Typer(
 )
 app.add_typer(calibration_app, name="calibration")
 app.add_typer(runs_app, name="runs")
+app.add_typer(stability_app, name="stability")
 app.command("sensitivity")(sensitivity_command)
 app.command("design-report")(design_report_command)
 app.command("migrate-geometry")(migrate_geometry_command)
@@ -500,7 +502,7 @@ def _echo_cfd_warnings(run: CfdRunRecord) -> None:
         typer.echo(CFD_FIXTURE_RESULTS_WARNING)
 
 
-@app.command()
+@stability_app.command("legacy", hidden=True)
 def stability(
     hull_path: Path = typer.Argument(..., exists=True, dir_okay=False),
     out: Path | None = typer.Option(None, "--out", help="Where to write stability JSON."),

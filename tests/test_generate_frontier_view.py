@@ -182,6 +182,71 @@ def test_build_view_model_refuses_forbidden_axis_metric() -> None:
 
 
 # ---------------------------------------------------------------------------
+# RFC 0058 stage 3 / D-13: analytical-claim label colour wiring.
+# ---------------------------------------------------------------------------
+
+
+def _hull_bearing_payload(hull: Any) -> dict[str, Any]:
+    return {
+        "result_semantics": "raw_unvalidated",
+        "job_id": "job-claim-label",
+        "frontier_available": True,
+        "frontier": [
+            {
+                "candidate_key": "cand-a",
+                "status": "complete",
+                "parameters": {"beam_wl_m": 0.48, "draft_m": 0.11},
+                "summary": {
+                    "GM0_m": 0.32,
+                    "displaced_mass_kg": 18.5,
+                    "convergence_flag": "converged",
+                    "claim_state": "raw_unvalidated",
+                },
+                "hull": hull,
+            },
+        ],
+    }
+
+
+def test_build_view_model_hull_with_empty_registry_marks_scatter_kg_state_raw() -> None:
+    hull = SimpleNamespace(hull_class="sea kayak", design_hash="design-hash-001")
+    payload = _hull_bearing_payload(hull)
+
+    view = build_frontier_view_model(
+        payload, x_metric="GM0_m", y_metric="displaced_mass_kg"
+    )
+
+    assert len(view["scatter_points"]) == 1
+    assert view["scatter_points"][0]["claim_label_color_token"] == "kg-state-raw"
+    assert view["rows"][0]["claim_label_color_token"] == "kg-state-raw"
+
+
+def test_build_view_model_hull_with_covering_accepted_fit_marks_scatter_kg_state_validated() -> None:
+    hull = SimpleNamespace(hull_class="sea kayak", design_hash="design-hash-001")
+    scope = SimpleNamespace(
+        hull_class="sea kayak",
+        design_hash_envelope=("design-hash-001",),
+    )
+    record = SimpleNamespace(
+        acceptance_verdict="accepted",
+        hull_family_scope=scope,
+        kind="analytical",
+    )
+    payload = _hull_bearing_payload(hull)
+
+    view = build_frontier_view_model(
+        payload,
+        x_metric="GM0_m",
+        y_metric="displaced_mass_kg",
+        fit_registry=(record,),
+    )
+
+    assert len(view["scatter_points"]) == 1
+    assert view["scatter_points"][0]["claim_label_color_token"] == "kg-state-validated"
+    assert view["rows"][0]["claim_label_color_token"] == "kg-state-validated"
+
+
+# ---------------------------------------------------------------------------
 # Forbidden-claim scan: every string output of build_frontier_view_model
 # is scrubbed of banned tokens.
 # ---------------------------------------------------------------------------

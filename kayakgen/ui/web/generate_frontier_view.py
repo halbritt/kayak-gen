@@ -26,8 +26,11 @@ view-model helpers drop those keys defensively even if a payload's
 from __future__ import annotations
 
 import html
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
+from kayakgen.eval.stability.high_angle_contracts import (
+    resolve_analytical_claim_label,
+)
 from kayakgen.ui import theme
 from kayakgen.ui.web.state import HULL_STATE_FIELDS
 
@@ -71,6 +74,21 @@ _CONVERGENCE_MARKERS: Mapping[str, str] = {
     "not_converged": "x",
     "iteration_cap": "s",
     "unknown": "D",
+}
+
+
+# RFC 0058 stage 3 / D-13: analytical-claim label → CSS class name. The class
+# names below are wired to existing theme tokens by :func:`frontier_view_css`;
+# no new theme token is introduced.
+_ANALYTICAL_CLAIM_LABEL_CSS_CLASS: Mapping[str, str] = {
+    "validated_hydrostatic_comparison": "kg-state-validated",
+    "unvalidated_hydrostatic_comparison": "kg-state-raw",
+}
+
+# CSS-class name → existing theme token used to fill the swatch.
+_ANALYTICAL_CSS_CLASS_THEME_TOKEN: Mapping[str, str] = {
+    "kg-state-validated": "state-success",
+    "kg-state-raw": "state-raw",
 }
 
 
@@ -186,12 +204,33 @@ def _objective_label(metric: str) -> str:
     return metric
 
 
+def _resolve_claim_label_color_token(
+    row: Mapping[str, Any],
+    fit_registry: Iterable[Any],
+) -> str | None:
+    """Compute the RFC 0058 analytical-claim CSS-class for a frontier row.
+
+    Returns ``"kg-state-validated"`` when the row carries a hull whose
+    family is covered by an accepted fit in ``fit_registry``, otherwise
+    ``"kg-state-raw"`` when a hull is present but no covering fit, and
+    ``None`` when the row has no hull reference (preserves the prior
+    scatter-point shape for hull-less payloads).
+    """
+
+    hull = row.get("hull") if isinstance(row, Mapping) else None
+    if hull is None:
+        return None
+    label = resolve_analytical_claim_label(hull, fit_registry)
+    return _ANALYTICAL_CLAIM_LABEL_CSS_CLASS.get(label)
+
+
 def build_frontier_view_model(
     frontier_payload: Mapping[str, Any],
     *,
     x_metric: str,
     y_metric: str,
     z_metric: str | None = None,
+    fit_registry: Iterable[Any] = (),
 ) -> dict[str, Any]:
     """Project a frontier payload onto the scatter/table view-model.
 
@@ -247,6 +286,7 @@ def build_frontier_view_model(
         }
         claim_state = _claim_state_for(row)
         convergence_flag = _convergence_flag_for(row)
+        claim_label_color_token = _resolve_claim_label_color_token(row, fit_registry)
         x_value = _coerce_float(summary.get(x_metric))
         y_value = _coerce_float(summary.get(y_metric))
         z_value: float | None = None
@@ -264,6 +304,7 @@ def build_frontier_view_model(
                 "z": z_value,
                 "z_color_ratio": _z_color_ratio(z_value, z_low, z_high),
                 "parameters": params,
+                "claim_label_color_token": claim_label_color_token,
             }
         )
 
@@ -284,6 +325,7 @@ def build_frontier_view_model(
                 "label": candidate_key,
                 "claim_state": claim_state,
                 "convergence_flag": convergence_flag,
+                "claim_label_color_token": claim_label_color_token,
             }
         )
 
@@ -509,7 +551,11 @@ def refresh_frontier_view(app: Any, job_id: str) -> dict[str, Any]:
         z_metric = None
 
     view_model = build_frontier_view_model(
-        payload, x_metric=x_metric, y_metric=y_metric, z_metric=z_metric
+        payload,
+        x_metric=x_metric,
+        y_metric=y_metric,
+        z_metric=z_metric,
+        fit_registry=(),
     )
 
     app.state.generative_frontier_view_available = bool(view_model.get("available"))
@@ -542,6 +588,10 @@ def frontier_view_css() -> str:
     ]
     for claim_state, token in _CLAIM_STATE_COLOR_TOKENS.items():
         css_class = _claim_state_color_class(claim_state)
+        parts.append(
+            f".{css_class} {{ fill: var(--{token}); }}"
+        )
+    for css_class, token in _ANALYTICAL_CSS_CLASS_THEME_TOKEN.items():
         parts.append(
             f".{css_class} {{ fill: var(--{token}); }}"
         )

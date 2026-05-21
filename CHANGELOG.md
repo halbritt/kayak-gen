@@ -23,6 +23,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   `error.kind="cancelled_by_operator"`, `resumable_from_checkpoint=true`, and
   subprocess `cancel.flag` cleanup. No job API, state vocabulary, solver
   posture, or no-claims boundary changed.
+- Remediated workflow 0056 MF-1: Generate-panel form serialization now treats
+  the CFD-in-loop acknowledgement as implicit when
+  `generative_cfd_in_loop_status == "first_class"`, matching the rendered
+  hidden-acknowledgement branch. The default `opt_in_only` path still requires
+  the acknowledgement before submission.
 - Hardened `parse_openfoam_force_dat` against the real OpenFOAM-v2512
   `forces` function-object tabular schema: rows are 10 numeric fields
   (`time` + total/pressure/viscous triples) by default, or 13 with porous
@@ -47,6 +52,17 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed RFC 0058 stages 2 and 3, plus workflow 0054's NB-1
+  auto-poll listener seam. The stability fit contracts now include
+  `resolve_analytical_claim_label` and
+  `cfd_in_loop_evaluator_status`; the `kayakgen stability` sub-app
+  provides schema-only `ingest-rig-run`, `promote-fixture`,
+  `accept-fit`, and `residual-plot` commands; the Generate panel now
+  wires frontier colour through the analytical claim label and hides
+  the CFD-in-loop acknowledgement only when graduation returns
+  `first_class`; and the listener has a stepped-clock test seam. No
+  fixture or fit is promoted, defaults stay byte-stable, and Stage 4
+  remains gated on physical rig data.
 - Landed RFC 0058 stage 1 as schemas only. New
   `kayakgen/eval/stability/accepted_fit.py` pins
   `FixtureRef`, `HullFamilyScope`, `StabilityFitMetrics`,
