@@ -11,3 +11,4 @@ data/stability/
 # were removed in 2026-05-16 cleanup; any new root-level STL output from
 # `kayakgen generate` or `python generator.py` is ignored.
 /*.stl
+.claude/
