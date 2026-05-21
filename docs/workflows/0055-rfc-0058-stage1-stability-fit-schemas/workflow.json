@@ -1,0 +1,233 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0055-rfc-0058-stage1-stability-fit-schemas",
+  "workflow_version": "2026-05-21",
+  "name": "0055 - RFC 0058 Stage 1 stability-fit schemas",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0055-rfc-0058-stage1-stability-fit-schemas",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "codex"
+  },
+  "lanes": {
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["bash", ".striatum/bin/codex-supervised-wrapper.sh"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["bash", ".striatum/bin/claude-supervised-wrapper.sh"],
+      "capabilities": ["review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["bash", ".striatum/bin/gemini-supervised-wrapper.sh"],
+      "capabilities": ["review", "synthesis"]
+    }
+  },
+  "roles": {
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_claims": {"definition_path": "roles/reviewer_claims.md"},
+    "reviewer_ops_tests": {"definition_path": "roles/reviewer_ops_tests.md"},
+    "findings_ledger": {"definition_path": "roles/findings_ledger.md"},
+    "remediator": {"definition_path": "roles/remediator.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/PRD.md", "required": true},
+    {"path": "docs/ROADMAP.md", "required": true},
+    {"path": "docs/DECISION_LOG.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/rfcs/0058-stability-calibration-acceptance.md", "required": true},
+    {"path": "docs/rfcs/0056-strain-gauged-gz-rig.md", "required": true},
+    {"path": "docs/rfcs/0027-resistance-calibration-acceptance.md", "required": true},
+    {"path": "docs/workflows/0055-rfc-0058-stage1-stability-fit-schemas/STAGE_1_DECISIONS.md", "required": true},
+    {"path": "kayakgen/eval/stability/measured_fixture.py", "required": true},
+    {"path": "kayakgen/eval/calibration/campaigns.py", "required": true},
+    {"path": "kayakgen/eval/calibration/rights.py", "required": true},
+    {"path": "tests/test_measured_stability_fixture.py", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 4,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement_stability_fit_schemas",
+      "type": "synthesis",
+      "title": "Implement RFC 0058 stage 1 stability-fit schemas",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage1_implementation",
+      "fresh_session_required": true,
+      "objective": "Build kayakgen/eval/stability/accepted_fit.py with the five Pydantic records in STAGE_1_DECISIONS.md (HullFamilyScope, StabilityFitMetrics, ReviewerSignature, StabilityFitRecord, StabilityFixturePromotionPacket) plus the FixtureRef value object, the four threshold constants, and the validators encoded as model_validators. No fixture or fit is promoted by this RFC — defaults stay validation_candidate / rejected. Sibling tests in tests/test_stability_accepted_fit.py covering: schema round-trip, threshold enforcement at the StabilityFitRecord level (both strict=True and strict=False), promotion-packet refusal when any review verdict is not 'accepted', and the FixtureRef SHA-256 shape check. Run focused tests + ruff before publishing the patch summary.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/eval/stability/accepted_fit.py",
+          "tests/test_stability_accepted_fit.py",
+          "striatum/0055-rfc-0058-stage1-stability-fit-schemas/implementation/stability_fit_schemas/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0055-rfc-0058-stage1-stability-fit-schemas/implementation/stability_fit_schemas/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "synchronize_docs",
+      "type": "synthesis",
+      "title": "Synchronize docs for RFC 0058 stage 1 schema landing",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "parallel_group": "stage1_implementation",
+      "fresh_session_required": true,
+      "objective": "Update CHANGELOG.md (new ### Added entry under Unreleased), docs/DECISION_LOG.md (new D038 row), docs/ROADMAP.md (add a 'Stability calibration acceptance' track row between the calibration-campaign tooling row and existing rows), docs/rfcs/0058-stability-calibration-acceptance.md (flip Status from 'proposed' to 'landed (schemas only)' with a Stage 1 implementation note paragraph), docs/rfcs/README.md (status update for RFC 0058), and this workflow's OPERATOR_REPORT.md. Do not change runtime behavior or no-claims boundaries. Do not touch the implementer track's files.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "CHANGELOG.md",
+          "docs/DECISION_LOG.md",
+          "docs/ROADMAP.md",
+          "docs/rfcs/README.md",
+          "docs/rfcs/0058-stability-calibration-acceptance.md",
+          "docs/workflows/0055-rfc-0058-stage1-stability-fit-schemas/OPERATOR_REPORT.md",
+          "striatum/0055-rfc-0058-stage1-stability-fit-schemas/implementation/docs_sync/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0055-rfc-0058-stage1-stability-fit-schemas/implementation/docs_sync/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review traceability to RFC 0058 stage-1 decisions",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Review every change made under workflow 0055 for traceability to STAGE_1_DECISIONS.md and RFC 0058. Confirm the decisions doc, the workflow track scopes, and the resulting commits all line up; flag any scope creep.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0055-rfc-0058-stage1-stability-fit-schemas/reviews/traceability/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0055-rfc-0058-stage1-stability-fit-schemas/reviews/traceability/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_claims",
+      "type": "review",
+      "title": "Review claims and user-facing boundaries",
+      "role_id": "reviewer_claims",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Review every workflow 0055 change for overclaiming. The schemas must not promote any fixture or fit; the threshold defaults must not be presented as 'validated' or 'calibrated' values; RFC 0043's analytical GZCurve label stays unvalidated_hydrostatic_comparison until a later stage explicitly upgrades it. Confirm the forbidden-claim scrub-list in tests/test_web_layout.py is unaffected.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0055-rfc-0058-stage1-stability-fit-schemas/reviews/claims/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0055-rfc-0058-stage1-stability-fit-schemas/reviews/claims/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_ops_tests",
+      "type": "review",
+      "title": "Review tests, determinism, and schema round-trip coverage",
+      "role_id": "reviewer_ops_tests",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Review workflow 0055's tests for determinism, schema round-trip coverage, validator branches (every threshold, every promotion-packet refusal path), and operational risk. Confirm the full repo suite stays green and that ruff + the forbidden-copy / ui-theme orphan / import-boundary / services-boundary scans all pass.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0055-rfc-0058-stage1-stability-fit-schemas/reviews/ops_tests/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0055-rfc-0058-stage1-stability-fit-schemas/reviews/ops_tests/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "synthesis",
+      "title": "Build findings ledger",
+      "role_id": "findings_ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate review findings into must-fix remediation items and non-blocking successor items without inventing new design scope.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0055-rfc-0058-stage1-stability-fit-schemas/ledger/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "findings_ledger", "kind": "findings_ledger", "path": "striatum/0055-rfc-0058-stage1-stability-fit-schemas/ledger/FINDINGS_LEDGER.md", "required": true}
+      ]
+    },
+    {
+      "id": "remediate_findings",
+      "type": "synthesis",
+      "title": "Remediate review findings",
+      "role_id": "remediator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Fix must-fix findings from the ledger, update CHANGELOG.md and OPERATOR_REPORT.md where appropriate, and preserve all stage-1 decisions and no-claims boundaries.",
+      "task_prompt": {"path": "prompts/remediate.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "CHANGELOG.md",
+          "docs/DECISION_LOG.md",
+          "docs/ROADMAP.md",
+          "docs/rfcs/README.md",
+          "docs/rfcs/0058-stability-calibration-acceptance.md",
+          "docs/workflows/0055-rfc-0058-stage1-stability-fit-schemas/OPERATOR_REPORT.md",
+          "kayakgen/eval/stability/",
+          "tests/",
+          "striatum/0055-rfc-0058-stage1-stability-fit-schemas/remediation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0055-rfc-0058-stage1-stability-fit-schemas/remediation/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final review workflow 0055",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Final-review workflow 0055 for accepted scope, decision fidelity, no-claims boundaries, and validation evidence. Confirm the five new Pydantic records + FixtureRef are landed under kayakgen/eval/stability/accepted_fit.py with the threshold + validator surface from STAGE_1_DECISIONS.md, and that RFC 0058's status was flipped to 'landed (schemas only)' without changing RFC 0043's claim label.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0055-rfc-0058-stage1-stability-fit-schemas/final/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "final_review", "kind": "finding", "path": "striatum/0055-rfc-0058-stage1-stability-fit-schemas/final/FINAL_REVIEW.md", "required": true}
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "implement_stability_fit_schemas", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_stability_fit_schemas", "to": "review_claims", "on": "completed"},
+    {"from": "implement_stability_fit_schemas", "to": "review_ops_tests", "on": "completed"},
+    {"from": "synchronize_docs", "to": "review_traceability", "on": "completed"},
+    {"from": "synchronize_docs", "to": "review_claims", "on": "completed"},
+    {"from": "synchronize_docs", "to": "review_ops_tests", "on": "completed"},
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_claims", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops_tests", "to": "findings_ledger", "on": "completed"},
+    {"from": "findings_ledger", "to": "remediate_findings", "on": "completed"},
+    {"from": "remediate_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {"from": "final_review", "to": "remediate_findings", "on_verdict": "needs_revision", "max_iterations": 1}
+  ]
+}
