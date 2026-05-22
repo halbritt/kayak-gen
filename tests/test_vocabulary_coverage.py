@@ -130,6 +130,29 @@ def test_rfc_0057_0058_aggregate_term_documented_in_glossary(
     )
 
 
+_RFC_0060_PRESENTATION_TERMS = (
+    "HullParameterMetadata",
+)
+
+
+@pytest.mark.parametrize("term", _RFC_0060_PRESENTATION_TERMS)
+def test_rfc_0060_presentation_term_documented_in_glossary(
+    term: str, glossary_text: str
+) -> None:
+    """RFC 0060 presentation-layer terms must appear in the glossary.
+
+    Closes ``AUD-O-003`` follow-up from the 2026-05-22 code+doc audit.
+    ``HullParameterMetadata`` is the value object that drives the web
+    Generate-panel friendly labels and tooltips; if it lands in code
+    without a glossary entry, a reader cannot trace it back to RFC 0060.
+    """
+
+    assert term in glossary_text, (
+        f"RFC 0060 presentation term {term!r} missing from "
+        f"docs/UBIQUITOUS_LANGUAGE.md"
+    )
+
+
 _EXPECTED_RUNS_JOBS_STATES = frozenset(
     {"queued", "running", "succeeded", "failed", "cancelled", "resumable"}
 )

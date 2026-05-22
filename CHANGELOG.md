@@ -48,13 +48,32 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   and workflow operator report. No runtime behavior or no-claims boundary
   changed.
 
-### Pending
+### Added
 
-- The new-RFC slice (AUD-O-003) deferred to a follow-up striatum
-  workflow.
+- Landed RFC 0060
+  (`docs/rfcs/0060-web-generate-panel-form-labels-and-tooltips.md`)
+  defining the `HullParameterMetadata` value object + registry shape;
+  driven to completion by workflow 0033 below.
 
 ### Fixed
 
+- Workflow 0033 (`docs/workflows/0033-web-generate-panel-labels/`)
+  closes audit finding AUD-O-003 (medium) by landing RFC 0060
+  presentation-layer labels for the Trame Generate panel. New module
+  `kayakgen/ui/parameter_metadata.py` ships the `HullParameterMetadata`
+  value object (frozen, `extra="forbid"`), the 11-row
+  `HULL_PARAMETER_METADATA` registry, and the `label_with_unit` /
+  `description` helpers. `kayakgen/ui/web/generate_spec_form.py` wires
+  the registry into the variable-selector picklist, the base-hull rail,
+  and the objectives picklist (which sources friendly labels + units
+  from the existing `OBJECTIVE_METADATA` rather than re-defining them).
+  The form's submitted JSON payload remains byte-stable — verified by
+  the unchanged round-trip snapshot tests in `tests/test_generate_spec_form.py`.
+  New regression test `tests/test_hull_parameter_metadata.py` pins the
+  registry contract; `tests/test_vocabulary_coverage.py` gains an
+  `HullParameterMetadata` parametric case;
+  `docs/UBIQUITOUS_LANGUAGE.md` and `docs/USER_GUIDE.md` document the
+  new affordance.
 - Workflow 0032 (`docs/workflows/0032-cli-ergonomics-runs-cfd/`) closes
   audit findings AUD-O-004 (medium), AUD-O-005 (medium), and AUD-O-006
   (low): `kayakgen/cli/runs_cli.py` gains optional `--header` flag on

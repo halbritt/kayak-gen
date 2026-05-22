@@ -894,6 +894,14 @@ verification runbook; public hosting, full dashboard parity, hosted CFD
 workers, cancellation guarantees, authentication, and real solver adapters
 are not complete.
 
+Every parameter field in the Generate panel now renders a friendly label
+(e.g. "Beam WL (m)", "Prismatic coefficient (Cp)") and exposes a
+hover-for-description tooltip explaining what the parameter controls.
+Labels and descriptions live in the
+`kayakgen.ui.parameter_metadata.HULL_PARAMETER_METADATA` registry (RFC
+0060); the submitted JSON payload continues to use the raw parameter
+names (`beam_wl_m`, `Cp`, ...) so saved specs remain byte-stable.
+
 Browser share or reload links can seed the current hull state from the query
 string, so a saved URL restores the same design inputs that were open when the
 link was copied.

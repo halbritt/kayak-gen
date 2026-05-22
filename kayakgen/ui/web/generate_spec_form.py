@@ -45,6 +45,11 @@ from kayakgen.services.generative_jobs import (
     CFDInLoopEvaluatorStatus,
     cfd_in_loop_evaluator_status,
 )
+from kayakgen.ui.parameter_metadata import (
+    HULL_PARAMETER_METADATA,
+    description,
+    label_with_unit,
+)
 
 
 def _spec_default_schema_version(model: type) -> str:
@@ -749,7 +754,26 @@ def initialize_form_state(app: Any) -> None:
     state.generative_seed = DEFAULT_NSGA2_SEED
 
     # Objectives: D-3 conservative pair + admissibility-filtered picklist.
-    state.generative_objective_options = admissible_objective_metrics()
+    # RFC 0060 §4(d): the picklist sources its operator-facing labels from the
+    # existing OBJECTIVE_METADATA registry rather than re-defining them. The
+    # `value` stays the bare metric name so the submitted JSON payload is
+    # byte-stable; only the rendered `title` changes.
+    admissible_metrics = admissible_objective_metrics()
+    state.generative_objective_options = admissible_metrics
+    state.generative_objective_picklist_items = [
+        {
+            "value": metric,
+            "title": f"{OBJECTIVE_METADATA[metric].label} ({OBJECTIVE_METADATA[metric].unit})",
+        }
+        for metric in admissible_metrics
+    ]
+    # Lookup table for the selected-objective row template: maps the bare
+    # metric name to its `label (unit)` form. The template reads it via
+    # `generative_objective_metric_titles[metric]`.
+    state.generative_objective_metric_titles = {
+        metric: f"{meta.label} ({meta.unit})"
+        for metric, meta in OBJECTIVE_METADATA.items()
+    }
     state.generative_objectives = [dict(obj) for obj in DEFAULT_OBJECTIVES]
     state.generative_selected_objective_metrics = [
         obj["metric"] for obj in DEFAULT_OBJECTIVES
@@ -757,6 +781,15 @@ def initialize_form_state(app: Any) -> None:
     state.generative_objective_directions = {
         obj["metric"]: obj["direction"] for obj in DEFAULT_OBJECTIVES
     }
+
+    # RFC 0060 §4(b): variable-selector picklist items. Operators choosing a
+    # variable for sweep / search pick by friendly label (e.g. "Beam WL (m)")
+    # but the form's submitted JSON payload uses the raw key (e.g.
+    # "beam_wl_m"). Keys ordered to match the base-hull rail.
+    state.generative_variable_picklist_items = [
+        {"value": parameter, "title": label_with_unit(parameter)}
+        for parameter in BASE_HULL_KEYS
+    ]
 
     # Evaluator toggles. CFD-in-loop opt-in defaults to *closed* (D-4).
     state.generative_evaluators = dict(DEFAULT_EVALUATORS)
@@ -916,15 +949,43 @@ def render_spec_form_section(app: Any) -> None:
         v3.VRadio(label="Search", value="search")
         v3.VRadio(label="Sweep", value="sweep")
 
+    # ---- Base hull rail (RFC 0060 §4(c)) ----
+    # Friendly field labels + hover-for-description tooltips for each
+    # parameter exposed by the Generate panel. The submitted JSON payload
+    # uses the registry *keys* (the raw parameter names) so byte-stability
+    # is preserved. The `:hint` prop renders the registry description
+    # inline; it's a one-line attribute change versus wrapping in a
+    # <VTooltip>.
+    v3.VCardSubtitle("Base hull", classes="kg-generate-section-label")
+    for _hull_key in BASE_HULL_KEYS:
+        v3.VTextField(
+            v_model=(f"generative_base_hull.{_hull_key}",),
+            label=label_with_unit(_hull_key),
+            hint=description(_hull_key) or "",
+            persistent_hint=False,
+            type="number",
+            density="compact",
+            **{"data-testid": f"generative-base-hull-{_hull_key}"},
+        )
+
     # ---- Variables ----
     v3.VCardSubtitle("Variables", classes="kg-generate-section-label")
     # Per-row editors. Trame's vue3 binding supports v-for over state lists.
+    # RFC 0060 §4(b): the variable-name selector renders friendly
+    # `label (unit)` titles from `generative_variable_picklist_items`. The
+    # `value` written into `row.name` is the raw parameter key so the
+    # submitted JSON payload stays byte-stable.
     v3.VCardText(
         (
             "<div v-for='(row, idx) in generative_variables' :key='idx'"
             " class='kg-generate-variable-row'>"
-            "  <input v-model='row.name' placeholder='name'"
-            "         data-testid='generative-variable-name'/>"
+            "  <select v-model='row.name'"
+            "          data-testid='generative-variable-name'>"
+            "    <option v-for='opt in generative_variable_picklist_items'"
+            "            :key='opt.value' :value='opt.value'>"
+            "      {{ opt.title }}"
+            "    </option>"
+            "  </select>"
             "  <select v-model='row.kind' data-testid='generative-variable-kind'>"
             "    <option value='uniform'>uniform</option>"
             "    <option value='choice'>choice</option>"
@@ -1020,9 +1081,13 @@ def render_spec_form_section(app: Any) -> None:
         ),
         classes="kg-generate-section-help",
     )
+    # RFC 0060 §4(d): the picklist sources `{value, title}` items from
+    # OBJECTIVE_METADATA via the `generative_objective_picklist_items` state
+    # key seeded by `initialize_form_state`. The submitted JSON payload uses
+    # the bare `value` (metric name), so byte-stability is preserved.
     v3.VSelect(
         v_model=("generative_selected_objective_metrics",),
-        items=("generative_objective_options",),
+        items=("generative_objective_picklist_items",),
         label="Objective metrics",
         density="compact",
         multiple=True,
@@ -1034,7 +1099,9 @@ def render_spec_form_section(app: Any) -> None:
             "<div v-for='(metric, idx) in generative_selected_objective_metrics'"
             " :key='metric'"
             " class='kg-generate-objective-row'>"
-            "  <span class='kg-generate-objective-metric'>{{ metric }}</span>"
+            "  <span class='kg-generate-objective-metric'>"
+            "    {{ generative_objective_metric_titles[metric] || metric }}"
+            "  </span>"
             "  <select v-model='generative_objective_directions[metric]'"
             "          data-testid='generative-objective-direction'>"
             "    <option value='min'>min</option>"

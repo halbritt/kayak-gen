@@ -1,0 +1,209 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0033-web-generate-panel-labels",
+  "workflow_version": "2026-05-22",
+  "name": "0033 — Web Generate-panel form labels and tooltips (RFC 0060)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0033-web-generate-panel-labels",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": [
+        "claude",
+        "--model",
+        "opus",
+        "-p"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "-"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": [
+        "gemini",
+        "--model",
+        "gemini-3.1-pro-preview"
+      ],
+      "capabilities": [
+        "review"
+      ]
+    }
+  },
+  "roles": {
+    "implementer": {
+      "definition_path": "roles/implementer.md"
+    },
+    "reviewer": {
+      "definition_path": "roles/reviewer.md"
+    }
+  },
+  "context_docs": [
+    {
+      "path": "AGENTS.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0060-web-generate-panel-form-labels-and-tooltips.md",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/web/generate_spec_form.py",
+      "required": true
+    },
+    {
+      "path": "docs/audits/2026-05-22-code-doc-audit/operator-adoption/FINDINGS.md",
+      "required": true
+    },
+    {
+      "path": "docs/workflows/0033-web-generate-panel-labels/SOURCES.md",
+      "required": true
+    },
+    {
+      "path": "docs/USER_GUIDE.md",
+      "required": false
+    },
+    {
+      "path": "docs/UBIQUITOUS_LANGUAGE.md",
+      "required": false
+    },
+    {
+      "path": "kayakgen/search/objectives.py",
+      "required": false
+    },
+    {
+      "path": "kayakgen/model/hull.py",
+      "required": false
+    },
+    {
+      "path": "tests/test_generate_spec_form.py",
+      "required": false
+    },
+    {
+      "path": "tests/test_vocabulary_coverage.py",
+      "required": false
+    },
+    {
+      "path": "CHANGELOG.md",
+      "required": false
+    },
+    {
+      "path": "pyproject.toml",
+      "required": false
+    }
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 2,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement",
+      "type": "build",
+      "title": "Implement RFC 0060 label registry + form wiring",
+      "role_id": "implementer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Land RFC 0060 §1-§5: create kayakgen/ui/parameter_metadata.py with HullParameterMetadata, the 11-row HULL_PARAMETER_METADATA registry, and the label_with_unit / description helpers; wire the registry into kayakgen/ui/web/generate_spec_form.py for the variable-selector picklist, base-hull rail field labels, and the objectives picklist while keeping the submitted JSON payload byte-stable; add tests/test_hull_parameter_metadata.py; extend tests/test_vocabulary_coverage.py with HullParameterMetadata; add a Generate-panel tooltip paragraph to docs/USER_GUIDE.md and a HullParameterMetadata glossary entry to docs/UBIQUITOUS_LANGUAGE.md. Closes audit finding AUD-O-003.",
+      "task_prompt": {
+        "path": "prompts/implement.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/ui/parameter_metadata.py",
+          "kayakgen/ui/web/generate_spec_form.py",
+          "tests/test_hull_parameter_metadata.py",
+          "tests/test_vocabulary_coverage.py",
+          "docs/USER_GUIDE.md",
+          "docs/UBIQUITOUS_LANGUAGE.md",
+          "docs/audits/2026-05-22-code-doc-audit/follow-ups/0033/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "CHANGELOG.md",
+          "docs/audits/2026-05-22-code-doc-audit/operator-adoption/",
+          "docs/audits/2026-05-22-code-doc-audit/docs-decision-drift/",
+          "docs/audits/2026-05-22-code-doc-audit/pipeline-integrity/",
+          "docs/rfcs/0060-web-generate-panel-form-labels-and-tooltips.md",
+          "docs/rfcs/README.md"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "docs/audits/2026-05-22-code-doc-audit/follow-ups/0033/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Verify RFC 0060 landing closes AUD-O-003 without payload drift",
+      "role_id": "reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Verify the implementer's changes satisfy RFC 0060 acceptance criteria and close audit finding AUD-O-003: every key in BASE_HULL_KEYS resolves to a HULL_PARAMETER_METADATA entry; the form's submitted JSON payload is byte-stable (snapshot tests in tests/test_generate_spec_form.py still pass unchanged in shape); tests/test_hull_parameter_metadata.py pins registry contract; tests/test_vocabulary_coverage.py asserts HullParameterMetadata appears in docs/UBIQUITOUS_LANGUAGE.md; docs/USER_GUIDE.md gained the hover-tooltip paragraph. Produce REVIEW.md with verdict.",
+      "task_prompt": {
+        "path": "prompts/review.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/audits/2026-05-22-code-doc-audit/follow-ups/0033/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "docs/audits/2026-05-22-code-doc-audit/follow-ups/0033/REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "implement",
+      "to": "review",
+      "on": "completed"
+    }
+  ],
+  "cycles": []
+}

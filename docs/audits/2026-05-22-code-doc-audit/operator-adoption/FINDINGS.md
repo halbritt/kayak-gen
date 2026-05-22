@@ -76,7 +76,7 @@ follow_up: docs fix (driven by this remediation plan).
 
 severity: medium
 category: operator_ergonomics
-status: open
+status: closed (RFC 0060 + workflow 0033, see CHANGELOG ### Fixed)
 claim: The web Generate-panel form uses raw hull-JSON parameter names
 (`beam_wl_m`, `Cp`, `center_box_ratio`) as field labels in the
 variable-selector picklist, with no tooltips or user-facing glossary. The
