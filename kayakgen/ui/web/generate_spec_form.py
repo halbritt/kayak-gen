@@ -30,7 +30,10 @@ from typing import Any, Mapping
 
 from trame.widgets import vuetify3 as v3
 
-from kayakgen.eval.stability.accepted_fit import HullFamilyScope
+from kayakgen.eval.stability.accepted_fit import (
+    EMPTY_STABILITY_FIT_REGISTRY,
+    HullFamilyScope,
+)
 from kayakgen.search.active.spec import SearchSpec
 from kayakgen.search.objectives import (
     OBJECTIVE_METADATA,
@@ -829,7 +832,9 @@ def refresh_cfd_in_loop_status(app: Any) -> CFDInLoopEvaluatorStatus:
     """
 
     scope = _current_hull_family_scope(app.state)
-    status = cfd_in_loop_evaluator_status(registry=(), hull_scope=scope)
+    status = cfd_in_loop_evaluator_status(
+        registry=EMPTY_STABILITY_FIT_REGISTRY, hull_scope=scope
+    )
     app.state.generative_cfd_in_loop_status = status
     return status
 

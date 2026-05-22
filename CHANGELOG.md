@@ -50,18 +50,27 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Pending
 
-- R3 audit remediation (AUD-P-001) — widen
-  `kayakgen/eval/contract.py:175` `GZCurve.result_semantics` Literal to
-  the `AnalyticalClaimLabel` union and add a round-trip regression test.
-  Deferred to a follow-up striatum workflow per project memory rule
-  `feedback_striatum_required`. See
-  `docs/audits/2026-05-22-code-doc-audit/REMEDIATION_PLAN.md#r3`.
 - R2 test-coverage slice (AUD-P-003 / AUD-P-004 / AUD-O-004 / AUD-O-005 /
-  AUD-O-006 / AUD-P-002) and the new-RFC slice (AUD-O-003) likewise
-  deferred to follow-up striatum workflows.
+  AUD-O-006) and the new-RFC slice (AUD-O-003) deferred to follow-up
+  striatum workflows.
 
 ### Fixed
 
+- Workflow 0030 (`docs/workflows/0030-stability-claim-gate-literal/`)
+  closes audit findings AUD-P-001 (high) and AUD-P-002 (low / R7):
+  `kayakgen/eval/contract.py` `GZCurve.result_semantics` Literal widened
+  to permit both `unvalidated_hydrostatic_comparison` and
+  `validated_hydrostatic_comparison` (inline two-element Literal to avoid
+  a circular import with `high_angle_contracts.py`). New regression test
+  `tests/test_gzcurve_result_semantics_round_trip.py` exercises the
+  validated-label construction, the full `EvaluationResult` JSON
+  round-trip, and the unknown-label rejection. R7 lands the shared
+  `EMPTY_STABILITY_FIT_REGISTRY` constant on
+  `kayakgen/eval/stability/accepted_fit.py` with a D039-citing docstring;
+  the three previously-hardcoded `()` call sites
+  (`kayakgen/eval/stability/evaluator.py`,
+  `kayakgen/ui/web/generate_frontier_view.py`,
+  `kayakgen/ui/web/generate_spec_form.py`) consume it.
 - Remediated the daemon-run workflow 0054 MF-1 finding by adding
   deterministic cancellation coverage for RFC 0057 generative jobs. The new
   tests force the manager/web route and file-backed subprocess-runner paths to

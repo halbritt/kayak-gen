@@ -28,6 +28,7 @@ from __future__ import annotations
 import html
 from typing import Any, Iterable, Mapping
 
+from kayakgen.eval.stability.accepted_fit import EMPTY_STABILITY_FIT_REGISTRY
 from kayakgen.eval.stability.high_angle_contracts import (
     resolve_analytical_claim_label,
 )
@@ -555,7 +556,7 @@ def refresh_frontier_view(app: Any, job_id: str) -> dict[str, Any]:
         x_metric=x_metric,
         y_metric=y_metric,
         z_metric=z_metric,
-        fit_registry=(),
+        fit_registry=EMPTY_STABILITY_FIT_REGISTRY,
     )
 
     app.state.generative_frontier_view_available = bool(view_model.get("available"))

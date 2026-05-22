@@ -172,7 +172,10 @@ class GZCurve(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     heel_point_metadata: list[GZHeelPointMetadata] = Field(default_factory=list)
     summary_semantics: Literal["grid_bounded"] | None = None
-    result_semantics: Literal["unvalidated_hydrostatic_comparison"] | None = None
+    result_semantics: Literal[
+        "unvalidated_hydrostatic_comparison",
+        "validated_hydrostatic_comparison",
+    ] | None = None
 
     @model_validator(mode="before")
     @classmethod

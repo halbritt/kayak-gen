@@ -20,6 +20,18 @@ DEFAULT_STABILITY_FIT_COVERAGE_FRACTION = 0.9
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
+EMPTY_STABILITY_FIT_REGISTRY: tuple["StabilityFitRecord", ...] = ()
+"""Default empty fit registry for RFC 0058 stage-2/3 call sites.
+
+Per D039 (`docs/DECISION_LOG.md`), defaults stay byte-stable with an empty
+registry until stage 4 promotes the first measured-stability fixture
+(blocked on D007 / D014). Three call sites consume this constant:
+``kayakgen/eval/stability/evaluator.py``,
+``kayakgen/ui/web/generate_frontier_view.py``,
+``kayakgen/ui/web/generate_spec_form.py``. Replacing the constant with a
+loaded registry is the stage-4 graduation point.
+"""
+
 ReviewVerdict = Literal["accepted", "rejected", "deferred"]
 StabilityFitVerdict = Literal["accepted", "rejected"]
 StabilityFixturePromotionTarget = Literal[
@@ -224,6 +236,7 @@ __all__ = [
     "DEFAULT_STABILITY_FIT_MAPE_FRACTION",
     "DEFAULT_STABILITY_FIT_MAX_ERROR_M",
     "DEFAULT_STABILITY_FIT_RMSE_M",
+    "EMPTY_STABILITY_FIT_REGISTRY",
     "FixtureRef",
     "HullFamilyScope",
     "ReviewVerdict",

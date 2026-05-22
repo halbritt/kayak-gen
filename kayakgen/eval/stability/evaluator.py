@@ -22,6 +22,7 @@ from kayakgen.eval.closed_volume import (
     diagnose_closed_volume_body,
 )
 from kayakgen.eval.contract import GZCurve, GZHeelPointMetadata, LoadCase
+from kayakgen.eval.stability.accepted_fit import EMPTY_STABILITY_FIT_REGISTRY
 from kayakgen.eval.stability.heeled_section_integrator import (
     GZ_SINKAGE_MAX_ITERATIONS,
     _generated_body_station_sections,
@@ -382,7 +383,9 @@ def _generated_body_gz_curve(
     warnings = list(GZ_GENERATED_BODY_WARNINGS)
     if load_case.kg_reference_value_m is not None and load_case.kg_reference != "keel":
         warnings.append("kg_reference_normalized_to_keel")
-    result_semantics = resolve_analytical_claim_label(hull, fit_registry=())
+    result_semantics = resolve_analytical_claim_label(
+        hull, fit_registry=EMPTY_STABILITY_FIT_REGISTRY
+    )
     return GeneratedBodyGZCurve(
         status="computed",
         method="fixed_trim_generated_body_v1",

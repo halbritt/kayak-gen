@@ -1,0 +1,213 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0030-stability-claim-gate-literal",
+  "workflow_version": "2026-05-22",
+  "name": "0030 — Stability claim-gate Literal widening + fit_registry constant (AUD-P-001 + AUD-P-002)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0030-stability-claim-gate-literal",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": [
+        "claude",
+        "--model",
+        "opus",
+        "-p"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "-"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": [
+        "gemini",
+        "--model",
+        "gemini-3.1-pro-preview"
+      ],
+      "capabilities": [
+        "review"
+      ]
+    }
+  },
+  "roles": {
+    "implementer": {
+      "definition_path": "roles/implementer.md"
+    },
+    "reviewer": {
+      "definition_path": "roles/reviewer.md"
+    }
+  },
+  "context_docs": [
+    {
+      "path": "AGENTS.md",
+      "required": true
+    },
+    {
+      "path": "docs/audits/2026-05-22-code-doc-audit/REMEDIATION_PLAN.md",
+      "required": true
+    },
+    {
+      "path": "docs/audits/2026-05-22-code-doc-audit/pipeline-integrity/FINDINGS.md",
+      "required": true
+    },
+    {
+      "path": "docs/workflows/0030-stability-claim-gate-literal/SOURCES.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0058-stability-calibration-acceptance.md",
+      "required": true
+    },
+    {
+      "path": "docs/DECISION_LOG.md",
+      "required": true
+    },
+    {
+      "path": "kayakgen/eval/contract.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/eval/stability/high_angle_contracts.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/eval/stability/accepted_fit.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/eval/stability/evaluator.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/web/generate_frontier_view.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/web/generate_spec_form.py",
+      "required": true
+    },
+    {
+      "path": "tests/test_stability.py",
+      "required": true
+    },
+    {
+      "path": "CHANGELOG.md",
+      "required": false
+    }
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 1,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement",
+      "type": "synthesis",
+      "title": "Widen GZCurve.result_semantics Literal and introduce EMPTY_STABILITY_FIT_REGISTRY constant",
+      "role_id": "implementer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Close audit findings AUD-P-001 (high) and AUD-P-002 (low) per docs/audits/2026-05-22-code-doc-audit/REMEDIATION_PLAN.md batches R3 and R7. AUD-P-001: widen kayakgen/eval/contract.py GZCurve.result_semantics from a one-element Literal to the two-element Literal[\"unvalidated_hydrostatic_comparison\", \"validated_hydrostatic_comparison\"] | None so a serialized GeneratedBodyGZCurve round-trips through the parent GZCurve schema once stage 4 lands a non-empty fit registry. Inline the two-element Literal — do not import AnalyticalClaimLabel from high_angle_contracts (that would create a circular import). Add tests/test_gzcurve_result_semantics_round_trip.py asserting (a) the subclass accepts the validated label, (b) EvaluationResult.model_validate_json(result.model_dump_json()) == result for a validated-label payload wrapped in StabilityResult, and (c) GZCurve rejects an unknown label. AUD-P-002: add EMPTY_STABILITY_FIT_REGISTRY: tuple[\"StabilityFitRecord\", ...] = () constant in kayakgen/eval/stability/accepted_fit.py with a docstring citing D039 and the three call sites; export from __all__; replace fit_registry=() / registry=() at kayakgen/eval/stability/evaluator.py, kayakgen/ui/web/generate_frontier_view.py, kayakgen/ui/web/generate_spec_form.py with imports of the constant. Default behavior must remain byte-stable. No new claim-state literal beyond the two already named in RFC 0058. Do not touch CHANGELOG.md or any audit FINDINGS.md — the parent agent owns those.",
+      "task_prompt": {
+        "path": "prompts/implement.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/eval/contract.py",
+          "kayakgen/eval/stability/accepted_fit.py",
+          "kayakgen/eval/stability/evaluator.py",
+          "kayakgen/ui/web/generate_frontier_view.py",
+          "kayakgen/ui/web/generate_spec_form.py",
+          "tests/test_gzcurve_result_semantics_round_trip.py",
+          "docs/audits/2026-05-22-code-doc-audit/follow-ups/0030/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "CHANGELOG.md",
+          "docs/audits/2026-05-22-code-doc-audit/pipeline-integrity/FINDINGS.md",
+          "docs/audits/2026-05-22-code-doc-audit/docs-decision-drift/FINDINGS.md",
+          "docs/audits/2026-05-22-code-doc-audit/operator-adoption/FINDINGS.md"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "docs/audits/2026-05-22-code-doc-audit/follow-ups/0030/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Review the R3 + R7 patch for claim-gate fidelity and no-scope-creep",
+      "role_id": "reviewer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Review the implement job's diff. Confirm the Literal widening matches RFC 0058 AnalyticalClaimLabel exactly (the two named labels, no more), the round-trip test exercises EvaluationResult.model_validate_json(result.model_dump_json()) against a validated-label payload, the new EMPTY_STABILITY_FIT_REGISTRY constant is exported and consumed at all three call sites, no other behavior changed, no new claim-state literal was introduced, and the targeted test set (test_gzcurve_result_semantics_round_trip.py, test_stability.py, test_high_angle_stability_evaluator.py, test_resolve_analytical_claim_label.py, test_stability_accepted_fit.py, test_vocabulary_coverage.py, test_generate_frontier_view.py) passes. Write a single REVIEW.md to the follow-ups/0030/ directory with verdict (approve / needs_revision) and any blockers.",
+      "task_prompt": {
+        "path": "prompts/review.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/audits/2026-05-22-code-doc-audit/follow-ups/0030/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "docs/audits/2026-05-22-code-doc-audit/pipeline-integrity/FINDINGS.md",
+          "docs/audits/2026-05-22-code-doc-audit/docs-decision-drift/FINDINGS.md",
+          "docs/audits/2026-05-22-code-doc-audit/operator-adoption/FINDINGS.md"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "docs/audits/2026-05-22-code-doc-audit/follow-ups/0030/REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "implement",
+      "to": "review",
+      "on": "completed"
+    }
+  ]
+}

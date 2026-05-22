@@ -21,7 +21,7 @@ Sources of truth read: `kayakgen/eval/claims.py`, `kayakgen/eval/contract.py`,
 
 severity: high
 category: claim_gate
-status: open
+status: closed (workflow 0030, see CHANGELOG ### Fixed)
 claim: The base `GZCurve.result_semantics` field is declared as
 `Literal["unvalidated_hydrostatic_comparison"] | None`, but RFC 0058 stage 2
 defines `AnalyticalClaimLabel = Literal["unvalidated_*", "validated_*"]` and
@@ -53,7 +53,7 @@ touches one schema literal + one test).
 
 severity: low
 category: claim_gate
-status: open
+status: closed (workflow 0030 R7, see CHANGELOG ### Fixed)
 claim: RFC 0058 stage 2/3 defines `resolve_analytical_claim_label` and
 `cfd_in_loop_evaluator_status` and notes (D039) that "defaults stay byte-stable
 with an empty fit registry." Today there is no registry loader anywhere in
