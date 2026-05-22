@@ -324,5 +324,6 @@
       "to": "remediation_plan",
       "on": "completed"
     }
-  ]
+  ],
+  "cycles": []
 }

@@ -2,7 +2,7 @@
   "schema_version": "striatum.workflow.v1",
   "workflow_id": "0030-stability-claim-gate-literal",
   "workflow_version": "2026-05-22",
-  "name": "0030 — Stability claim-gate Literal widening + fit_registry constant (AUD-P-001 + AUD-P-002)",
+  "name": "0030 \u2014 Stability claim-gate Literal widening + fit_registry constant (AUD-P-001 + AUD-P-002)",
   "branch": {
     "mode": "confirm",
     "suggested_name": "striatum/0030-stability-claim-gate-literal",
@@ -136,7 +136,7 @@
       "role_id": "implementer",
       "lane_id": "claude",
       "fresh_session_required": true,
-      "objective": "Close audit findings AUD-P-001 (high) and AUD-P-002 (low) per docs/audits/2026-05-22-code-doc-audit/REMEDIATION_PLAN.md batches R3 and R7. AUD-P-001: widen kayakgen/eval/contract.py GZCurve.result_semantics from a one-element Literal to the two-element Literal[\"unvalidated_hydrostatic_comparison\", \"validated_hydrostatic_comparison\"] | None so a serialized GeneratedBodyGZCurve round-trips through the parent GZCurve schema once stage 4 lands a non-empty fit registry. Inline the two-element Literal — do not import AnalyticalClaimLabel from high_angle_contracts (that would create a circular import). Add tests/test_gzcurve_result_semantics_round_trip.py asserting (a) the subclass accepts the validated label, (b) EvaluationResult.model_validate_json(result.model_dump_json()) == result for a validated-label payload wrapped in StabilityResult, and (c) GZCurve rejects an unknown label. AUD-P-002: add EMPTY_STABILITY_FIT_REGISTRY: tuple[\"StabilityFitRecord\", ...] = () constant in kayakgen/eval/stability/accepted_fit.py with a docstring citing D039 and the three call sites; export from __all__; replace fit_registry=() / registry=() at kayakgen/eval/stability/evaluator.py, kayakgen/ui/web/generate_frontier_view.py, kayakgen/ui/web/generate_spec_form.py with imports of the constant. Default behavior must remain byte-stable. No new claim-state literal beyond the two already named in RFC 0058. Do not touch CHANGELOG.md or any audit FINDINGS.md — the parent agent owns those.",
+      "objective": "Close audit findings AUD-P-001 (high) and AUD-P-002 (low) per docs/audits/2026-05-22-code-doc-audit/REMEDIATION_PLAN.md batches R3 and R7. AUD-P-001: widen kayakgen/eval/contract.py GZCurve.result_semantics from a one-element Literal to the two-element Literal[\"unvalidated_hydrostatic_comparison\", \"validated_hydrostatic_comparison\"] | None so a serialized GeneratedBodyGZCurve round-trips through the parent GZCurve schema once stage 4 lands a non-empty fit registry. Inline the two-element Literal \u2014 do not import AnalyticalClaimLabel from high_angle_contracts (that would create a circular import). Add tests/test_gzcurve_result_semantics_round_trip.py asserting (a) the subclass accepts the validated label, (b) EvaluationResult.model_validate_json(result.model_dump_json()) == result for a validated-label payload wrapped in StabilityResult, and (c) GZCurve rejects an unknown label. AUD-P-002: add EMPTY_STABILITY_FIT_REGISTRY: tuple[\"StabilityFitRecord\", ...] = () constant in kayakgen/eval/stability/accepted_fit.py with a docstring citing D039 and the three call sites; export from __all__; replace fit_registry=() / registry=() at kayakgen/eval/stability/evaluator.py, kayakgen/ui/web/generate_frontier_view.py, kayakgen/ui/web/generate_spec_form.py with imports of the constant. Default behavior must remain byte-stable. No new claim-state literal beyond the two already named in RFC 0058. Do not touch CHANGELOG.md or any audit FINDINGS.md \u2014 the parent agent owns those.",
       "task_prompt": {
         "path": "prompts/implement.md"
       },
@@ -209,5 +209,6 @@
       "to": "review",
       "on": "completed"
     }
-  ]
+  ],
+  "cycles": []
 }

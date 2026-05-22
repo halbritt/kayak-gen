@@ -172,7 +172,7 @@
       "type": "review",
       "title": "Verify RFC 0060 landing closes AUD-O-003 without payload drift",
       "role_id": "reviewer",
-      "lane_id": "claude",
+      "lane_id": "gemini",
       "fresh_session_required": true,
       "objective": "Verify the implementer's changes satisfy RFC 0060 acceptance criteria and close audit finding AUD-O-003: every key in BASE_HULL_KEYS resolves to a HULL_PARAMETER_METADATA entry; the form's submitted JSON payload is byte-stable (snapshot tests in tests/test_generate_spec_form.py still pass unchanged in shape); tests/test_hull_parameter_metadata.py pins registry contract; tests/test_vocabulary_coverage.py asserts HullParameterMetadata appears in docs/UBIQUITOUS_LANGUAGE.md; docs/USER_GUIDE.md gained the hover-tooltip paragraph. Produce REVIEW.md with verdict.",
       "task_prompt": {

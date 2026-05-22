@@ -16,37 +16,91 @@
     "claude": {
       "adapter": "process",
       "display_model": "Claude Opus 4.7",
-      "command": ["bash", ".striatum/bin/claude-supervised-wrapper.sh"],
-      "capabilities": ["write", "review", "synthesis"]
+      "command": [
+        "bash",
+        ".striatum/bin/claude-supervised-wrapper.sh"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
     },
     "codex": {
       "adapter": "process",
       "display_model": "Codex GPT-5.5",
-      "command": ["bash", ".striatum/bin/codex-supervised-wrapper.sh"],
-      "capabilities": ["write", "review", "synthesis"]
+      "command": [
+        "bash",
+        ".striatum/bin/codex-supervised-wrapper.sh"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
     },
     "gemini": {
       "adapter": "process",
       "display_model": "Gemini Pro 3.1",
-      "command": ["bash", ".striatum/bin/gemini-supervised-wrapper.sh"],
-      "capabilities": ["review", "synthesis"]
+      "command": [
+        "bash",
+        ".striatum/bin/gemini-supervised-wrapper.sh"
+      ],
+      "capabilities": [
+        "review",
+        "synthesis"
+      ]
     }
   },
   "roles": {
-    "implementer": {"definition_path": "roles/implementer.md"},
-    "reviewer": {"definition_path": "roles/reviewer.md"}
+    "implementer": {
+      "definition_path": "roles/implementer.md"
+    },
+    "reviewer": {
+      "definition_path": "roles/reviewer.md"
+    }
   },
   "context_docs": [
-    {"path": "AGENTS.md", "required": true},
-    {"path": "docs/UBIQUITOUS_LANGUAGE.md", "required": true},
-    {"path": "docs/USER_GUIDE.md", "required": true},
-    {"path": "docs/audits/2026-05-22-code-doc-audit/REMEDIATION_PLAN.md", "required": true},
-    {"path": "docs/audits/2026-05-22-code-doc-audit/pipeline-integrity/FINDINGS.md", "required": true},
-    {"path": "docs/workflows/0031-vocab-coverage-rfc-0057-0058/SOURCES.md", "required": true},
-    {"path": "tests/test_vocabulary_coverage.py", "required": true},
-    {"path": "kayakgen/services/generative_jobs.py", "required": true},
-    {"path": "docs/rfcs/0057-generative-search-jobs.md", "required": false},
-    {"path": "docs/rfcs/0058-stability-calibration-acceptance.md", "required": false}
+    {
+      "path": "AGENTS.md",
+      "required": true
+    },
+    {
+      "path": "docs/UBIQUITOUS_LANGUAGE.md",
+      "required": true
+    },
+    {
+      "path": "docs/USER_GUIDE.md",
+      "required": true
+    },
+    {
+      "path": "docs/audits/2026-05-22-code-doc-audit/REMEDIATION_PLAN.md",
+      "required": true
+    },
+    {
+      "path": "docs/audits/2026-05-22-code-doc-audit/pipeline-integrity/FINDINGS.md",
+      "required": true
+    },
+    {
+      "path": "docs/workflows/0031-vocab-coverage-rfc-0057-0058/SOURCES.md",
+      "required": true
+    },
+    {
+      "path": "tests/test_vocabulary_coverage.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/services/generative_jobs.py",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0057-generative-search-jobs.md",
+      "required": false
+    },
+    {
+      "path": "docs/rfcs/0058-stability-calibration-acceptance.md",
+      "required": false
+    }
   ],
   "parallelism": {
     "mode": "declared",
@@ -62,7 +116,9 @@
       "lane_id": "claude",
       "fresh_session_required": true,
       "objective": "Extend tests/test_vocabulary_coverage.py so that (a) the six RFC 0057/0058 aggregate-root terms named in REMEDIATION_PLAN.md R2 are pinned to docs/UBIQUITOUS_LANGUAGE.md and (b) the kayakgen runs jobs --state vocabulary is pinned from the source Literal in kayakgen/services/generative_jobs.py to the documented six-state list in docs/USER_GUIDE.md. Do NOT edit docs/UBIQUITOUS_LANGUAGE.md, the user guide, CHANGELOG.md, the audit FINDINGS.md, or any source file outside tests/. Run .venv/bin/pytest tests/test_vocabulary_coverage.py -v and confirm all tests pass.",
-      "task_prompt": {"path": "prompts/implement.md"},
+      "task_prompt": {
+        "path": "prompts/implement.md"
+      },
       "write_scope": {
         "mode": "repo_write",
         "repo_write": true,
@@ -96,14 +152,18 @@
       "lane_id": "codex",
       "fresh_session_required": true,
       "objective": "Confirm the test extensions pin source-of-truth literals (not hand-typed copies of the same string) for both the glossary coverage and the runs-jobs state vocabulary. Confirm pytest tests/test_vocabulary_coverage.py -v stays green. Confirm no files outside the implement job's allowed write scope were touched. Confirm the state-vocabulary test would fail loudly if either the source enum or the documented --state line drifted.",
-      "task_prompt": {"path": "prompts/review.md"},
+      "task_prompt": {
+        "path": "prompts/review.md"
+      },
       "write_scope": {
         "mode": "review_only_artifact",
         "repo_write": false,
         "allowed_paths": [
           "docs/audits/2026-05-22-code-doc-audit/follow-ups/0031/review/"
         ],
-        "forbidden_paths": [".striatum/"]
+        "forbidden_paths": [
+          ".striatum/"
+        ]
       },
       "expected_artifacts": [
         {
@@ -116,6 +176,11 @@
     }
   ],
   "edges": [
-    {"from": "implement", "to": "review", "on": "completed"}
-  ]
+    {
+      "from": "implement",
+      "to": "review",
+      "on": "completed"
+    }
+  ],
+  "cycles": []
 }
