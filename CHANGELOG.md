@@ -50,12 +50,21 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Pending
 
-- R2 test-coverage slice (AUD-P-003 / AUD-P-004 / AUD-O-004 / AUD-O-005 /
-  AUD-O-006) and the new-RFC slice (AUD-O-003) deferred to follow-up
-  striatum workflows.
+- R4-R5 (AUD-O-004 / AUD-O-005 / AUD-O-006) and the new-RFC slice
+  (AUD-O-003) deferred to follow-up striatum workflows.
 
 ### Fixed
 
+- Workflow 0031 (`docs/workflows/0031-vocab-coverage-rfc-0057-0058/`)
+  closes audit findings AUD-P-003 (medium) and AUD-P-004 (low):
+  `tests/test_vocabulary_coverage.py` gains parametric coverage for the
+  six new RFC 0057/0058 aggregate-root terms (`GenerativeJob`,
+  `StabilityFitRecord`, `StabilityFixturePromotionPacket`,
+  `MeasuredStabilityFixture`, `cfd_in_loop_evaluator_status`,
+  `AnalyticalClaimLabel`) plus a new test that pins the documented
+  `kayakgen runs jobs --state` six-state vocabulary against the source
+  Literal in `kayakgen.services.generative_jobs.JobState`. 37 tests pass
+  (was 30 pre-edit).
 - Workflow 0030 (`docs/workflows/0030-stability-claim-gate-literal/`)
   closes audit findings AUD-P-001 (high) and AUD-P-002 (low / R7):
   `kayakgen/eval/contract.py` `GZCurve.result_semantics` Literal widened

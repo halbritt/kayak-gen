@@ -83,7 +83,7 @@ docstring).
 
 severity: medium
 category: test_gap
-status: open
+status: closed (workflow 0031, see CHANGELOG ### Fixed)
 claim: The vocabulary-coverage regression test only checks `ClaimState`,
 `SourceUse`, `SourceReviewVerdict`, six readiness literals, and an explicit
 `_DECISION_TOKENS` tuple. It does not cover new aggregate-root types like
@@ -109,7 +109,7 @@ follow_up: source/test work + docs fix (single coherent slice).
 
 severity: low
 category: test_gap
-status: open
+status: closed (workflow 0031, see CHANGELOG ### Fixed)
 claim: RFC 0057 stage 4 introduces `GenerativeJob` records with a state
 vocabulary (`queued/running/succeeded/failed/cancelled/resumable`) and a
 public CLI surface (`kayakgen runs jobs --state ...`). The user-guide

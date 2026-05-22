@@ -4,10 +4,19 @@ documented in ``docs/UBIQUITOUS_LANGUAGE.md``.
 This is a Phase 1 deliverable of `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`.
 If a new literal is introduced anywhere in code, it must land in the glossary
 before this test passes.
+
+The module also pins:
+
+- The six RFC 0057/0058 aggregate-root terms named in the 2026-05-22 audit
+  remediation plan (finding ``AUD-P-003``).
+- The ``kayakgen runs jobs --state`` enum against the source ``JobState``
+  Literal and the documented six-state list in ``docs/USER_GUIDE.md``
+  (finding ``AUD-P-004``).
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import get_args
 
@@ -15,9 +24,11 @@ import pytest
 
 from kayakgen.eval.calibration import SourceReviewVerdict, SourceUse
 from kayakgen.eval.claims import ClaimState
+from kayakgen.services.generative_jobs import JobState
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GLOSSARY = REPO_ROOT / "docs" / "UBIQUITOUS_LANGUAGE.md"
+USER_GUIDE = REPO_ROOT / "docs" / "USER_GUIDE.md"
 
 
 @pytest.fixture(scope="module")
@@ -89,6 +100,91 @@ def test_named_decision_token_documented_in_glossary(
     glossary (so a reader can chase it back to the DECISION_LOG row)."""
     assert token in glossary_text, (
         f"decision token {token!r} missing from docs/UBIQUITOUS_LANGUAGE.md"
+    )
+
+
+_RFC_0057_0058_AGGREGATE_TERMS = (
+    "GenerativeJob",
+    "StabilityFitRecord",
+    "StabilityFixturePromotionPacket",
+    "MeasuredStabilityFixture",
+    "cfd_in_loop_evaluator_status",
+    "AnalyticalClaimLabel",
+)
+
+
+@pytest.mark.parametrize("term", _RFC_0057_0058_AGGREGATE_TERMS)
+def test_rfc_0057_0058_aggregate_term_documented_in_glossary(
+    term: str, glossary_text: str
+) -> None:
+    """RFC 0057/0058 aggregate-root terms must appear in the glossary.
+
+    Closes ``AUD-P-003`` from the 2026-05-22 code+doc audit. If a term
+    is missing here, fix ``docs/UBIQUITOUS_LANGUAGE.md`` (do not relax
+    this test).
+    """
+
+    assert term in glossary_text, (
+        f"RFC 0057/0058 aggregate term {term!r} missing from "
+        f"docs/UBIQUITOUS_LANGUAGE.md"
+    )
+
+
+_EXPECTED_RUNS_JOBS_STATES = frozenset(
+    {"queued", "running", "succeeded", "failed", "cancelled", "resumable"}
+)
+
+
+def _parse_documented_runs_jobs_states(user_guide_text: str) -> frozenset[str]:
+    """Extract the ``--state`` enum from the documented ``kayakgen runs jobs`` line.
+
+    The user guide line looks like::
+
+        kayakgen runs jobs [--state queued|running|succeeded|failed|cancelled|resumable] \\
+
+    We pull the pipe-separated literal list after ``--state ``.
+    """
+
+    pattern = re.compile(
+        r"kayakgen\s+runs\s+jobs[^\n]*--state\s+([A-Za-z0-9_|]+)"
+    )
+    match = pattern.search(user_guide_text)
+    if match is None:
+        raise AssertionError(
+            "Could not find a `kayakgen runs jobs ... --state <enum>` line in "
+            "docs/USER_GUIDE.md. The runs jobs state vocabulary regression "
+            "test depends on that line; either restore it in the user guide "
+            "or update _parse_documented_runs_jobs_states to match the new "
+            "documented surface."
+        )
+    return frozenset(match.group(1).split("|"))
+
+
+def test_runs_jobs_state_vocabulary_matches_source_and_docs() -> None:
+    """Pin ``kayakgen runs jobs --state`` against source + docs.
+
+    Closes ``AUD-P-004`` from the 2026-05-22 code+doc audit. The
+    contract is bidirectional: if the runtime ``JobState`` Literal
+    drifts from the documented six-state list, this test fails — do
+    not "fix" docs to match source or vice versa here; route the fix
+    through the parent workflow that owns whichever side actually
+    changed.
+    """
+
+    runtime_states = frozenset(get_args(JobState))
+
+    assert runtime_states == _EXPECTED_RUNS_JOBS_STATES, (
+        "kayakgen.services.generative_jobs.JobState drifted from the "
+        f"documented six-state vocabulary; runtime={sorted(runtime_states)!r} "
+        f"expected={sorted(_EXPECTED_RUNS_JOBS_STATES)!r}"
+    )
+
+    documented_states = _parse_documented_runs_jobs_states(USER_GUIDE.read_text())
+
+    assert documented_states == runtime_states, (
+        "docs/USER_GUIDE.md `kayakgen runs jobs --state ...` enum drifted "
+        f"from the source JobState Literal; documented={sorted(documented_states)!r} "
+        f"runtime={sorted(runtime_states)!r}"
     )
 
 
