@@ -101,7 +101,7 @@ follow_up: implementation_gap → new RFC (UX-scope, not a quick fix).
 
 severity: medium
 category: operator_ergonomics
-status: open
+status: closed (workflow 0032, see CHANGELOG ### Fixed)
 claim: `runs_list_command` and `runs_jobs_command` write tab-separated rows
 with no header row and no `--header` flag. The `--filter key:value` help is
 terse and does not enumerate valid keys.
@@ -122,7 +122,7 @@ follow_up: implementation_gap → small workflow (CLI + USER_GUIDE).
 
 severity: medium
 category: operator_ergonomics
-status: open
+status: closed (workflow 0032, see CHANGELOG ### Fixed)
 claim: When the env var is missing, the command emits
 `mesh-evidence refuses to run: set KAYAKGEN_OPENFOAM_LOCAL_RUN=1 in the
 operator shell ...` and a `binding_code: openfoam_local_run_env_required`
@@ -144,7 +144,7 @@ follow_up: source change (small slice, three lines).
 
 severity: low
 category: operator_ergonomics
-status: open
+status: closed (workflow 0032, see CHANGELOG ### Fixed)
 claim: After a successful prepare, the CLI echoes `wrote <dir>` and
 `status: pending` followed by the raw-CFD warning, but never names
 `kayakgen cfd run <dir>` as the next step or the three opt-in mechanisms

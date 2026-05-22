@@ -45,6 +45,16 @@ def runs_list_command(
         "--limit",
         help="Max number of runs to print.",
     ),
+    header: bool = typer.Option(
+        False,
+        "--header/--no-header",
+        help=(
+            "When --header is set, print a '#'-prefixed header line naming "
+            "the row columns before emitting rows (default: --no-header for "
+            "back-compat with scripts that parse the existing tab-separated "
+            "output)."
+        ),
+    ),
 ) -> None:
     """List runs from the SQLite index in deterministic order."""
 
@@ -56,6 +66,8 @@ def runs_list_command(
     if not rows:
         typer.echo("(no runs indexed)")
         return
+    if header:
+        typer.echo("# run_id\tkind\tcreated_at\tout_dir")
     for row in rows:
         typer.echo(
             f"{row['run_id']}\t{row['kind']}\t{row['created_at']}\t{row['out_dir']}"
@@ -73,7 +85,14 @@ def runs_query_command(
     filter_: list[str] | None = typer.Option(
         None,
         "--filter",
-        help="Filter as key:value (eq only); may be repeated.",
+        help=(
+            "Filter candidates as key:value (equality only); may be repeated. "
+            "Honored keys: 'status' (e.g. accepted|rejected) and "
+            "'hull_design_hash' (full hex). Other keys parse without error "
+            "but match no rows and silently drop the candidate from the "
+            "output. The filter is applied client-side after the SQLite "
+            "candidates query."
+        ),
     ),
 ) -> None:
     """Query the candidates of one run."""
@@ -117,17 +136,35 @@ def runs_jobs_command(
     state: str | None = typer.Option(
         None,
         "--state",
-        help="Filter by job state: queued | running | succeeded | failed | cancelled | resumable.",
+        help=(
+            "Filter by job state. Honored values: queued | running | "
+            "succeeded | failed | cancelled | resumable. Matched against "
+            "the 'state' column of the SQLite generative_jobs table."
+        ),
     ),
     kind: str | None = typer.Option(
         None,
         "--kind",
-        help="Filter by job kind: sweep | search.",
+        help=(
+            "Filter by job kind. Honored values: sweep | search. Matched "
+            "against the 'job_kind' column of the SQLite generative_jobs "
+            "table."
+        ),
     ),
     limit: int | None = typer.Option(
         None,
         "--limit",
         help="Max number of jobs to print.",
+    ),
+    header: bool = typer.Option(
+        False,
+        "--header/--no-header",
+        help=(
+            "When --header is set, print a '#'-prefixed header line naming "
+            "the row columns before emitting rows (default: --no-header for "
+            "back-compat with scripts that parse the existing tab-separated "
+            "output)."
+        ),
     ),
 ) -> None:
     """List long-lived generative jobs from the SQLite index (RFC 0057)."""
@@ -141,6 +178,10 @@ def runs_jobs_command(
     if not rows:
         typer.echo("(no generative jobs indexed)")
         return
+    if header:
+        typer.echo(
+            "# job_id\tjob_kind\tstate\trealized/completed_c/failed_f\toutput_dir"
+        )
     for row in rows:
         typer.echo(
             f"{row['job_id']}\t{row['job_kind']}\t{row['state']}\t"

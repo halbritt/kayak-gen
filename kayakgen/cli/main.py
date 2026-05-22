@@ -281,6 +281,14 @@ def mesh_evidence(
             "bashrc is sourceable with interFoam on PATH",
             err=True,
         )
+        typer.echo(
+            "Alternatively, the RFC 0046 profile flag "
+            "(kayakgen cfd prepare --allow-real-solver-execution) or a "
+            "persistent setting in ~/.config/kayakgen/cfd.json can opt in; "
+            "mesh-evidence currently honors only the env-knob mechanism. "
+            "See docs/USER_GUIDE.md '### cfd run' for precedence.",
+            err=True,
+        )
         raise typer.Exit(code=1)
     if not is_openfoam_available():
         typer.echo("binding_code: openfoam_toolchain_unavailable", err=True)
@@ -439,6 +447,11 @@ def cfd_prepare(
     typer.echo(f"wrote {paths.job_dir}")
     typer.echo(f"status: {paths.run.status}")
     typer.echo(CFD_RAW_RESULTS_WARNING)
+    typer.echo(
+        f"Next: kayakgen cfd run {paths.job_dir}. The real-solver path "
+        "requires an RFC 0046 opt-in (--allow-real-solver-execution, "
+        "~/.config/kayakgen/cfd.json, or KAYAKGEN_OPENFOAM_LOCAL_RUN=1)."
+    )
 
 
 @cfd_app.command("status")

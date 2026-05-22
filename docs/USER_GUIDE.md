@@ -527,11 +527,26 @@ the command emits a structured error pointing at the `report` extras.
 Cross-run inspection over the RFC 0049 artifact store:
 
 ```bash
-kayakgen runs list [--kind sweep|search|cfd|comparison] [--limit N]
+kayakgen runs list [--kind sweep|search|cfd|comparison] [--limit N] [--header]
 kayakgen runs query <run_id> [--metric NAME ...] [--filter key:value ...]
 kayakgen runs reindex <run_dir> [--run-id ID]
 kayakgen runs jobs [--state queued|running|succeeded|failed|cancelled|resumable] \
-    [--kind sweep|search] [--limit N]
+    [--kind sweep|search] [--limit N] [--header]
+```
+
+`runs list` and `runs jobs` default to `--no-header` for back-compat
+with existing scripts that parse the tab-separated output. Pass
+`--header` to prefix the rows with a `#`-prefixed header line naming
+the columns. `runs query --filter key:value` honors two keys today —
+`status` (e.g. `accepted`, `rejected`) and `hull_design_hash` (full
+hex). Unknown keys parse cleanly but match no rows, silently
+dropping the candidate; the filter is applied client-side after the
+SQLite query. Example:
+
+```bash
+kayakgen runs list --header --limit 5
+kayakgen runs query <run_id> --filter status:accepted --metric GM0_m
+kayakgen runs jobs --header --state succeeded
 ```
 
 The SQLite index lives at `~/.local/share/kayakgen/index.sqlite` by

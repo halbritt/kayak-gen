@@ -1,0 +1,125 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0032-cli-ergonomics-runs-cfd",
+  "workflow_version": "2026-05-22",
+  "name": "0032 - CLI ergonomics: runs headers/filters + cfd prepare/mesh-evidence polish (R4+R5)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0032-cli-ergonomics-runs-cfd",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["bash", ".striatum/bin/claude-supervised-wrapper.sh"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["bash", ".striatum/bin/codex-supervised-wrapper.sh"],
+      "capabilities": ["write", "review", "synthesis"]
+    }
+  },
+  "roles": {
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "reviewer": {"definition_path": "roles/reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/RELEASE_DISCIPLINE.md", "required": true},
+    {"path": "docs/audits/2026-05-22-code-doc-audit/REMEDIATION_PLAN.md", "required": true},
+    {"path": "docs/audits/2026-05-22-code-doc-audit/operator-adoption/FINDINGS.md", "required": true},
+    {"path": "docs/USER_GUIDE.md", "required": true},
+    {"path": "docs/workflows/0032-cli-ergonomics-runs-cfd/SOURCES.md", "required": true},
+    {"path": "docs/rfcs/0046-cfd-solver-real-execution-opt-in.md", "required": false},
+    {"path": "kayakgen/cli/runs_cli.py", "required": true},
+    {"path": "kayakgen/cli/main.py", "required": true},
+    {"path": "kayakgen/services/artifact_store.py", "required": true},
+    {"path": "tests/test_cfd_jobs.py", "required": false},
+    {"path": "tests/test_cfd_jobs_openfoam.py", "required": false}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 1,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement",
+      "type": "synthesis",
+      "title": "Land R4 (runs CLI header + filter docs) and R5 (CFD CLI polish)",
+      "role_id": "implementer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Close audit findings AUD-O-004 (R4), AUD-O-005 and AUD-O-006 (R5) per docs/audits/2026-05-22-code-doc-audit/REMEDIATION_PLAN.md. Add an opt-in --header / --no-header flag to `kayakgen runs list` and `kayakgen runs jobs` (default --no-header for back-compat); when --header is set, print a `#`-prefixed header listing the columns each command already writes. Extend the --filter help on `runs query` and `runs jobs` to enumerate the actual filter keys the implementation honors (don't invent restrictions). Append one line to the `mesh-evidence` env-var refusal naming RFC 0046's three opt-in mechanisms and that mesh-evidence currently honors only the env-knob mechanism; append one line to the `cfd prepare` success path naming `kayakgen cfd run <job_dir>` as the next step plus the three opt-in mechanisms. Update `docs/USER_GUIDE.md` `### runs` to document --header and enumerate filter keys (one short paragraph + one code example). Do not touch CHANGELOG, FINDINGS, kayakgen/eval/contract.py, kayakgen/eval/stability/, tests/test_vocabulary_coverage.py, or kayakgen/ui/web/.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/cli/runs_cli.py",
+          "kayakgen/cli/main.py",
+          "docs/USER_GUIDE.md",
+          "tests/test_runs_cli.py",
+          "tests/test_cfd_jobs.py",
+          "tests/test_cfd_jobs_openfoam.py",
+          "docs/audits/2026-05-22-code-doc-audit/follow-ups/0032/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "CHANGELOG.md",
+          "kayakgen/eval/contract.py",
+          "kayakgen/eval/stability/",
+          "kayakgen/ui/web/",
+          "tests/test_vocabulary_coverage.py",
+          "docs/audits/2026-05-22-code-doc-audit/pipeline-integrity/",
+          "docs/audits/2026-05-22-code-doc-audit/docs-decision-drift/",
+          "docs/audits/2026-05-22-code-doc-audit/operator-adoption/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "docs/audits/2026-05-22-code-doc-audit/follow-ups/0032/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Review R4+R5 patches for scope, copy fidelity, and test impact",
+      "role_id": "reviewer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Review the implement job's patch for (1) staying inside the named write scope; (2) preserving back-compat — runs list / jobs default output rows are unchanged byte-for-byte when --header is absent; (3) the appended mesh-evidence and cfd prepare lines name RFC 0046 plus the three opt-in mechanisms verbatim; (4) the --filter help text matches the actual filterable keys in SqliteIndex / runs_query_command implementation, not invented keys; (5) the USER_GUIDE addition is tight (one paragraph + one example); (6) the cfd_jobs* test suite still passes. Publish a finding artifact with one of accept | accept_with_findings | needs_revision | reject.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/audits/2026-05-22-code-doc-audit/follow-ups/0032/reviews/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "docs/audits/2026-05-22-code-doc-audit/follow-ups/0032/reviews/REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "implement", "to": "review", "on": "completed"}
+  ]
+}

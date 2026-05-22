@@ -50,11 +50,22 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Pending
 
-- R4-R5 (AUD-O-004 / AUD-O-005 / AUD-O-006) and the new-RFC slice
-  (AUD-O-003) deferred to follow-up striatum workflows.
+- The new-RFC slice (AUD-O-003) deferred to a follow-up striatum
+  workflow.
 
 ### Fixed
 
+- Workflow 0032 (`docs/workflows/0032-cli-ergonomics-runs-cfd/`) closes
+  audit findings AUD-O-004 (medium), AUD-O-005 (medium), and AUD-O-006
+  (low): `kayakgen/cli/runs_cli.py` gains optional `--header` flag on
+  `runs list` and `runs jobs` (default `--no-header` for back-compat;
+  prints `#`-prefixed tab-separated column header line); enumerates the
+  honored `--filter` keys (`status`, `hull_design_hash`) in the help
+  text. `kayakgen/cli/main.py` `mesh-evidence` refusal message appends an
+  RFC 0046 three-mechanism cross-reference; `cfd prepare` success echo
+  appends a "Next: kayakgen cfd run ..." line that names the three
+  opt-in mechanisms. `docs/USER_GUIDE.md` `### runs` section documents
+  the new `--header` flag and enumerates the filter keys.
 - Workflow 0031 (`docs/workflows/0031-vocab-coverage-rfc-0057-0058/`)
   closes audit findings AUD-P-003 (medium) and AUD-P-004 (low):
   `tests/test_vocabulary_coverage.py` gains parametric coverage for the
