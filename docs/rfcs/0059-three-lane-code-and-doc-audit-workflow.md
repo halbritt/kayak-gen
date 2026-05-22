@@ -1,6 +1,6 @@
 # RFC 0059: Three-Lane Code And Documentation Audit Workflow
 
-Status: proposed
+Status: landed
 Date: 2026-05-22
 Context:
 [`RFC 0007`](0007-architectural-revisit.md),

@@ -55,6 +55,19 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   defining the `HullParameterMetadata` value object + registry shape;
   driven to completion by workflow 0033 below.
 
+### Changed
+
+- Discipline-checklist catch-up for the 2026-05-22 audit run: RFC 0059
+  promoted from `proposed` to `landed` (every high/medium finding from
+  the dogfood run is now closed by workflows 0030-0033). New
+  `DECISION_LOG.md` rows D041 (audit cadence — `full_repo` quarterly +
+  `release_candidate` before any public-CLI / public-schema CHANGELOG
+  entry), D042 (`EMPTY_STABILITY_FIT_REGISTRY` constant as the single
+  source of truth for the empty fit registry through RFC 0058 stages
+  2-3), and D043 (`HullParameterMetadata` presentation-layer pattern
+  for UI-facing labels and tooltips). `ROADMAP.md` gains "Code+doc
+  audit cadence" and "Web Generate-panel form labels" track rows.
+
 ### Fixed
 
 - Workflow 0033 (`docs/workflows/0033-web-generate-panel-labels/`)
