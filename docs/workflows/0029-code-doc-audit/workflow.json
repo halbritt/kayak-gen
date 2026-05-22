@@ -1,0 +1,328 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0029-code-doc-audit",
+  "workflow_version": "2026-05-22",
+  "name": "0029 — Three-lane code+doc audit (RFC 0059 code_doc_audit shape)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0029-code-doc-audit",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "coordinator",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": [
+        "claude",
+        "--model",
+        "opus",
+        "-p"
+      ],
+      "capabilities": [
+        "review",
+        "synthesis"
+      ]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "-"
+      ],
+      "capabilities": [
+        "review",
+        "synthesis"
+      ]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": [
+        "gemini",
+        "--model",
+        "gemini-3.1-pro-preview"
+      ],
+      "capabilities": [
+        "review"
+      ]
+    }
+  },
+  "roles": {
+    "coordinator": {
+      "definition_path": "roles/coordinator.md"
+    },
+    "reviewer_pipeline_integrity": {
+      "definition_path": "roles/reviewer_pipeline_integrity.md"
+    },
+    "reviewer_docs_decision_drift": {
+      "definition_path": "roles/reviewer_docs_decision_drift.md"
+    },
+    "reviewer_operator_adoption": {
+      "definition_path": "roles/reviewer_operator_adoption.md"
+    },
+    "audit_synthesizer": {
+      "definition_path": "roles/audit_synthesizer.md"
+    },
+    "remediation_planner": {
+      "definition_path": "roles/remediation_planner.md"
+    }
+  },
+  "context_docs": [
+    {
+      "path": "AGENTS.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0059-three-lane-code-and-doc-audit-workflow.md",
+      "required": true
+    },
+    {
+      "path": "docs/RELEASE_DISCIPLINE.md",
+      "required": true
+    },
+    {
+      "path": "docs/CONTEXT_HYGIENE.md",
+      "required": true
+    },
+    {
+      "path": "docs/workflows/0029-code-doc-audit/SOURCES.md",
+      "required": true
+    },
+    {
+      "path": "docs/SPEC.md",
+      "required": false
+    },
+    {
+      "path": "docs/PRD.md",
+      "required": false
+    },
+    {
+      "path": "docs/DECISION_LOG.md",
+      "required": false
+    },
+    {
+      "path": "docs/ROADMAP.md",
+      "required": false
+    },
+    {
+      "path": "docs/USER_GUIDE.md",
+      "required": false
+    },
+    {
+      "path": "docs/ARCHITECTURE_MAP.md",
+      "required": false
+    },
+    {
+      "path": "docs/UBIQUITOUS_LANGUAGE.md",
+      "required": false
+    },
+    {
+      "path": "docs/rfcs/README.md",
+      "required": false
+    },
+    {
+      "path": "CHANGELOG.md",
+      "required": false
+    },
+    {
+      "path": "pyproject.toml",
+      "required": false
+    }
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "review_pipeline_integrity",
+      "type": "review",
+      "title": "Audit pipeline-integrity / claim-gate invariants (Lane 1)",
+      "role_id": "reviewer_pipeline_integrity",
+      "lane_id": "codex",
+      "parallel_group": "audit_lanes",
+      "fresh_session_required": true,
+      "objective": "Verify that current source behavior preserves kayakgen's claim_state, accepted_use, readiness, and acceptance-gate invariants (RFCs 0025, 0027, 0046, 0049, 0054, 0058). Find concrete, evidence-backed findings with file:line citations. Do not propose code changes inside this job; produce a FINDINGS.md artifact only.",
+      "task_prompt": {
+        "path": "prompts/review_pipeline_integrity.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/audits/${RUN_DATE}-code-doc-audit/pipeline-integrity/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "findings",
+          "kind": "finding",
+          "path": "docs/audits/${RUN_DATE}-code-doc-audit/pipeline-integrity/FINDINGS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_docs_decision_drift",
+      "type": "review",
+      "title": "Audit docs / decision drift (Lane 2)",
+      "role_id": "reviewer_docs_decision_drift",
+      "lane_id": "gemini",
+      "parallel_group": "audit_lanes",
+      "fresh_session_required": true,
+      "objective": "Verify that the docs in RELEASE_DISCIPLINE.md's public-behavior-change checklist describe current source behavior and current decision state honestly. Use file:line citations from SPEC, PRD, DECISION_LOG, ROADMAP, USER_GUIDE, ARCHITECTURE_MAP, UBIQUITOUS_LANGUAGE, the RFCs README, CHANGELOG, and the cited code. Do not propose docs changes inside this job; produce a FINDINGS.md artifact only.",
+      "task_prompt": {
+        "path": "prompts/review_docs_decision_drift.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/audits/${RUN_DATE}-code-doc-audit/docs-decision-drift/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "findings",
+          "kind": "finding",
+          "path": "docs/audits/${RUN_DATE}-code-doc-audit/docs-decision-drift/FINDINGS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_operator_adoption",
+      "type": "review",
+      "title": "Audit operator / adoption surfaces (Lane 3)",
+      "role_id": "reviewer_operator_adoption",
+      "lane_id": "claude",
+      "parallel_group": "audit_lanes",
+      "fresh_session_required": true,
+      "objective": "Verify that an operator or first adopter can use kayakgen without private project memory. Cover day-zero install, CLI subcommand discoverability and help text, desktop GUI and Trame Generate-panel ergonomics, opt-in env knobs, error messages and recovery paths, and any place where a file-based artifact is being used as a control plane. Use file:line citations. Do not propose source changes inside this job; produce a FINDINGS.md artifact only.",
+      "task_prompt": {
+        "path": "prompts/review_operator_adoption.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/audits/${RUN_DATE}-code-doc-audit/operator-adoption/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "findings",
+          "kind": "finding",
+          "path": "docs/audits/${RUN_DATE}-code-doc-audit/operator-adoption/FINDINGS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "audit_synthesis",
+      "type": "synthesis",
+      "title": "Synthesize the three lane FINDINGS.md into SYNTHESIS.md",
+      "role_id": "audit_synthesizer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Read all three lane FINDINGS.md artifacts. Produce SYNTHESIS.md with: a lane-diversity caveat if any lane was missing a fresh provider, a roll-up table keyed by finding ID, a cross-lane duplicate/overlap section, an explicit conflicts-between-lanes section (or 'none'), and a priority order grouping related findings into remediation batches.",
+      "task_prompt": {
+        "path": "prompts/audit_synthesis.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/audits/${RUN_DATE}-code-doc-audit/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "docs/audits/${RUN_DATE}-code-doc-audit/pipeline-integrity/",
+          "docs/audits/${RUN_DATE}-code-doc-audit/docs-decision-drift/",
+          "docs/audits/${RUN_DATE}-code-doc-audit/operator-adoption/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "synthesis",
+          "kind": "synthesis",
+          "path": "docs/audits/${RUN_DATE}-code-doc-audit/SYNTHESIS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "remediation_plan",
+      "type": "synthesis",
+      "title": "Produce REMEDIATION_PLAN.md from SYNTHESIS.md",
+      "role_id": "remediation_planner",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Convert the synthesis into a task-oriented remediation plan. Group findings into named batches (R1, R2, ...). Every high or critical finding gets one of the seven follow-up classifications from RFC 0059 §4: existing TODO/RFC/decision; needs a new RFC; needs a DECISION_LOG row; needs a docs-only correction; needs source/test work; historical only; accepted risk / wontfix. Name the touched files for each batch.",
+      "task_prompt": {
+        "path": "prompts/remediation_plan.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/audits/${RUN_DATE}-code-doc-audit/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "docs/audits/${RUN_DATE}-code-doc-audit/pipeline-integrity/",
+          "docs/audits/${RUN_DATE}-code-doc-audit/docs-decision-drift/",
+          "docs/audits/${RUN_DATE}-code-doc-audit/operator-adoption/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "remediation",
+          "kind": "synthesis",
+          "path": "docs/audits/${RUN_DATE}-code-doc-audit/REMEDIATION_PLAN.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "review_pipeline_integrity",
+      "to": "audit_synthesis",
+      "on": "completed"
+    },
+    {
+      "from": "review_docs_decision_drift",
+      "to": "audit_synthesis",
+      "on": "completed"
+    },
+    {
+      "from": "review_operator_adoption",
+      "to": "audit_synthesis",
+      "on": "completed"
+    },
+    {
+      "from": "audit_synthesis",
+      "to": "remediation_plan",
+      "on": "completed"
+    }
+  ]
+}

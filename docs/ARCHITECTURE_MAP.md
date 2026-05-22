@@ -1,6 +1,6 @@
 # Architecture Map
 
-Date: 2026-05-16
+Date: 2026-05-22
 
 Snapshot of the current kayakgen architecture for new contributors. Read
 `AGENTS.md` first for orientation. Read this file second to learn package
@@ -160,10 +160,15 @@ The `cli/` directory carries seven sibling modules used by `main.py`:
 | `kayakgen sensitivity <hull>` | local finite-difference Jacobian | `<out>.sensitivity.json` |
 | `kayakgen design-report <hull>` | self-contained HTML (+ optional PDF) | `report.html` (+ `report.pdf` with `[report]` extras) |
 | `kayakgen runs list/query/reindex` | cross-run index (RFC 0049) | reads `~/.local/share/kayakgen/index.sqlite` |
+| `kayakgen runs jobs` | RFC 0057 stage-4 generative-job listing (filter by `--state queued/running/succeeded/failed/cancelled/resumable`) | reads index `generative_jobs` table |
 | `kayakgen calibration ingest-tank-test` | tank-test CSV ingest | `TankTestCampaign` JSON |
 | `kayakgen calibration ingest-inclining-test` | inclining-test CSV ingest | `IncliningTestCampaign` JSON |
 | `kayakgen calibration accept-fit` | accept a fit against an RMSE threshold | `AcceptedFitRecord` JSON |
 | `kayakgen calibration residual-plot` | SVG residual plot for an accepted fit | SVG file |
+| `kayakgen stability ingest-rig-run` | RFC 0058 stage-3 schema-only ingest of a measured-stability rig run | per-fixture manifest JSON |
+| `kayakgen stability promote-fixture` | RFC 0058 stage-3 schema-only `StabilityFixturePromotionPacket` writer | promotion-packet JSON |
+| `kayakgen stability accept-fit` | RFC 0058 stage-3 schema-only `StabilityFitRecord` acceptance | accepted-fit JSON |
+| `kayakgen stability residual-plot` | RFC 0058 stage-3 placeholder SVG residual plot for a stability fit | SVG file |
 | `kayakgen evaluate ... --turning [--turning-heel-deg N]` | opt-in turning + edged-waterline metrics (RFC 0053) | adds `turning_metrics` to JSON |
 
 ## Durable artifact types

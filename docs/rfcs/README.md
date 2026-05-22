@@ -73,6 +73,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0056](0056-strain-gauged-gz-rig.md) | landed (schemas only) | Strain-gauged moment-arm rig for measured high-angle GZ — MeasuredStabilityFixture schema + validators landed under `kayakgen/eval/stability/measured_fixture.py`; no fixture promoted by this RFC |
 | [0057](0057-generative-search-jobs-and-web-workspace.md) | landed | Generative-search jobs and web workspace — records, in-process + subprocess managers, /api/generative-jobs/* routes, Trame Generate panel with form-builder + 2D Pareto scatter + auto-poll + fork-with-seed + log redaction (stages 1-4) |
 | [0058](0058-stability-calibration-acceptance.md) | landed | Stability calibration acceptance and CFD-in-loop graduation — stages 1-3 landed stability fit schemas, `resolve_analytical_claim_label`, `cfd_in_loop_evaluator_status`, schema-only `kayakgen stability` commands, and Generate-panel read-model wiring; Stage 4 first promotion remains gated on physical rig data |
+| [0059](0059-three-lane-code-and-doc-audit-workflow.md) | proposed | Three-lane code+doc audit workflow shape (`code_doc_audit`) — pipeline-integrity / docs-decision-drift / operator-adoption lanes, synthesis + remediation-plan downstream, runnable workflow at `docs/workflows/0029-code-doc-audit/`; first dogfood run landed under `docs/audits/2026-05-22-code-doc-audit/` |
 
 Architecture-plan landing notes (not RFCs themselves; see
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`):

@@ -6,13 +6,59 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
+### Added
+
+- Proposed RFC 0059 "Three-Lane Code And Documentation Audit Workflow"
+  (`docs/rfcs/0059-three-lane-code-and-doc-audit-workflow.md`) plus the
+  runnable workflow at `docs/workflows/0029-code-doc-audit/` (workflow.json
+  + RUNBOOK + SOURCES template + per-lane prompts and roles) implementing
+  the `code_doc_audit` shape.
+- First dogfood run of the new workflow under
+  `docs/audits/2026-05-22-code-doc-audit/`: three lane FINDINGS.md
+  artifacts (pipeline-integrity / docs-decision-drift / operator-adoption),
+  SYNTHESIS.md, and REMEDIATION_PLAN.md. 13 findings (5 high, 5 medium, 4
+  low, 3 info / null). Lane-diversity caveat documented in SYNTHESIS.md.
+
 ### Changed
 
+- Drove the audit's R1 + R9 + R2-docs remediation batches in place
+  (closes AUD-D-001 / AUD-D-002 / AUD-D-003 / AUD-D-004 / AUD-O-001 /
+  AUD-O-002 / AUD-O-007 from `docs/audits/2026-05-22-code-doc-audit/`):
+  - `docs/ARCHITECTURE_MAP.md` date bumped to 2026-05-22; CLI table
+    gains `kayakgen runs jobs` (RFC 0057 stage 4) and the four
+    `kayakgen stability {ingest-rig-run, promote-fixture, accept-fit,
+    residual-plot}` rows (RFC 0058 stages 2-3).
+  - `docs/USER_GUIDE.md` `### stability` section gains a D040
+    legacy-routing note and a `#### Stability fixtures (RFC 0058)`
+    subsection covering the four schema-only subcommands; the
+    Mesh-and-CFD-readiness section gains `### mesh-evidence (RFC 0045)`;
+    the `### cfd run` env-knob section documents the full RFC 0046
+    three-mechanism opt-in contract (profile flag / persistent setting /
+    env knob, ranked by precedence) with examples.
+  - `docs/UBIQUITOUS_LANGUAGE.md` gains glossary entries for
+    `MeasuredStabilityFixture`, `StabilityFitRecord`,
+    `StabilityFixturePromotionPacket`, `AnalyticalClaimLabel`,
+    `cfd_in_loop_evaluator_status`, and `GenerativeJob`.
+  - `docs/PRD.md` high-angle-GZ bullet names RFC 0058's analytical-label
+    upgrade contract.
+  - `docs/rfcs/README.md` gains the RFC 0059 row.
 - Synchronized the RFC 0057 stage-4 documentation set: user-guide Generate
   / `kayakgen runs jobs` usage, roadmap date/status, RFC 0057 landed status
   and `/api/generative-jobs/*` route names, D037 decision receipt, RFC index,
   and workflow operator report. No runtime behavior or no-claims boundary
   changed.
+
+### Pending
+
+- R3 audit remediation (AUD-P-001) — widen
+  `kayakgen/eval/contract.py:175` `GZCurve.result_semantics` Literal to
+  the `AnalyticalClaimLabel` union and add a round-trip regression test.
+  Deferred to a follow-up striatum workflow per project memory rule
+  `feedback_striatum_required`. See
+  `docs/audits/2026-05-22-code-doc-audit/REMEDIATION_PLAN.md#r3`.
+- R2 test-coverage slice (AUD-P-003 / AUD-P-004 / AUD-O-004 / AUD-O-005 /
+  AUD-O-006 / AUD-P-002) and the new-RFC slice (AUD-O-003) likewise
+  deferred to follow-up striatum workflows.
 
 ### Fixed
 

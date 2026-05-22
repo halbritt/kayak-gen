@@ -147,6 +147,13 @@ the metric registry and refused as Pareto/search objectives.
 
 ### `stability`
 
+> The bare-form `kayakgen stability <hull>` invocation is preserved via a
+> hidden `legacy` subcommand and a Typer parse shim (D040). Running
+> `kayakgen stability --help` intentionally hides the legacy form so the
+> new RFC 0058 sub-app commands (`ingest-rig-run`, `promote-fixture`,
+> `accept-fit`, `residual-plot`) surface; the bare-form invocation
+> documented below continues to work unchanged.
+
 Write initial-stability results for a load case:
 
 ```bash
@@ -192,6 +199,55 @@ generated-body v1 heel sweep (default `0..90` deg by `5` deg; override with
 `sealed_body_assumption`) are always included. Synthetic bodies record
 `available: false` with `unavailable_reason.code = synthetic_body_not_allowed_for_real_gz`.
 Defaults, sweep ranking, and frontier behavior remain unchanged.
+
+#### Stability fixtures (RFC 0058)
+
+The `kayakgen stability` group exposes four RFC 0058 stage-3 subcommands
+that write schema-only artifacts for a future measured-stability
+acceptance workflow. None of them ingest physical sensor data, run a real
+fit, or promote a fixture today; they pin the on-disk data contract so the
+first measured rig run can land cleanly. Stage 4 first promotion remains
+gated on D007 / D014 physical rig data.
+
+```bash
+# 1. Schema-only ingest of a candidate measured-stability rig run.
+kayakgen stability ingest-rig-run \
+  --fixture-id alpha-2026-05 \
+  --rig-run path/to/rig_run.json \
+  --out data/stability/fixtures/alpha-2026-05/manifest.json
+
+# 2. Schema-only StabilityFixturePromotionPacket writer. The five review
+#    verdicts (rights, hull-identity, calibration-drift, hysteresis,
+#    free-equilibrium) plus rig_design_match are required for the
+#    measured_stability_fixture promotion target.
+kayakgen stability promote-fixture \
+  --fixture-id alpha-2026-05 \
+  --packet path/to/promotion_packet.json \
+  --out data/stability/fixtures/alpha-2026-05/promotion.json
+
+# 3. Schema-only StabilityFitRecord acceptance. Default strict thresholds
+#    (rmse_m <= 0.005, mape_fraction <= 0.05, max_error_m <= 0.01,
+#    coverage_fraction >= 0.9) refuse out-of-band fits unless
+#    `strict=false` is set (which adds the `strict_check_skipped`
+#    warning).
+kayakgen stability accept-fit \
+  --fit-record path/to/fit_record.json \
+  --out data/stability/fits/<fit_id>.json
+
+# 4. Placeholder SVG residual plot for an accepted fit; the renderer is a
+#    stub today and is replaced when stage 4 lands.
+kayakgen stability residual-plot \
+  --fit-record data/stability/fits/<fit_id>.json \
+  --out data/stability/fits/<fit_id>.svg
+```
+
+The four subcommands write canonical fixture/fit manifests; the validators
+refuse missing review verdicts, ill-ordered heel ranges, non-hex SHA-256
+strings, and empty design-hash envelopes. A fit accepted today does not
+upgrade RFC 0043's `unvalidated_hydrostatic_comparison` label — the
+upgrade contract (`resolve_analytical_claim_label`) wires through but
+defaults to an empty fit registry until stage 4 promotes the first
+fixture.
 
 ### `sweep`
 
@@ -554,6 +610,34 @@ Changing `bow_rake` or `stern_rake` to `0.0` does not by itself make those
 inspection STLs watertight; closed-body readiness must come from the explicit
 generated closed-body path and diagnostics.
 
+### `mesh-evidence` (RFC 0045)
+
+`kayakgen mesh-evidence <hull>` runs the snappyHexMesh-evidence harness
+against an installed OpenFOAM-v2512 toolchain and writes the resulting
+`SnappyHexMeshEvidence` (case-template version, dictionary hashes,
+patch metadata, `CheckMeshSummary`, polyMesh artifact checksums,
+`OpenFoamProvenanceProbe`) into the package directory. The default
+output binds back into `mesh-package --bind-evidence` to promote an
+ordinary generated package to `cfd_ready` without copying fixture
+artifacts.
+
+```bash
+export KAYAKGEN_OPENFOAM_LOCAL_RUN=1
+export KAYAKGEN_OPENFOAM_BASHRC=/usr/lib/openfoam/openfoam2512/etc/bashrc
+kayakgen mesh-evidence hull.json --out build/mesh-evidence
+kayakgen mesh-package hull.json --out build/watertight-package \
+  --solver-profile watertight-solid \
+  --bind-evidence build/mesh-evidence/evidence.json
+```
+
+The command refuses to run without `KAYAKGEN_OPENFOAM_LOCAL_RUN=1` and an
+OpenFOAM-v2512 toolchain reachable via `KAYAKGEN_OPENFOAM_BASHRC`. The
+refusal emits a structured `binding_code` token
+(`openfoam_local_run_env_required` or
+`openfoam_toolchain_unavailable`). See the env-knob list under
+`### cfd run` for the three RFC 0046 opt-in mechanisms; `mesh-evidence`
+currently honors only the env-knob mechanism.
+
 ## Synthetic Closed-Volume Diagnostics
 
 Workflow 0027 introduced a narrow diagnostic contract for explicit synthetic
@@ -653,13 +737,32 @@ dispatch testing. The fixture local-command profile can produce a deterministic
 successful raw fixture record for tests.
 
 The `openfoam-v2512-interfoam-local` profile has a real local-execution path
-behind two opt-in environment variables. Both must be set, and an installed
-OpenFOAM-v2512 toolchain must be sourceable. The three OpenFOAM env knobs have
-distinct roles:
+behind RFC 0046's three opt-in mechanisms. The CLI accepts any one of the
+three; an installed OpenFOAM-v2512 toolchain must still be sourceable via
+`KAYAKGEN_OPENFOAM_BASHRC`. The three mechanisms, ranked by precedence:
 
-- `KAYAKGEN_OPENFOAM_LOCAL_RUN`: operational opt-in. Admits the real succeeded
-  path in `kayakgen cfd run` (RFC 0046 env-knob source); without it, the
-  adapter falls back to `error_kind="solver_success_blocked"`.
+1. **Profile flag** (highest precedence). `kayakgen cfd prepare
+   --allow-real-solver-execution` writes the opt-in into the job's
+   `profile.json` (`allow_real_solver_execution=true`); the value
+   travels with the job and is the most auditable mechanism because it
+   appears in every artifact derived from that profile.
+2. **Persistent setting** (middle precedence).
+   `~/.config/kayakgen/cfd.json` may carry an
+   `allow_real_solver_execution_profiles: ["openfoam-v2512-interfoam-local"]`
+   list. Use this for long-lived operator setups; the persistent setting
+   is not embedded in any artifact, so prefer the profile flag when
+   provenance matters.
+3. **Env knob** (lowest precedence). `KAYAKGEN_OPENFOAM_LOCAL_RUN=1`
+   admits the real succeeded path in `kayakgen cfd run`. Convenient for
+   shell-local runs; not recommended for CI or unattended jobs because
+   the env var is not visible in the run artifacts.
+
+The full env-knob list, including the test-only smoke gate and the
+toolchain source, has distinct roles:
+
+- `KAYAKGEN_OPENFOAM_LOCAL_RUN`: operational opt-in (RFC 0046 env-knob
+  mechanism #3 above); without it and without the other two mechanisms,
+  the adapter falls back to `error_kind="solver_success_blocked"`.
 - `KAYAKGEN_OPENFOAM_SMOKE`: test-only smoke gate. Gates the integration test
   surface (`tests/test_openfoam_v2512_smoke.py` and the env-gated stage tests
   in `tests/test_cfd_run_stages.py`) only; the CLI does not consult it.
@@ -668,9 +771,19 @@ distinct roles:
   `/usr/lib/openfoam/openfoam2512/etc/bashrc`.
 
 ```bash
-export KAYAKGEN_OPENFOAM_LOCAL_RUN=1      # operational opt-in (CLI succeeded path)
-export KAYAKGEN_OPENFOAM_SMOKE=1          # test-only smoke gate (integration tests)
-export KAYAKGEN_OPENFOAM_BASHRC=/usr/lib/openfoam/openfoam2512/etc/bashrc  # env source
+# Mechanism 1: per-job profile flag (preferred for CI / auditable runs).
+kayakgen cfd prepare ... --allow-real-solver-execution --out runs/cfd
+
+# Mechanism 2: persistent setting (long-lived operator setup).
+mkdir -p ~/.config/kayakgen
+cat > ~/.config/kayakgen/cfd.json <<'JSON'
+{"allow_real_solver_execution_profiles": ["openfoam-v2512-interfoam-local"]}
+JSON
+
+# Mechanism 3: env knob (shell-local convenience).
+export KAYAKGEN_OPENFOAM_LOCAL_RUN=1
+export KAYAKGEN_OPENFOAM_BASHRC=/usr/lib/openfoam/openfoam2512/etc/bashrc
+export KAYAKGEN_OPENFOAM_SMOKE=1   # only needed for the integration test suite
 ```
 
 With both opt-ins set, `kayakgen cfd run` against an
