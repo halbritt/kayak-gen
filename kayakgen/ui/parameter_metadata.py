@@ -122,16 +122,35 @@ HULL_PARAMETER_METADATA: dict[str, HullParameterMetadata] = {
 }
 
 
+VIEW_PARAMETER_METADATA: dict[str, HullParameterMetadata] = {
+    "target_speed_kt": HullParameterMetadata(
+        parameter="target_speed_kt",
+        label="Target speed",
+        unit="kt",
+        description=(
+            "Forward speed used by the desktop resistance summary; "
+            "not a Hull field. Used only by the GUI; sweep / search "
+            "specs carry their own speed sweeps."
+        ),
+    ),
+}
+
+
 def label_with_unit(parameter: str) -> str:
     """Return ``label (unit)`` for use as a Vuetify field label.
 
-    Returns the raw parameter name if the registry has no entry for it.
-    Callers should not rely on this fallback in production; the
-    regression test in ``tests/test_hull_parameter_metadata.py`` pins the
-    contract.
+    Looks up ``parameter`` in ``HULL_PARAMETER_METADATA`` first, then
+    falls back to ``VIEW_PARAMETER_METADATA`` for view-only parameters
+    (RFC 0061). Returns the raw parameter name if neither registry has
+    an entry. Callers should not rely on the raw-key fallback in
+    production; the regression tests in
+    ``tests/test_hull_parameter_metadata.py`` and
+    ``tests/test_desktop_sliders_use_registry.py`` pin the contract.
     """
 
-    metadata = HULL_PARAMETER_METADATA.get(parameter)
+    metadata = HULL_PARAMETER_METADATA.get(parameter) or VIEW_PARAMETER_METADATA.get(
+        parameter
+    )
     if metadata is None:
         return parameter
     if metadata.unit is None:
@@ -140,15 +159,23 @@ def label_with_unit(parameter: str) -> str:
 
 
 def description(parameter: str) -> str | None:
-    """Return the tooltip text for ``parameter``, or ``None`` if not in the registry."""
+    """Return the tooltip text for ``parameter``, or ``None`` if not in either registry.
 
-    metadata = HULL_PARAMETER_METADATA.get(parameter)
+    Looks up ``parameter`` in ``HULL_PARAMETER_METADATA`` first, then
+    falls back to ``VIEW_PARAMETER_METADATA`` (RFC 0061) for view-only
+    parameters.
+    """
+
+    metadata = HULL_PARAMETER_METADATA.get(parameter) or VIEW_PARAMETER_METADATA.get(
+        parameter
+    )
     return metadata.description if metadata is not None else None
 
 
 __all__ = [
     "HULL_PARAMETER_METADATA",
     "HullParameterMetadata",
+    "VIEW_PARAMETER_METADATA",
     "description",
     "label_with_unit",
 ]

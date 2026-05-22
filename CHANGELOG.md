@@ -8,6 +8,22 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Landed RFC 0061
+  (`docs/rfcs/0061-desktop-sliders-on-hull-parameter-metadata.md`)
+  closing D043's named desktop-migration follow-up to RFC 0060. The
+  desktop GUI now consumes the same `HULL_PARAMETER_METADATA` registry
+  the web Generate panel does, eliminating the GUI-key / Hull-key
+  drift (`length` → `length_m`, `beam` → `beam_oa_m`, ...) and the
+  `GUI_TO_HULL` indirection. The view-only `target_speed_kt` lives in
+  a new sibling `VIEW_PARAMETER_METADATA` dict; desktop slider ranges
+  live in a new `kayakgen/ui/desktop_slider_ranges.py` (per D043
+  OQ1 — ranges stay out of the value-object schema).
+  `kayakgen/ui/gui_params.py:hull_from_gui_params` becomes a
+  deprecation shim that emits a `DeprecationWarning` naming RFC 0061
+  but still returns a valid `Hull`. Driven by workflow 0034
+  (`docs/workflows/0034-desktop-sliders-on-registry/`). The 12 numeric
+  slider ranges and 12 default values are byte-equal to the pre-RFC
+  literals; only the keys and label strings change.
 - Proposed RFC 0059 "Three-Lane Code And Documentation Audit Workflow"
   (`docs/rfcs/0059-three-lane-code-and-doc-audit-workflow.md`) plus the
   runnable workflow at `docs/workflows/0029-code-doc-audit/` (workflow.json

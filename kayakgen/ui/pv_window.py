@@ -13,8 +13,29 @@ from PyQt6.QtWidgets import (
 )
 from pyvistaqt import QtInteractor
 
+from kayakgen.model.hull import Hull
 from kayakgen.ui import theme
-from kayakgen.ui.gui_params import hull_from_gui_params as _hull_from_gui_params
+from kayakgen.ui.parameter_metadata import VIEW_PARAMETER_METADATA
+
+# RFC 0061: view-only keys live in VIEW_PARAMETER_METADATA so the
+# desktop GUI and the PyVista preview cannot drift on which keys are
+# not Hull fields.
+_NON_HULL_GUI_KEYS: tuple[str, ...] = tuple(VIEW_PARAMETER_METADATA.keys())
+
+
+def _hull_from_params(params: dict) -> Hull:
+    """Build a :class:`Hull` from the desktop ``params`` dict.
+
+    Filters out view-only keys (``target_speed_kt``) sourced from
+    ``VIEW_PARAMETER_METADATA``. Replaces the legacy
+    ``kayakgen.ui.gui_params.hull_from_gui_params`` indirection per RFC
+    0061; ``params`` is already keyed by canonical Hull JSON field
+    names.
+    """
+
+    return Hull(
+        **{key: value for key, value in params.items() if key not in _NON_HULL_GUI_KEYS}
+    )
 
 
 PV_COLORS = {
@@ -69,11 +90,11 @@ class PyVistaWindow(QMainWindow):
 
     def _update_title(self, params: dict) -> None:
         self.setWindowTitle(
-            f"Kayak 3D — {params['length']:.1f}m × {params['beam']:.2f}m beam"
+            f"Kayak 3D — {params['length_m']:.1f}m × {params['beam_oa_m']:.2f}m beam"
         )
 
     def _build_scene(self, params: dict) -> None:
-        geom = _hull_from_gui_params(params).to_geometry()
+        geom = _hull_from_params(params).to_geometry()
         hull_pv = _build_pv_mesh(*geom.mesh("hull", stations=80))
         deck_pv = _build_pv_mesh(*geom.mesh("deck", stations=80))
 
@@ -109,7 +130,7 @@ class PyVistaWindow(QMainWindow):
         )
 
     def update_mesh(self, params: dict) -> None:
-        geom = _hull_from_gui_params(params).to_geometry()
+        geom = _hull_from_params(params).to_geometry()
         for part, attr in [("hull", "_hull_actor"), ("deck", "_deck_actor")]:
             verts, faces = geom.mesh(part, stations=80)
             pv_mesh = _build_pv_mesh(verts, faces)

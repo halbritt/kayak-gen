@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib.transforms import Bbox
 
 from kayakgen.ui.desktop import KayakGUI
+from kayakgen.ui.parameter_metadata import label_with_unit
 
 
 def _area_overlap(a: Bbox, b: Bbox, *, min_px: float = 0.5) -> bool:
@@ -47,7 +48,13 @@ def test_desktop_slider_labels_are_visible_and_unobstructed(
     valtext_bboxes: dict[str, Bbox] = {}
     for key, expected_label, _vmin, _vmax in KayakGUI.SLIDERS:
         slider = gui.sliders[key]
+        # RFC 0061: slider labels are sourced from the
+        # HullParameterMetadata / VIEW_PARAMETER_METADATA registry via
+        # ``label_with_unit``; the SLIDERS tuple's second column is the
+        # same value, but assert against the registry helper so a
+        # regression in the SLIDERS-construction path also trips here.
         assert slider.label.get_text() == expected_label
+        assert slider.label.get_text() == label_with_unit(key)
         assert slider.label.get_fontsize() == 7.5
         assert slider.valtext.get_fontsize() == 7.5
         label_bboxes[key] = slider.label.get_window_extent(renderer)

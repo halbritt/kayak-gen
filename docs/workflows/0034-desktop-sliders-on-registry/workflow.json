@@ -1,0 +1,216 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0034-desktop-sliders-on-registry",
+  "workflow_version": "2026-05-22",
+  "name": "0034 — Desktop sliders on HullParameterMetadata (RFC 0061)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0034-desktop-sliders-on-registry",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": [
+        "claude",
+        "--model",
+        "opus",
+        "-p"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "-"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": [
+        "gemini",
+        "--model",
+        "gemini-3.1-pro-preview"
+      ],
+      "capabilities": [
+        "review"
+      ]
+    }
+  },
+  "roles": {
+    "implementer": {
+      "definition_path": "roles/implementer.md"
+    },
+    "reviewer": {
+      "definition_path": "roles/reviewer.md"
+    }
+  },
+  "context_docs": [
+    {
+      "path": "AGENTS.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0061-desktop-sliders-on-hull-parameter-metadata.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0060-web-generate-panel-form-labels-and-tooltips.md",
+      "required": true
+    },
+    {
+      "path": "docs/DECISION_LOG.md",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/parameter_metadata.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/desktop.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/pv_window.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/gui_params.py",
+      "required": true
+    },
+    {
+      "path": "tests/test_gui_params.py",
+      "required": true
+    },
+    {
+      "path": "docs/workflows/0034-desktop-sliders-on-registry/SOURCES.md",
+      "required": true
+    },
+    {
+      "path": "kayakgen/model/hull.py",
+      "required": false
+    },
+    {
+      "path": "tests/test_hull_parameter_metadata.py",
+      "required": false
+    },
+    {
+      "path": "tests/test_vocabulary_coverage.py",
+      "required": false
+    },
+    {
+      "path": "tests/test_desktop_layout.py",
+      "required": false
+    }
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 2,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement",
+      "type": "build",
+      "title": "Implement RFC 0061 desktop slider registry migration",
+      "role_id": "implementer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Land RFC 0061 §1-§5: extend kayakgen/ui/parameter_metadata.py with VIEW_PARAMETER_METADATA (target_speed_kt) and fall-back-through-both-registries label_with_unit / description helpers; create kayakgen/ui/desktop_slider_ranges.py with SLIDER_RANGES, SLIDER_STEPS, SLIDER_DEFAULTS (byte-equal to today's desktop literals); rewrite kayakgen/ui/desktop.py KayakGUI.SLIDERS/DEFAULTS/GLOBAL_RANGES/SLIDER_STEPS/_NON_HULL_GUI_KEYS to derive from the registries, replace _hull_from_gui_params call sites with a small _hull_from_params helper using canonical Hull keys; update kayakgen/ui/pv_window.py to drop the _hull_from_gui_params import; shrink kayakgen/ui/gui_params.py to a DeprecationWarning shim with empty GUI_TO_HULL; add tests/test_desktop_sliders_use_registry.py covering the five RFC 0061 §5 assertions; update tests/test_gui_params.py to use canonical Hull keys and assert the deprecation warning. Closes D043's named desktop-migration follow-up.",
+      "task_prompt": {
+        "path": "prompts/implement.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/ui/parameter_metadata.py",
+          "kayakgen/ui/desktop_slider_ranges.py",
+          "kayakgen/ui/desktop.py",
+          "kayakgen/ui/pv_window.py",
+          "kayakgen/ui/gui_params.py",
+          "tests/test_desktop_sliders_use_registry.py",
+          "tests/test_gui_params.py",
+          "tests/test_desktop_layout.py",
+          "docs/audits/2026-05-22-code-doc-audit/follow-ups/0034/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "CHANGELOG.md",
+          "docs/audits/2026-05-22-code-doc-audit/operator-adoption/",
+          "docs/audits/2026-05-22-code-doc-audit/docs-decision-drift/",
+          "docs/audits/2026-05-22-code-doc-audit/pipeline-integrity/",
+          "docs/rfcs/0061-desktop-sliders-on-hull-parameter-metadata.md",
+          "docs/rfcs/README.md",
+          "docs/DECISION_LOG.md"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "docs/audits/2026-05-22-code-doc-audit/follow-ups/0034/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Verify RFC 0061 landing closes the D043 desktop-migration follow-up",
+      "role_id": "reviewer",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Verify the implementer's changes satisfy RFC 0061 acceptance criteria and close D043's named desktop-migration follow-up: VIEW_PARAMETER_METADATA carries the target_speed_kt entry; SLIDER_RANGES / SLIDER_DEFAULTS numeric values are byte-equal to the pre-RFC desktop literals; KayakGUI.SLIDERS / DEFAULTS / GLOBAL_RANGES derive from the registries; no remaining _GUI_TO_HULL imports in desktop.py or pv_window.py; gui_params.hull_from_gui_params emits a DeprecationWarning naming RFC 0061; tests/test_desktop_sliders_use_registry.py pins the five §5 assertions; tests/test_gui_params.py uses canonical Hull keys; the four-test verification suite passes. Produce REVIEW.md with verdict.",
+      "task_prompt": {
+        "path": "prompts/review.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/audits/2026-05-22-code-doc-audit/follow-ups/0034/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "docs/audits/2026-05-22-code-doc-audit/follow-ups/0034/REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "implement",
+      "to": "review",
+      "on": "completed"
+    }
+  ],
+  "cycles": []
+}

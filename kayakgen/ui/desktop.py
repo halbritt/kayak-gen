@@ -39,8 +39,16 @@ from kayakgen.model.advisory import design_advisory
 from kayakgen.model.classes import KayakClass, list_classes
 from kayakgen.model.hull import Hull
 from kayakgen.ui import theme
-from kayakgen.ui.gui_params import GUI_TO_HULL as _GUI_TO_HULL
-from kayakgen.ui.gui_params import hull_from_gui_params as _hull_from_gui_params
+from kayakgen.ui.desktop_slider_ranges import (
+    SLIDER_DEFAULTS,
+    SLIDER_RANGES,
+    SLIDER_STEPS,
+)
+from kayakgen.ui.parameter_metadata import (
+    HULL_PARAMETER_METADATA,  # noqa: F401 — re-exposed for downstream symmetry with VIEW_PARAMETER_METADATA
+    VIEW_PARAMETER_METADATA,
+    label_with_unit,
+)
 
 matplotlib.rcParams.update(theme.matplotlib_rc_params())
 
@@ -80,51 +88,34 @@ STATUS_SEGMENTS = (
 
 
 class KayakGUI:
+    # RFC 0061: SLIDERS / DEFAULTS / GLOBAL_RANGES / SLIDER_STEPS derive
+    # from the presentation-layer registry (HullParameterMetadata /
+    # VIEW_PARAMETER_METADATA) and the desktop-tuned slider ranges
+    # module. Keys are canonical Hull JSON field names (plus the
+    # view-only target_speed_kt); labels come from label_with_unit(key).
     SLIDERS = [
-        ("length", "Length (m)", 2.0, 6.5),
-        ("beam", "Beam OA (m)", 0.30, 0.90),
-        ("beam_wl", "Beam WL (m)", 0.30, 0.90),
-        ("draft", "Draft (m)", 0.05, 0.25),
-        ("deck_height", "Deck Height (m)", 0.15, 0.40),
-        ("Cp", "Prismatic Coeff", 0.45, 0.70),
-        ("Cm", "Midship Cm", 0.65, 0.95),
-        ("deck_flatness", "Deck Flatness", 2.0, 16.0),
-        ("center_box_ratio", "Parallel Mid-Body", 0.10, 0.60),
-        ("bow_rake", "Bow Rake (1=raked)", 0.0, 1.0),
-        ("stern_rake", "Stern Rake (1=raked)", 0.0, 1.0),
-        ("target_speed_kt", "Target Speed (kt)", 1.0, 6.0),
+        (key, label_with_unit(key), low, high)
+        for key, (low, high) in SLIDER_RANGES.items()
     ]
 
-    DEFAULTS = dict(
-        length=4.5,
-        beam=0.55,
-        beam_wl=0.55,
-        draft=0.12,
-        deck_height=0.23,
-        Cp=0.55,
-        Cm=0.85,
-        deck_flatness=8.0,
-        center_box_ratio=0.33,
-        bow_rake=1.0,
-        stern_rake=1.0,
-        target_speed_kt=3.5,
-    )
+    DEFAULTS = dict(SLIDER_DEFAULTS)
 
-    GLOBAL_RANGES = {key: (vmin, vmax) for key, _label, vmin, vmax in SLIDERS}
-    SLIDER_STEPS = {"Cm": 0.005}
+    GLOBAL_RANGES = dict(SLIDER_RANGES)
+    SLIDER_STEPS = dict(SLIDER_STEPS)
 
-    # target_speed_kt is a viewing parameter, not a Hull field.
-    _NON_HULL_GUI_KEYS = ("target_speed_kt",)
+    # View-only parameters (not Hull fields). RFC 0061: sourced from
+    # VIEW_PARAMETER_METADATA so the desktop and the metadata registry
+    # cannot drift.
+    _NON_HULL_GUI_KEYS = tuple(VIEW_PARAMETER_METADATA.keys())
 
     def __init__(self, hull: Hull | None = None) -> None:
         self.params = dict(self.DEFAULTS)
         if hull is not None:
-            self.params.update(
-                {
-                    gui_key: getattr(hull, hull_key)
-                    for gui_key, hull_key in _GUI_TO_HULL.items()
-                }
-            )
+            for key in self.DEFAULTS:
+                if key in self._NON_HULL_GUI_KEYS:
+                    continue
+                if hasattr(hull, key):
+                    self.params[key] = getattr(hull, key)
 
         self.fig = plt.figure(figsize=(16, 9))
         self.fig.suptitle("Kayak Generator", fontsize=14, fontweight="bold")
@@ -189,10 +180,10 @@ class KayakGUI:
         kc = list_classes()[idx]
         self._active_class_name = kc.name
         seeds = {
-            "length": kc.length_m.default,
-            "beam": kc.beam_oa_m.default,
-            "beam_wl": kc.beam_wl_m.default,
-            "draft": kc.draft_m.default,
+            "length_m": kc.length_m.default,
+            "beam_oa_m": kc.beam_oa_m.default,
+            "beam_wl_m": kc.beam_wl_m.default,
+            "draft_m": kc.draft_m.default,
             "Cp": kc.Cp.default,
         }
         self._applying_class = True
@@ -211,10 +202,10 @@ class KayakGUI:
         if kc is not None:
             ranges.update(
                 {
-                    "length": (kc.length_m.min, kc.length_m.max),
-                    "beam": (kc.beam_oa_m.min, kc.beam_oa_m.max),
-                    "beam_wl": (kc.beam_wl_m.min, kc.beam_wl_m.max),
-                    "draft": (kc.draft_m.min, kc.draft_m.max),
+                    "length_m": (kc.length_m.min, kc.length_m.max),
+                    "beam_oa_m": (kc.beam_oa_m.min, kc.beam_oa_m.max),
+                    "beam_wl_m": (kc.beam_wl_m.min, kc.beam_wl_m.max),
+                    "draft_m": (kc.draft_m.min, kc.draft_m.max),
                     "Cp": (kc.Cp.min, kc.Cp.max),
                 }
             )
@@ -313,7 +304,7 @@ class KayakGUI:
             fontfamily="monospace",
         )
 
-        half_L = self.params["length"] / 2
+        half_L = self.params["length_m"] / 2
         self.ax_station = self.fig.add_axes([0.38, 0.04, 0.59, 0.025])
         self.station_slider = widgets.Slider(
             self.ax_station, "Station X (m)", -half_L, half_L, valinit=0.0
@@ -327,16 +318,16 @@ class KayakGUI:
         for key, s in self.sliders.items():
             self.params[key] = s.val
         # beam_wl must not exceed beam_oa: clamp live, never the other way.
-        if self.params["beam_wl"] > self.params["beam"]:
-            self.params["beam_wl"] = self.params["beam"]
-            self.sliders["beam_wl"].set_val(self.params["beam"])
+        if self.params["beam_wl_m"] > self.params["beam_oa_m"]:
+            self.params["beam_wl_m"] = self.params["beam_oa_m"]
+            self.sliders["beam_wl_m"].set_val(self.params["beam_oa_m"])
             return  # the set_val above re-enters _on_change
         self.status.set_text(self._status_segments_block())
         self.update_plots()
         if self._pv_window is not None and self._pv_window.isVisible():
             self._3d_timer.start()
         self._refresh_metrics()
-        half_L = self.params["length"] / 2
+        half_L = self.params["length_m"] / 2
         self.station_slider.valmin = -half_L
         self.station_slider.valmax = half_L
         self.station_slider.ax.set_xlim(-half_L, half_L)
@@ -350,6 +341,22 @@ class KayakGUI:
     def _on_reset(self, _event) -> None:
         for key, s in self.sliders.items():
             s.set_val(self.DEFAULTS[key])
+
+    def _hull_from_params(self) -> Hull:
+        """Build a :class:`Hull` from ``self.params`` minus view-only keys.
+
+        RFC 0061: ``self.params`` is now Hull-shaped (canonical Hull JSON
+        field names plus the view-only ``target_speed_kt``); we just
+        filter the view-only keys out and forward to ``Hull(**...)``.
+        """
+
+        return Hull(
+            **{
+                key: value
+                for key, value in self.params.items()
+                if key not in self._NON_HULL_GUI_KEYS
+            }
+        )
 
     def _status_segments_text(self) -> str:
         return " · ".join(STATUS_SEGMENTS)
@@ -368,7 +375,7 @@ class KayakGUI:
         stem = path.removesuffix("_hull.stl").removesuffix(".stl")
         self.status.set_text("Exporting STLs…")
         self.fig.canvas.draw()
-        geom = _hull_from_gui_params(self.params).to_geometry()
+        geom = self._hull_from_params().to_geometry()
         geom.generate_stl("hull", f"{stem}_hull.stl")
         geom.generate_stl("deck", f"{stem}_deck.stl")
         self.status.set_text(self._status_segments_block())
@@ -409,7 +416,7 @@ class KayakGUI:
         # Single source of truth: integrated hydrostatics on the same mesh
         # the STL exporter and CFD will see. Stations reduced from the
         # default 150 to 60 here so the per-slider call stays under ~30 ms.
-        hull = _hull_from_gui_params(self.params)
+        hull = self._hull_from_params()
         h = evaluate_hydrostatics(hull, stations=60)
         advisory = design_advisory(
             hull,
@@ -464,7 +471,7 @@ class KayakGUI:
         s.set_val(float(np.clip(s.val + direction * delta, s.valmin, s.valmax)))
 
     def _geometry(self):
-        return _hull_from_gui_params(self.params).to_geometry()
+        return self._hull_from_params().to_geometry()
 
     def update_plots(self) -> None:
         geom = self._geometry()
