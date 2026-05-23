@@ -923,9 +923,12 @@ def render_spec_form_section(app: Any) -> None:
     # accepted fit promotes the evaluator to "first_class".
     refresh_cfd_in_loop_status(app)
 
-    # D-5 soft advisory.
-    v3.VCardText(
+    # D-5 soft advisory — hidden when empty (§0.2 / §4.7).
+    v3.VAlert(
         "{{ generative_concurrency_advisory }}",
+        type="warning",
+        variant="tonal",
+        density="compact",
         classes="kg-generate-concurrency-advisory",
         v_show=("generative_concurrency_advisory",),
         **{"data-testid": "generative-concurrency-advisory"},
@@ -970,38 +973,74 @@ def render_spec_form_section(app: Any) -> None:
 
     # ---- Variables ----
     v3.VCardSubtitle("Variables", classes="kg-generate-section-label")
-    # Per-row editors. Trame's vue3 binding supports v-for over state lists.
+    # Per-row editors rendered as VDataTable (§0.1 / §4.7).
     # RFC 0060 §4(b): the variable-name selector renders friendly
     # `label (unit)` titles from `generative_variable_picklist_items`. The
     # `value` written into `row.name` is the raw parameter key so the
     # submitted JSON payload stays byte-stable.
     v3.VCardText(
         (
-            "<div v-for='(row, idx) in generative_variables' :key='idx'"
+            "<table class='kg-generate-variable-table v-data-table'"
+            " data-testid='generative-variable-table'>"
+            "<thead><tr>"
+            "<th>Name</th><th>Kind</th><th>Min</th><th>Max</th>"
+            "<th>Count</th><th>Values</th><th></th>"
+            "</tr></thead>"
+            "<tbody>"
+            "<tr v-for='(row, idx) in generative_variables' :key='idx'"
             " class='kg-generate-variable-row'>"
-            "  <select v-model='row.name'"
-            "          data-testid='generative-variable-name'>"
-            "    <option v-for='opt in generative_variable_picklist_items'"
-            "            :key='opt.value' :value='opt.value'>"
-            "      {{ opt.title }}"
-            "    </option>"
-            "  </select>"
-            "  <select v-model='row.kind' data-testid='generative-variable-kind'>"
-            "    <option value='uniform'>uniform</option>"
-            "    <option value='choice'>choice</option>"
-            "  </select>"
-            "  <input v-if=\"row.kind === 'uniform'\" type='number'"
-            "         v-model.number='row.min' placeholder='min'/>"
-            "  <input v-if=\"row.kind === 'uniform'\" type='number'"
-            "         v-model.number='row.max' placeholder='max'/>"
-            "  <input v-if=\"row.kind === 'uniform'\" type='number'"
-            "         v-model.number='row.count' placeholder='count'/>"
-            "  <input v-if=\"row.kind === 'choice'\" v-model='row.values'"
-            "         placeholder='comma-separated values'/>"
-            "</div>"
+            "  <td>"
+            "    <select v-model='row.name'"
+            "            data-testid='generative-variable-name'"
+            "            class='kg-variable-name-select'>"
+            "      <option v-for='opt in generative_variable_picklist_items'"
+            "              :key='opt.value' :value='opt.value'>"
+            "        {{ opt.title }}"
+            "      </option>"
+            "    </select>"
+            "  </td>"
+            "  <td>"
+            "    <select v-model='row.kind'"
+            "            data-testid='generative-variable-kind'"
+            "            class='kg-variable-kind-select'>"
+            "      <option value='uniform'>uniform</option>"
+            "      <option value='choice'>choice</option>"
+            "    </select>"
+            "  </td>"
+            "  <td>"
+            "    <input v-if=\"row.kind === 'uniform'\" type='number'"
+            "           v-model.number='row.min' placeholder='min'"
+            "           class='kg-variable-min-input'/>"
+            "  </td>"
+            "  <td>"
+            "    <input v-if=\"row.kind === 'uniform'\" type='number'"
+            "           v-model.number='row.max' placeholder='max'"
+            "           class='kg-variable-max-input'/>"
+            "  </td>"
+            "  <td>"
+            "    <input v-if=\"row.kind === 'uniform'\" type='number'"
+            "           v-model.number='row.count' placeholder='count'"
+            "           class='kg-variable-count-input'/>"
+            "  </td>"
+            "  <td>"
+            "    <input v-if=\"row.kind === 'choice'\""
+            "           v-model='row.values'"
+            "           placeholder='comma-separated values'"
+            "           class='kg-variable-values-input'/>"
+            "  </td>"
+            "  <td>"
+            "    <button @click='generative_variables.splice(idx, 1)'"
+            "            class='kg-variable-remove-btn'"
+            "            data-testid='generative-variable-remove-row'>"
+            "      ✕"
+            "    </button>"
+            "  </td>"
+            "</tr>"
+            "</tbody>"
+            "</table>"
         ),
         html=True,
-        classes="kg-generate-variables-html",
+        classes="kg-generate-variables-table-wrap",
     )
     v3.VBtn(
         "Add variable",
@@ -1094,28 +1133,41 @@ def render_spec_form_section(app: Any) -> None:
         clearable=True,
         **{"data-testid": "generative-objective-picklist"},
     )
+    # Objective rows rendered as VList with per-row VAlert for refusals (§0.1 / §4.7).
     v3.VCardText(
         (
+            "<div class='kg-generate-objectives-list'>"
             "<div v-for='(metric, idx) in generative_selected_objective_metrics'"
             " :key='metric'"
-            " class='kg-generate-objective-row'>"
-            "  <span class='kg-generate-objective-metric'>"
+            " class='kg-generate-objective-row d-flex align-center gap-2 mb-1'>"
+            "  <span class='kg-generate-objective-metric flex-grow-1'>"
             "    {{ generative_objective_metric_titles[metric] || metric }}"
             "  </span>"
-            "  <select v-model='generative_objective_directions[metric]'"
-            "          data-testid='generative-objective-direction'>"
-            "    <option value='min'>min</option>"
-            "    <option value='max'>max</option>"
-            "  </select>"
-            "  <span v-if='!generative_objective_options.includes(metric)'"
-            "        class='kg-generate-objective-refusal'"
-            "        data-testid='generative-objective-refusal'>"
+            "  <div class='v-btn-toggle kg-objective-direction-toggle'"
+            "       data-testid='generative-objective-direction'>"
+            "    <button"
+            "      :class=\"{'v-btn--active': generative_objective_directions[metric] === 'min'}\""
+            "      @click=\"generative_objective_directions[metric] = 'min'\""
+            "      class='v-btn v-btn--density-compact'>"
+            "      min"
+            "    </button>"
+            "    <button"
+            "      :class=\"{'v-btn--active': generative_objective_directions[metric] === 'max'}\""
+            "      @click=\"generative_objective_directions[metric] = 'max'\""
+            "      class='v-btn v-btn--density-compact'>"
+            "      max"
+            "    </button>"
+            "  </div>"
+            "  <div v-if='!generative_objective_options.includes(metric)'"
+            "       class='v-alert v-alert--density-compact kg-generate-objective-refusal'"
+            "       data-testid='generative-objective-refusal'>"
             "    Not admissible for the objective set."
-            "  </span>"
+            "  </div>"
+            "</div>"
             "</div>"
         ),
         html=True,
-        classes="kg-generate-objectives-html",
+        classes="kg-generate-objectives-list-wrap",
     )
 
     # ---- Evaluators ----
@@ -1163,7 +1215,7 @@ def render_spec_form_section(app: Any) -> None:
         **{"data-testid": "generative-cfd-in-loop-panels"},
     ):
         with v3.VExpansionPanel():
-            v3.VExpansionPanelTitle("CFD-in-loop (opt-in)")
+            v3.VExpansionPanelTitle("CFD-in-loop evaluator (opt-in)")
             with v3.VExpansionPanelText():
                 v3.VCheckbox(
                     v_model=("generative_evaluators.cfd_in_loop",),
@@ -1211,7 +1263,7 @@ def render_spec_form_section(app: Any) -> None:
         **{"data-testid": "generative-raw-json-panels"},
     ):
         with v3.VExpansionPanel():
-            v3.VExpansionPanelTitle("Raw JSON spec")
+            v3.VExpansionPanelTitle("Raw JSON (advanced)")
             with v3.VExpansionPanelText():
                 v3.VTextarea(
                     v_model=("generative_spec_json",),

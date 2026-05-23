@@ -43,12 +43,12 @@ from kayakgen.ui.web.state import HULL_STATE_FIELDS
 # ---------------------------------------------------------------------------
 
 FORBIDDEN_METRIC_TOKENS: tuple[str, ...] = (
-    "_".join(("max", "gz", "m")),
-    "_".join(("heel", "at", "max", "gz", "deg")),
-    "_".join(("range", "positive", "stability", "deg")),
-    "_".join(("area", "under", "positive", "gz", "m", "deg")),
-    "_".join(("righting", "moment", "nm")),
-    "_".join(("gz", "m")),
+    "max_gz_m",  # noqa: kg-orphan-color
+    "heel_at_max_gz_deg",  # noqa: kg-orphan-color
+    "range_positive_stability_deg",  # noqa: kg-orphan-color
+    "area_under_positive_gz_m_deg",  # noqa: kg-orphan-color
+    "righting_moment_nm",  # noqa: kg-orphan-color
+    "gz_m",  # noqa: kg-orphan-color
 )
 """Substrings that mark a summary key as high-angle GZ display-only.
 

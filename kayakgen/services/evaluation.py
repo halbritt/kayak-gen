@@ -432,6 +432,60 @@ def hydro_lines_from_state(state: dict[str, Any]) -> list[str]:
     return lines
 
 
+def hydro_rows_from_state(state: dict[str, Any]) -> list[dict[str, str]]:
+    """Return hydrostatics as a list of ``{label, value}`` dicts for table rendering.
+
+    Each entry has ``label`` (e.g. "Displacement") and ``value`` (e.g. "18.5 kg").
+    Design warnings are appended as rows with label ``"Warning"`` so the
+    table surface can surface them inline without a separate ``<pre>`` block.
+    """
+    model = analysis_view_model(state)
+    rows: list[dict[str, str]] = []
+    for label, value, unit in model["hydro_rows"]:
+        display_value = f"{value} {unit}".strip() if unit else str(value)
+        rows.append({"label": label, "value": display_value})
+    for warning in model.get("design_warnings", []):
+        rows.append({"label": "Warning", "value": str(warning)})
+    return rows
+
+
+def mesh_diagnostics_rows_from_state(
+    state: dict[str, Any],
+    part: str = "hull",
+) -> list[dict[str, str]]:
+    """Return mesh diagnostics as a list of ``{label, value}`` dicts.
+
+    Structured key/value pairs suitable for an HTML table or VDataTable.
+    The ``part`` argument selects ``"hull"`` or ``"deck"``.
+    """
+    hull = hull_from_web_state(state)
+    diagnostics = diagnose_mesh(hull, part=part)
+    counts = _mesh_diagnostics_counts(diagnostics)
+    boundary = counts["boundary_edges"]
+    nonmanifold = counts["nonmanifold_edges"]
+    rows: list[dict[str, str]] = [
+        {"label": "Part", "value": str(part).title()},
+        {"label": "Readiness", "value": diagnostics.readiness.level},
+        {
+            "label": "Boundary edges",
+            "value": f"{boundary['primary']} (welded), {boundary['raw']} (raw)",
+        },
+        {
+            "label": "Non-manifold edges",
+            "value": f"{nonmanifold['primary']} (welded), {nonmanifold['raw']} (raw)",
+        },
+        {"label": "Degenerate faces", "value": str(diagnostics.degenerate_faces)},
+        {"label": "Vertices", "value": str(diagnostics.profile.vertex_count)},
+        {
+            "label": "Welded vertices",
+            "value": str(diagnostics.profile.welded_vertex_count),
+        },
+    ]
+    for warning in diagnostics.warnings:
+        rows.append({"label": "Warning", "value": str(warning)})
+    return rows
+
+
 def evaluation_for_state(state: dict[str, Any]) -> EvaluationResult:
     """Run all evaluators on the state — used by the REST `/api/evaluate` route."""
     hull = hull_from_web_state(state)

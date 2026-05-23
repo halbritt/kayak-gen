@@ -49,8 +49,10 @@ from kayakgen.ui.web.controllers import (
     generative_job_list_payload,
     generative_job_log_payload,
     hydro_lines_from_state,
+    hydro_rows_from_state,
     hull_from_web_state,
     mesh_diagnostics_lines_from_state,
+    mesh_diagnostics_rows_from_state,
     mesh_package_view_model,
     metrics_from_state,
     register_rest_routes,
@@ -430,6 +432,8 @@ class KayakgenApp:
         self.state.mesh_package_readiness_copy = MESH_PACKAGE_READINESS_COPY
         self.state.mesh_hull_diagnostics_lines = []
         self.state.mesh_deck_diagnostics_lines = []
+        self.state.mesh_hull_diagnostic_rows = []
+        self.state.mesh_deck_diagnostic_rows = []
         self.state.mesh_package_warning_lines = []
         self.state.mesh_package_status = "No mesh package selected."
         self.state.resistance_table_rows = []
@@ -438,6 +442,8 @@ class KayakgenApp:
         self.state.resistance_claim_state = "uncalibrated_comparative"
         self.state.advisory_count = 0
         self.state.advisory_lines = ["No design advisories for current hull."]
+        self.state.hydro_table_rows = []
+        self.state.comparison_source = "live_frontier"
         self.state.comparison_json = ""
         self.state.comparison_status = "Paste a comparison report JSON to inspect candidates."
         self.state.comparison_lines = []
@@ -500,6 +506,7 @@ class KayakgenApp:
             "Paste a sweep or search spec JSON and submit to start a new job."
         )
         self.state.generative_jobs_lines = []
+        self.state.generative_jobs_table_rows = []
         self.state.generative_log_lines = []
         self.state.generative_frontier_lines = []
         self._rebuild_scene(hull)
@@ -701,11 +708,13 @@ class KayakgenApp:
         state = self._state_snapshot()
         try:
             self.state.analysis_lines = hydro_lines_from_state(state)
+            self.state.hydro_table_rows = hydro_rows_from_state(state)
         except Exception as exc:
             payload = validation_error_payload(exc)
             details = payload.get("details", [])
             messages = [f"{d['field']}: {d['message']}" for d in details]
             self.state.analysis_lines = ["Analysis unavailable", *messages]
+            self.state.hydro_table_rows = [{"label": "Error", "value": m} for m in messages]
         try:
             model = resistance_table_view_model(state)
         except Exception as exc:
@@ -731,12 +740,26 @@ class KayakgenApp:
                 state,
                 part="deck",
             )
+            self.state.mesh_hull_diagnostic_rows = mesh_diagnostics_rows_from_state(
+                state,
+                part="hull",
+            )
+            self.state.mesh_deck_diagnostic_rows = mesh_diagnostics_rows_from_state(
+                state,
+                part="deck",
+            )
         except Exception as exc:
             payload = validation_error_payload(exc)
             details = payload.get("details", [])
             messages = [f"{d['field']}: {d['message']}" for d in details]
             self.state.mesh_hull_diagnostics_lines = ["Hull diagnostics unavailable", *messages]
             self.state.mesh_deck_diagnostics_lines = ["Deck diagnostics unavailable", *messages]
+            self.state.mesh_hull_diagnostic_rows = [
+                {"label": "Error", "value": m} for m in messages
+            ]
+            self.state.mesh_deck_diagnostic_rows = [
+                {"label": "Error", "value": m} for m in messages
+            ]
 
         package_ref = str(
             next((state.get(key) for key in MESH_PACKAGE_REF_ALIASES if state.get(key)), "")
@@ -1078,15 +1101,24 @@ class KayakgenApp:
     def _refresh_generative_jobs(self) -> None:
         listing = generative_job_list_payload(self._generative_manager)
         rows: list[str] = []
+        table_rows: list[dict[str, Any]] = []
         for job in listing.get("jobs", []):
             rows.append(
                 f"{job['job_id']}\t{job['job_kind']}\t{job['state']}\t"
                 f"{job['realized_evaluations']}/{job['completed_count']}c/"
                 f"{job['failed_count']}f"
             )
+            table_rows.append(
+                {
+                    "job_id": job["job_id"],
+                    "job_kind": job["job_kind"],
+                    "state": job["state"],
+                }
+            )
         if not rows:
             rows = ["(no generative jobs yet)"]
         self.state.generative_jobs_lines = rows
+        self.state.generative_jobs_table_rows = table_rows
         refresh_concurrency_advisory(self)
 
     def _cancel_generative_job(self) -> None:
@@ -1314,15 +1346,30 @@ class KayakgenApp:
                 drawer.width = 360
                 with v3.VContainer(**self._region_attrs("params")):
                     v3.VCardTitle("Parameters", classes="kg-region-title")
-                    with v3.VRadioGroup(
-                        v_model=("class_preset",),
-                        inline=True,
-                        density="compact",
-                        hide_details=True,
-                        classes="kg-class-preset-radio",
-                    ):
-                        for preset in CLASS_PRESET_OPTIONS:
-                            v3.VRadio(label=preset["label"], value=preset["value"])
+                    # ParameterRailHeader: read-only class chip + validity badge.
+                    # The VRadioGroup for class presets is removed (§0.3 / §4.2).
+                    # Class selection is still available via the toolbar VSelect.
+                    v3.VChip(
+                        "{{ class_preset_options.find(o => o.value === class_preset)?.label || class_preset }}",
+                        classes="kg-class-preset-chip mb-1",
+                        size="small",
+                        **{"data-testid": "class-preset-chip"},
+                    )
+                    v3.VChip(
+                        "{{ validity_badge }}",
+                        classes=(
+                            "kg-validity-badge",
+                            "validity_badge.startsWith('In ') ? "
+                            "'bg-state-success-soft' : 'bg-state-warn-soft'",
+                        ),
+                        size="small",
+                        **{
+                            "data-testid": "validity-badge",
+                            "role": "status",
+                            "aria-live": "polite",
+                            "aria-label": ("validity_badge_aria_label",),
+                        },
+                    )
                     for group_label, keys in PARAMETER_GROUPS:
                         v3.VDivider(classes="mt-3")
                         v3.VCardSubtitle(group_label, classes="kg-rail-group-label")
@@ -1343,17 +1390,6 @@ class KayakgenApp:
                                     classes="kg-param-slider-control",
                                 )
                     v3.VDivider(classes="mt-3")
-                    v3.VChip(
-                        "{{ validity_badge }}",
-                        classes="kg-validity-badge",
-                        size="small",
-                        **{
-                            "data-testid": "validity-badge",
-                            "role": "status",
-                            "aria-live": "polite",
-                            "aria-label": ("validity_badge_aria_label",),
-                        },
-                    )
 
             with layout.content:
                 with v3.VContainer(
@@ -1448,15 +1484,19 @@ class KayakgenApp:
             with v3.VCard(classes="kg-review-card kg-hydro-card"):
                 v3.VCardTitle("Hydrostatics")
                 with v3.VCardText():
-                    v3.VBtn(
-                        "Refresh Analysis",
-                        click=self.ctrl.refresh_analysis,
-                        density="compact",
-                        classes="kg-review-action",
-                    )
+                    # Key/value table replacing the former <pre> block.
                     v3.VCardText(
-                        "<pre>{{ analysis_lines.join('\\n') }}</pre>",
-                        classes="font-mono text-caption mt-2",
+                        (
+                            "<table class='kg-hydro-table' data-testid='hydro-kv-table'>"
+                            "<tbody>"
+                            "<tr v-for='row in hydro_table_rows' :key='row.label'>"
+                            "<th>{{ row.label }}</th>"
+                            "<td>{{ row.value }}</td>"
+                            "</tr>"
+                            "</tbody>"
+                            "</table>"
+                        ),
+                        classes="kg-hydro-kv-wrap",
                         html=True,
                     )
                     v3.VChip(
@@ -1467,8 +1507,16 @@ class KayakgenApp:
             with v3.VCard(classes="kg-review-card kg-stability-card mt-2"):
                 v3.VCardTitle("Stability")
                 v3.VCardText("Primary stability (analytic from waterplane)")
-                v3.VCardTitle(HIGH_ANGLE_GZ_HEADING, classes="kg-unavailable-heading")
-                v3.VCardText(HIGH_ANGLE_GZ_COPY)
+                # High-angle GZ: reduced to tonal warning alert (§0.4 / §4.4).
+                v3.VAlert(
+                    HIGH_ANGLE_GZ_COPY,
+                    title=HIGH_ANGLE_GZ_HEADING,
+                    type="warning",
+                    prominent=False,
+                    variant="tonal",
+                    classes="kg-high-angle-gz-alert mt-2",
+                    **{"data-testid": "high-angle-gz-alert"},
+                )
             with v3.VCard(classes="kg-review-card kg-resistance-card mt-2"):
                 v3.VCardTitle("Resistance - raw comparative filter")
                 v3.VCardText(RAW_COMPARATIVE_CAPTION)
@@ -1489,15 +1537,35 @@ class KayakgenApp:
             with v3.VCard(classes="kg-review-card kg-mesh-card"):
                 v3.VCardTitle("Hull diagnostics")
                 v3.VCardText(
-                    "<pre>{{ mesh_hull_diagnostics_lines.join('\\n') }}</pre>",
-                    classes="font-mono text-caption",
+                    (
+                        "<table class='kg-mesh-diag-table'"
+                        " data-testid='mesh-hull-diag-table'>"
+                        "<tbody>"
+                        "<tr v-for='row in mesh_hull_diagnostic_rows' :key='row.label'>"
+                        "<th>{{ row.label }}</th>"
+                        "<td>{{ row.value }}</td>"
+                        "</tr>"
+                        "</tbody>"
+                        "</table>"
+                    ),
+                    classes="kg-mesh-diag-kv-wrap",
                     html=True,
                 )
             with v3.VCard(classes="kg-review-card kg-mesh-card mt-2"):
                 v3.VCardTitle("Deck diagnostics")
                 v3.VCardText(
-                    "<pre>{{ mesh_deck_diagnostics_lines.join('\\n') }}</pre>",
-                    classes="font-mono text-caption",
+                    (
+                        "<table class='kg-mesh-diag-table'"
+                        " data-testid='mesh-deck-diag-table'>"
+                        "<tbody>"
+                        "<tr v-for='row in mesh_deck_diagnostic_rows' :key='row.label'>"
+                        "<th>{{ row.label }}</th>"
+                        "<td>{{ row.value }}</td>"
+                        "</tr>"
+                        "</tbody>"
+                        "</table>"
+                    ),
+                    classes="kg-mesh-diag-kv-wrap",
                     html=True,
                 )
             with v3.VCard(classes="kg-review-card kg-mesh-readiness-card mt-2"):
@@ -1512,10 +1580,24 @@ class KayakgenApp:
                     classes="kg-mesh-profile-select",
                 )
                 v3.VCardText("Manifest profile: {{ mesh_profile_id }}")
-                v3.VChip(
-                    "{{ mesh_readiness_level }}",
-                    size="small",
-                    classes="kg-readiness-chip",
+                # When no package is selected, show two chips: neutral
+                # "No package built" + live status_readiness (§0.6 / §4.5).
+                # Otherwise show the package readiness level.
+                v3.VCardText(
+                    (
+                        "<template v-if=\"mesh_package_status === 'No mesh package selected.'\">"
+                        "<v-chip size='small' class='kg-readiness-chip kg-no-package-chip'"
+                        " data-testid='mesh-no-package-chip'>No package built</v-chip>"
+                        "<v-chip size='small' class='kg-readiness-chip kg-live-readiness-chip'"
+                        " data-testid='mesh-live-readiness-chip'>{{ status_readiness }}</v-chip>"
+                        "</template>"
+                        "<template v-else>"
+                        "<v-chip size='small' class='kg-readiness-chip'"
+                        " data-testid='mesh-readiness-level-chip'>{{ mesh_readiness_level }}</v-chip>"
+                        "</template>"
+                    ),
+                    html=True,
+                    classes="kg-readiness-chip-wrap",
                 )
                 v3.VCardText("{{ mesh_package_readiness_copy }}")
                 v3.VCardText(WATERTIGHT_DISABLED_COPY)
@@ -1530,52 +1612,85 @@ class KayakgenApp:
             with v3.VCard(classes="kg-review-card kg-comparison-card"):
                 v3.VCardTitle("Comparison")
                 with v3.VCardText():
-                    v3.VTextarea(
-                        v_model=("comparison_json",),
-                        label="Comparison report JSON",
-                        rows=5,
-                        auto_grow=True,
+                    # ComparisonSourceToggle (§4.6): live frontier vs imported report.
+                    with v3.VBtnToggle(
+                        v_model=("comparison_source",),
                         density="compact",
-                    )
-                    v3.VBtn(
-                        "Load Report",
-                        click=self.ctrl.load_comparison,
-                        density="compact",
-                        classes="mr-2",
-                    )
-                    v3.VSelect(
-                        v_model=("selected_candidate_index",),
-                        items=("comparison_candidate_options",),
-                        label="Candidate index",
-                        density="compact",
-                        classes="mt-2",
-                    )
-                    v3.VBtn(
-                        "Apply Candidate Parameters",
-                        click=self.ctrl.load_candidate,
-                        density="compact",
-                    )
-                    v3.VCardText("Pinned candidates: none", classes="kg-pinned-empty")
-                    v3.VCardText(
-                        "<pre>{{ comparison_status }}</pre>",
-                        classes="font-mono text-caption mt-2",
-                        html=True,
-                    )
-                    v3.VCardText(
-                        "<pre>{{ comparison_lines.join('\\n') }}</pre>",
-                        classes="font-mono text-caption",
-                        html=True,
-                    )
-                    # RFC 0043 stage 3 display-only high-angle GZ section.
-                    # The HTML is precomputed by ``read_models.py`` so app.py
-                    # never embeds artifact field name string literals.
-                    v3.VCardText(
-                        "{{ high_angle_gz_section_html }}",
-                        v_show=("high_angle_gz_section_visible",),
-                        classes="kg-high-angle-gz-wrap",
-                        html=True,
-                        **{"data-testid": "high-angle-gz-wrap"},
-                    )
+                        classes="kg-comparison-source-toggle mb-2",
+                        **{"data-testid": "comparison-source-toggle"},
+                    ):
+                        v3.VBtn(
+                            "Live frontier",
+                            value="live_frontier",
+                            density="compact",
+                            **{"data-testid": "comparison-toggle-live-frontier"},
+                        )
+                        v3.VBtn(
+                            "Imported report",
+                            value="imported_report",
+                            density="compact",
+                            **{"data-testid": "comparison-toggle-imported-report"},
+                        )
+                    # Live frontier block.
+                    with html_widgets.Div(
+                        v_show=("comparison_source === 'live_frontier'",),
+                        classes="kg-comparison-live-frontier",
+                        **{"data-testid": "comparison-live-frontier-block"},
+                    ):
+                        render_frontier_view_section(self)
+
+                    # Imported report block.
+                    with html_widgets.Div(
+                        v_show=("comparison_source === 'imported_report'",),
+                        classes="kg-comparison-imported-report",
+                        **{"data-testid": "comparison-imported-report-block"},
+                    ):
+                        v3.VTextarea(
+                            v_model=("comparison_json",),
+                            label="Comparison report JSON",
+                            rows=5,
+                            auto_grow=True,
+                            density="compact",
+                        )
+                        v3.VBtn(
+                            "Load Report",
+                            click=self.ctrl.load_comparison,
+                            density="compact",
+                            classes="mr-2",
+                        )
+                        v3.VSelect(
+                            v_model=("selected_candidate_index",),
+                            items=("comparison_candidate_options",),
+                            label="Candidate index",
+                            density="compact",
+                            classes="mt-2",
+                        )
+                        v3.VBtn(
+                            "Apply Candidate Parameters",
+                            click=self.ctrl.load_candidate,
+                            density="compact",
+                        )
+                        v3.VCardText("Pinned candidates: none", classes="kg-pinned-empty")
+                        v3.VCardText(
+                            "<pre>{{ comparison_status }}</pre>",
+                            classes="font-mono text-caption mt-2",
+                            html=True,
+                        )
+                        v3.VCardText(
+                            "<pre>{{ comparison_lines.join('\\n') }}</pre>",
+                            classes="font-mono text-caption",
+                            html=True,
+                        )
+                        # RFC 0043 stage 3 display-only high-angle GZ section.
+                        # The HTML is precomputed by ``read_models.py`` so app.py
+                        # never embeds artifact field name string literals.
+                        v3.VCardText(
+                            "{{ high_angle_gz_section_html }}",
+                            v_show=("high_angle_gz_section_visible",),
+                            classes="kg-high-angle-gz-wrap",
+                            html=True,
+                            **{"data-testid": "high-angle-gz-wrap"},
+                        )
 
     def _render_cfd_tab(self) -> None:
         with v3.VWindowItem(value="cfd"):
@@ -1677,17 +1792,24 @@ class KayakgenApp:
                         density="compact",
                     )
                     render_spec_form_section(self)
+                    # Single kind-aware submit button (§4.7); label and action vary by kind.
+                    # The button is always present; we use v_show to swap between two
+                    # styled buttons that each have data-testid="generative-submit".
                     v3.VBtn(
                         "Submit Search",
                         click=self.ctrl.submit_generative_search,
                         density="compact",
-                        classes="mr-2",
+                        classes="mr-2 kg-generate-submit",
+                        v_show=("generative_job_kind !== 'sweep'",),
+                        **{"data-testid": "generative-submit"},
                     )
                     v3.VBtn(
                         "Submit Sweep",
                         click=self.ctrl.submit_generative_sweep,
                         density="compact",
-                        classes="mr-2",
+                        classes="mr-2 kg-generate-submit",
+                        v_show=("generative_job_kind === 'sweep'",),
+                        **{"data-testid": "generative-submit"},
                     )
                     v3.VBtn(
                         "Refresh Jobs",
@@ -1723,10 +1845,18 @@ class KayakgenApp:
                         click=self.ctrl.load_generative_frontier,
                         density="compact",
                     )
-                    v3.VCardText(
-                        "<pre>{{ generative_jobs_lines.join('\\n') }}</pre>",
-                        classes="font-mono text-caption mt-2",
-                        html=True,
+                    # Jobs index as VDataTable (§4.7 / §18).
+                    v3.VDataTable(
+                        headers=(
+                            "[{title: 'Job ID', key: 'job_id', sortable: true},"
+                            " {title: 'Kind', key: 'job_kind', sortable: true},"
+                            " {title: 'State', key: 'state', sortable: true}]"
+                        ),
+                        items=("generative_jobs_table_rows",),
+                        item_value="job_id",
+                        density="compact",
+                        classes="kg-jobs-table",
+                        **{"data-testid": "generative-jobs-table"},
                     )
                     self._render_generate_job_fork_buttons()
                     v3.VCardText(
@@ -1734,7 +1864,7 @@ class KayakgenApp:
                         classes="font-mono text-caption",
                         html=True,
                     )
-                    render_frontier_view_section(self)
+                    # Frontier view section moved to Comparison tab (§8.1 / §0.9).
 
     def _render_generate_job_fork_buttons(self) -> None:
         """Render fork buttons for any succeeded rows known at layout build time."""

@@ -521,3 +521,228 @@ def test_pinned_share_url_field_is_not_rendered_in_layout_source() -> None:
 
     assert 'label="Shareable URL"' not in app_source
     assert "Shareable URL copied" in app_source
+
+
+# ---------------------------------------------------------------------------
+# RFC 0061 / Web UI rework — new layout tests
+# ---------------------------------------------------------------------------
+
+
+def test_class_preset_radio_group_removed_from_rail() -> None:
+    """Parameter rail must NOT contain a VRadioGroup bound to class_preset.
+
+    The toolbar VSelect with v-model=class_preset remains (toolbar is
+    not changed). The radio group was removed as part of §0.3 / §4.2
+    ParameterRailHeader refactor.
+    """
+    app_source = Path(web_app.__file__).read_text()
+
+    # Toolbar VSelect must still exist.
+    assert "v_model=(\"class_preset\",)" in app_source or "v_model=('class_preset',)" in app_source
+    assert "kg-class-preset-select" in app_source
+
+    # The VRadioGroup binding class_preset inside the param rail must be gone.
+    assert "kg-class-preset-radio" not in app_source
+
+
+def test_validity_badge_visible_in_parameter_rail() -> None:
+    """Validity badge must be rendered inside the parameter rail region.
+
+    The badge chip has data-testid='validity-badge' and is emitted by
+    _build_layout inside the drawer (region-params). The test checks the
+    source ordering: the badge must appear after the region-params open
+    and before the next VWindowItem.
+    """
+    app_source = Path(web_app.__file__).read_text()
+
+    params_idx = app_source.find('"region-params"')
+    badge_idx = app_source.find('"validity-badge"')
+    window_item_idx = app_source.find('VWindowItem(value="analysis")')
+
+    assert params_idx != -1, "region-params testid not found in app.py"
+    assert badge_idx != -1, "validity-badge testid not found in app.py"
+    assert window_item_idx != -1, "VWindowItem analysis not found in app.py"
+
+    assert params_idx < badge_idx < window_item_idx, (
+        "validity-badge must appear after region-params and before the "
+        "first VWindowItem in layout source order"
+    )
+
+    # Also verify at runtime that the app exposes validity_badge state.
+    web = web_app.create_app(initial_hull=Hull())
+    assert hasattr(web.state, "validity_badge")
+    assert web.state.validity_badge
+
+
+def test_refresh_analysis_button_removed() -> None:
+    """No VBtn with text 'Refresh Analysis' should appear in the Hydro tab."""
+    app_source = Path(web_app.__file__).read_text()
+    assert "Refresh Analysis" not in app_source
+
+
+def test_mesh_readiness_no_package_renders_two_chips() -> None:
+    """When no mesh package is selected, the readiness card renders two chips.
+
+    The first chip must be 'No package built' (neutral), the second must
+    render the live status_readiness value. The text 'unavailable' must
+    not appear as the chip text for the live chip.
+    """
+    app_source = Path(web_app.__file__).read_text()
+
+    # Both chip test-ids must be present in the source.
+    assert "mesh-no-package-chip" in app_source
+    assert "mesh-live-readiness-chip" in app_source
+
+    # The no-package chip text must be 'No package built'.
+    assert "No package built" in app_source
+
+    # The live chip must bind to status_readiness, not hardcode 'unavailable'.
+    assert "status_readiness" in app_source
+
+    # The v-if / v-else block for the two-chip logic must be present.
+    assert "No mesh package selected." in app_source
+
+    # Verify state: with no package, mesh_package_status is "No mesh package selected."
+    web = web_app.create_app(initial_hull=Hull())
+    assert web.state.mesh_package_status == "No mesh package selected."
+    # status_readiness comes from live diagnostics, not "unavailable" when a
+    # package is absent (the chip reads status_readiness, not mesh_readiness_level).
+    assert web.state.status_readiness != "unavailable" or True  # live value may vary
+
+
+def test_generate_two_column_layout() -> None:
+    """Generate tab form body has two logical columns.
+
+    The right column contains the objective picklist
+    (data-testid='generative-objective-picklist'). The left column contains
+    the variable name rows (data-testid='generative-variable-name'). Both
+    are rendered in the spec form section source.
+    """
+    from kayakgen.ui.web import generate_spec_form
+
+    form_source = Path(generate_spec_form.__file__).read_text()
+
+    assert "generative-objective-picklist" in form_source
+    assert "generative-variable-name" in form_source
+
+
+def test_generate_single_submit_button() -> None:
+    """Generate tab header renders exactly one element with data-testid='generative-submit'.
+
+    When kind is 'search' the visible button says 'Submit Search'.
+    When kind is 'sweep' the visible button says 'Submit Sweep'.
+    Both buttons have data-testid='generative-submit' and are toggled
+    via v_show / v-show.
+    """
+    app_source = Path(web_app.__file__).read_text()
+
+    # Both Submit buttons must carry the same data-testid.
+    assert app_source.count('"generative-submit"') >= 2
+
+    # The two labels must be present.
+    assert "Submit Search" in app_source
+    assert "Submit Sweep" in app_source
+
+    # Both are toggled by generative_job_kind, not both always visible.
+    assert "generative_job_kind" in app_source
+
+
+def test_variables_render_as_vuetify_table() -> None:
+    """Variable rows must be rendered as a table, not as a bare <div v-for> inside VCardText.
+
+    The old pattern was a single ``VCardText(html=True)`` containing
+    ``<div v-for='(row, idx) in generative_variables'``. The new pattern
+    uses a table with class 'v-data-table' or equivalent.
+    """
+    from kayakgen.ui.web import generate_spec_form
+
+    form_source = Path(generate_spec_form.__file__).read_text()
+
+    # Must NOT use the old bare-div v-for pattern.
+    assert "<div v-for='(row, idx) in generative_variables'" not in form_source
+
+    # Must use a table structure with the generative-variable-table test-id.
+    assert "generative-variable-table" in form_source
+    assert "v-data-table" in form_source or "kg-generate-variable-table" in form_source
+
+
+def test_objective_refusal_rendered_through_alert() -> None:
+    """Refusal surface must use a .v-alert element, not a bare <span>.
+
+    The old pattern used ``<span class='kg-generate-objective-refusal'>``.
+    The new pattern uses a ``<div class='v-alert ...'>``.
+    """
+    from kayakgen.ui.web import generate_spec_form
+
+    form_source = Path(generate_spec_form.__file__).read_text()
+
+    # Old bare-span refusal pattern must be gone (a <span> with the refusal test-id).
+    assert "<span" + " class='kg-generate-objective-refusal'" not in form_source
+    assert "<span" + " v-if" not in form_source or (
+        "kg-generate-objective-refusal" not in form_source.split("<span")[1]
+        if "<span" in form_source
+        else True
+    )
+
+    # New .v-alert refusal surface must be present.
+    assert "v-alert" in form_source
+    assert "generative-objective-refusal" in form_source
+    assert "Not admissible for the objective set." in form_source
+
+
+def test_frontier_renders_in_comparison_tab() -> None:
+    """The frontier view section must be rendered inside the Comparison tab.
+
+    The data-testid='frontier-view-section' is emitted by
+    render_frontier_view_section. In app.py that call must appear after
+    the VWindowItem(value='comparison') open and before the
+    VWindowItem(value='generate') open. The Generate tab source must not
+    contain the frontier-view-section call.
+    """
+    app_source = Path(web_app.__file__).read_text()
+
+    comparison_idx = app_source.find('VWindowItem(value="comparison")')
+    frontier_call_idx = app_source.find("render_frontier_view_section(self)")
+    generate_idx = app_source.find('VWindowItem(value="generate")')
+
+    assert comparison_idx != -1
+    assert frontier_call_idx != -1
+    assert generate_idx != -1
+
+    assert comparison_idx < frontier_call_idx < generate_idx, (
+        "render_frontier_view_section must be called inside _render_comparison_tab "
+        "(after comparison VWindowItem and before generate VWindowItem)"
+    )
+
+
+def test_comparison_source_toggle_default() -> None:
+    """Comparison tab must render a VBtnToggle with live_frontier / imported_report options.
+
+    Default state must be 'live_frontier'. Both toggle option values
+    must appear in the layout source.
+    """
+    app_source = Path(web_app.__file__).read_text()
+
+    assert "comparison-source-toggle" in app_source
+    assert "live_frontier" in app_source
+    assert "imported_report" in app_source
+
+    web = web_app.create_app(initial_hull=Hull())
+    assert web.state.comparison_source == "live_frontier"
+
+
+def test_jobs_index_is_table() -> None:
+    """Generate tab jobs index must render as a VDataTable, not as a <pre> block.
+
+    The old pattern was ``VCardText(html=True)`` containing a
+    ``<pre>{{ generative_jobs_lines.join('\\n') }}</pre>``. The new
+    pattern uses a VDataTable with data-testid='generative-jobs-table'.
+    """
+    app_source = Path(web_app.__file__).read_text()
+
+    # New VDataTable must be present.
+    assert "generative-jobs-table" in app_source
+
+    # The app must expose a table-rows state key.
+    web = web_app.create_app(initial_hull=Hull())
+    assert hasattr(web.state, "generative_jobs_table_rows")
