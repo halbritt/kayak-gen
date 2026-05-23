@@ -1,8 +1,19 @@
 # Sources for audit run
 
-> Operator: fill this in before validating the workflow. Each lane reads
-> this file as required context. Keep entries short and link to the canonical
-> source rather than duplicating it.
+> **This file is a template, not a record.** Each `code_doc_audit` run
+> writes its own filled-in `SOURCES.md` to
+> `docs/audits/<YYYY-MM-DD>-code-doc-audit/SOURCES.md` describing that
+> run's scope. This template stays generic so operators can copy it,
+> not edit it in place. Past runs (whose filled-in SOURCES.md files
+> live under `docs/audits/`) double as worked examples:
+> [2026-05-22 full_repo](../../audits/2026-05-22-code-doc-audit/) and
+> [2026-05-23 release_candidate](../../audits/2026-05-23-code-doc-audit/SOURCES.md).
+>
+> Operator: when starting a new run, copy this file to the new audit
+> directory, then fill in the TODO placeholders below. Each lane reads
+> the filled-in copy (not this template) as required context. Keep
+> entries short and link to the canonical source rather than
+> duplicating it.
 
 ## Preset
 

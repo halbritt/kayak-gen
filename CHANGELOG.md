@@ -6,6 +6,24 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
+### Changed
+
+- Second `code_doc_audit` run landed under
+  `docs/audits/2026-05-23-code-doc-audit/` (`release_candidate` preset,
+  scope `f78e478..3a7f2de`). The three lanes returned 8 actionable
+  findings (0 critical / 0 high / 2 medium / 5 low / 1 info) plus a
+  null finding from Lane 1 (Pydantic invariants intact) and 8 verified-pass
+  null findings from Lane 2 (RELEASE_DISCIPLINE checklist applied
+  correctly to RFC 0059/0060/0061). R1 + R2 docs batches landed in this
+  commit: new `docs/audits/README.md` indexes all runs (closes AUD-O-014);
+  `docs/workflows/0029-code-doc-audit/SOURCES.md` template-ness made
+  explicit with pointers to past runs as worked examples (closes
+  AUD-O-015). R3 (deprecation-warning URL), R4 (render tests for
+  RFC 0060/0061 label surfaces), and R5 (`runs list` help-text
+  symmetry) deferred to follow-up striatum workflows
+  `0035-render-tests-for-registry-labels` and
+  `0036-cli-help-text-polish`.
+
 ### Added
 
 - Landed RFC 0061
