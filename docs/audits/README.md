@@ -12,7 +12,7 @@ landing receipts.
 
 | Date | Preset | Scope | Findings | Notes |
 |---|---|---|---|---|
-| [2026-05-23](2026-05-23-code-doc-audit/) | `release_candidate` | Commits `f78e478..3a7f2de` (RFC 0059/0060/0061 + workflows 0029-0034) | 0 critical · 0 high · 2 medium · 5 low · 1 info | Second run. Lane 1 zero-findings; Lane 2 eight verified-pass null findings; Lane 3 surfaced render-test gaps and discoverability nits. |
+| [2026-05-23](2026-05-23-code-doc-audit/) | `release_candidate` | Commits `f78e478..3a7f2de` (RFC 0059/0060/0061 + workflows 0029-0034) | 0 critical · 0 high · 2 medium · 5 low · 1 info | Second run. Lane 1 zero-findings; Lane 2 eight verified-pass null findings; Lane 3 surfaced render-test gaps and discoverability nits. R1 + R2 landed in the audit commit; R3/R4/R5 closed by follow-up workflows 0035 + 0036. |
 | [2026-05-22](2026-05-22-code-doc-audit/) | `full_repo` | Repo at `f78e478` | 5 high · 5 medium · 4 low · 3 info / null | First dogfood run. All high/medium findings closed by follow-up workflows 0030 (AUD-P-001 + AUD-P-002), 0031 (AUD-P-003 + AUD-P-004), 0032 (AUD-O-004 + AUD-O-005 + AUD-O-006), 0033 (AUD-O-003). Info / null findings remain `open` by intent. |
 
 The latest run is always the most-recent date. Older runs are kept as

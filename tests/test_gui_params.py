@@ -47,21 +47,30 @@ def test_gui_params_preserve_new_hull_fields() -> None:
 
 
 def test_hull_from_gui_params_emits_rfc_0061_deprecation_warning() -> None:
-    """RFC 0061 §4: the shim must announce its deprecation."""
+    """RFC 0061 §4: the shim must announce its deprecation.
 
+    AUD-O-012 (R3): the warning text must also name the on-disk RFC
+    path so a downstream consumer hitting the warning has an
+    actionable breadcrumb to ``grep`` for or open directly.
+    """
+
+    params = {
+        "length_m": 4.5,
+        "beam_oa_m": 0.55,
+        "beam_wl_m": 0.55,
+        "draft_m": 0.12,
+        "deck_height_m": 0.23,
+        "Cp": 0.55,
+        "Cm": 0.85,
+        "deck_flatness": 8.0,
+        "center_box_ratio": 0.33,
+        "bow_rake": 1.0,
+        "stern_rake": 1.0,
+    }
     with pytest.warns(DeprecationWarning, match="RFC 0061"):
-        hull_from_gui_params(
-            {
-                "length_m": 4.5,
-                "beam_oa_m": 0.55,
-                "beam_wl_m": 0.55,
-                "draft_m": 0.12,
-                "deck_height_m": 0.23,
-                "Cp": 0.55,
-                "Cm": 0.85,
-                "deck_flatness": 8.0,
-                "center_box_ratio": 0.33,
-                "bow_rake": 1.0,
-                "stern_rake": 1.0,
-            }
-        )
+        hull_from_gui_params(params)
+    with pytest.warns(
+        DeprecationWarning,
+        match=r"0061-desktop-sliders-on-hull-parameter-metadata\.md",
+    ):
+        hull_from_gui_params(params)

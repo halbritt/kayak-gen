@@ -1,0 +1,190 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0036-cli-help-text-polish",
+  "workflow_version": "2026-05-23",
+  "name": "0036 — CLI help-text polish (AUD-O-011 + AUD-O-012)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0036-cli-help-text-polish",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": [
+        "claude",
+        "--model",
+        "opus",
+        "-p"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "-"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": [
+        "gemini",
+        "--model",
+        "gemini-3.1-pro-preview"
+      ],
+      "capabilities": [
+        "review"
+      ]
+    }
+  },
+  "roles": {
+    "implementer": {
+      "definition_path": "roles/implementer.md"
+    },
+    "reviewer": {
+      "definition_path": "roles/reviewer.md"
+    }
+  },
+  "context_docs": [
+    {
+      "path": "AGENTS.md",
+      "required": true
+    },
+    {
+      "path": "docs/audits/2026-05-23-code-doc-audit/REMEDIATION_PLAN.md",
+      "required": true
+    },
+    {
+      "path": "docs/audits/2026-05-23-code-doc-audit/operator-adoption/FINDINGS.md",
+      "required": true
+    },
+    {
+      "path": "kayakgen/cli/runs_cli.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/gui_params.py",
+      "required": true
+    },
+    {
+      "path": "tests/test_gui_params.py",
+      "required": true
+    },
+    {
+      "path": "docs/workflows/0036-cli-help-text-polish/SOURCES.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0061-desktop-sliders-on-hull-parameter-metadata.md",
+      "required": false
+    }
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 2,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement",
+      "type": "build",
+      "title": "Land AUD-O-011 + AUD-O-012 help-text polish",
+      "role_id": "implementer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Land the two low-severity CLI / deprecation help-text findings from the 2026-05-23 release_candidate audit: AUD-O-011 (R5) extends `runs list`'s `--kind` option help in `kayakgen/cli/runs_cli.py` to enumerate the valid kinds (sweep | search | cfd | comparison), mirroring how `runs jobs` enumerates its `--state` and `--kind` options; AUD-O-012 (R3) appends the on-disk RFC path `docs/rfcs/0061-desktop-sliders-on-hull-parameter-metadata.md` to the `hull_from_gui_params` DeprecationWarning in `kayakgen/ui/gui_params.py` so a downstream consumer hitting the warning has an actionable breadcrumb. Update the deprecation-warning match assertion in `tests/test_gui_params.py` to also cover the new path mention. Verification suite: tests/test_gui_params.py, tests/test_desktop_sliders_use_registry.py, tests/test_cfd_jobs.py, tests/test_cfd_jobs_openfoam.py.",
+      "task_prompt": {
+        "path": "prompts/implement.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/cli/runs_cli.py",
+          "kayakgen/ui/gui_params.py",
+          "tests/test_gui_params.py",
+          "docs/audits/2026-05-23-code-doc-audit/follow-ups/0036/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "CHANGELOG.md",
+          "docs/audits/2026-05-23-code-doc-audit/operator-adoption/FINDINGS.md",
+          "docs/audits/2026-05-23-code-doc-audit/docs-decision-drift/",
+          "docs/audits/2026-05-23-code-doc-audit/pipeline-integrity/",
+          "docs/audits/2026-05-23-code-doc-audit/REMEDIATION_PLAN.md",
+          "docs/audits/2026-05-23-code-doc-audit/SYNTHESIS.md",
+          "docs/rfcs/",
+          "docs/DECISION_LOG.md",
+          "kayakgen/ui/web/",
+          "kayakgen/ui/desktop.py"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "docs/audits/2026-05-23-code-doc-audit/follow-ups/0036/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Verify AUD-O-011 + AUD-O-012 closure",
+      "role_id": "reviewer",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Verify the implementer's changes close AUD-O-011 and AUD-O-012: the `runs list --kind` Typer option help in `kayakgen/cli/runs_cli.py` enumerates `sweep | search | cfd | comparison` in the same style that `runs jobs` uses for its `--state` / `--kind` options; the `hull_from_gui_params` DeprecationWarning in `kayakgen/ui/gui_params.py` names both `RFC 0061` and the on-disk path `docs/rfcs/0061-desktop-sliders-on-hull-parameter-metadata.md`; `tests/test_gui_params.py`'s pytest.warns match assertion still passes and (recommended) asserts the on-disk path too; the verification suite passes. No drift into forbidden paths (CHANGELOG, FINDINGS.md, RFC source, DECISION_LOG, web UI, desktop GUI).",
+      "task_prompt": {
+        "path": "prompts/review.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/audits/2026-05-23-code-doc-audit/follow-ups/0036/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "docs/audits/2026-05-23-code-doc-audit/follow-ups/0036/REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "implement",
+      "to": "review",
+      "on": "completed"
+    }
+  ],
+  "cycles": []
+}

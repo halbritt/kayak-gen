@@ -38,7 +38,11 @@ def runs_list_command(
     kind: str | None = typer.Option(
         None,
         "--kind",
-        help="Filter by run kind: sweep | search | cfd | comparison.",
+        help=(
+            "Filter by run kind. Honored values: sweep | search | cfd | "
+            "comparison. Matched against the 'kind' column of the SQLite "
+            "runs table."
+        ),
     ),
     limit: int | None = typer.Option(
         None,

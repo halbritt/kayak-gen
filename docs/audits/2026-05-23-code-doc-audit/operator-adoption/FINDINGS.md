@@ -12,7 +12,7 @@ Sources of truth: RFC 0060, RFC 0061, workflow 0032-0034, `kayakgen/ui/web/gener
 
 severity: medium
 category: implementation_gap
-status: open
+status: closed (workflow 0035, see CHANGELOG ### Fixed)
 claim: RFC 0060 landed HullParameterMetadata as the label/unit/description source and integrated it into generate_spec_form.py, but the test suite does not verify that `VTextField` widgets actually render the hint prop (description text) — only that the form state serializes correctly.
 evidence:
 - `kayakgen/ui/web/generate_spec_form.py:960-969` — base-hull rail renders `hint=description(_hull_key)` on each VTextField.
@@ -29,7 +29,7 @@ follow_up: test coverage (low-effort regression for RFC 0060 acceptance).
 
 severity: medium
 category: implementation_gap
-status: open
+status: closed (workflow 0035, see CHANGELOG ### Fixed)
 claim: RFC 0061 landed the desktop SLIDERS rename to canonical Hull keys and wired each slider's label to `label_with_unit(key)` at construction time, but there is no test that checks the actual matplotlib Slider widget label property.
 evidence:
 - `kayakgen/ui/desktop.py:96-99` — SLIDERS tuple constructed as `(key, label_with_unit(key), low, high)`.
@@ -45,7 +45,7 @@ follow_up: test coverage (low-effort regression for RFC 0061 acceptance).
 
 severity: low
 category: operator_ergonomics
-status: closed (partial)
+status: closed (workflow 0036, see CHANGELOG ### Fixed)
 claim: RFC 0032 workflow added the `--header` flag to both commands with clear help text explaining what the flag does, and the `runs jobs` command explicitly enumerates valid `--state` and `--kind` values in the option help. However, `runs list` has no equivalent `--kind` enumeration, creating asymmetry.
 evidence:
 - `kayakgen/cli/runs_cli.py:62-73` — `runs_list_command` accepts `--kind` with generic help "Filter by run kind: sweep | search | cfd | comparison."
@@ -60,7 +60,7 @@ follow_up: source change (one-line addition, already landed via workflow 0032; m
 
 severity: low
 category: operator_ergonomics
-status: open
+status: closed (workflow 0036, see CHANGELOG ### Fixed)
 claim: RFC 0061 added a DeprecationWarning to the `hull_from_gui_params(params)` shim that names RFC 0061 and explains the migration path. The warning is correct from a maintainer's perspective but references internal implementation details that an external operator who hits the warning would not understand.
 evidence:
 - `kayakgen/ui/gui_params.py:39-46` — DeprecationWarning text: "kayakgen.ui.gui_params.hull_from_gui_params is deprecated by RFC 0061; the desktop GUI now uses canonical Hull field names directly. Pass `params` straight to `Hull(**params)` after filtering view-only keys."

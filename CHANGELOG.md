@@ -6,6 +6,33 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
+### Fixed
+
+- Workflow 0035 (`docs/workflows/0035-render-tests-for-registry-labels/`)
+  closes 2026-05-23 audit findings AUD-O-009 (medium) and AUD-O-010
+  (medium). New `tests/test_generate_panel_label_rendering.py` (3 tests)
+  monkeypatches `VTextField.__init__` / `VSelect.__init__` around
+  `create_app(initial_hull=Hull())`, captures each widget's kwargs by
+  `data-testid`, and asserts `hint == description(key)` +
+  `label == label_with_unit(key)` for every base-hull rail key; the
+  objectives and variable-selector picklist items are checked against
+  the `OBJECTIVE_METADATA`-sourced titles via the seeded Trame state.
+  New `tests/test_desktop_slider_labels.py` (4 tests) instantiates
+  `KayakGUI` against a headless Agg backend and asserts
+  `Slider.label.get_text() == label_with_unit(key)` for every
+  `SLIDERS` row plus three spot-checks. Both tests trip with
+  AUD-O-009/010-named error messages under simulated regression.
+- Workflow 0036 (`docs/workflows/0036-cli-help-text-polish/`) closes
+  2026-05-23 audit findings AUD-O-011 (low) and AUD-O-012 (low).
+  `kayakgen/cli/runs_cli.py` `runs list --kind` help text now
+  enumerates `sweep | search | cfd | comparison`, matching the
+  `runs jobs` style for `--state` / `--kind`.
+  `kayakgen/ui/gui_params.py` deprecation warning text gains a
+  pointer to `docs/rfcs/0061-desktop-sliders-on-hull-parameter-metadata.md`
+  so downstream consumers have an actionable breadcrumb;
+  `tests/test_gui_params.py` asserts both the RFC label and the
+  on-disk path appear via two `pytest.warns(match=...)` blocks.
+
 ### Changed
 
 - Second `code_doc_audit` run landed under

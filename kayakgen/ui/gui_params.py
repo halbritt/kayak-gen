@@ -40,7 +40,8 @@ def hull_from_gui_params(params: dict[str, Any]) -> Hull:
         "kayakgen.ui.gui_params.hull_from_gui_params is deprecated by RFC "
         "0061; the desktop GUI now uses canonical Hull field names "
         "directly. Pass `params` straight to `Hull(**params)` after "
-        "filtering view-only keys.",
+        "filtering view-only keys. See "
+        "`docs/rfcs/0061-desktop-sliders-on-hull-parameter-metadata.md`.",
         DeprecationWarning,
         stacklevel=2,
     )
