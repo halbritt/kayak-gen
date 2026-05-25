@@ -6,6 +6,73 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
+### Added
+
+- Workflow 0037 (`docs/workflows/0037-web-ui-inline-help/`) closes
+  2026-05-25 audit findings AUD-O-001 (medium), AUD-O-002 (medium),
+  AUD-O-003 (low), AUD-O-004 (medium), AUD-O-006 (low), and the
+  in-app copy side of AUD-O-007 (info). `kayakgen/ui/web/app.py`
+  gains a `validity_badge_title_for(badge)` helper + a
+  `validity_badge_title` state field bound to the VChip `title=`
+  attribute (covers all four envelope states in plain English);
+  comparison-source toggle gains a visible subtitle block and
+  per-button `title` tooltips distinguishing `live_frontier` from
+  `imported_report`; both mesh chips (`mesh-no-package-chip` and
+  `mesh-live-readiness-chip`) gain `title=` tooltips clarifying
+  their independent meanings; `HIGH_ANGLE_GZ_COPY` rewritten to
+  drop the `RFC 0020 / RFC 0024` citations in favor of an
+  operator-facing recovery path (`kayakgen stability
+  --high-angle-gz` + the Comparison tab import).
+  `kayakgen/ui/web/generate_spec_form.py` gains
+  `compute_submit_blocking_reason(state)` +
+  `refresh_submit_blocking_reason(app)` helpers, five
+  `SUBMIT_BLOCKING_REASON_*` copy constants, and seeds
+  `generative_submit_blocking_reason` +
+  `generative_submit_disabled` state fields; both kind-aware
+  Submit buttons now bind `:disabled` and `aria-describedby` to a
+  visible `submit-blocking-reason-{kind}` span that explains the
+  blocking validation cause at the point of decision.
+  `kayakgen/services/evaluation.py::mesh_diagnostics_rows_from_state`
+  appends threshold guidance to the existing English row labels
+  (`Boundary edges (perimeter; acceptable)`,
+  `Non-manifold edges (must be 0)`,
+  `Degenerate faces (must be 0)`, `Readiness level`); row order
+  and `{"label", "value"}` shape preserved. New
+  `tests/test_web_inline_help.py` (11 tests) covers each surface
+  plus an AUD-P-004 wire-payload regression assertion that
+  `build_spec_from_form_state` output is unchanged across the
+  inline-help additions. AUD-O-005 was reserved for workflow 0038
+  (R3) per the audit's batch split.
+- Workflow 0038 (`docs/workflows/0038-hydrostatics-row-metadata-registry/`)
+  closes 2026-05-25 audit finding AUD-O-005 (low) and lands RFC 0062
+  (`docs/rfcs/0062-hydrostatics-row-metadata-registry.md`,
+  `Status: landed`). RFC 0062 is the third application of the D043
+  "presentation-layer registry per surface family" pattern after
+  RFC 0060 (hull parameters) and RFC 0061 (desktop sliders). New
+  `kayakgen/ui/hydrostatics_metadata.py` ships
+  `HydrostaticsRowMetadata` (frozen Pydantic with `parameter`,
+  `label`, `unit`, `description`) plus a 7-row
+  `HYDROSTATICS_ROW_METADATA` registry keyed by row id
+  (`displacement`, `wetted_surface`, `waterplane_area`, `gm0`,
+  `cp_actual`, `cm_actual`, `l_over_bwl`). `analysis_view_model`
+  in `kayakgen/services/evaluation.py` sources hydro-row labels
+  and units from the registry; `(label, value, unit)` tuple shape
+  preserved, numeric formatting preserved, `hydro_rows_from_state`
+  wire payload byte-stable. New
+  `tests/test_hydrostatics_row_metadata.py` (12 tests) covers
+  registry coverage, count pin, well-formedness, wiring assertion,
+  and a byte-stable regression against the post-`b82b544`
+  baseline. New decision row D044 records the pattern as accepted.
+- Workflows 0037 + 0038 were dispatched as concurrent
+  general-purpose subagents with disjoint write scopes on
+  `kayakgen/services/evaluation.py` (0037 owned
+  `mesh_diagnostics_rows_from_state`; 0038 owned
+  `analysis_view_model::hydro_rows` + one new import). Both
+  agents verified their disjoint scopes in PATCH_SUMMARY.md and
+  the parent thread reviewed both diffs centrally. Single-provider
+  caveat (both implementers were Claude Opus 4.7) is recorded;
+  cross-provider review remains a future-pass aspiration.
+
 ### Changed
 
 - Web UI second-pass redesign landed upstream as `b82b544`

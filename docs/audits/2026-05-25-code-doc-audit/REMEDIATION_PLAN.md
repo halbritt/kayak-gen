@@ -155,14 +155,18 @@ re-use these to detect regression.
 
 ## Batch landing order
 
-1. **R1** lands in the audit commit (this conversation). Tracks
-   index-table update under `docs/audits/README.md`.
-2. **R4** closes inline as a status note in the audit's CHANGELOG /
-   FINDINGS entry; no separate workflow.
-3. **R2** lands as a follow-up striatum workflow after the audit commit
-   is on `main`. Workflow ID candidate: `0037-web-ui-inline-help-2026-05-25`.
-4. **R3** lands as a new RFC + striatum workflow when the operator
-   prioritizes it (no urgency).
+1. **R1** landed in the audit commit `4b1faac`. Audit index-table
+   row added under `docs/audits/README.md`.
+2. **R4** closed inline as wontfix in `SYNTHESIS.md`.
+3. **R2** landed as workflow
+   `docs/workflows/0037-web-ui-inline-help/`. Closes AUD-O-001 /
+   AUD-O-002 / AUD-O-003 / AUD-O-004 / AUD-O-006 / AUD-O-007
+   (in-app copy). PATCH_SUMMARY at
+   `docs/audits/2026-05-25-code-doc-audit/follow-ups/0037/PATCH_SUMMARY.md`.
+4. **R3** landed as workflow
+   `docs/workflows/0038-hydrostatics-row-metadata-registry/` +
+   RFC 0062 + D044. Closes AUD-O-005. PATCH_SUMMARY at
+   `docs/audits/2026-05-25-code-doc-audit/follow-ups/0038/PATCH_SUMMARY.md`.
 
 ## CHANGELOG entries
 

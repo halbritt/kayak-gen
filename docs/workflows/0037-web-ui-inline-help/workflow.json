@@ -1,0 +1,198 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0037-web-ui-inline-help",
+  "workflow_version": "2026-05-25",
+  "name": "0037 — Web UI inline-help additions (2026-05-25 audit R2)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0037-web-ui-inline-help",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": [
+        "claude",
+        "--model",
+        "opus",
+        "-p"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "-"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": [
+        "gemini",
+        "--model",
+        "gemini-3.1-pro-preview"
+      ],
+      "capabilities": [
+        "review"
+      ]
+    }
+  },
+  "roles": {
+    "implementer": {
+      "definition_path": "roles/implementer.md"
+    },
+    "reviewer": {
+      "definition_path": "roles/reviewer.md"
+    }
+  },
+  "context_docs": [
+    {
+      "path": "AGENTS.md",
+      "required": true
+    },
+    {
+      "path": "docs/audits/2026-05-25-code-doc-audit/REMEDIATION_PLAN.md",
+      "required": true
+    },
+    {
+      "path": "docs/audits/2026-05-25-code-doc-audit/operator-adoption/FINDINGS.md",
+      "required": true
+    },
+    {
+      "path": "docs/audits/2026-05-25-code-doc-audit/SYNTHESIS.md",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/web/app.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/web/generate_spec_form.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/services/evaluation.py",
+      "required": true
+    },
+    {
+      "path": "tests/test_web_layout.py",
+      "required": true
+    },
+    {
+      "path": "docs/workflows/0037-web-ui-inline-help/SOURCES.md",
+      "required": true
+    }
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 2,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement",
+      "type": "build",
+      "title": "Land inline-help additions for the second-pass UI rework (AUD-O-001/002/003/004/006 + AUD-O-007 in-app copy)",
+      "role_id": "implementer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Close audit R2 by adding inline-help / tooltip / disabled-reason surfaces to the post-b82b544 web workspace. Wire validity-badge title/popover with four-state plain-text explanations (AUD-O-001); add comparison-source toggle subtitle explaining live_frontier vs imported_report (AUD-O-002); add mesh chip-pair tooltip explaining the No-package + live-readiness relationship (AUD-O-003); wire the kind-aware Submit button's disabled state + aria-describedby to a visible blocking-reason span (AUD-O-004); rewrite mesh-diagnostic row labels in mesh_diagnostics_rows_from_state from raw dict keys to operator-facing labels with threshold guidance (AUD-O-006); rewrite the high-angle GZ alert in app.py to drop RFC citations in favor of operator-facing recovery copy pointing at kayakgen stability --high-angle-gz and the Comparison-tab import path (AUD-O-007). Add render-verification tests in tests/test_web_inline_help.py mirroring the introspection pattern in tests/test_web_layout.py. All changes presentation-only; the wire payload of build_spec_from_form_state remains byte-stable.",
+      "task_prompt": {
+        "path": "prompts/implement.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/ui/web/app.py",
+          "kayakgen/ui/web/generate_spec_form.py",
+          "kayakgen/services/evaluation.py",
+          "tests/test_web_inline_help.py",
+          "docs/audits/2026-05-25-code-doc-audit/follow-ups/0037/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "CHANGELOG.md",
+          "docs/audits/2026-05-25-code-doc-audit/SYNTHESIS.md",
+          "docs/audits/2026-05-25-code-doc-audit/REMEDIATION_PLAN.md",
+          "docs/audits/2026-05-25-code-doc-audit/operator-adoption/FINDINGS.md",
+          "docs/audits/2026-05-25-code-doc-audit/docs-decision-drift/",
+          "docs/audits/2026-05-25-code-doc-audit/pipeline-integrity/",
+          "docs/audits/README.md",
+          "docs/USER_GUIDE.md",
+          "docs/DECISION_LOG.md",
+          "docs/rfcs/",
+          "kayakgen/ui/web/generate_frontier_view.py",
+          "kayakgen/ui/web/controllers.py",
+          "kayakgen/ui/parameter_metadata.py"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "docs/audits/2026-05-25-code-doc-audit/follow-ups/0037/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Verify the inline-help additions close AUD-O-001/002/003/004/006 + AUD-O-007 (in-app copy)",
+      "role_id": "reviewer",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Verify the implementer's inline-help wiring actually attaches to the rendered widgets (not just template strings), the validity-badge title covers all four envelope states, the comparison-source toggle subtitle distinguishes live_frontier from imported_report, the mesh chip-pair tooltip explains both chips' meanings, the Submit button's disabled-reason span is wired to a real validation state field, the mesh-diagnostic labels are human-readable + carry threshold guidance, and the high-angle GZ alert no longer cites RFCs in operator-facing copy. Verify wire payload stability — build_spec_from_form_state output unchanged. Confirm the implementer did not touch CHANGELOG, USER_GUIDE, RFC sources, audit FINDINGS files, or other read-only paths. Produce REVIEW.md with verdict.",
+      "task_prompt": {
+        "path": "prompts/review.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/audits/2026-05-25-code-doc-audit/follow-ups/0037/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "docs/audits/2026-05-25-code-doc-audit/follow-ups/0037/REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "implement",
+      "to": "review",
+      "on": "completed"
+    }
+  ],
+  "cycles": []
+}

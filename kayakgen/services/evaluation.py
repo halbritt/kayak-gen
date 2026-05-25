@@ -30,6 +30,7 @@ from kayakgen.model.advisory import design_advisory
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import evaluate_design_validity
 from kayakgen.services.design import hull_from_web_state
+from kayakgen.ui.hydrostatics_metadata import HYDROSTATICS_ROW_METADATA as _HYDRO_META
 
 DISPLAY_CURVE_SPEEDS_KT: tuple[float, ...] = (2.0, 3.0, 4.0, 5.0, 6.0)
 MESH_PROFILE_LABEL_TO_ID: dict[str, str] = {
@@ -110,14 +111,18 @@ def analysis_view_model(state: dict[str, Any]) -> dict[str, Any]:
         cp=hydro.Cp_actual,
         displaced_mass_kg=hydro.displaced_mass_kg,
     )
+    def _row(key: str, value_str: str) -> tuple[str, str, str]:
+        meta = _HYDRO_META[key]
+        return (meta.label, value_str, meta.unit or "")
+
     hydro_rows = [
-        ("Displacement", f"{hydro.displaced_mass_kg:.1f}", "kg"),
-        ("Wetted surface", f"{hydro.wetted_surface_m2:.3f}", "m^2"),
-        ("Waterplane area", f"{hydro.waterplane_area_m2:.3f}", "m^2"),
-        ("GM0", f"{hydro.GM0_m:.3f}", "m"),
-        ("Cp actual", f"{hydro.Cp_actual:.3f}", ""),
-        ("Cm actual", f"{hydro.Cm_actual:.3f}", ""),
-        ("L/B wl", f"{advisory.l_over_bwl:.2f}", ""),
+        _row("displacement", f"{hydro.displaced_mass_kg:.1f}"),
+        _row("wetted_surface", f"{hydro.wetted_surface_m2:.3f}"),
+        _row("waterplane_area", f"{hydro.waterplane_area_m2:.3f}"),
+        _row("gm0", f"{hydro.GM0_m:.3f}"),
+        _row("cp_actual", f"{hydro.Cp_actual:.3f}"),
+        _row("cm_actual", f"{hydro.Cm_actual:.3f}"),
+        _row("l_over_bwl", f"{advisory.l_over_bwl:.2f}"),
     ]
     resistance_rows = [
         {
@@ -463,18 +468,26 @@ def mesh_diagnostics_rows_from_state(
     counts = _mesh_diagnostics_counts(diagnostics)
     boundary = counts["boundary_edges"]
     nonmanifold = counts["nonmanifold_edges"]
+    # AUD-O-006: keep the row labels English (they already are) and append
+    # threshold guidance so an operator who has never read the diagnostic
+    # spec can tell at a glance which counts must be zero and which are
+    # expected to be non-zero. Row order + the {"label", "value"} shape
+    # are unchanged.
     rows: list[dict[str, str]] = [
         {"label": "Part", "value": str(part).title()},
-        {"label": "Readiness", "value": diagnostics.readiness.level},
+        {"label": "Readiness level", "value": diagnostics.readiness.level},
         {
-            "label": "Boundary edges",
+            "label": "Boundary edges (perimeter; acceptable)",
             "value": f"{boundary['primary']} (welded), {boundary['raw']} (raw)",
         },
         {
-            "label": "Non-manifold edges",
+            "label": "Non-manifold edges (must be 0)",
             "value": f"{nonmanifold['primary']} (welded), {nonmanifold['raw']} (raw)",
         },
-        {"label": "Degenerate faces", "value": str(diagnostics.degenerate_faces)},
+        {
+            "label": "Degenerate faces (must be 0)",
+            "value": str(diagnostics.degenerate_faces),
+        },
         {"label": "Vertices", "value": str(diagnostics.profile.vertex_count)},
         {
             "label": "Welded vertices",

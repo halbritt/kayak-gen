@@ -79,6 +79,27 @@ _SEARCH_WIRE_SCHEMA_VERSION = _spec_default_schema_version(SearchSpec)
 #: in ``tests/test_web_layout.py``; do not edit without rerunning that test.
 CFD_IN_LOOP_ACK_LABEL = "I accept evaluation may take orders of magnitude longer"
 
+#: AUD-O-004 — operator-facing blocking-reason copy. Each constant is the
+#: visible span text rendered below the kind-aware Submit button when the
+#: corresponding validation gate is closed. The strings stay in lock-step
+#: with the gates enforced by :func:`build_spec_from_form_state`; new gates
+#: surface here so the operator sees a single human-readable line rather
+#: than a stack trace after clicking.
+SUBMIT_BLOCKING_REASON_NO_VARIABLES = (
+    "Requires at least one variable in the variables table."
+)
+SUBMIT_BLOCKING_REASON_NO_OBJECTIVE = "Select at least one objective."
+SUBMIT_BLOCKING_REASON_OBJECTIVES_REFUSED = (
+    "All selected objectives are not admissible for the current claim "
+    "scope. Choose admissible objectives or relax the scope."
+)
+SUBMIT_BLOCKING_REASON_CFD_ACK_REQUIRED = (
+    "Tick the CFD-in-loop acknowledgement checkbox to proceed."
+)
+SUBMIT_BLOCKING_REASON_VARIABLE_NAME_MISSING = (
+    "Every variable row needs a name."
+)
+
 #: RFC 0057 stage 4 D-5: soft advisory once four or more jobs are in flight.
 CONCURRENCY_ADVISORY_THRESHOLD = 4
 CONCURRENCY_ADVISORY_TEXT = (
@@ -826,6 +847,13 @@ def initialize_form_state(app: Any) -> None:
     # manager list changes.
     refresh_concurrency_advisory(app)
 
+    # AUD-O-004: seed Submit-button blocking-reason state. The actual
+    # boolean / reason are recomputed by refresh_submit_blocking_reason
+    # after the panel renders and every time the form mutates.
+    state.generative_submit_blocking_reason = ""
+    state.generative_submit_disabled = False
+    refresh_submit_blocking_reason(app)
+
 
 def _current_hull_family_scope(state: Any) -> HullFamilyScope | None:
     """Build a one-element :class:`HullFamilyScope` from ``base_hull``.
@@ -870,6 +898,94 @@ def refresh_cfd_in_loop_status(app: Any) -> CFDInLoopEvaluatorStatus:
     )
     app.state.generative_cfd_in_loop_status = status
     return status
+
+
+def compute_submit_blocking_reason(state: Any) -> str:
+    """Return the operator-facing reason the submit button is disabled.
+
+    Returns an empty string when the form is in a submittable shape. The
+    returned string is the visible span text rendered below the kind-aware
+    Submit button (AUD-O-004); it MUST be plain English and never include
+    RFC citations or internal vocabulary ("claim_state", "refusal", etc.).
+
+    The gates are intentionally a strict subset of the gates enforced by
+    :func:`build_spec_from_form_state`: hitting an unguarded gate at submit
+    time still raises :class:`GenerateSpecFormError`, but the operator sees
+    the most common blockers before clicking.
+    """
+
+    # 1. Variables: at least one row required.
+    raw_variables = _state_get(state, "generative_variables", [])
+    if not isinstance(raw_variables, list) or not raw_variables:
+        return SUBMIT_BLOCKING_REASON_NO_VARIABLES
+    # Each variable row must have a non-empty name.
+    for row in raw_variables:
+        if not isinstance(row, Mapping):
+            return SUBMIT_BLOCKING_REASON_VARIABLE_NAME_MISSING
+        name = row.get("name")
+        if not isinstance(name, str) or not name.strip():
+            return SUBMIT_BLOCKING_REASON_VARIABLE_NAME_MISSING
+
+    # 2. Objectives (search only — sweep does not pick objectives).
+    job_kind = _state_get(state, "generative_job_kind", "search")
+    if job_kind == "search":
+        selected = _state_get(state, "generative_selected_objective_metrics", None)
+        if not isinstance(selected, list) or not selected:
+            return SUBMIT_BLOCKING_REASON_NO_OBJECTIVE
+        admissible_set = set(
+            _state_get(state, "generative_objective_options", [])
+            or []
+        )
+        # If every selected metric is non-admissible, surface a refusal
+        # reason rather than the generic objective-required string.
+        if admissible_set and not any(
+            metric in admissible_set for metric in selected
+        ):
+            return SUBMIT_BLOCKING_REASON_OBJECTIVES_REFUSED
+
+    # 3. CFD-in-loop acknowledgement gate (D-4 / D-14).
+    evaluator_state = _state_get(state, "generative_evaluators", DEFAULT_EVALUATORS)
+    cfd_requested = bool(
+        isinstance(evaluator_state, Mapping)
+        and evaluator_state.get("cfd_in_loop", False)
+    )
+    cfd_status = _state_get(
+        state, "generative_cfd_in_loop_status", "opt_in_only"
+    )
+    cfd_acknowledged = bool(
+        _state_get(state, "generative_cfd_in_loop_acknowledged", False)
+    )
+    if cfd_requested and cfd_status != "first_class" and not cfd_acknowledged:
+        return SUBMIT_BLOCKING_REASON_CFD_ACK_REQUIRED
+
+    return ""
+
+
+def refresh_submit_blocking_reason(app: Any) -> str:
+    """Recompute the Submit-button disabled-reason copy (AUD-O-004).
+
+    Writes two state fields:
+
+    * ``generative_submit_blocking_reason``: the visible span text (empty
+      string when the form is submittable).
+    * ``generative_submit_disabled``: boolean used to drive the kind-aware
+      Submit button's ``disabled`` prop and the visible span's ``v-show``.
+
+    The wire payload produced by :func:`build_spec_from_form_state` is
+    unaffected — this is presentation state only.
+    """
+
+    state = app.state
+    try:
+        reason = compute_submit_blocking_reason(state)
+    except Exception:
+        # Never let a presentation-layer reason crash the panel. Fall back
+        # to enabling the button; ``build_spec_from_form_state`` still
+        # raises the structured error on submit.
+        reason = ""
+    app.state.generative_submit_blocking_reason = reason
+    app.state.generative_submit_disabled = bool(reason)
+    return reason
 
 
 def refresh_concurrency_advisory(app: Any) -> None:
@@ -922,6 +1038,11 @@ def render_spec_form_section(app: Any) -> None:
     # so the acknowledgement checkbox hides reactively when a future
     # accepted fit promotes the evaluator to "first_class".
     refresh_cfd_in_loop_status(app)
+
+    # AUD-O-004: recompute the Submit-button blocking reason now that the
+    # form-state has been seeded. The span renders empty + the button is
+    # enabled when the form is in a submittable shape.
+    refresh_submit_blocking_reason(app)
 
     # D-5 soft advisory — hidden when empty (§0.2 / §4.7).
     v3.VAlert(
@@ -1302,11 +1423,18 @@ __all__ = [
     "DEFAULT_VARIABLE_ROW",
     "DEFAULT_WALL_CLOCK_SECONDS",
     "GenerateSpecFormError",
+    "SUBMIT_BLOCKING_REASON_CFD_ACK_REQUIRED",
+    "SUBMIT_BLOCKING_REASON_NO_OBJECTIVE",
+    "SUBMIT_BLOCKING_REASON_NO_VARIABLES",
+    "SUBMIT_BLOCKING_REASON_OBJECTIVES_REFUSED",
+    "SUBMIT_BLOCKING_REASON_VARIABLE_NAME_MISSING",
     "admissible_objective_metrics",
     "build_spec_from_form_state",
+    "compute_submit_blocking_reason",
     "initialize_form_state",
     "objective_refusal_reason",
     "refresh_cfd_in_loop_status",
     "refresh_concurrency_advisory",
+    "refresh_submit_blocking_reason",
     "render_spec_form_section",
 ]

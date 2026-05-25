@@ -270,7 +270,9 @@ RESISTANCE_DETAIL_COPY = (
 )
 HIGH_ANGLE_GZ_HEADING = "High-angle GZ unavailable"
 HIGH_ANGLE_GZ_COPY = (
-    "High-angle GZ visualisation is deferred; see RFC 0020 / RFC 0024."
+    "High-angle GZ (stability at large heel angles) is not rendered in the "
+    "workspace. Use `kayakgen stability --high-angle-gz` or load a design "
+    "report on the Comparison tab to inspect this data."
 )
 MESH_PACKAGE_READINESS_HEADING = "Mesh package readiness"
 MESH_PROFILE_LABEL = "open-wetted-surface"
@@ -295,6 +297,88 @@ PERSISTENT_COPY: dict[str, str] = {
 }
 
 _SLIDER_BY_KEY = {key: (label, vmin, vmax, step) for key, label, vmin, vmax, step in SLIDER_DEFS}
+
+
+#: AUD-O-001 — plain-text tooltip copy for each validity-badge state. The
+#: badge string is produced by ``validity_badge_from_state`` and takes one of
+#: four shapes:
+#:
+#:   * ``"In <class> envelope"`` — hull fits a standard class envelope.
+#:   * ``"Custom — sub-touring"`` — hull below the touring class envelope.
+#:   * ``"Custom — beyond elite"`` — hull beyond the elite-surfski class
+#:     envelope.
+#:   * ``"Custom (L/B_wl=X.X)"`` — hull L/B ratio not matched by any class.
+#:
+#: The tooltip is computed at the same time as the aria-label so the chip's
+#: ``title=`` attribute always reflects the live badge.
+VALIDITY_BADGE_TITLE_SUB_TOURING = (
+    "Hull is below the touring class envelope. The class selector falls back "
+    "to custom; advisory only."
+)
+VALIDITY_BADGE_TITLE_BEYOND_ELITE = (
+    "Hull exceeds the elite-surfski class envelope. The class selector falls "
+    "back to custom; advisory only."
+)
+
+
+def validity_badge_title_for(badge: str) -> str:
+    """Return the operator-facing tooltip for a validity-badge state string.
+
+    AUD-O-001: the badge chip's CSS-only colour change is the only visual
+    hint of its meaning; the tooltip provides plain-text discoverability
+    for sighted users without screen readers.
+    """
+
+    if not isinstance(badge, str) or not badge:
+        return ""
+    if badge.startswith("In ") and badge.endswith(" envelope"):
+        class_label = badge[len("In ") : -len(" envelope")].strip()
+        if class_label:
+            return (
+                f"Hull dimensions fit the {class_label} class envelope. "
+                "Advisory — does not certify seaworthiness or solver readiness."
+            )
+        return (
+            "Hull dimensions fit a standard class envelope. Advisory — does "
+            "not certify seaworthiness or solver readiness."
+        )
+    if badge == "Custom — sub-touring":
+        return VALIDITY_BADGE_TITLE_SUB_TOURING
+    if badge == "Custom — beyond elite":
+        return VALIDITY_BADGE_TITLE_BEYOND_ELITE
+    if badge.startswith("Custom (L/B_wl="):
+        ratio_part = badge[len("Custom (L/B_wl=") :].rstrip(")")
+        if ratio_part:
+            return (
+                f"Hull length-to-beam ratio is {ratio_part}; not matched by "
+                "any standard class envelope. Custom design."
+            )
+        return (
+            "Hull length-to-beam ratio is not matched by any standard class "
+            "envelope. Custom design."
+        )
+    return "Design validity badge (advisory only)."
+
+
+#: AUD-O-002 — comparison-source toggle subtitles. The toggle exposes two
+#: button values (``live_frontier`` / ``imported_report``); the subtitle
+#: tells the operator what each one means without clicking the toggle.
+COMPARISON_TOGGLE_LIVE_FRONTIER_HELP = (
+    "Live frontier: candidates from this session's jobs index."
+)
+COMPARISON_TOGGLE_IMPORTED_REPORT_HELP = (
+    "Imported report: a saved design-report JSON loaded into the workspace "
+    "for comparison."
+)
+
+#: AUD-O-003 — mesh chip-pair tooltips clarifying what each chip means.
+MESH_NO_PACKAGE_CHIP_TITLE = (
+    "No CFD mesh package has been generated for this hull yet."
+)
+MESH_LIVE_READINESS_CHIP_TITLE = (
+    "Live hull/deck readiness reported by the mesh diagnostic, independent "
+    "of whether a mesh package exists."
+)
 
 
 def _param_row_raw_attrs(key: str, label: str) -> list[str]:
@@ -419,6 +503,9 @@ class KayakgenApp:
         self.state.class_preset_options = list(CLASS_PRESET_OPTIONS)
         self.state.validity_badge = "Custom (L/B_wl=0.0)"
         self.state.validity_badge_aria_label = "Design validity badge: unavailable"
+        self.state.validity_badge_title = validity_badge_title_for(
+            "Custom (L/B_wl=0.0)"
+        )
         self._init_slider_bounds()
         self._applying_class_preset = False
         self._active_preset_seed_name = ""
@@ -798,6 +885,7 @@ class KayakgenApp:
             badge = "Custom (L/B_wl=0.0)"
         self.state.validity_badge = badge
         self.state.validity_badge_aria_label = f"Design validity badge: {badge}"
+        self.state.validity_badge_title = validity_badge_title_for(badge)
 
     def _refresh_status_segments(self) -> None:
         try:
@@ -1355,6 +1443,11 @@ class KayakgenApp:
                         size="small",
                         **{"data-testid": "class-preset-chip"},
                     )
+                    # AUD-O-001: the chip's CSS-only colour shift is the only
+                    # visual cue of badge meaning. Bind ``title`` to the
+                    # plain-text tooltip (computed in _refresh_validity_badge)
+                    # so sighted users without screen readers can discover the
+                    # meaning of every envelope state on hover.
                     v3.VChip(
                         "{{ validity_badge }}",
                         classes=(
@@ -1368,6 +1461,7 @@ class KayakgenApp:
                             "role": "status",
                             "aria-live": "polite",
                             "aria-label": ("validity_badge_aria_label",),
+                            "title": ("validity_badge_title",),
                         },
                     )
                     for group_label, keys in PARAMETER_GROUPS:
@@ -1583,13 +1677,20 @@ class KayakgenApp:
                 # When no package is selected, show two chips: neutral
                 # "No package built" + live status_readiness (§0.6 / §4.5).
                 # Otherwise show the package readiness level.
+                # AUD-O-003: each chip carries a ``title`` tooltip explaining
+                # its meaning so the relationship between "no package built"
+                # and the live readiness level is discoverable on hover.
                 v3.VCardText(
                     (
                         "<template v-if=\"mesh_package_status === 'No mesh package selected.'\">"
                         "<v-chip size='small' class='kg-readiness-chip kg-no-package-chip'"
-                        " data-testid='mesh-no-package-chip'>No package built</v-chip>"
+                        " data-testid='mesh-no-package-chip'"
+                        f" title='{html.escape(MESH_NO_PACKAGE_CHIP_TITLE, quote=True)}'"
+                        ">No package built</v-chip>"
                         "<v-chip size='small' class='kg-readiness-chip kg-live-readiness-chip'"
-                        " data-testid='mesh-live-readiness-chip'>{{ status_readiness }}</v-chip>"
+                        " data-testid='mesh-live-readiness-chip'"
+                        f" title='{html.escape(MESH_LIVE_READINESS_CHIP_TITLE, quote=True)}'"
+                        ">{{ status_readiness }}</v-chip>"
                         "</template>"
                         "<template v-else>"
                         "<v-chip size='small' class='kg-readiness-chip'"
@@ -1613,6 +1714,9 @@ class KayakgenApp:
                 v3.VCardTitle("Comparison")
                 with v3.VCardText():
                     # ComparisonSourceToggle (§4.6): live frontier vs imported report.
+                    # AUD-O-002: add per-button ``title`` tooltips and a visible
+                    # subtitle so an operator can discover what each toggle
+                    # value means without clicking it.
                     with v3.VBtnToggle(
                         v_model=("comparison_source",),
                         density="compact",
@@ -1623,14 +1727,35 @@ class KayakgenApp:
                             "Live frontier",
                             value="live_frontier",
                             density="compact",
-                            **{"data-testid": "comparison-toggle-live-frontier"},
+                            **{
+                                "data-testid": "comparison-toggle-live-frontier",
+                                "title": COMPARISON_TOGGLE_LIVE_FRONTIER_HELP,
+                            },
                         )
                         v3.VBtn(
                             "Imported report",
                             value="imported_report",
                             density="compact",
-                            **{"data-testid": "comparison-toggle-imported-report"},
+                            **{
+                                "data-testid": "comparison-toggle-imported-report",
+                                "title": COMPARISON_TOGGLE_IMPORTED_REPORT_HELP,
+                            },
                         )
+                    v3.VCardText(
+                        (
+                            f"<div class='kg-comparison-source-help-line'>"
+                            f"{html.escape(COMPARISON_TOGGLE_LIVE_FRONTIER_HELP)}"
+                            f"</div>"
+                            f"<div class='kg-comparison-source-help-line'>"
+                            f"{html.escape(COMPARISON_TOGGLE_IMPORTED_REPORT_HELP)}"
+                            f"</div>"
+                        ),
+                        html=True,
+                        classes="kg-comparison-source-help text-caption text-medium-emphasis mb-2 pa-0",
+                        **{
+                            "data-testid": "comparison-source-help",
+                        },
+                    )
                     # Live frontier block.
                     with html_widgets.Div(
                         v_show=("comparison_source === 'live_frontier'",),
@@ -1795,13 +1920,21 @@ class KayakgenApp:
                     # Single kind-aware submit button (§4.7); label and action vary by kind.
                     # The button is always present; we use v_show to swap between two
                     # styled buttons that each have data-testid="generative-submit".
+                    # AUD-O-004: each button is bound to ``generative_submit_disabled``
+                    # and points at a visible blocking-reason span via
+                    # ``aria-describedby``. The span text is the operator-facing
+                    # reason computed by ``refresh_submit_blocking_reason``.
                     v3.VBtn(
                         "Submit Search",
                         click=self.ctrl.submit_generative_search,
                         density="compact",
                         classes="mr-2 kg-generate-submit",
                         v_show=("generative_job_kind !== 'sweep'",),
-                        **{"data-testid": "generative-submit"},
+                        disabled=("generative_submit_disabled",),
+                        **{
+                            "data-testid": "generative-submit",
+                            "aria-describedby": "submit-blocking-reason-search",
+                        },
                     )
                     v3.VBtn(
                         "Submit Sweep",
@@ -1809,7 +1942,33 @@ class KayakgenApp:
                         density="compact",
                         classes="mr-2 kg-generate-submit",
                         v_show=("generative_job_kind === 'sweep'",),
-                        **{"data-testid": "generative-submit"},
+                        disabled=("generative_submit_disabled",),
+                        **{
+                            "data-testid": "generative-submit",
+                            "aria-describedby": "submit-blocking-reason-sweep",
+                        },
+                    )
+                    v3.VCardText(
+                        (
+                            "<span id='submit-blocking-reason-search'"
+                            " data-testid='submit-blocking-reason-search'"
+                            " class='kg-generate-submit-blocking-reason"
+                            " text-caption text-warning'"
+                            " v-show=\"generative_submit_disabled"
+                            " && generative_job_kind !== 'sweep'\">"
+                            "{{ generative_submit_blocking_reason }}"
+                            "</span>"
+                            "<span id='submit-blocking-reason-sweep'"
+                            " data-testid='submit-blocking-reason-sweep'"
+                            " class='kg-generate-submit-blocking-reason"
+                            " text-caption text-warning'"
+                            " v-show=\"generative_submit_disabled"
+                            " && generative_job_kind === 'sweep'\">"
+                            "{{ generative_submit_blocking_reason }}"
+                            "</span>"
+                        ),
+                        html=True,
+                        classes="kg-generate-submit-blocking-reason-wrap pa-0",
                     )
                     v3.VBtn(
                         "Refresh Jobs",

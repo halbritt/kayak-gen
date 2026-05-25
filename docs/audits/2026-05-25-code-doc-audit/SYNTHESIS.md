@@ -38,13 +38,13 @@ synthesis trusts the lane outputs but flags this provenance.
 | AUD-D-007 | docs-decision-drift | info | docs_drift | open — null finding, brief ↔ implementation aligned |
 | AUD-D-008 | docs-decision-drift | info | docs_drift | closed by R1 — ARCHITECTURE_MAP date bumped to 2026-05-25 |
 | AUD-D-009 | docs-decision-drift | info | docs_drift | open — null finding, ROADMAP correctly categorizes |
-| AUD-O-001 | operator-adoption | **medium** | operator_ergonomics | open — deferred to R2 (validity-badge tooltip / popover) |
-| AUD-O-002 | operator-adoption | **medium** | operator_ergonomics | open — deferred to R2 (comparison-toggle subtitle) |
-| AUD-O-003 | operator-adoption | low | implementation_gap | open — deferred to R2 (mesh chip-pair tooltip) |
-| AUD-O-004 | operator-adoption | **medium** | operator_ergonomics | open — deferred to R2 (submit disabled-reason wire) |
-| AUD-O-005 | operator-adoption | low | operator_ergonomics | open — deferred to R3 (hydro labels registry RFC) |
-| AUD-O-006 | operator-adoption | low | operator_ergonomics | open — deferred to R2 (mesh-diagnostics label rewrite) |
-| AUD-O-007 | operator-adoption | info | operator_ergonomics | partial — R1 documents the alert in USER_GUIDE; in-app copy rewrite stays in R2 |
+| AUD-O-001 | operator-adoption | **medium** | operator_ergonomics | closed by 0037 — validity-badge `title=` + helper land in `app.py` |
+| AUD-O-002 | operator-adoption | **medium** | operator_ergonomics | closed by 0037 — comparison-toggle subtitle + per-button tooltips |
+| AUD-O-003 | operator-adoption | low | implementation_gap | closed by 0037 — chip-pair `title=` tooltips |
+| AUD-O-004 | operator-adoption | **medium** | operator_ergonomics | closed by 0037 — submit-button `disabled` + `aria-describedby` + visible reason span |
+| AUD-O-005 | operator-adoption | low | operator_ergonomics | closed by 0038 — RFC 0062 + `HydrostaticsRowMetadata` registry, D044 recorded |
+| AUD-O-006 | operator-adoption | low | operator_ergonomics | closed by 0037 — threshold guidance appended to existing English labels |
+| AUD-O-007 | operator-adoption | info | operator_ergonomics | closed by 0037 — `HIGH_ANGLE_GZ_COPY` rewritten to drop RFC citations |
 | AUD-O-008 | operator-adoption | low | docs_drift | closed by R1 — USER_GUIDE serve section names the Comparison tab as frontier home |
 | AUD-O-009 | operator-adoption | info | operator_ergonomics | closed by R1 — jobs-table columns documented in USER_GUIDE |
 | AUD-O-010 | operator-adoption | low | operator_ergonomics | closed by R1 — "Raw JSON (advanced)" intent documented in USER_GUIDE |

@@ -1,0 +1,205 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0038-hydrostatics-row-metadata-registry",
+  "workflow_version": "2026-05-25",
+  "name": "0038 — Hydrostatics row metadata registry (RFC 0062 + 2026-05-25 audit R3)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0038-hydrostatics-row-metadata-registry",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": [
+        "claude",
+        "--model",
+        "opus",
+        "-p"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-5.5",
+        "-"
+      ],
+      "capabilities": [
+        "write",
+        "review",
+        "synthesis"
+      ]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": [
+        "gemini",
+        "--model",
+        "gemini-3.1-pro-preview"
+      ],
+      "capabilities": [
+        "review"
+      ]
+    }
+  },
+  "roles": {
+    "implementer": {
+      "definition_path": "roles/implementer.md"
+    },
+    "reviewer": {
+      "definition_path": "roles/reviewer.md"
+    }
+  },
+  "context_docs": [
+    {
+      "path": "AGENTS.md",
+      "required": true
+    },
+    {
+      "path": "docs/audits/2026-05-25-code-doc-audit/REMEDIATION_PLAN.md",
+      "required": true
+    },
+    {
+      "path": "docs/audits/2026-05-25-code-doc-audit/operator-adoption/FINDINGS.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0060-web-generate-panel-form-labels-and-tooltips.md",
+      "required": true
+    },
+    {
+      "path": "docs/rfcs/0061-desktop-sliders-on-hull-parameter-metadata.md",
+      "required": true
+    },
+    {
+      "path": "kayakgen/ui/parameter_metadata.py",
+      "required": true
+    },
+    {
+      "path": "kayakgen/services/evaluation.py",
+      "required": true
+    },
+    {
+      "path": "tests/test_hull_parameter_metadata.py",
+      "required": true
+    },
+    {
+      "path": "docs/workflows/0038-hydrostatics-row-metadata-registry/SOURCES.md",
+      "required": true
+    }
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 2,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement",
+      "type": "build",
+      "title": "Land RFC 0062 + HydrostaticsRowMetadata registry + evaluation.py wiring (AUD-O-005)",
+      "role_id": "implementer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Close audit R3 by landing RFC 0062 (hydrostatics-row-metadata-registry) and the implementation that backs it: a new HydrostaticsRowMetadata value object + HYDROSTATICS_ROW_METADATA registry under kayakgen/ui/hydrostatics_metadata.py modeled on the RFC 0060 / parameter_metadata.py pattern; analysis_view_model in kayakgen/services/evaluation.py consumes the registry for the hydro_rows label + unit slots (preserving the existing value formatting); hydro_rows_from_state continues to call analysis_view_model and is otherwise unchanged. Add tests/test_hydrostatics_row_metadata.py with registry coverage + the same regression-net shape as tests/test_hull_parameter_metadata.py. Update docs/rfcs/README.md with the 0062 row. Submission wire payload is unaffected — this is a label-source refactor only.",
+      "task_prompt": {
+        "path": "prompts/implement.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/ui/hydrostatics_metadata.py",
+          "kayakgen/services/evaluation.py",
+          "tests/test_hydrostatics_row_metadata.py",
+          "docs/rfcs/0062-hydrostatics-row-metadata-registry.md",
+          "docs/rfcs/README.md",
+          "docs/audits/2026-05-25-code-doc-audit/follow-ups/0038/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "CHANGELOG.md",
+          "docs/USER_GUIDE.md",
+          "docs/DECISION_LOG.md",
+          "docs/audits/2026-05-25-code-doc-audit/SYNTHESIS.md",
+          "docs/audits/2026-05-25-code-doc-audit/REMEDIATION_PLAN.md",
+          "docs/audits/2026-05-25-code-doc-audit/operator-adoption/FINDINGS.md",
+          "docs/audits/2026-05-25-code-doc-audit/docs-decision-drift/",
+          "docs/audits/2026-05-25-code-doc-audit/pipeline-integrity/",
+          "docs/audits/README.md",
+          "docs/SPEC.md",
+          "docs/PRD.md",
+          "docs/ROADMAP.md",
+          "docs/ARCHITECTURE_MAP.md",
+          "docs/UBIQUITOUS_LANGUAGE.md",
+          "kayakgen/ui/web/",
+          "kayakgen/ui/parameter_metadata.py",
+          "kayakgen/ui/desktop.py",
+          "kayakgen/ui/desktop_slider_ranges.py",
+          "kayakgen/ui/gui_params.py"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "docs/audits/2026-05-25-code-doc-audit/follow-ups/0038/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Verify RFC 0062 + registry land cleanly and close AUD-O-005 without wire-payload drift",
+      "role_id": "reviewer",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Verify the new HydrostaticsRowMetadata registry mirrors the RFC 0060 pattern, every hydro row label emitted by analysis_view_model comes from the registry, hydro_rows_from_state output is byte-stable across the refactor (regression test enforces), the new test file follows the test_hull_parameter_metadata.py regression-net shape, RFC 0062 is internally consistent and references RFC 0060 / RFC 0061 / D043 correctly, and the rfcs/README.md row is properly placed. Confirm scope discipline. Produce REVIEW.md.",
+      "task_prompt": {
+        "path": "prompts/review.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/audits/2026-05-25-code-doc-audit/follow-ups/0038/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "docs/audits/2026-05-25-code-doc-audit/follow-ups/0038/REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "implement",
+      "to": "review",
+      "on": "completed"
+    }
+  ],
+  "cycles": []
+}
