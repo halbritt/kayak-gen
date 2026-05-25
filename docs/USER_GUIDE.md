@@ -921,8 +921,18 @@ warn-soft) but the textual claim is the authoritative signal.
 
 **Hydro tab.** Renders the current hydrostatics as a key/value table
 (displacement, wetted surface, waterplane area, GM0, Cp/Cm actuals,
-L/B at WL) sourced from `evaluate_hydrostatics(hull)`. The previous
-monospace `<pre>` dump is gone. High-angle GZ visualisation is still
+L/B at WL) sourced from `evaluate_hydrostatics(hull)`. Row labels and
+units come from the RFC 0062 `HYDROSTATICS_ROW_METADATA` registry in
+`kayakgen.ui.hydrostatics_metadata`, which also carries one-sentence
+operator-facing `description` fields per row. The current Hydro tab
+renders only label and value; the description fields are written and
+covered by the regression test in
+`tests/test_hydrostatics_row_metadata.py`, but no UI surface renders
+them today — to read a row's description, consult
+`kayakgen/ui/hydrostatics_metadata.py` directly. Hover-tooltip
+rendering of descriptions is tracked as audit finding AUD-O-003 from
+the 2026-05-25 full_repo audit; the follow-up workflow lands the
+tooltip surface. The previous monospace `<pre>` dump is gone. High-angle GZ visualisation is still
 deferred per D021; when applicable, the tab surfaces a tonal warning
 saying high-angle GZ is unavailable in the workspace and pointing the
 operator at the comparison-report import or `kayakgen stability

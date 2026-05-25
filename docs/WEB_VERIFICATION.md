@@ -105,6 +105,11 @@ these selectors; use the documented REST surfaces under `/api/*`
 instead, or open an issue if a stable handle for a particular control
 would unblock a real workflow.
 
+Tests in `tests/test_web_layout.py` and `tests/test_web_inline_help.py`
+pin the presence and placement of these hooks; if any hook is renamed,
+removed, or moved, those tests fail and the change is caught at
+verification time.
+
 ## Docker Check
 
 Build the image:

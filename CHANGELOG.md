@@ -8,6 +8,35 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Fourth `code_doc_audit` run landed under
+  `docs/audits/2026-05-25-full-repo-code-doc-audit/` (`full_repo`
+  preset, whole repo at HEAD `313dfdd`); second `full_repo` after
+  the 2026-05-22 dogfood. 31 findings (0 critical / 0 high / 1
+  medium / 3 low / 27 info) plus 3 hallucinated lane findings
+  discarded after parent-thread verification (the audit cadence's
+  evidence discipline made the catches possible: AUD-D-002 claimed
+  RFC 0060/0061 files missing — `ls` showed they exist;
+  AUD-O-011 claimed USER_GUIDE missing stage-4 gate note — line
+  209-210 already covers it; AUD-O-015 claimed mesh labels are
+  raw dict keys — workflow 0037 already landed threshold guidance).
+  Lane 1 returned 12 positive null findings verifying claim-gate
+  invariants across RawUnvalidatedClaimFields, D042 consumption,
+  RFC 0058 unvalidated_hydrostatic_comparison default,
+  presentation-layer isolation, RFC 0049 hash stability, RFC 0057
+  subprocess isolation, and RFC 0046 opt-in. Lane 3 ran on Claude
+  Haiku 4.5 while Lanes 1+2 ran on Opus 4.7; future runs should
+  consider model-tier diversity alongside provider diversity. R1
+  docs-only batch lands in this commit closing AUD-D-001 (low,
+  ROADMAP date bumped to 2026-05-25), AUD-D-004 (low,
+  WEB_VERIFICATION test-file references added), and half of
+  AUD-O-003 (medium, USER_GUIDE Hydro tab section now notes that
+  RFC 0062 hydrostatics row descriptions are written but not yet
+  rendered in the workspace). R2 (Hydro-tab description tooltip
+  rendering for AUD-O-003) deferred to follow-up striatum
+  workflow `0039-hydro-tab-description-rendering`. AUD-D-003 and
+  AUD-O-012 closed as wontfix per each lane's own follow_up
+  assignment.
+
 - Workflow 0037 (`docs/workflows/0037-web-ui-inline-help/`) closes
   2026-05-25 audit findings AUD-O-001 (medium), AUD-O-002 (medium),
   AUD-O-003 (low), AUD-O-004 (medium), AUD-O-006 (low), and the

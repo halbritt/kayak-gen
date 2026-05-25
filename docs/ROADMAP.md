@@ -1,6 +1,6 @@
 # Roadmap
 
-Updated: 2026-05-21
+Updated: 2026-05-25
 
 This roadmap is the contributor-facing reconciliation point for the current
 RFC index, the older deferred workflow queue, and the workflow 0048 successor
