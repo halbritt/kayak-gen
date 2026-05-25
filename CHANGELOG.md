@@ -6,6 +6,30 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
+### Changed
+
+- Workflow 0039
+  (`docs/workflows/0039-hydro-tab-description-rendering/`) closes
+  2026-05-25 full_repo audit finding AUD-O-003 (medium). The web
+  Hydro tab now surfaces each RFC 0062 `HydrostaticsRowMetadata`
+  description as a hover tooltip on the corresponding row.
+  `kayakgen/services/evaluation.py::analysis_view_model::hydro_rows`
+  was widened from a 3-tuple `(label, value, unit)` to a 4-tuple
+  `(label, value, unit, description)` sourced from the registry,
+  with the three downstream consumers
+  (`analysis_lines_from_state`, `hydro_lines_from_state`,
+  `hydro_rows_from_state`) updated in the same diff. The web
+  Hydro-tab `<tr>` carries `:title='row.description'`; empty
+  descriptions (e.g., on `Warning` rows) suppress the tooltip
+  naturally per browser convention. New
+  `tests/test_hydro_tab_descriptions.py` (3 tests) iterates the
+  registry to assert each description appears in the rendered
+  HTML; `tests/test_hydrostatics_row_metadata.py::test_hydro_rows_from_state_byte_stable`
+  was extended to assert the full
+  `{label, value, description}` shape (intentional widening, not
+  relaxation). `build_spec_from_form_state` wire payload remains
+  untouched per the AUD-P-004 invariant pinned by workflow 0037.
+
 ### Added
 
 - Fourth `code_doc_audit` run landed under

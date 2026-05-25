@@ -1583,8 +1583,10 @@ class KayakgenApp:
                         (
                             "<table class='kg-hydro-table' data-testid='hydro-kv-table'>"
                             "<tbody>"
-                            "<tr v-for='row in hydro_table_rows' :key='row.label'>"
-                            "<th>{{ row.label }}</th>"
+                            "<tr v-for='row in hydro_table_rows' :key='row.label'"
+                            " :title='row.description'"
+                            " :data-testid=\"'hydro-row-' + row.label\">"
+                            "<th data-testid='hydro-row-label'>{{ row.label }}</th>"
                             "<td>{{ row.value }}</td>"
                             "</tr>"
                             "</tbody>"

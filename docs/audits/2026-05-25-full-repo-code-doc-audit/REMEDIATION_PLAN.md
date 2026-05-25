@@ -126,12 +126,13 @@ The next audit can read these as the regression-protection set.
 
 ## Batch landing order
 
-1. **R1** lands in the audit commit (this conversation).
-   `docs/audits/README.md` index-table row added for the
-   full_repo run.
-2. **R3** closes inline via SYNTHESIS strikethroughs.
-3. **R2** lands as a follow-up striatum workflow after the audit
-   commit is on `main`. Workflow id: `0039-hydro-tab-description-rendering`.
+1. **R1** landed in audit commit `456cdad`. Audit index-table row
+   added for the full_repo run.
+2. **R3** closed inline via SYNTHESIS strikethroughs.
+3. **R2** landed as workflow
+   `docs/workflows/0039-hydro-tab-description-rendering/`. Closes
+   AUD-O-003. PATCH_SUMMARY at
+   `docs/audits/2026-05-25-full-repo-code-doc-audit/follow-ups/0039/PATCH_SUMMARY.md`.
 
 ## CHANGELOG entries
 

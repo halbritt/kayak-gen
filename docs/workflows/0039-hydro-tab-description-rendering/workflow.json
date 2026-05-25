@@ -1,0 +1,144 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0039-hydro-tab-description-rendering",
+  "workflow_version": "2026-05-25",
+  "name": "0039 — Hydro tab description rendering (2026-05-25 full_repo audit R2)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0039-hydro-tab-description-rendering",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["claude", "--model", "opus", "-p"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["codex", "exec", "--model", "gpt-5.5", "-"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["gemini", "--model", "gemini-3.1-pro-preview"],
+      "capabilities": ["review"]
+    }
+  },
+  "roles": {
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "reviewer": {"definition_path": "roles/reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/audits/2026-05-25-full-repo-code-doc-audit/REMEDIATION_PLAN.md", "required": true},
+    {"path": "docs/audits/2026-05-25-full-repo-code-doc-audit/operator-adoption/FINDINGS.md", "required": true},
+    {"path": "docs/rfcs/0062-hydrostatics-row-metadata-registry.md", "required": true},
+    {"path": "kayakgen/ui/hydrostatics_metadata.py", "required": true},
+    {"path": "kayakgen/services/evaluation.py", "required": true},
+    {"path": "kayakgen/ui/web/app.py", "required": true},
+    {"path": "tests/test_hydrostatics_row_metadata.py", "required": true},
+    {"path": "tests/test_web_inline_help.py", "required": true},
+    {"path": "docs/workflows/0039-hydro-tab-description-rendering/SOURCES.md", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 2,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement",
+      "type": "build",
+      "title": "Render HydrostaticsRowMetadata.description as Hydro-tab tooltip (AUD-O-003)",
+      "role_id": "implementer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Close audit R2 by surfacing the RFC 0062 HYDROSTATICS_ROW_METADATA description fields in the web Hydro tab. Widen hydro_rows_from_state in kayakgen/services/evaluation.py to include a 'description' key in each emitted dict (sourced from the registry, with '' fallback for Warning rows). Wrap the Hydro-tab table row in kayakgen/ui/web/app.py with a v-tooltip slot bound to {{ row.description }}, suppressed when description is empty. Update the regression test in tests/test_hydrostatics_row_metadata.py to assert the new key and its content; add a new render-verification test asserting each registered row's description appears in the rendered HTML (as a title= attribute or v-tooltip activator). Wire payload of build_spec_from_form_state remains untouched.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/services/evaluation.py",
+          "kayakgen/ui/web/app.py",
+          "tests/test_hydrostatics_row_metadata.py",
+          "tests/test_hydro_tab_descriptions.py",
+          "docs/audits/2026-05-25-full-repo-code-doc-audit/follow-ups/0039/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "CHANGELOG.md",
+          "docs/USER_GUIDE.md",
+          "docs/DECISION_LOG.md",
+          "docs/audits/2026-05-25-full-repo-code-doc-audit/SYNTHESIS.md",
+          "docs/audits/2026-05-25-full-repo-code-doc-audit/REMEDIATION_PLAN.md",
+          "docs/audits/2026-05-25-full-repo-code-doc-audit/operator-adoption/FINDINGS.md",
+          "docs/audits/2026-05-25-full-repo-code-doc-audit/docs-decision-drift/",
+          "docs/audits/2026-05-25-full-repo-code-doc-audit/pipeline-integrity/",
+          "docs/audits/README.md",
+          "docs/SPEC.md",
+          "docs/PRD.md",
+          "docs/ROADMAP.md",
+          "docs/ARCHITECTURE_MAP.md",
+          "docs/UBIQUITOUS_LANGUAGE.md",
+          "docs/WEB_VERIFICATION.md",
+          "docs/rfcs/",
+          "kayakgen/ui/hydrostatics_metadata.py",
+          "kayakgen/ui/parameter_metadata.py",
+          "kayakgen/ui/web/generate_spec_form.py",
+          "kayakgen/ui/web/generate_frontier_view.py",
+          "kayakgen/ui/web/controllers.py",
+          "kayakgen/ui/desktop.py",
+          "kayakgen/ui/desktop_slider_ranges.py",
+          "kayakgen/ui/gui_params.py"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "docs/audits/2026-05-25-full-repo-code-doc-audit/follow-ups/0039/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Verify Hydro-tab description tooltip rendering closes AUD-O-003 with byte-stable wire payload",
+      "role_id": "reviewer",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Verify hydro_rows_from_state emits a 'description' key for each registered row (sourced from HYDROSTATICS_ROW_METADATA), the Hydro tab template renders the description as a v-tooltip bound to row.description with suppression when empty, the existing byte-stable wire-payload test is updated rather than relaxed, and a new render-verification test asserts each registered description appears in rendered HTML. Confirm scope discipline. Produce REVIEW.md.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/audits/2026-05-25-full-repo-code-doc-audit/follow-ups/0039/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "docs/audits/2026-05-25-full-repo-code-doc-audit/follow-ups/0039/REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "implement", "to": "review", "on": "completed"}
+  ],
+  "cycles": []
+}

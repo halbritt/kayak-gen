@@ -106,12 +106,23 @@ def test_analysis_view_model_labels_match_registry() -> None:
 
 
 def test_hydro_rows_from_state_byte_stable() -> None:
-    """``hydro_rows_from_state`` label output must remain byte-stable.
+    """``hydro_rows_from_state`` output must remain byte-stable.
 
-    The expected list is the post-``b82b544`` / pre-RFC 0062 baseline.
-    Any future intentional label change requires updating
+    The wire-payload shape is ``{label, value, description}`` per
+    registry row (post-workflow-0039 widening, intentional schema
+    change to surface RFC 0062 descriptions in the Hydro-tab tooltip).
+    Warning rows carry ``description == ""`` because the registry has
+    no entry for them.
+
+    The expected label list is the post-``b82b544`` / pre-RFC 0062
+    baseline. Any future intentional label change requires updating
     :data:`EXPECTED_LABELS` in the same commit as the registry edit
     (intentional change), otherwise this test fails.
+
+    The description content is registry-sourced; any intentional copy
+    change to ``HYDROSTATICS_ROW_METADATA[*].description`` flows
+    through this assertion automatically because the expected
+    descriptions are computed from the live registry.
     """
 
     from kayakgen.model.hull import Hull
@@ -120,8 +131,33 @@ def test_hydro_rows_from_state_byte_stable() -> None:
 
     state = state_dict_from_hull(Hull())
     rows = hydro_rows_from_state(state)
-    labels = [row["label"] for row in rows if row["label"] != "Warning"]
+    non_warning = [row for row in rows if row["label"] != "Warning"]
+
+    # Every emitted row must carry exactly the {label, value, description}
+    # keys — no drift on the wire-payload shape.
+    for row in rows:
+        assert set(row.keys()) == {"label", "value", "description"}, (
+            f"hydro_rows_from_state row drifted from {{label, value, description}}: "
+            f"{row!r}"
+        )
+
+    # Labels remain byte-stable against the registry baseline.
+    labels = [row["label"] for row in non_warning]
     assert labels == list(EXPECTED_LABELS)
+
+    # Descriptions are registry-sourced.
+    expected_descriptions = [
+        HYDROSTATICS_ROW_METADATA[key].description for key in EXPECTED_KEYS
+    ]
+    actual_descriptions = [row["description"] for row in non_warning]
+    assert actual_descriptions == expected_descriptions
+
+    # Warning rows carry empty description (no registry entry).
+    for row in rows:
+        if row["label"] == "Warning":
+            assert row["description"] == "", (
+                f"Warning row must carry description=='', got {row['description']!r}"
+            )
 
 
 def test_hydro_rows_from_state_preserves_unit_in_value() -> None:

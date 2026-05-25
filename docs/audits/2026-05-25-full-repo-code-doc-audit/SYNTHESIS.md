@@ -38,7 +38,7 @@ parent-thread verification.
 | AUD-D-004 | docs-decision-drift | low | docs_drift | open — WEB_VERIFICATION.md data-testid section does not cite the test file that enforces the hooks |
 | AUD-D-005..AUD-D-010 | docs-decision-drift | info × 6 | docs_drift | all closed — positive baselines (USER_GUIDE serve section, RFC successor citations, D042/D043/D044 consumption verified, CHANGELOG entries detailed) |
 | AUD-O-001..AUD-O-002 | operator-adoption | info × 2 | operator_ergonomics | closed — positive (install extras, inline-help wired) |
-| AUD-O-003 | operator-adoption | **medium** | implementation_gap | open — RFC 0062 `HydrostaticsRowMetadata.description` fields written but no UI surface renders them |
+| AUD-O-003 | operator-adoption | **medium** | implementation_gap | closed by 0039 — `hydro_rows_from_state` widened with `description` key (4-tuple in `analysis_view_model`); Hydro-tab `<tr>` carries `:title='row.description'`; new `tests/test_hydro_tab_descriptions.py` (3 render-verification tests) pins the contract |
 | AUD-O-004..AUD-O-010 | operator-adoption | info × 7 | operator_ergonomics | closed — positive baselines (submit disabled-reason, RFC 0061 desktop sliders, CLI discoverability, error messages, export menu, first-run smoke, CFD opt-in path) |
 | ~~AUD-O-011~~ | operator-adoption | ~~medium~~ | ~~implementation_gap~~ | **invalid** — lane recommended adding stage-4 promotion gate note to USER_GUIDE; parent thread verified USER_GUIDE.md:209-210 already contains "Stage 4 first promotion remains gated on D007 / D014 physical rig data." Hallucinated; do not act on |
 | AUD-O-012 | operator-adoption | low | operator_ergonomics | open — watertight-solid mesh profile not selectable in web form; documented limitation, wontfix |

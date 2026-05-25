@@ -111,9 +111,9 @@ def analysis_view_model(state: dict[str, Any]) -> dict[str, Any]:
         cp=hydro.Cp_actual,
         displaced_mass_kg=hydro.displaced_mass_kg,
     )
-    def _row(key: str, value_str: str) -> tuple[str, str, str]:
+    def _row(key: str, value_str: str) -> tuple[str, str, str, str]:
         meta = _HYDRO_META[key]
-        return (meta.label, value_str, meta.unit or "")
+        return (meta.label, value_str, meta.unit or "", meta.description)
 
     hydro_rows = [
         _row("displacement", f"{hydro.displaced_mass_kg:.1f}"),
@@ -397,7 +397,7 @@ def analysis_lines_from_state(state: dict[str, Any]) -> list[str]:
     lines = ["Hydrostatics"]
     lines.extend(
         f"  {label:<16} {value:>10} {unit}".rstrip()
-        for label, value, unit in model["hydro_rows"]
+        for label, value, unit, _description in model["hydro_rows"]
     )
     lines.append("")
     lines.append("Resistance curve (raw comparative filter)")
@@ -428,7 +428,7 @@ def hydro_lines_from_state(state: dict[str, Any]) -> list[str]:
     lines = ["Hydrostatics"]
     lines.extend(
         f"  {label:<16} {value:>10} {unit}".rstrip()
-        for label, value, unit in model["hydro_rows"]
+        for label, value, unit, _description in model["hydro_rows"]
     )
     if model["design_warnings"]:
         lines.extend(
@@ -438,19 +438,28 @@ def hydro_lines_from_state(state: dict[str, Any]) -> list[str]:
 
 
 def hydro_rows_from_state(state: dict[str, Any]) -> list[dict[str, str]]:
-    """Return hydrostatics as a list of ``{label, value}`` dicts for table rendering.
+    """Return hydrostatics as a list of ``{label, value, description}`` dicts.
 
-    Each entry has ``label`` (e.g. "Displacement") and ``value`` (e.g. "18.5 kg").
-    Design warnings are appended as rows with label ``"Warning"`` so the
-    table surface can surface them inline without a separate ``<pre>`` block.
+    Each entry has ``label`` (e.g. "Displacement"), ``value`` (e.g.
+    "18.5 kg"), and ``description`` (the RFC 0062 operator-facing copy
+    sourced from :data:`HYDROSTATICS_ROW_METADATA`; ``""`` for ``Warning``
+    rows which have no registry entry). Design warnings are appended as
+    rows with label ``"Warning"`` so the table surface can surface them
+    inline without a separate ``<pre>`` block.
+
+    The ``description`` key feeds the Hydro-tab tooltip activator
+    (``:title='row.description'``); an empty string suppresses the
+    browser tooltip naturally.
     """
     model = analysis_view_model(state)
     rows: list[dict[str, str]] = []
-    for label, value, unit in model["hydro_rows"]:
+    for label, value, unit, description in model["hydro_rows"]:
         display_value = f"{value} {unit}".strip() if unit else str(value)
-        rows.append({"label": label, "value": display_value})
+        rows.append(
+            {"label": label, "value": display_value, "description": description}
+        )
     for warning in model.get("design_warnings", []):
-        rows.append({"label": "Warning", "value": str(warning)})
+        rows.append({"label": "Warning", "value": str(warning), "description": ""})
     return rows
 
 
