@@ -6,6 +6,66 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
+### Changed
+
+- Web UI second-pass redesign landed upstream as `b82b544`
+  ("Land WEB_UI_REWORK_2026-05-22 second-pass redesign"). Presentation-only;
+  `build_spec_from_form_state` wire output unchanged. Visible changes:
+  param rail gains a chip-styled validity-badge header
+  (`data-testid="validity-badge"`); the Hydro `<pre>` dump becomes a
+  key/value table; high-angle GZ surfaces as a tonal `VAlert`; mesh
+  diagnostics render as key/value tables; the mesh readiness chip pair
+  shows `No package built` + live `status_readiness` when no package
+  is loaded (resolves the "unavailable" contradiction); a new
+  Comparison tab hosts the Pareto frontier with a
+  `live_frontier / imported_report` `ComparisonSourceToggle`; the
+  Generate panel collapses two Submit buttons into a single kind-aware
+  button (`data-testid="generative-submit"`), renders variable rows as
+  `VDataTable`, objective rows as `VList` + `VAlert` refusal, jobs as
+  `VDataTable`; the raw-JSON escape hatch is renamed
+  "Raw JSON (advanced)"; the CFD expansion title is updated. Two new
+  helpers land in `kayakgen/services/evaluation.py`
+  (`hydro_rows_from_state`, `mesh_diagnostics_rows_from_state`) — pure
+  view-model transformers, no claim-state widening.
+  `tests/test_web_layout.py` gains 11 new `§9.3` checks (#9-#18).
+- `docs/USER_GUIDE.md` `### serve` section rewritten to describe the
+  post-rework workspace (Param rail / Hydro / Mesh / Comparison /
+  Generate tabs, two-column Generate form, kind-aware single Submit,
+  Comparison-tab-hosted frontier with `ComparisonSourceToggle`,
+  jobs-table columns, "Raw JSON (advanced)" intent, CFD-in-loop
+  slowness rationale, responsive breakpoint, validity-badge
+  accessibility).
+- `docs/ARCHITECTURE_MAP.md` date bumped to 2026-05-25.
+- `docs/WEB_VERIFICATION.md` gains a "data-testid Hook Contract"
+  section documenting the hooks as internal test-only contracts that
+  may change without notice (closes audit AUD-O-015).
+- `kayakgen/ui/web/generate_frontier_view.py` `FORBIDDEN_METRIC_TOKENS`
+  docstring expanded to explain that the per-line
+  `# noqa: kg-orphan-color` annotations are precautionary because the
+  strings are RFC 0043 metric-token names, not color literals (closes
+  audit AUD-D-004).
+
+### Added
+
+- Third `code_doc_audit` run landed under
+  `docs/audits/2026-05-25-code-doc-audit/` (`release_candidate` preset,
+  scope `fcb8040..b82b544`, single-commit gap left by the upstream
+  UI rework landing between the 2026-05-23 audit and HEAD). Three
+  lanes returned 32 findings (0 critical / 0 high / 5 medium / 9 low
+  / 18 info). Lane 1 (pipeline-integrity) returned 7 positive null
+  findings — the "presentation-only rework" claim verified under
+  adversarial review. Lanes 2 + 3 surfaced the central-docs catch-up
+  gap (CHANGELOG / USER_GUIDE / ARCHITECTURE_MAP) and the inline-help
+  gap (validity-badge / comparison-toggle / submit-disabled /
+  mesh-diagnostics labels). R1 docs catch-up batch landed in this
+  commit closing AUD-D-001 (medium), AUD-D-002 (medium), AUD-D-004
+  (low), AUD-O-007/008/009/010/012/013/014/015 (info-to-low);
+  AUD-D-003 closed as wontfix; AUD-D-005..009 and AUD-O-011/016
+  recorded as positive baseline. R2 (inline-help / tooltip code batch)
+  for AUD-O-001/002/003/004/006 deferred to a follow-up striatum
+  workflow per `feedback_striatum_required`. R3 (`Hydrostatics row
+  metadata` registry — AUD-O-005) deferred as its own RFC slice.
+
 ### Fixed
 
 - Workflow 0035 (`docs/workflows/0035-render-tests-for-registry-labels/`)

@@ -879,63 +879,129 @@ kayakgen serve --jobs-in-process   # opt out of the subprocess runner
 Install `kayakgen[web]` first, then open the printed local URL. The web shell
 supports interactive hull inspection, compact analysis views, comparison report
 loading, a local CFD job panel, and the **Generate** tab for parametric
-sweep / NSGA-II / EHVI runs (RFC 0057). The Generate tab ships a form-builder
-primary input (variables, algorithm radio, claim-admissibility-filtered
-objective picklist, RFC 0046 CFD-in-loop opt-in row with explicit
-acknowledgement, soft 4-job in-flight advisory) and a collapsible raw-JSON
-escape hatch; submitted jobs surface in a live-refreshing jobs index, with a
-2D Pareto scatter + sortable table that loads a chosen candidate into the
-single-hull view (one-click undo), a "Fork with new seed" button on succeeded
-rows, and bounded log tails with home-dir / `<jobs_root>` redaction. Generative
-jobs run as detached subprocesses by default (RFC 0057 stage 3); pass
-`--jobs-in-process` to run them as background threads instead. Required local
-browser acceptance and hosted-demo documentation are covered by the web
-verification runbook; public hosting, full dashboard parity, hosted CFD
-workers, cancellation guarantees, authentication, and real solver adapters
-are not complete.
+sweep / NSGA-II / EHVI runs (RFC 0057). Generative jobs run as detached
+subprocesses by default (RFC 0057 stage 3); pass `--jobs-in-process` to run
+them as background threads instead. Required local browser acceptance and
+hosted-demo documentation are covered by the web verification runbook; public
+hosting, full dashboard parity, hosted CFD workers, cancellation guarantees,
+authentication, and real solver adapters are not complete.
 
-Every parameter field in the Generate panel now renders a friendly label
-(e.g. "Beam WL (m)", "Prismatic coefficient (Cp)") and exposes a
-hover-for-description tooltip explaining what the parameter controls.
-Labels and descriptions live in the
-`kayakgen.ui.parameter_metadata.HULL_PARAMETER_METADATA` registry (RFC
-0060); the submitted JSON payload continues to use the raw parameter
-names (`beam_wl_m`, `Cp`, ...) so saved specs remain byte-stable.
+The workspace is organised as a parameter rail on the left plus a tabbed
+detail area on the right: **Hydro**, **Mesh**, **Comparison**, and
+**Generate**. The 2026-05-22 second-pass redesign (`b82b544`) restructured
+the previous monolithic layout into these four tabs; the wire payload of
+`build_spec_from_form_state` is unchanged across the redesign, so saved
+specs and shared URLs from before the rework continue to load correctly.
 
-Browser share or reload links can seed the current hull state from the query
-string, so a saved URL restores the same design inputs that were open when the
-link was copied.
+**Param rail.** Sliders for the canonical hull-shape inputs. The class
+selector reseeds `length_m`, `beam_oa_m`, `beam_wl_m`, `draft_m`, and `Cp`
+for the touring, performance, intermediate-surfski, and elite-surfski
+presets, and narrows those slider ranges to the selected class envelope.
+Class presets seed and narrow only those five fields; editing any
+hull-shaping slider returns the selector to `custom`, while target speed
+stays view state, does not switch the preset, and is not written to `Hull`
+JSON. Every parameter exposes a friendly label (e.g. "Beam WL (m)",
+"Prismatic coefficient (Cp)") and a hover-for-description tooltip; the
+labels and descriptions come from
+`kayakgen.ui.parameter_metadata.HULL_PARAMETER_METADATA` (RFC 0060), so
+the submitted JSON continues to use the raw parameter names (`beam_wl_m`,
+`Cp`, ...).
 
-The web workspace class selector now reseeds `length_m`, `beam_oa_m`,
-`beam_wl_m`, `draft_m`, and `Cp` for the touring, performance,
-intermediate-surfski, and elite-surfski presets, and narrows those slider ranges
-to the selected class envelope. Class presets seed and narrow only those five
-fields; editing any hull-shaping slider returns the selector to `custom`, while
-target speed stays view state, does not switch the preset, and is not written to
-`Hull` JSON.
+**Validity badge.** A chip-styled header sits above the param rail and
+reports one of `In <class> envelope`, `Custom — sub-touring`,
+`Custom — beyond elite`, or `Custom (L/B_wl=X.X)` for the current hull
+against the canonical web class envelopes (before custom fallback). The
+badge is advisory: it is not proof of seaworthiness, calibrated
+performance, design fitness, or solver readiness. Screen-reader users
+get the same statement via `aria-label` (the chip carries
+`role="status"` + `aria-live="polite"`). Sighted users may need to
+hover for full text in narrow viewports; the chip colour mirrors the
+state ("In envelope" reads as success-soft, "Custom" reads as
+warn-soft) but the textual claim is the authoritative signal.
 
-The rail validity badge is advisory. It reports one of
-`In <class> envelope`, `Custom — sub-touring`, `Custom — beyond elite`, or
-`Custom (L/B_wl=X.X)` from the current hull against the canonical web class
-envelopes before custom fallback. It is not
-proof of seaworthiness, calibrated performance, design fitness, or solver
-readiness.
+**Hydro tab.** Renders the current hydrostatics as a key/value table
+(displacement, wetted surface, waterplane area, GM0, Cp/Cm actuals,
+L/B at WL) sourced from `evaluate_hydrostatics(hull)`. The previous
+monospace `<pre>` dump is gone. High-angle GZ visualisation is still
+deferred per D021; when applicable, the tab surfaces a tonal warning
+saying high-angle GZ is unavailable in the workspace and pointing the
+operator at the comparison-report import or `kayakgen stability
+--high-angle-gz` for that data. The Hydro labels are currently
+human-curated rather than registry-sourced; the audit follow-up tracks
+moving them to a sibling registry of `HULL_PARAMETER_METADATA`.
 
-The Review area renders existing read models only. Resistance shows fixed sweep
-rows plus the target-speed row with `kt`, `Fn`, `Rv N`, `Rw N`, and `Rt N`, and
-keeps the `uncalibrated_comparative` raw comparative warning. Mesh shows
-hull/deck diagnostics, welded-primary counts, raw-count detail, warnings, and
-package/readiness/profile state when available. `watertight-solid` remains
-unavailable in the browser for authoring or promotion; use the CLI
-package/dispatch path for the narrow fixture-backed RFC 0023 handoff.
+**Mesh tab.** Renders hull and deck diagnostics as key/value tables
+(boundary edges, non-manifold edges, open faces, thin triangles,
+welded-primary counts, etc.) plus the package/readiness/profile state
+when available. The readiness chip now renders as a pair when no
+package is built: a neutral `No package built` chip alongside the live
+`status_readiness` value. The pair resolves the previous
+"unavailable" copy by showing both the package state and the underlying
+hull/deck geometry readiness — they answer two different questions and
+the operator sees both. `watertight-solid` remains unavailable in the
+browser for authoring or promotion; use the CLI package/dispatch path
+for the narrow fixture-backed RFC 0023 handoff. Mesh diagnostic labels
+are currently raw diagnostic keys (e.g. `boundary_edges`,
+`nonmanifold_edges`); a follow-up batch will rewrite them with
+operator-facing copy and threshold guidance (non-manifold edges must
+be 0, etc.).
 
-The Export menu lists Hull STL, Deck STL, Hydro JSON, Stability JSON, and Mesh
-package. Hull and Deck STL use the existing local STL behavior. Hydro JSON uses
-current local evaluation data. Stability JSON and Mesh package remain
-unavailable in the browser; use `kayakgen stability` and
-`kayakgen mesh-package` for those artifacts today. The menu does not create
-hosted storage, hosted solver jobs, high-angle `GZ` exports, or watertight
-`cfd_ready` packages.
+**Comparison tab.** The 2D Pareto frontier scatter + sortable table
+lives here, not on the Generate tab. A `live_frontier / imported_report`
+toggle at the top of the tab chooses the source: **Live frontier** shows
+candidates from the in-session jobs index (with `claim_state` colouring
+and `ConvergenceFlag` marker shape per RFC 0057 D-6 / D-7);
+**Imported report** reveals a JSON textarea that accepts a design-report
+payload (the output of `kayakgen report export`) so a saved frontier
+from another run can be inspected alongside the current session. Both
+sources render with the same scatter/table widget; selecting a row
+loads the candidate into the single-hull view with a one-click undo
+toast.
+
+**Generate tab.** A two-column form-builder primary input. The left
+column carries variables (now rendered as a `VDataTable`, one row per
+variable name + kind + bounds) plus the algorithm radio. The right
+column carries the claim-admissibility-filtered objective picklist
+(with a `VAlert` refusal block per refused objective that names the
+admissibility cause), the RFC 0046 CFD-in-loop opt-in row with explicit
+acknowledgement, and the soft 4-job in-flight advisory. CFD-in-loop is
+orders of magnitude slower than the default hydrostatics-only sweep
+because each candidate runs an OpenFOAM job through the local adapter;
+leave the box unchecked unless calibrated CFD evidence is needed. Below
+the form sits a single kind-aware Submit button that adapts its label to
+"Submit Search" or "Submit Sweep" depending on the selected algorithm
+(both share `data-testid="generative-submit"` for tests). A collapsible
+**Raw JSON (advanced)** panel below the form-builder accepts a direct
+SearchSpec / SweepSpec JSON payload for power-user cases (custom
+evaluator configurations, non-standard variable distributions,
+machine-generated specs); the form-builder is the primary path for
+everyone else. The jobs index renders as a `VDataTable` with columns
+for job ID, kind, state, elapsed time, and acceptance summary; rows
+hand off to the single-hull view, expose a "Fork with new seed" button
+on succeeded rows, and render bounded log tails with home-dir /
+`<jobs_root>` redaction (RFC 0057).
+
+**Responsive behavior.** On wide screens the param rail and the active
+tab sit side-by-side and the Generate form uses its two-column layout.
+On narrow viewports (under ~960px) Vuetify's grid stacks the columns
+vertically; the validity badge remains pinned at the top of the rail
+section.
+
+**Export menu.** Lists Hull STL, Deck STL, Hydro JSON, Stability JSON,
+and Mesh package. Hull and Deck STL use the existing local STL
+behavior. Hydro JSON uses current local evaluation data. Stability
+JSON and Mesh package remain unavailable in the browser; use
+`kayakgen stability` and `kayakgen mesh-package` for those artifacts
+today. The menu does not create hosted storage, hosted solver jobs,
+high-angle `GZ` exports, or watertight `cfd_ready` packages.
+
+Browser share or reload links seed the current hull state from the
+query string, so a saved URL restores the same design inputs that
+were open when the link was copied. The web shell's `data-testid`
+attributes (`validity-badge`, `generative-submit`,
+`comparison-source-toggle`, `mesh-no-package-chip`, etc.) are an
+internal test contract documented in `docs/WEB_VERIFICATION.md`; they
+are not a public API and may change without notice.
 
 The web CFD panel and `/api/cfd/*` routes use the same local filesystem job
 records as `kayakgen cfd`. They accept an explicit server-local

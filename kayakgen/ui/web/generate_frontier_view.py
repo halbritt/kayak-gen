@@ -54,6 +54,15 @@ FORBIDDEN_METRIC_TOKENS: tuple[str, ...] = (
 
 The Pareto-frontier surface MUST NOT promote these to objectives or color
 axes; they live behind the comparison-panel provenance contract.
+
+The ``# noqa: kg-orphan-color`` annotations are intentional and narrow:
+these literals are RFC 0043 metric-token *names* (e.g. ``max_gz_m``,
+``heel_at_max_gz_deg``), not color values. The orphan-color linter in
+``tests/test_ui_theme.py`` walks for hex literals, named CSS colors, and
+grayscale numerics; none of those patterns match these strings, so the
+suppressions are precautionary rather than load-bearing. They document
+the intent that this module remain hex-literal-free without coupling the
+linter rule to the metric-token identity.
 """
 
 

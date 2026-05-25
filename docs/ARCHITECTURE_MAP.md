@@ -1,6 +1,6 @@
 # Architecture Map
 
-Date: 2026-05-22
+Date: 2026-05-25
 
 Snapshot of the current kayakgen architecture for new contributors. Read
 `AGENTS.md` first for orientation. Read this file second to learn package

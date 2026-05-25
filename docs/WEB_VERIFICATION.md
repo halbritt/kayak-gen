@@ -90,6 +90,21 @@ downloads or that `POST /api/stl?part=hull` returns binary STL bytes.
 The current CLI starts the server and does not auto-open a browser tab. That
 scriptable default is intentional for Docker and CI friendliness.
 
+## `data-testid` Hook Contract
+
+The Trame layout sprinkles `data-testid` attributes
+(`validity-badge`, `generative-submit`, `comparison-source-toggle`,
+`mesh-no-package-chip`, `mesh-live-readiness-chip`,
+`generative-variable-table`, `generative-objective-refusal`,
+`generative-jobs-table`, etc.) so `tests/test_web_layout.py` can pin the
+layout without scraping copy. These hooks are an **internal test
+contract**: their names, presence, and placement may change without
+notice as the workspace evolves. They are not a public API. Do not
+build external browser automation or third-party integrations against
+these selectors; use the documented REST surfaces under `/api/*`
+instead, or open an issue if a stable handle for a particular control
+would unblock a real workflow.
+
 ## Docker Check
 
 Build the image:
