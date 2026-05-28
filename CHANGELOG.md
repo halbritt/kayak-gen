@@ -8,6 +8,31 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Changed
 
+- Audit status hygiene pass: flipped stale `open —` statuses to
+  `closed by <ref>` across three audit `SYNTHESIS.md` tables.
+  These were findings that had been closed by prior commits in
+  this session but never tracked back in the synthesis tables.
+  - `docs/audits/2026-05-23-code-doc-audit/SYNTHESIS.md`:
+    AUD-O-009 + AUD-O-010 closed by workflow 0035; AUD-O-011 +
+    AUD-O-012 closed by workflow 0036; AUD-O-014 + AUD-O-015
+    closed by R1 of the 2026-05-23 audit.
+  - `docs/audits/2026-05-25-code-doc-audit/SYNTHESIS.md`:
+    AUD-O-011 closed by workflow 0037 — the `:title=` attribute
+    on the validity-badge VChip (workflow 0037's
+    `validity_badge_title_for(badge)` + state binding) is the
+    recommended hover-popover affordance for sighted users that
+    Lane 3's `recommended_action` asked for.
+  - `docs/audits/2026-05-25-full-repo-code-doc-audit/SYNTHESIS.md`:
+    AUD-D-001 + AUD-D-004 closed by R1 of the full_repo audit;
+    AUD-D-003 + AUD-O-012 closed as wontfix per each lane's own
+    `follow_up` assignment.
+  No code or test changes; only synthesis-table cell rewrites.
+  All audit `FINDINGS.md` rows retain `status: open` per the RFC
+  0059 convention (positive null findings are intentionally
+  `open` as the regression baseline for the next audit); the
+  `closed` flips happen in the synthesis tables that summarize
+  each audit's actual remediation state.
+
 - Workflow 0039
   (`docs/workflows/0039-hydro-tab-description-rendering/`) closes
   2026-05-25 full_repo audit finding AUD-O-003 (medium). The web

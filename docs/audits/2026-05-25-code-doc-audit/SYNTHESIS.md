@@ -48,7 +48,7 @@ synthesis trusts the lane outputs but flags this provenance.
 | AUD-O-008 | operator-adoption | low | docs_drift | closed by R1 — USER_GUIDE serve section names the Comparison tab as frontier home |
 | AUD-O-009 | operator-adoption | info | operator_ergonomics | closed by R1 — jobs-table columns documented in USER_GUIDE |
 | AUD-O-010 | operator-adoption | low | operator_ergonomics | closed by R1 — "Raw JSON (advanced)" intent documented in USER_GUIDE |
-| AUD-O-011 | operator-adoption | info | operator_ergonomics | open — product-decision; revisit after R2 lands and operator feedback |
+| AUD-O-011 | operator-adoption | info | operator_ergonomics | closed by 0037 — the `:title=` attribute on the validity-badge VChip (workflow 0037 `validity_badge_title_for(badge)` + state binding) is the recommended hover-popover affordance for sighted users; the four-state plain-text content is what Lane 3's recommended_action asked for |
 | AUD-O-012 | operator-adoption | low | operator_ergonomics | closed by R1 — CFD-in-loop slowness rationale documented in USER_GUIDE |
 | AUD-O-013 | operator-adoption | info | docs_drift | closed by R1 — subsumed by AUD-D-001 CHANGELOG entry |
 | AUD-O-014 | operator-adoption | low | operator_ergonomics | closed by R1 — responsive behavior documented in USER_GUIDE |

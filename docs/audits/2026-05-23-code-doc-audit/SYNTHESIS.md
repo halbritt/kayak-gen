@@ -26,13 +26,13 @@ trusts the lane outputs but flags this provenance.
 | AUD-D-006 | docs-decision-drift | low | docs_drift | closed (verified pass) |
 | AUD-D-007 | docs-decision-drift | low | docs_drift | closed (verified pass) |
 | AUD-D-008+ | docs-decision-drift | low | docs_drift | closed (verified pass) |
-| AUD-O-009 | operator-adoption | medium | test_gap | open — needs render test |
-| AUD-O-010 | operator-adoption | medium | test_gap | open — needs Slider widget label test |
-| AUD-O-011 | operator-adoption | low | operator_ergonomics | closed (partial) — minor help-text asymmetry |
-| AUD-O-012 | operator-adoption | low | operator_ergonomics | open — deprecation warning lacks URL |
-| AUD-O-013 | operator-adoption | info | — | open — positive null finding on the rework brief |
-| AUD-O-014 | operator-adoption | low | operator_ergonomics | open — docs/audits/ has no README |
-| AUD-O-015 | operator-adoption | low | operator_ergonomics | open — workflow 0029 SOURCES.md is template-only |
+| AUD-O-009 | operator-adoption | medium | test_gap | closed by 0035 — `tests/test_generate_panel_label_rendering.py` lands the VTextField hint render-verification (commit `2d14cff`) |
+| AUD-O-010 | operator-adoption | medium | test_gap | closed by 0035 — `tests/test_desktop_slider_labels.py` lands the matplotlib Slider label render-verification (commit `2d14cff`) |
+| AUD-O-011 | operator-adoption | low | operator_ergonomics | closed by 0036 — `runs list --kind` help text now enumerates `sweep | search | cfd | comparison` (commit `2d14cff`) |
+| AUD-O-012 | operator-adoption | low | operator_ergonomics | closed by 0036 — `gui_params.py` deprecation warning gained the RFC 0061 path pointer (commit `2d14cff`) |
+| AUD-O-013 | operator-adoption | info | — | open — positive null finding on the rework brief (recorded as baseline; no action) |
+| AUD-O-014 | operator-adoption | low | operator_ergonomics | closed by R1 — `docs/audits/README.md` was created in audit commit `fcb8040` |
+| AUD-O-015 | operator-adoption | low | operator_ergonomics | closed by R1 — `docs/workflows/0029-code-doc-audit/SOURCES.md` is now the canonical template with prose pointing at past runs as worked examples (commit `fcb8040`) |
 
 **Severity totals**: 0 critical, 0 high, 2 medium, 5 low, 1 info, 1 partial-closed.
 Lane 2 returned positive null findings (8 entries, all `closed (verified pass)`)

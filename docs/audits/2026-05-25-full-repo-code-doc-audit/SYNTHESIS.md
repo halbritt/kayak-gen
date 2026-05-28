@@ -32,16 +32,16 @@ parent-thread verification.
 | ID | Lane | Severity | Category | Status |
 |---|---|---|---|---|
 | AUD-P-001..AUD-P-012 | pipeline-integrity | info × 12 | claim_gate | all closed — positive baselines (RawUnvalidatedClaimFields validators, D042 consumption, RFC 0058 unvalidated_hydrostatic_comparison default, presentation-layer isolation, inline-help no-claim-promotion, RFC 0046 opt-in, RFC 0049 hash stability, RFC 0057 subprocess isolation, RFC 0056 measured-fixture validators, test-coverage completeness) |
-| AUD-D-001 | docs-decision-drift | low | docs_drift | open — `docs/ROADMAP.md` header reads "Updated: 2026-05-21"; ARCHITECTURE_MAP is at 2026-05-25 |
+| AUD-D-001 | docs-decision-drift | low | docs_drift | closed by R1 — `docs/ROADMAP.md` header bumped to 2026-05-25 in audit commit `456cdad` |
 | ~~AUD-D-002~~ | docs-decision-drift | ~~high~~ | ~~docs_drift~~ | **invalid** — lane claimed RFC 0060/0061 body files missing; parent thread verified files exist on disk (`docs/rfcs/0060-web-generate-panel-form-labels-and-tooltips.md` 12994B, `docs/rfcs/0061-desktop-sliders-on-hull-parameter-metadata.md` 14948B). Hallucinated; do not act on |
-| AUD-D-003 | docs-decision-drift | info | docs_drift | open — D043/D044 scope clarification; wontfix |
-| AUD-D-004 | docs-decision-drift | low | docs_drift | open — WEB_VERIFICATION.md data-testid section does not cite the test file that enforces the hooks |
+| AUD-D-003 | docs-decision-drift | info | docs_drift | closed (wontfix) — D043/D044 scope clarification; the RFC 0059 §2.2 brief reads correctly as-is and is treated as a historical record per the lane's own follow_up assignment |
+| AUD-D-004 | docs-decision-drift | low | docs_drift | closed by R1 — `docs/WEB_VERIFICATION.md` `data-testid` section now cites `tests/test_web_layout.py` + `tests/test_web_inline_help.py` as enforcement (audit commit `456cdad`) |
 | AUD-D-005..AUD-D-010 | docs-decision-drift | info × 6 | docs_drift | all closed — positive baselines (USER_GUIDE serve section, RFC successor citations, D042/D043/D044 consumption verified, CHANGELOG entries detailed) |
 | AUD-O-001..AUD-O-002 | operator-adoption | info × 2 | operator_ergonomics | closed — positive (install extras, inline-help wired) |
 | AUD-O-003 | operator-adoption | **medium** | implementation_gap | closed by 0039 — `hydro_rows_from_state` widened with `description` key (4-tuple in `analysis_view_model`); Hydro-tab `<tr>` carries `:title='row.description'`; new `tests/test_hydro_tab_descriptions.py` (3 render-verification tests) pins the contract |
 | AUD-O-004..AUD-O-010 | operator-adoption | info × 7 | operator_ergonomics | closed — positive baselines (submit disabled-reason, RFC 0061 desktop sliders, CLI discoverability, error messages, export menu, first-run smoke, CFD opt-in path) |
 | ~~AUD-O-011~~ | operator-adoption | ~~medium~~ | ~~implementation_gap~~ | **invalid** — lane recommended adding stage-4 promotion gate note to USER_GUIDE; parent thread verified USER_GUIDE.md:209-210 already contains "Stage 4 first promotion remains gated on D007 / D014 physical rig data." Hallucinated; do not act on |
-| AUD-O-012 | operator-adoption | low | operator_ergonomics | open — watertight-solid mesh profile not selectable in web form; documented limitation, wontfix |
+| AUD-O-012 | operator-adoption | low | operator_ergonomics | closed (wontfix) — watertight-solid mesh profile not selectable in web form is a documented limitation per the lane's own follow_up; future web feature, not a current gap |
 | AUD-O-013..AUD-O-014 | operator-adoption | info × 2 | operator_ergonomics | closed — positive baselines |
 | ~~AUD-O-015~~ | operator-adoption | ~~medium~~ | ~~operator_ergonomics~~ | **invalid** — lane claimed mesh-diagnostic labels are raw dict keys (`boundary_edges`, `nonmanifold_edges`, etc.). Parent thread verified the labels in `kayakgen/services/evaluation.py::mesh_diagnostics_rows_from_state` are already operator-facing English with threshold guidance ("Non-manifold edges (must be 0)", "Boundary edges (perimeter; acceptable)", "Degenerate faces (must be 0)") — workflow 0037 landed this. Hallucinated; do not act on |
 
