@@ -1475,3 +1475,29 @@ impact: None; surface remains a thin, safe re-export and route-mounting glue lay
 recommended_action: No new striatum workflows required. Mark `kayakgen/ui/web/controllers.py` as settled for second-pass audit. The four tick-12 findings on the broader web UI surface (BUG-029, BUG-030, BUG-031) remain open but are outside this module's scope.
 follow_up: wontfix (positive baseline for second-pass; controllers.py confirmed settled per tick-29)
 
+
+### BUG-085: Parameter and Hydrostatics Metadata surfaces tick-30 second-pass: no new bugs
+
+severity: info
+category: claim_gate
+status: open
+surface: kayakgen/ui/parameter_metadata.py + kayakgen/ui/hydrostatics_metadata.py
+discovered: 2026-05-29 tick-30
+claim: Tick-30 conducted a comprehensive second-pass survey of both metadata-registry modules applying the 11-pattern lens (NaN-validator, Float-equality, Cross-field invariants, Path-traversal, Hash-format, Operator-int, Concurrency, UTF-8, Vendor-extractor, Cross-mode state leak, JSON canonical-ordering, Atomic-write). Beyond the positive baseline established in tick-16 (BUG-039: whitespace-only strings with min_length=1, a defense-in-depth gap only caught by regression tests), no new actionable bugs were identified. Both surfaces remain settled.
+evidence:
+- kayakgen/ui/parameter_metadata.py:19-182 — 2 Pydantic frozen models (HullParameterMetadata, HydrostaticsRowMetadata) with identical 4-field schema, 2 public registries, 2 helper functions
+- kayakgen/ui/hydrostatics_metadata.py:26-117 — sibling registry module with identical frozen model and 1 registry
+- No new additions or modifications to either file since tick-16 (commit ab660e0)
+- Frozen=True + extra="forbid" enforced on both models (lines 28, 35)
+- Registry coverage complete: HULL_PARAMETER_METADATA has 11 entries (RFC 0060 §2 baseline), HYDROSTATICS_ROW_METADATA has 7 entries (RFC 0062 baseline); VIEW_PARAMETER_METADATA has 1 entry; no overlap across registries
+- Cross-field validators: no documented invariants requiring cross-field checks; unit is optional (None for dimensionless rows/parameters) and parameter/label/description are independent presentation fields
+- Hash-format / canonical-ordering: dicts are insertion-order-preserving in Python 3.7+; all lookups via .get(parameter) with deterministic keys
+- Path-traversal: no file I/O in these modules
+- Concurrency: no threading, async, or mutable shared state
+- UTF-8 encoding: no file read/write calls in these modules
+- Dead code: helpers label_with_unit() and description() are actively imported and called (desktop.py, generate_spec_form.py lines 1088, etc.); no dead code
+- NaN, float-equality, operator-int bounds, vendor-extractor, atomic-write: not applicable (pure data registries)
+- Regression tests validate the contract (test_hull_parameter_metadata.py, test_hydrostatics_row_metadata.py) including byte-stable output assertions and trimmed-stringness checks
+impact: None; both surfaces remain presentation-only, defensive, and correctly constrained.
+recommended_action: No new striatum workflows required. Mark both surfaces as settled for second-pass audit.
+follow_up: wontfix (positive baseline for second-pass; kayakgen/ui/parameter_metadata.py and kayakgen/ui/hydrostatics_metadata.py confirmed settled per tick-30)
