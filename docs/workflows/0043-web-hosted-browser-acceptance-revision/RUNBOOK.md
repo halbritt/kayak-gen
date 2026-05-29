@@ -15,13 +15,9 @@ checkpoint.
 TARGET=/home/halbritt/git/kayak-gen
 WF=$TARGET/docs/workflows/0043-web-hosted-browser-acceptance-revision/workflow.json
 
-STRIATUM_DAEMON_REQUIRED=0 STRIATUM_TEST_HARNESS=1 \
-  /home/halbritt/git/kayak-gen/.venv/bin/striatum --repo "$TARGET" \
-  workflow validate "$WF" --json
+striatum --repo "$TARGET" workflow validate "$WF" --json
 
-STRIATUM_DAEMON_REQUIRED=0 STRIATUM_TEST_HARNESS=1 \
-  /home/halbritt/git/kayak-gen/.venv/bin/striatum --repo "$TARGET" \
-  run prepare --workflow "$WF" --json
+striatum --repo "$TARGET" run prepare --workflow "$WF" --json
 ```
 
 ## Execution Notes

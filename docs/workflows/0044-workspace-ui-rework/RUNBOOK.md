@@ -27,10 +27,9 @@ proceeds through `findings_ledger`, `implement_findings`, and
 ```bash
 WF=docs/workflows/0044-workspace-ui-rework/workflow.json
 
-STRIATUM_DAEMON_REQUIRED=0 STRIATUM_TEST_HARNESS=1 \
-  /home/halbritt/git/kayak-gen/.venv/bin/striatum --repo . workflow validate "$WF"
+striatum --repo . workflow validate "$WF" --json
 
-/home/halbritt/git/kayak-gen/.venv/bin/striatum --repo . run prepare --workflow "$WF" --json
+striatum --repo . run prepare --workflow "$WF" --json
 ```
 
 ## Boundaries
