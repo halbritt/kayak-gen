@@ -297,3 +297,19 @@ impact: A library caller who mutates `hull.length_m = 10` after construction sil
 recommended_action: Either (a) flip `frozen=True` and update the form-builder / desktop slider paths to construct fresh Hull instances on edits (this matches the "aggregate root owns no derived state" docstring), or (b) keep `frozen=False` and add a comment explaining the form-builder mutation requirement plus a regression test asserting downstream hash recomputation. Document the choice in `kayakgen/model/hull.py` and reflect it in `docs/UBIQUITOUS_LANGUAGE.md` if there's an operator-visible concept involved.
 follow_up: docs fix or new striatum workflow
 
+
+### BUG-017: EHVI runner bounds-check via assertion instead of explicit error
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/search/active/
+discovered: 2026-05-29 tick-7
+claim: The EHVI runner (RFC 0047 v2) initializes the candidate pool LHS and iterates to select the best EHVI candidate, but guards the result with `assert best_genome is not None` (line 1199) rather than an explicit validation error. While the loop is guaranteed to execute at least once (per `algorithm.candidate_pool_size >= 1` from the spec validator), using assert in production code is bad practice and obscures the invariant from readers.
+evidence:
+- kayakgen/search/active/runner.py:1199 — `assert best_genome is not None`
+- kayakgen/search/active/runner.py:1175-1176 — the candidate pool is guaranteed non-empty by spec validator
+- kayakgen/search/active/spec.py:84 — `candidate_pool_size: int = Field(default=256, ge=1)`
+impact: If the loop precondition ever becomes unsound (spec validator relaxed, pool construction changed), the assertion will crash the runner with a bare AssertionError instead of a structured error message. This violates the RFC 0044 / RFC 0047 contract that all failure paths are traceable via structured error codes.
+recommended_action: Replace the assert with an explicit error: `if best_genome is None: raise RuntimeError("EHVI candidate pool iteration produced no result")` or similar, or document the invariant and suppress the lint warning if the assertion is intentional.
+follow_up: wontfix or code cleanup (low priority; does not affect correctness or reproducibility)
