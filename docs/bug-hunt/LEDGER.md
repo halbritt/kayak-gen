@@ -690,3 +690,59 @@ impact: If a developer manually constructs a registry entry with whitespace-only
 recommended_action: Add a custom `field_validator` to both models that rejects whitespace-only strings (e.g., `if not value.strip(): raise ValueError('must be non-empty after strip')`). This is a belt-and-suspenders improvement; the test is already correct, but the validator should match the test's intent.
 follow_up: new striatum workflow (optional; test coverage is already adequate)
 
+
+### BUG-040: Path.read_text() lack explicit UTF-8 encoding in cfd_jobs.py
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/services/
+discovered: 2026-05-29 tick-17
+claim: The `cfd_job_raw_result_payload()` function at line 247 of `cfd_jobs.py` calls `path.read_text()` without explicitly specifying `encoding="utf-8"`, relying on system locale defaults. This mirrors BUG-022 (same pattern in `kayakgen/io/`), but extends across multiple services modules (`generative_jobs.py`, `generative_jobs_fork.py`, `generative_jobs_runner.py`, etc.). Consistent with PEP 597, all pathlib `read_text()` and `write_text()` calls should specify `encoding="utf-8"` for portable cross-platform behavior.
+evidence:
+- kayakgen/services/cfd_jobs.py:247 - `text = path.read_text()` (no encoding parameter)
+- kayakgen/services/generative_jobs_runner.py:121 - `spec_payload = json.loads((job_dir / "spec.json").read_text())`
+- kayakgen/services/generative_jobs_fork.py:92 - `source_spec = json.loads(spec_path.read_text())`
+- kayakgen/services/evaluation.py:318, 363 - `manifest_path.read_text()` and `report_path.read_text()` (no encoding)
+- kayakgen/services/generative_jobs.py:300, 319, 761, 1291 - multiple read_text() calls without encoding
+- Python pathlib docs: "If encoding is not specified, locale.getpreferredencoding(False) is used instead"
+- This is locale-dependent and may differ from UTF-8 on Windows or non-UTF-8 systems
+impact: On systems deployed with non-UTF-8 locale encoding (Windows-1252, ASCII), JSON files and spec records containing non-ASCII characters will fail to read or write with encoding errors. Downstream CFD job loading, generative job recovery, and mesh-package parsing will silently skip or corrupt non-ASCII data depending on the locale.
+recommended_action: Add explicit `encoding="utf-8"` to ALL `Path.read_text()` and `Path.write_text()` calls across the services modules. This is a bulk edit affecting ~20 call sites in cfd_jobs.py, evaluation.py, generative_jobs.py, generative_jobs_fork.py, generative_jobs_runner.py, build_export.py, calibration_artifacts.py. Consider creating a service helper: `def load_json_file(path: Path) -> dict` that centralizes the encoding parameter.
+follow_up: new striatum workflow
+
+### BUG-041: Race condition in FilesystemArtifactStore._put_bytes write atomicity
+
+severity: medium
+category: concurrency
+status: open
+surface: kayakgen/services/
+discovered: 2026-05-29 tick-17
+claim: The `FilesystemArtifactStore._put_bytes()` method at lines 648-650 uses a check-then-act pattern without file-locking: `if not store_path.exists(): ... store_path.write_bytes(data)`. If two concurrent `put_*()` calls for the same artifact hash race, both threads will see the file doesn't exist, and both will attempt to write simultaneously. On Windows or networked filesystems (NFS, SMB), concurrent writes can result in data loss, corruption, or the store containing a partial artifact.
+evidence:
+- kayakgen/services/artifact_store.py:648-650 - TOCTOU race: exists-check followed by write without synchronization
+- kayakgen/services/artifact_store.py:769-770 - similar pattern in `_resolve_artifact()` during recovery
+- RFC 0049 does not document concurrency guarantees or per-artifact locks
+- No mutex or file-locking mechanism protects the store_path write
+- Two concurrent sweep/search workers calling `put_json()` with the same hull candidate could trigger this
+impact: In multi-worker sweep/search scenarios (RFC 0057 generative jobs), if two workers produce identical candidates and simultaneously try to store their results, the artifact store may end up with incomplete, corrupted, or partially-written files. Downstream reads will fail with JSON decode errors or silent data corruption. The store's content-addressed design masks which worker's data was lost.
+recommended_action: Replace the exists-check with an atomic write pattern: use `open(store_path, 'wb', os.O_EXCL | os.O_CREAT)` on POSIX (or `os.open()` equivalent) to ensure only one writer succeeds atomically. On platforms without O_EXCL support, use a tempfile + rename pattern: write to `store_path.with_suffix('.tmp.<random>')`, then `os.replace(tmp_path, store_path)` (atomic on all platforms). Document the concurrency guarantee in the class docstring.
+follow_up: new striatum workflow
+
+### BUG-042: BuildExportSpec lacks bounds validation on n_stations
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/services/
+discovered: 2026-05-29 tick-17
+claim: The `BuildExportSpec` dataclass at line 43-53 of `build_export.py` accepts `n_stations: int` with no bounds validation. A caller (including the CLI layer after BUG-009 fix) can pass `n_stations=0` or negative values, which will propagate to `_station_xs()` at line 93 where the check `if n_stations < 2` catches only zero/one, but not negative. Additionally, there is no upper bound, so `n_stations=1000000` can be passed and cause `np.linspace()` to allocate gigabytes of memory per hull section cut. The service layer should validate at entry time, not expect the CLI to be perfect.
+evidence:
+- kayakgen/services/build_export.py:43-53 - `BuildExportSpec` has no field_validator or __post_init__ for n_stations
+- kayakgen/services/build_export.py:91-94 - validation only checks `n_stations < 2`, rejecting 0 and 1, but allows negatives silently
+- kayakgen/services/build_export.py:560-569 - write_build_export passes spec.n_stations directly to all writers
+- kayakgen/model/geometry.py (lofted geometry) - no clamping or early rejection of extreme n_stations values
+- Default is 32; practical limit for builder exporting is likely 100-1000; no documented bounds
+impact: A malicious caller or buggy upstream code can pass `BuildExportSpec(n_stations=-100)` which propagates silently, or `n_stations=1e9` which exhausts memory and hangs the process without clear error messaging. The service should refuse obviously-invalid values upfront.
+recommended_action: Convert `BuildExportSpec` to a Pydantic `BaseModel` (not a plain dataclass) and add field validation: `n_stations: int = Field(default=DEFAULT_N_STATIONS, ge=2, le=1000)`. Document the bounds in the class docstring referencing RFC 0051 acceptance criteria. Add a regression test passing out-of-bounds values and asserting they are rejected at construction time.
+follow_up: new striatum workflow
