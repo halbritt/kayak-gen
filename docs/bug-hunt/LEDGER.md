@@ -835,3 +835,88 @@ evidence:
 impact: Audit trail integrity. A fit accepted with `accepted_at=year-3000` looks legitimate to downstream consumers reading the record. Low impact today (no current operator would construct this maliciously), but documents an audit-trail gap.
 recommended_action: Add range validation: reject timestamps in the future or before a project-epoch constant (e.g., 2025-01-01). Document the epoch in the class docstring.
 follow_up: docs fix or new striatum workflow (low priority)
+
+### BUG-049: Edinburgh extractor uses hardcoded column indices instead of header-based lookup
+
+severity: high
+category: implementation_gap
+status: open
+surface: kayakgen/eval/calibration/
+discovered: 2026-05-29 tick-19
+claim: The Edinburgh DataShare extractor at `kayakgen/eval/calibration/extractors/edinburgh_datashare_pacific_canoe.py:274-312` iterates over spreadsheet rows and extracts values by hardcoded column index (raw[0]=Day, raw[1]=Model, raw[5]=Stbd Drag, etc.) without reading or validating the header row. If a workbook maintainer renames or reorders columns, the extractor silently pulls wrong data into the normalized output without detecting the schema drift.
+evidence:
+- kayakgen/eval/calibration/extractors/edinburgh_datashare_pacific_canoe.py:117-140 — WORKBOOK_HEADER_ROW and EXPECTED_SOURCE_COLUMNS are defined but never used in the extract() function
+- kayakgen/eval/calibration/extractors/edinburgh_datashare_pacific_canoe.py:274-312 — no call to read header row; iteration uses iter_rows(min_row=WORKBOOK_DATA_START_ROW, ...) and hardcoded indices raw[0], raw[1], raw[3]...raw[13]
+- A hypothetical workbook edit swapping "Stbd Drag Force" and "Port Drag Force" columns would result in stbd and port values being reversed; the extractor would not detect this
+- tests/test_calibration.py:515-535 — test validates output schema keys but not that the correct values are extracted from the correct columns
+impact: Silent data corruption. An operator could receive incorrect extracted rows (e.g., starboard drag confused with port drag, or speeds confused with yaw angles) without any error or warning. The normalized output would pass validation (keys present, types correct), and downstream resistance-fit code would train on the corrupted data, producing a calibration fixture with systematically wrong drag coefficients.
+recommended_action: Refactor extract() to (1) read the header row at WORKBOOK_HEADER_ROW, (2) validate that it matches EXPECTED_SOURCE_COLUMNS in order, and (3) use the validated column indices to extract row values. Raise ValueError with a structured error code (e.g., 'header_mismatch') if the header does not match. Add a regression test that creates a workbook with reordered columns and verifies the extractor raises an error (or detects the drift).
+follow_up: new striatum workflow
+
+### BUG-050: Edinburgh extractor silently converts NaN / missing cells to 0.0
+
+severity: high
+category: implementation_gap
+status: open
+surface: kayakgen/eval/calibration/
+discovered: 2026-05-29 tick-19
+claim: The _coerce_float() helper at lines 200-212 of `edinburgh_datashare_pacific_canoe.py` silently converts NaN and None to 0.0. When openpyxl parses a missing or NaN cell in a drag or force column, the extractor emits a zero value instead of rejecting the row or raising an error. This allows incomplete data rows (e.g., a row missing the Stbd Drag Force value) to be treated as zero-force measurements, silently corrupting the calibration dataset.
+evidence:
+- kayakgen/eval/calibration/extractors/edinburgh_datashare_pacific_canoe.py:200-212 — `if value is None: return 0.0` and `if math.isnan(value): return 0.0`
+- openpyxl returns None or NaN for missing/empty cells; _coerce_float converts both to 0.0 without raising an error
+- Rows with missing drag values are not filtered (unlike rows with missing Day/Model/Test); they pass through as zero-drag measurements
+- Impact: A partially-populated row in the workbook (e.g., a measurement with speed and yaw but no recorded drag) becomes a valid zero-drag point in the calibration data
+impact: Data integrity and calibration accuracy. A row with an accidentally-blank drag cell becomes a zero-drag measurement, biasing the resistance fit. This is especially damaging for validation_fixture promotion, where the source credibility is supposed to be high and downstream consumers expect complete, well-formed measurements.
+recommended_action: Change _coerce_float() to raise ValueError for None and NaN inputs (or return None to mark invalid rows for later filtering). Alternatively, filter rows with any NaN/None force fields before appending to the output. Add a row-level validator that checks for missing critical fields (speed, total_drag, heave, pitch, velocity) and skips the row with a warning if any are NaN/None.
+follow_up: new striatum workflow
+
+### BUG-051: TankTestRun and AcceptedFitRecord lack NaN/Infinity validators on numeric fields
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/eval/calibration/
+discovered: 2026-05-29 tick-19
+claim: The `TankTestRun` (campaigns.py:59-73) and `AcceptedFitRecord` (campaigns.py:138-160) models declare float and list[float] fields (total_drag_n, drag_uncertainty_n, fit_value, holdout_rms_n, residuals) with only basic constraints (e.g., `ge=0` on speed_ms) but no validators to reject NaN or Infinity values. A deserialized JSON record with `{"total_drag_n": null}` or `{"fit_value": NaN}` passes Pydantic validation and propagates into downstream calculations. This contrasts with `ResistanceCurve` and `Hydrostatics` in kayakgen/eval/contract.py, which lack the same validators (BUG-023).
+evidence:
+- kayakgen/eval/calibration/campaigns.py:59-73 — TankTestRun has `total_drag_n: float`, `drag_uncertainty_n: float | None`, no validator
+- kayakgen/eval/calibration/campaigns.py:138-160 — AcceptedFitRecord has `fit_value: float`, `holdout_rms_n: float`, `residuals: list[tuple[float, float]]`, no validator
+- kayakgen/eval/contract.py:196-200 — GZCurve enforces `_curve_values_must_be_finite()` as a model_validator; TankTestRun / AcceptedFitRecord do not
+- `evaluate_fit_against_threshold()` at campaigns.py:335-382 compares fit_value numerically without checking if fit_value is finite; NaN comparisons would silently fail
+impact: Silent data corruption and incorrect validation. An AcceptedFitRecord with NaN in fit_value would serialize to JSON with `"fit_value": null`, deserialize successfully, and propagate through `evaluate_fit_against_threshold()` where NaN comparisons produce false results (NaN > x is always false). This violates the RFC 0054 contract that AcceptedFitRecord is immutable and trustworthy.
+recommended_action: Add @field_validator decorators to TankTestRun and AcceptedFitRecord to reject NaN/Infinity on all float fields. Use the same pattern as GZCurve in contract.py. For optional float fields (drag_uncertainty_n), allow None but reject NaN/Infinity if the value is non-None.
+follow_up: new striatum workflow (bundle with BUG-023 remediation)
+
+### BUG-052: ResistanceSourceReviewPacket accepts empty accepted_uses for fixture verdicts
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/eval/calibration/
+discovered: 2026-05-29 tick-19
+claim: The `accepted_uses` field at `kayakgen/eval/calibration/__init__.py:249` is declared with `Field(default_factory=list)`, making it optional and defaulting to an empty list. The validator `_review_verdict_controls_promotion_metadata()` enforces many cross-field constraints for `validation_fixture` and `calibration_fixture` verdicts (e.g., fixture_id, fixture_version, accepted_fit_ref), but does not enforce that `accepted_uses` is non-empty. An operator can construct a validation_fixture packet with `accepted_uses=[]`, violating the implicit RFC 0042 contract that a fixture verdict names the intended use(s) (e.g., "validation_only", "calibration_candidate").
+evidence:
+- kayakgen/eval/calibration/__init__.py:249 — `accepted_uses: list[str] = Field(default_factory=list)` (optional, defaults to [])
+- kayakgen/eval/calibration/__init__.py:314-392 — _review_verdict_controls_promotion_metadata() enforces fixture_id, fixture_version, accepted_fit_ref but never checks `if not self.accepted_uses`
+- kayakgen/eval/calibration/__init__.py:711 — default_resistance_source_review_packets() sets `accepted_uses=["validation_only"]` for the Edinburgh packet, showing the intent
+- No test in test_calibration.py validates that accepted_uses is required for fixtures
+impact: Incomplete promotion records. A fixture packet with empty accepted_uses leaves downstream consumers without guidance on the intended use case, violating the RFC's goal of explicit, documented promotion rationale.
+recommended_action: Add a check in `_review_verdict_controls_promotion_metadata()` that requires `accepted_uses` to be non-empty when `review_verdict` is "validation_fixture" or "calibration_fixture_candidate" or "calibration_fixture". Raise ValueError if `self.review_verdict in {"validation_fixture", "calibration_fixture_candidate", "calibration_fixture"} and not self.accepted_uses`.
+follow_up: new striatum workflow
+
+### BUG-053: Calibration surface verified clean beyond tick 5 findings (info, null finding)
+
+severity: info
+category: claim_gate
+status: open
+surface: kayakgen/eval/calibration/
+discovered: 2026-05-29 tick-19
+claim: Tick 19 re-searched the calibration surface with focus on extractors, NaN/Infinity validators, cross-module integration, float-equality, and validator gaps. Beyond the three bugs already recorded from tick 5 (BUG-011: empty-reasons gap on fixtures, BUG-012: path traversal in accepted_fit_ref resolution, BUG-013: unchecked non_promotion_reasons tokens), tick 19 found four new bugs (BUG-049 through BUG-052): hardcoded column indices in the Edinburgh extractor, silent NaN-to-0.0 conversion in the extractor, missing NaN/Infinity validators on TankTestRun / AcceptedFitRecord numeric fields, and missing empty-acceptance-uses validation. The `_validate_accepted_fit_ref_on_disk()` path-traversal fix (BUG-012) is the same family as BUG-005/007; extractor gaps (BUG-049/050) establish a new vendor-specific pattern. All validator gaps follow the precedent from tick 18's stability surface (BUG-043/044/045) and earlier float-equality instances (BUG-015/019/027/046). The surface should NOT be marked settled; four new actionable bugs warrant a third search pass.
+evidence:
+- BUG-049: hardcoded column indices in extractor
+- BUG-050: silent NaN conversion in extractor
+- BUG-051: missing NaN/Infinity validators on campaign/fit models
+- BUG-052: empty accepted_uses allowed for fixture verdicts
+impact: Multiple pathways to silent data corruption in the calibration pipeline: wrong columns extracted, missing data treated as zero, NaN values accepted into immutable fit records, and incomplete promotion packets. Not settled.
+recommended_action: Implement the fixes for BUG-049 through BUG-052 before tick 19's successor. This is the deepest audit of the calibration module to date and surfaces previously-hidden extractor and validator vulnerabilities.
+follow_up: new striatum workflow (for each of BUG-049/050/051/052)
