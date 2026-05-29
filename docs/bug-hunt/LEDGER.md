@@ -1361,3 +1361,72 @@ impact: Two identical `Hull` objects serialized by `save_hull()` at different ti
 recommended_action: (1) Fix `save_hull()` to use `hull.model_dump_json(...)` with a custom serializer or encoder that sorts keys, or (2) use `json.dumps(hull.model_dump(...), sort_keys=True, indent=2)` to ensure canonical ordering. (3) Apply the same fix to `save_evaluation()` for `EvaluationResult` records. (4) Fix `Hull.record_hash()` in `hull.py` line 107 to use canonical JSON (consider delegating to `kayakgen.services.identity.record_hash(hull.model_dump())` for consistency with the identity service).
 follow_up: new striatum workflow
 
+
+### BUG-079: Write calls in search surface lack explicit UTF-8 encoding
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/search/
+discovered: 2026-05-29 tick-27
+claim: The `write_text()` calls in `sweep.py` and `compare.py` do not explicitly specify `encoding="utf-8"`, relying on system locale defaults which can vary across Windows, macOS, and Linux deployments.
+evidence:
+- kayakgen/search/sweep.py:411 - `mesh_path.write_text(mesh.model_dump_json(indent=2))` (no encoding parameter)
+- kayakgen/search/compare.py:370 - `Path(out_path).write_text(report.model_dump_json(indent=2))` (no encoding parameter)
+- Python pathlib docs: "If encoding is not specified, locale.getpreferredencoding(False) is used instead"
+- This matches the precedent established in BUG-022 (kayakgen/io/ surface)
+impact: A system administrator deploying kayak-gen on Windows with non-UTF-8 locale or on a UTF-8-unaware filesystem may see JSON artifact writes fail or silently corrupt. The comparison report and mesh diagnostics artifacts could become unreadable on subsequent load attempts.
+recommended_action: Add explicit `encoding="utf-8"` to both `write_text()` calls in `sweep.py:411` and `compare.py:370` per PEP 597 best practice. This ensures portable behavior across all target platforms.
+follow_up: new striatum workflow
+
+### BUG-080: Comparison report write lacks atomic write pattern
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/search/
+discovered: 2026-05-29 tick-27
+claim: The `write_comparison_report()` function at line 370 of `compare.py` uses `Path.write_text()` directly without atomic write semantics (write-to-temp + os.rename). If the JSON serialization fails mid-write or the process is killed, the destination file is left partially written.
+evidence:
+- kayakgen/search/compare.py:363-371 - `write_comparison_report()` directly writes to target path without temp file
+- kayakgen/search/compare.py:370 - single direct `Path.write_text()` call on the report payload
+- This matches the precedent established in BUG-024 (kayakgen/io/ surface)
+impact: A crash or power failure during comparison report serialization (large candidate sets with many metrics) will leave a corrupted report file. Subsequent reads of the report will fail, losing the entire run's comparison analysis. Re-runs of the sweep are necessary to recover.
+recommended_action: Use the atomic write pattern: serialize to a temporary file in the same directory, then use `os.replace()` to atomically move it to the target path. Example: `tmp_path = Path(out_path).with_suffix('.tmp'); tmp_path.write_text(...); os.replace(tmp_path, out_path)`. Add a regression test verifying the report survives a process kill during serialization.
+follow_up: new striatum workflow
+
+### BUG-081: SweepLimits.max_candidates lacks upper bound
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/search/
+discovered: 2026-05-29 tick-27
+claim: The `SweepLimits.max_candidates` field in `sweep.py:94` carries `ge=1` but no `le=` upper bound, allowing an operator to construct a sweep spec with `max_candidates: 1000000` or higher, potentially causing excessive memory consumption.
+evidence:
+- kayakgen/search/sweep.py:94 - `max_candidates: int = Field(default=1000, ge=1)` (no upper limit)
+- kayakgen/search/sweep.py:169-172 - expansion check compares against the unconstrained value
+- RFC 0009 documents the default (1000) but does not specify a maximum
+- Expansion of a 20-variable linspace sweep with count=100 each produces 10^20 candidates; no validation stops this at the limit level
+impact: An operator running `kayakgen sweep --spec spec.json --out . --max-candidates 999999999` could exhaust system memory without a helpful error message. The CLI should refuse obviously-unreasonable values.
+recommended_action: Add an upper bound constraint (e.g., `le=100000`) to the `max_candidates` field. Document the practical constraint in RFC 0009 or a follow-up. Emit a clear error message if the value exceeds the range, mentioning the resource constraint.
+follow_up: new striatum workflow
+
+### BUG-082: Surface tick-27 summary: no additional claim-gate bypasses found
+
+severity: info
+category: claim_gate
+status: open
+surface: kayakgen/search/
+discovered: 2026-05-29 tick-27
+claim: Tick 27 re-surveyed the non-active files in kayakgen/search/ for gate-bypass extensions (RFC 0044), float-equality risks, NaN handling, cross-field validators, JSON canonical-ordering, operator-int bounds, metric-token enforcement, and variable enumeration. Beyond BUG-026 (missing claim gate in compare) and BUG-027 (float tolerance in dominance comparison), no new claim-state bypass sites were identified. The surface correctly enforces the RFC 0043 high-angle GZ display-only token throughout; variable enumeration in `expand_candidates()` uses `itertools.product()` correctly (line 168); canonical JSON uses `sort_keys=True` in spec_hash (line 110); metric expansion via registry lookup is present where needed; and NaN/infinity filtering exists on candidate metrics (compare.py line 378). Findings are primarily hygiene/portability gaps (UTF-8 encoding, atomic writes, integer bounds) rather than logic bugs.
+evidence:
+- kayakgen/search/sweep.py:110 - canonical JSON uses `sort_keys=True`
+- kayakgen/search/compare.py:378 - metrics filtered for finite values via `math.isfinite()`
+- kayakgen/search/pareto.py:22-46 - HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN and SEARCH_REFUSED_CLAIM_STATES are properly defined
+- kayakgen/search/sweep.py:164-182 - `expand_candidates()` uses `itertools.product()` with stable order
+- No undocumented metric tokens found; all registry lookups in `OBJECTIVE_METADATA` are safe
+impact: None; this is a positive-baseline scan for logic/claim issues.
+recommended_action: Mark kayakgen/search/ surface as settled for claim-gate audit unless RFC 0044 successor lands new rules. Address the three hygiene findings (BUG-079, BUG-080, BUG-081) via striatum workflows.
+follow_up: wontfix (positive baseline for claim discipline; hygiene issues are secondary)
+
