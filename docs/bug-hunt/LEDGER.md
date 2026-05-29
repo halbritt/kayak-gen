@@ -1218,3 +1218,38 @@ impact: An operator can construct a ClosedVolumeDiagnostics record (or craft a J
 recommended_action: Add a model_validator to ClosedVolumeDiagnostics that enforces: `if self.readiness.level == "closed_volume": assert self.signed_volume_m3 > self.policy.tolerances.signed_volume_tolerance_m3` and `assert self.self_intersection_status == "passed"`. This complements the existing self-intersection check and ensures both conditions hold together. Document the coherence contract in the docstring.
 follow_up: new striatum workflow
 
+
+### BUG-071: STL export silently falls back to deck when part parameter is invalid
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/ui/web/app.py
+discovered: 2026-05-29 tick-24
+claim: The REST endpoint `/api/stl?part=<value>` accepts any string value for `part`, but the geometry layer silently treats non-"hull" values as "deck" (see geometry.py line 193: `return (self.B_wl if part == "hull" else self.B) / 2.0`). An operator or external tool passing `part=ballast` or `part=invalid` will receive a deck STL without error or warning.
+evidence:
+- kayakgen/ui/web/controllers.py:218 — `part = request.query.get("part", "hull")` accepts any string
+- kayakgen/ui/web/controllers.py:221 — `stl_bytes_for_part(state, part)` passes unsanitized part to service layer
+- kayakgen/model/geometry.py:193 — `return (self.B_wl if part == "hull" else self.B) / 2.0` silently treats invalid parts as deck
+- kayakgen/services/artifacts.py type signature uses `part: str` (not a literal enum)
+impact: Low. An operator requesting an invalid part receives a geometry file with a wrong part name encoded in the response, but the geometry itself (deck mesh) is valid. This is a usability issue rather than a data-loss or claim-state leak. The PartType hint in geometry.py documents the intent; enforcement is missing in the REST layer.
+recommended_action: Add explicit validation in post_stl() to reject part values outside {"hull", "deck"}. Example: `if part not in ("hull", "deck"): raise CfdWebError(400, {"error": "invalid_part", "message": f"part must be 'hull' or 'deck', not {part}"})`. Alternatively, use a Literal type or enum for part in the service signature and validate upfront.
+follow_up: new striatum workflow
+
+### BUG-072: Tick 24 second-pass survey completed (positive baseline)
+
+severity: info
+category: implementation_gap
+status: open
+surface: kayakgen/ui/web/app.py
+discovered: 2026-05-29 tick-24
+claim: Tick 24 executed a deeper second-pass search on app.py focusing on REST handlers, WebSocket state-binding, cross-field validators, float-equality edge cases, NaN handling, and cross-mode state leaks. Beyond BUG-071 (STL part parameter validation), no new actionable bugs surfaced. All REST handlers have structured error responses (controllers.py lines 181-209); CfdWebStore validates job_id paths (services/cfd_jobs.py line 69); float equality in preset-seed comparison uses tolerance (app.py line 694). The NaN/infinity rendering in _resistance_table_html and _refresh_metrics (f-string formatting like `{row['Rt_N']:.1f}`) is cosmetic only and already covered by the BUG-029 pattern (validity_badge_title_for NaN/inf).
+evidence:
+- kayakgen/ui/web/controllers.py:181-209 — request_json, cfd_error_response, cfd_unexpected_response all return structured errors
+- kayakgen/ui/web/controllers.py:216-228 — post_stl error paths return validation_error_payload(exc) with status 400
+- kayakgen/services/cfd_jobs.py:68-69 — CfdWebStore.get_job_dir() validates `if not _is_relative_to(job_dir, self.jobs_root)`
+- kayakgen/ui/web/app.py:467-471 — NaN/inf render as "nan"/"inf" in HTML table (cosmetic, already noted in BUG-029)
+- kayakgen/ui/web/app.py:694 — uses tolerance-based float comparison (1e-9), not exact equality
+impact: None; positive baseline. No new claim-state leaks, security gaps, or silent corruptions identified. The surface is well-protected against the patterns identified in prior ticks.
+recommended_action: Optional follow-up: mark app.py as "settled for tick 24 scope" in COVERAGE.md. No remediation needed beyond BUG-071 (STL part validation).
+follow_up: wontfix (positive baseline)
