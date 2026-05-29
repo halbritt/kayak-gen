@@ -920,3 +920,76 @@ evidence:
 impact: Multiple pathways to silent data corruption in the calibration pipeline: wrong columns extracted, missing data treated as zero, NaN values accepted into immutable fit records, and incomplete promotion packets. Not settled.
 recommended_action: Implement the fixes for BUG-049 through BUG-052 before tick 19's successor. This is the deepest audit of the calibration module to date and surfaces previously-hidden extractor and validator vulnerabilities.
 follow_up: new striatum workflow (for each of BUG-049/050/051/052)
+
+### BUG-054: Exact float equality for bow_rake/stern_rake plumb detection in LoftedHullGeometry
+
+severity: medium
+category: math
+status: open
+surface: kayakgen/model/
+discovered: 2026-05-29 tick-20
+claim: Lines 157-159 of `kayakgen/model/geometry.py` use exact float equality `self.hull.bow_rake == 0.0` and `self.hull.stern_rake == 0.0` to detect plumb endpoints, but these values can be round-tripped through JSON serialisation, introducing IEEE 754 perturbations that defeat the exact comparison. This is a sibling to BUG-015 (distribution_v2 rake checks) and BUG-019 (generated_body.py plumb detection), indicating a systematic float-equality pattern on rake values across the geometry layer.
+evidence:
+- kayakgen/model/geometry.py:155-160 — `_is_exact_plumb_endpoint()` method uses `self.hull.bow_rake == 0.0` and `self.hull.stern_rake == 0.0` for exact plumb detection
+- kayakgen/model/hull.py:45-59 — `bow_rake` and `stern_rake` are `float` fields in `[0, 1]` that round-trip through JSON
+- BUG-015 (tick-6) established the pattern: distribution_v2 rake checks reject valid hulls after JSON round-trip
+- BUG-019 (tick-9) established the same issue in `generated_body.py:132-133` for closed-body plumb detection
+- `section_for_closed_body()` at geometry.py:253-266 calls `_is_exact_plumb_endpoint()` to determine whether to snap the section to exact plumb-stem closure
+impact: A hull with `bow_rake = 0.0` or `stern_rake = 0.0` that is serialized to JSON and deserialized may see the rake perturbed to -1e-16 or 1e-16, causing `_is_exact_plumb_endpoint()` to return False when it should return True. The generated section will not snap to the plumb-stem ring, violating the exact-plumb-endpoint closure contract that RFC 0028 promises.
+recommended_action: Replace exact float equality with `math.isclose(self.hull.bow_rake, 0.0)` and `math.isclose(self.hull.stern_rake, 0.0)` at lines 157 and 159. Use a tolerance consistent with the model's documented precision (suggest `rel_tol=1e-9, abs_tol=1e-12` to match RFC 0028 tolerance in geometry.py:156 for x position). Add a regression test that round-trips a hull with plumb endpoints through JSON and asserts the closed-body geometry honours the plumb-endpoint closure.
+follow_up: new striatum workflow (coordinate with BUG-015 and BUG-019 fixes to apply the same tolerance pattern systematically)
+
+### BUG-055: UniformDistribution and PolynomialDistribution lack NaN/Infinity validators on value/coefficients
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/model/
+discovered: 2026-05-29 tick-20
+claim: The `UniformDistribution` (distribution_v2.py:42-56) and `PolynomialDistribution` (distribution_v2.py:59-77) models declare float and list[float] fields (`value` and `coefficients`) without validators to reject NaN or Infinity values. A maliciously crafted or corrupted JSON file can deserialize a distribution with `{"kind":"uniform","value":NaN}` or `{"kind":"polynomial","coefficients":[1.0,NaN]}` that passes Pydantic validation. The `.sample()` methods will then propagate NaN through the loft calculations, producing malformed geometry with NaN section points that silently corrupt downstream STL / CFD workflows.
+evidence:
+- kayakgen/model/distribution_v2.py:52 — `value: float` with no validator
+- kayakgen/model/distribution_v2.py:70 — `coefficients: list[float] = Field(min_length=1)` with no validator
+- kayakgen/model/distribution_v2.py:54-56 — `sample()` returns `np.full_like(xi_arr, float(self.value), dtype=float)` without checking if `self.value` is finite
+- kayakgen/model/distribution_v2.py:72-77 — `sample()` loops over `self.coefficients` and accumulates results without checking if coefficients contain NaN/Infinity
+- BUG-023 (tick-10) established precedent: ResistanceCurve and Hydrostatics models lack NaN validators, representing a systematic gap
+impact: A distribution-v2 hull with NaN coefficients will produce malformed geometry sections with NaN coordinates. The downstream closed-body builder, CFD meshing, and hydrostatics integration will silently propagate NaN, producing wrong results that a downstream consumer might accept if they don't check for NaN in the mesh array.
+recommended_action: Add @field_validator decorators to UniformDistribution and PolynomialDistribution to reject NaN/Infinity. For `value`, reject if `not math.isfinite(value)`. For `coefficients`, reject if `any(not math.isfinite(c) for c in coefficients)`. Use the same pattern as GZCurve's `_curve_values_must_be_finite()` in contract.py. Raise ValueError with a clear message on validation failure.
+follow_up: new striatum workflow (bundle with BUG-023 remediation as a systematic NaN-validator sweep)
+
+### BUG-056: DistributionV2Spec distribution fields lack NaN/Infinity validators on their values
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/model/
+discovered: 2026-05-29 tick-20
+claim: The `DistributionV2Spec` (distribution_v2.py:178-218) declares five mandatory `LongitudinalDistribution` fields (`waterline_half_breadth`, `draft_profile`, `section_area_curve`, `deck_freeboard`, `rocker`) without validators to ensure the contained distribution values are finite. Since `LongitudinalDistribution` is a discriminated union of `UniformDistribution`, `PolynomialDistribution`, and `KeyPointsDistribution` (each with numeric fields), and these inner types lack NaN validators (see BUG-055), a malformed DistributionV2Spec can carry NaN in any of the five distributions. Additionally, the scalar fields `deadrise_deg` and `chine_radius_m` (which can be `float` or `LongitudinalDistribution`) are not validated for finite values. This represents a multi-level validator gap that compounds the BUG-055 gap.
+evidence:
+- kayakgen/model/distribution_v2.py:202-206 — five mandatory `LongitudinalDistribution` fields with no validator
+- kayakgen/model/distribution_v2.py:214-215 — `deadrise_deg: Union[float, LongitudinalDistribution] = 0.0` and `chine_radius_m: Union[float, LongitudinalDistribution] = 0.02` without finite-value constraints
+- kayakgen/model/distribution_v2.py:216 — `bow_flare_deg: float = 0.0` without validator (scalar float field in a spec)
+- kayakgen/model/distribution_v2.py:208-211 — rocker_bow_m, rocker_stern_m, lcb_target_frac, max_beam_position_frac carry `ge=0` and range constraints but no NaN checks
+- DistributionV2Geometry consumes spec fields directly in `_half_breadth_at()`, `_draft_at()`, `_deck_height_at()`, `_rocker_at()`, `_deadrise_rad_at()`, `_chine_radius_at()` without finite-value guards
+impact: A DistributionV2Spec with NaN in any distribution will produce malformed geometry sections. The geometry construction code does not guard against NaN, so NaN coordinates propagate into the mesh, STL, and CFD workflows, silently corrupting results.
+recommended_action: Add @model_validator(mode="after") to DistributionV2Spec that recursively checks all distribution values for finiteness. For scalar fields (`deadrise_deg`, `chine_radius_m`, `bow_flare_deg`, rocker_bow_m, rocker_stern_m), check `math.isfinite()`. For discriminated distributions, assert that the underlying values (via `.sample(0.0)`) return finite arrays or define a helper validator on the LongitudinalDistribution union itself. Raise ValueError if any field contains NaN/Infinity.
+follow_up: new striatum workflow (part of systematic BUG-055/056 NaN-validator sweep)
+
+### BUG-057: DesignAdvisory l_over_bwl and displaced_mass_kg lack NaN/Infinity validators
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/model/
+discovered: 2026-05-29 tick-20
+claim: The `DesignAdvisory` dataclass (advisory.py:32-41) carries fields `l_over_bwl: float`, `cp: float`, and `displaced_mass_kg: float | None` without validators to reject NaN or Infinity. These are derived metrics computed from `design_advisory()` (advisory.py:44-78) and reflect the upstream Hull validation state. However, if downstream code mutates a Hull or if a deserialization path bypasses validators, `DesignAdvisory` can be constructed with NaN values. The `design_validity` report (validity.py:75-99) embedded in the advisory also carries float fields (`value`, `bounds.min`, `bounds.max`) via `DesignValidityFinding` that lack NaN guards. These advisories are surfaced to the UI in `validity_badge_title_for()` (tick-12's BUG-029) and other advisory renderers, where NaN values produce malformed display text.
+evidence:
+- kayakgen/model/advisory.py:32-41 — `DesignAdvisory` dataclass has `l_over_bwl: float`, `cp: float`, `displaced_mass_kg: float | None` with no validator
+- kayakgen/model/advisory.py:44-78 — `design_advisory()` computes `l_over_bwl = hull.length_m / beam_wl` and optional `displaced_mass_kg` without asserting non-NaN results
+- kayakgen/model/validity.py:58-73 — `DesignValidityFinding` carries `parameters` tuple but also allows extra fields via `extra="allow"`, including numeric `value` and `bounds` dicts that are unvalidated
+- kayakgen/model/validity.py:236-258 — `_finding()` helper constructs findings with arbitrary `**extra` kwargs; if caller passes `value=float('nan')`, it passes through
+- tick-12's BUG-029 (ui/web/app.py:349-350) demonstrated that NaN in a badge string causes incorrect tooltip text
+impact: Advisory UI components render NaN values, creating confusing messages for operators. A design advisory tooltip might read "L/B_wl is nan" instead of a valid ratio, misleading the operator about the design's classification (touring vs. surfski vs. custom).
+recommended_action: Add a `@model_validator(mode="after")` to `DesignAdvisory` that checks `math.isfinite(self.l_over_bwl)` and `math.isfinite(self.cp)`. For optional `displaced_mass_kg`, check `self.displaced_mass_kg is None or math.isfinite(self.displaced_mass_kg)`. Add a similar validator to `DesignValidityFinding` or to the `evaluate_design_validity()` and `_finding()` helper to guard against NaN in the `value` and `bounds` fields. Raise ValueError with a clear message if any metric is non-finite, rather than silently accepting and rendering NaN in the UI.
+follow_up: new striatum workflow
+
