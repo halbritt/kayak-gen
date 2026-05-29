@@ -197,3 +197,55 @@ evidence:
 impact: Passing `--tolerance-percent -50` or `--tolerance-percent 0` will cause the migration to report failures that do not match the operator's intent. Passing `--tolerance-percent 1e9` will accept all drift values (even 100% drift) silently.
 recommended_action: Validate that `tolerance_percent` is a positive float in a sensible range (e.g., [0.01, 100]). Emit a clear error and exit(1) if outside bounds.
 follow_up: new striatum workflow
+
+### BUG-011: ResistanceSourceReviewPacket admits fixture promotion without "reasons"
+
+severity: high
+category: claim_gate
+status: open
+surface: kayakgen/eval/calibration/
+discovered: 2026-05-29 tick-5
+claim: RFC 0042 requires promotion to require "review verdict that names the fixture ID, version, accepted use, validity envelope, and reasons", but the validator does not enforce non-empty `reasons` list for fixtures.
+evidence:
+- kayakgen/eval/calibration/__init__.py:370-371 - fixture verdicts check `fixture_id` and `fixture_version` but not `reasons`
+- kayakgen/eval/calibration/__init__.py:244 - `reasons: list[str] = Field(default_factory=list)` with no min_length constraint
+- tests/test_calibration.py - no test coverage for empty reasons on fixtures; all test helpers set `"reasons": ["..."]`
+- RFC 0042 § Promotion Rules states "review verdict that names ... reasons" as a requirement
+impact: An operator can construct a validation_fixture or calibration_fixture packet with an empty `reasons` list, violating the RFC contract that promotion requires documented rationale. Downstream code and auditors will not see documented decision-making for the promotion.
+recommended_action: Add a model_validator that requires `reasons` to be a non-empty list when `review_verdict` is "validation_fixture" or "calibration_fixture", matching the RFC 0042 contract.
+follow_up: new striatum workflow
+
+### BUG-012: Path traversal in accepted_fit_ref resolution
+
+severity: high
+category: security
+status: open
+surface: kayakgen/eval/calibration/
+discovered: 2026-05-29 tick-5
+claim: The `_validate_accepted_fit_ref_on_disk()` method resolves relative paths from `accepted_fit_ref` without sanitizing ".." components, allowing a malicious fixture review packet to construct traversal paths like `"../../../etc/passwd.json"` and check whether files exist outside the intended directory.
+evidence:
+- kayakgen/eval/calibration/__init__.py:419-421 - constructs `Path(ref)` then joins with `Path.cwd() / path` for relative refs, allowing ".." traversal
+- kayakgen/eval/calibration/__init__.py:422 - `path.is_file()` on the traversed path confirms file existence via side-channel
+- accepted_fit_ref is a string field in ResistanceSourceReviewPacket (line 262) that can be set by operators in JSON packets
+- Path("/cwd") / "../../../etc/passwd.json" resolves to "/etc/passwd.json" and is_file() returns True if /etc/passwd exists
+impact: An attacker who can control the fixture review packet (e.g., via tampering, replay, or operator error) can craft an `accepted_fit_ref` with traversal paths to probe for files outside the intended directory, disclosing whether sensitive files (SSH keys, config files) exist via timing or error side-channels.
+recommended_action: Sanitize each `accepted_fit_ref` path before resolution: reject values containing "..", "~", or leading "/", and use `.resolve()` to normalize the path before checking if it is within an expected base directory.
+follow_up: new striatum workflow
+
+### BUG-013: non_promotion_reasons tokens not validated against known set
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/eval/calibration/
+discovered: 2026-05-29 tick-5
+claim: Per D025, `validation_fixture` review packets may carry `non_promotion_reasons` that describe blockers against calibration-fixture promotion, but the validator does not enforce that these tokens match a known/registered set, allowing typos or invented tokens to pass validation.
+evidence:
+- kayakgen/eval/calibration/__init__.py:343-378 - validator checks that validation_fixture CAN have non_promotion_reasons but does not validate the content
+- Edinburgh packet uses token `"outside_sea_kayak_calibration_envelope"` (line 702) with no centralized registry or validation
+- A misspelled token like `"outside_sea_kay_calibration_envelope"` would pass validation but be invisible to downstream blockers checks
+- RFC 0042 and D025 do not define a canonical token registry, leaving the check contract implicit
+impact: A typo in a non-promotion reason (e.g., `"outside_sea_kayak_calibration_envelope"` → `"outside_sea_kayak_calibration_envelop"`) would silently bypass the intent to block calibration promotion, making the fixture appear promotable when it should be blocked.
+recommended_action: Either (1) define a module-level registry of valid non_promotion_reason tokens as named constants (similar to the existing `VALIDATION_FIXTURE_ADMITS_CALIBRATION_BLOCKERS` token), and validate each non_promotion_reason against the registry, or (2) document the known tokens in an RFC note and add a validator that checks for exact membership in a static set.
+follow_up: docs fix or new striatum workflow
+
