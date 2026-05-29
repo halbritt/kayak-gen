@@ -1253,3 +1253,91 @@ evidence:
 impact: None; positive baseline. No new claim-state leaks, security gaps, or silent corruptions identified. The surface is well-protected against the patterns identified in prior ticks.
 recommended_action: Optional follow-up: mark app.py as "settled for tick 24 scope" in COVERAGE.md. No remediation needed beyond BUG-071 (STL part validation).
 follow_up: wontfix (positive baseline)
+
+### BUG-073: Float parameters in cfd_prepare lack bounds validation
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/cli/
+discovered: 2026-05-29 tick-25
+claim: The `kayakgen cfd prepare` command accepts `--speed-mps`, `--seawater-density-kg-m3`, and `--kinematic-viscosity-m2-s` as float arguments without validating that they are positive, finite, and within physically-reasonable ranges. An operator can pass `--speed-mps -1.0` or `--speed-mps nan` and the values are silently accepted and written to the CFD job spec.
+evidence:
+- kayakgen/cli/main.py:411-420 - three float Option parameters with no field validators
+- kayakgen/cli/main.py:434-441 - values passed directly to prepare_cfd_job() without validation
+- No check for positive values, finite values (NaN/inf rejection), or physical bounds
+- A CFD job spec with `speed_mps=nan` or `seawater_density_kg_m3=-1.0` will be accepted at prepare time and only fail downstream during simulation
+impact: An operator can construct malformed CFD job specs that appear valid (job directory created, status written) but will fail at run time with cryptic OpenFOAM errors rather than early CLI validation. Negative density or viscosity values violate physical law and should be rejected at the CLI boundary.
+recommended_action: Add validation in the `cfd_prepare` function body to check that `speed_mps > 0`, `seawater_density_kg_m3 > 0`, and `kinematic_viscosity_m2_s > 0`. Also reject NaN/inf for all three parameters using `math.isnan()` and `math.isinf()`. Emit a clear error message and exit(1) if any constraint is violated.
+follow_up: new striatum workflow
+
+### BUG-074: read_text() calls lack explicit UTF-8 encoding in CLI
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/cli/
+discovered: 2026-05-29 tick-25
+claim: Nine calls to `Path.read_text()` in the CLI modules lack explicit `encoding="utf-8"` parameter, relying on system locale defaults. This can cause failures on Windows or non-UTF-8 systems. The CLI modules are entry points where non-ASCII input (fixture manifests, load cases, rights checklists) is common.
+evidence:
+- kayakgen/cli/runs_cli.py:223, 246 - two read_text() calls without encoding
+- kayakgen/cli/main.py:198, 567, 860, 930, 997, 1034 - six read_text() calls without encoding
+- kayakgen/cli/target_workflows.py:28 - one read_text() call without encoding
+- BUG-022 (tick-10) established precedent for this pattern in kayakgen/io/json.py
+- Python pathlib docs: "If encoding is not specified, locale.getpreferredencoding(False) is used"
+impact: A system deployed on Windows with non-UTF-8 locale or on a non-UTF-8 filesystem may see CLI commands fail to read JSON files with encoding errors. JSON files containing diacritics or special characters (e.g., names, notes) will be silently corrupted or rejected depending on locale.
+recommended_action: Add explicit `encoding="utf-8"` to all nine `Path.read_text()` calls in the CLI modules. This is the best practice per PEP 597 and ensures portable behavior across systems.
+follow_up: new striatum workflow
+
+### BUG-075: stability legacy command JSON output lacks sort_keys
+
+severity: low
+category: math
+status: open
+surface: kayakgen/cli/
+discovered: 2026-05-29 tick-25
+claim: The `kayakgen stability legacy` command at line 595 of main.py uses `json.dumps(payload, indent=2)` without `sort_keys=True` when writing high-angle-GZ augmented stability results. This produces non-deterministic JSON key order across Python versions and serialization contexts, violating the project's commitment to deterministic canonical JSON (RFC 0049 / RFC 0051).
+evidence:
+- kayakgen/cli/main.py:595 - `json.dumps(payload, indent=2)` without sort_keys=True
+- kayakgen/cli/runs_cli.py:135 - contrast: same operation uses `json.dumps(payload, sort_keys=True)` correctly
+- kayakgen/services/identity.py - canonical JSON everywhere uses sort_keys=True
+- RFC 0049 § Canonical JSON: "artifact identity depends on key order stability"
+impact: A stability result with high-angle-GZ augmentation written on Python 3.10 may differ in key order from the same data written on Python 3.11+, producing different JSON hashes when downstream processes reserialize (though the content is identical). Archive integrity and audit trails may show spurious differences.
+recommended_action: Change line 595 to `json.dumps(payload, indent=2, sort_keys=True)`. This is a one-line fix and matches the pattern used elsewhere in the codebase.
+follow_up: new striatum workflow
+
+### BUG-076: Positive float parameters lack NaN/inf validation in CLI
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/cli/
+discovered: 2026-05-29 tick-25
+claim: Four float CLI parameters accept NaN/inf without validation: `--turning-heel-deg`, `--rmse-threshold`, and the unnamed `--step` in sensitivity, and `--tolerance-percent` in migrate-geometry. An operator can pass `--turning-heel-deg nan` or `--rmse-threshold inf` and the values silently propagate to the service layer.
+evidence:
+- kayakgen/cli/main.py:98-102 - `turning_heel_deg: float` with no NaN/inf check before line 117 usage
+- kayakgen/cli/main.py:973-981 - `rmse_threshold: float` with no NaN/inf check before line 1001 usage
+- kayakgen/cli/sensitivity_cli.py:36-43 - `step: float | None` accepts NaN without validation
+- kayakgen/cli/migrate_geometry_cli.py:134-143 - `tolerance_percent: float` accepts NaN/negative without validation
+- Each parameter is passed to service functions that expect valid positive floats
+impact: NaN values propagate silently through evaluations and produce confusing downstream results (NaN drift calculations, NaN threshold comparisons). An operator will see "tolerance exceeded" reports with NaN values rather than a clear error at the CLI boundary.
+recommended_action: For each parameter, add a guard after it is parsed: check `math.isnan(param)` and `math.isinf(param)` and emit a clear error and exit(1) if either is true. For parameters that must be positive (all four), also check `param <= 0` and reject if true. Examples: `if tolerance_percent <= 0 or math.isnan(tolerance_percent) or math.isinf(tolerance_percent): raise ValueError("tolerance_percent must be positive and finite")`.
+follow_up: new striatum workflow
+
+### BUG-077: Encoding gaps in calibration and target-workflow CLI reads
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/cli/
+discovered: 2026-05-29 tick-25
+claim: The calibration CLI commands (`ingest-tank-test`, `ingest-inclining-test`, `accept-fit`) and target-workflow commands read JSON files with `Path.read_text()` without explicit UTF-8 encoding. While part of the broader BUG-074 family, these commands process domain-critical files (RightsChecklist, AcceptedFitRecord) where encoding safety is critical for audit integrity.
+evidence:
+- BUG-074 already identified 9 encoding gaps; this consolidates and highlights the critical paths
+- kayakgen/cli/main.py:860, 930, 997, 1034 — RightsChecklist and AcceptedFitRecord reads
+- kayakgen/cli/target_workflows.py:28 — LoadCase.model_validate_json(load_path.read_text())
+- These records form the chain of custody for calibration work; encoding errors silently corrupt metadata
+impact: A RightsChecklist or AcceptedFitRecord with diacritics (e.g., Italian names, Unicode symbols) may silently corrupt on a non-UTF-8 system, breaking the audit trail and potentially hiding attribution errors.
+recommended_action: Apply the UTF-8 encoding fix from BUG-074 to all calibration and target-workflow reads. This is part of the same striatum workflow.
+follow_up: consolidate with BUG-074 striatum workflow
+
