@@ -25,7 +25,7 @@ flowchart TD
 
 ## Prerequisites
 
-- `~/git/striatum/.venv/bin/striatum --version` ≥ 1.17.0.
+- `striatum --version` >= 2.7.0.
 - `claude`, `codex`, and `gemini` available on `PATH`.
 - `striatum doctor` reports `ok: true`.
 
@@ -35,12 +35,12 @@ flowchart TD
 TARGET=/home/halbritt/git/kayak-gen
 WF=$TARGET/docs/workflows/0009-multi-lane-review/workflow.json
 
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" workflow validate "$WF" --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" workflow plan     "$WF" --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" run prepare       --workflow "$WF" --json
+striatum --repo "$TARGET" workflow validate "$WF" --json
+striatum --repo "$TARGET" workflow plan     "$WF" --json
+striatum --repo "$TARGET" run prepare       --workflow "$WF" --json
 # copy the run_id from the response
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" run start --run-id <run_id> --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" dashboard --run-id <run_id> --once
+striatum --repo "$TARGET" run start --run-id <run_id> --json
+striatum --repo "$TARGET" dashboard --run-id <run_id> --once
 ```
 
 The runner creates `striatum/0009-multi-lane-review/` on the run's

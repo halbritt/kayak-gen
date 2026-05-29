@@ -334,7 +334,7 @@ V1 ships:
   docs-checklist drift, operator-ergonomics drift.
 
 The workflow must validate with
-`~/git/striatum/.venv/bin/striatum workflow validate` as required by
+`striatum workflow validate` as required by
 `docs/workflows/0009-multi-lane-review/RUNBOOK.md`.
 
 ## Acceptance Criteria

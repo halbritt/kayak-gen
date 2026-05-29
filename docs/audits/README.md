@@ -48,9 +48,9 @@ WF=$TARGET/docs/workflows/0029-code-doc-audit/workflow.json
 # Fill in SOURCES.md for the new run's preset and scope.
 ${EDITOR:-vi} $TARGET/docs/workflows/0029-code-doc-audit/SOURCES.md
 
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" workflow validate "$WF" --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" run prepare       --workflow "$WF" --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" run start --run-id <run_id> --json
+striatum --repo "$TARGET" workflow validate "$WF" --json
+striatum --repo "$TARGET" run prepare       --workflow "$WF" --json
+striatum --repo "$TARGET" run start --run-id <run_id> --json
 ```
 
 The runner lands artifacts under

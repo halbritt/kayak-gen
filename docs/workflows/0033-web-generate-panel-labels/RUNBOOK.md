@@ -42,7 +42,7 @@ REVIEW.md
 
 ## Prerequisites
 
-- `~/git/striatum/.venv/bin/striatum --version` >= 1.57.0.
+- `striatum --version` >= 2.7.0.
 - `claude` available on `PATH` (codex / gemini are configured as
   fallback lanes but the default plan uses claude end-to-end).
 - `striatum doctor` reports `ok: true`.
@@ -57,12 +57,12 @@ REVIEW.md
 TARGET=/home/halbritt/git/kayak-gen
 WF=$TARGET/docs/workflows/0033-web-generate-panel-labels/workflow.json
 
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" workflow validate "$WF" --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" workflow plan     "$WF" --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" run prepare       --workflow "$WF" --json
+striatum --repo "$TARGET" workflow validate "$WF" --json
+striatum --repo "$TARGET" workflow plan     "$WF" --json
+striatum --repo "$TARGET" run prepare       --workflow "$WF" --json
 # copy the run_id from the response
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" run start --run-id <run_id> --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" dashboard --run-id <run_id> --once
+striatum --repo "$TARGET" run start --run-id <run_id> --json
+striatum --repo "$TARGET" dashboard --run-id <run_id> --once
 ```
 
 ## Verification commands

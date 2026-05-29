@@ -27,7 +27,7 @@ synthesis job is the only place duplicates get merged.
 
 ## Prerequisites
 
-- `~/git/striatum/.venv/bin/striatum --version` >= 1.57.0.
+- `striatum --version` >= 2.7.0.
 - `claude`, `codex`, and `gemini` available on `PATH` (lane diversity is
   recommended; see RFC 0059 Open Questions).
 - `striatum doctor` reports `ok: true`.
@@ -58,12 +58,12 @@ WF=$TARGET/docs/workflows/0029-code-doc-audit/workflow.json
 # Fill in SOURCES.md for this run before validating.
 ${EDITOR:-vi} $TARGET/docs/workflows/0029-code-doc-audit/SOURCES.md
 
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" workflow validate "$WF" --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" workflow plan     "$WF" --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" run prepare       --workflow "$WF" --json
+striatum --repo "$TARGET" workflow validate "$WF" --json
+striatum --repo "$TARGET" workflow plan     "$WF" --json
+striatum --repo "$TARGET" run prepare       --workflow "$WF" --json
 # copy the run_id from the response
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" run start --run-id <run_id> --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" dashboard --run-id <run_id> --once
+striatum --repo "$TARGET" run start --run-id <run_id> --json
+striatum --repo "$TARGET" dashboard --run-id <run_id> --once
 ```
 
 The runner creates

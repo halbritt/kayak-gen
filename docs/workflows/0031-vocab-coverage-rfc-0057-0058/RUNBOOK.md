@@ -30,7 +30,7 @@ The review job is read-only and writes one `REVIEW.md`.
 
 ## Prerequisites
 
-- `~/git/striatum/.venv/bin/striatum --version` >= 1.57.0.
+- `striatum --version` >= 2.7.0.
 - `claude` and `codex` available on `PATH`.
 - `striatum doctor` reports `ok: true`.
 - The R1 docs batch of the 2026-05-22 audit has landed — the six
@@ -43,12 +43,12 @@ The review job is read-only and writes one `REVIEW.md`.
 TARGET=/home/halbritt/git/kayak-gen
 WF=$TARGET/docs/workflows/0031-vocab-coverage-rfc-0057-0058/workflow.json
 
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" workflow validate "$WF" --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" workflow plan     "$WF" --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" run prepare       --workflow "$WF" --json
+striatum --repo "$TARGET" workflow validate "$WF" --json
+striatum --repo "$TARGET" workflow plan     "$WF" --json
+striatum --repo "$TARGET" run prepare       --workflow "$WF" --json
 # copy the run_id from the response
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" run start --run-id <run_id> --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" dashboard --run-id <run_id> --once
+striatum --repo "$TARGET" run start --run-id <run_id> --json
+striatum --repo "$TARGET" dashboard --run-id <run_id> --once
 ```
 
 The runner creates

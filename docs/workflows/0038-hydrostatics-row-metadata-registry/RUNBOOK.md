@@ -65,7 +65,7 @@ REVIEW.md
 
 ## Prerequisites
 
-- `~/git/striatum/.venv/bin/striatum --version` >= 1.57.0.
+- `striatum --version` >= 2.7.0.
 - `claude` and `gemini` available on `PATH`.
 - `striatum doctor` reports `ok: true`.
 - `.venv/bin/pytest` available in the repo.
@@ -76,11 +76,11 @@ REVIEW.md
 TARGET=/home/halbritt/git/kayak-gen
 WF=$TARGET/docs/workflows/0038-hydrostatics-row-metadata-registry/workflow.json
 
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" workflow validate "$WF" --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" workflow plan     "$WF" --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" run prepare       --workflow "$WF" --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" run start --run-id <run_id> --json
-~/git/striatum/.venv/bin/striatum --repo "$TARGET" dashboard --run-id <run_id> --once
+striatum --repo "$TARGET" workflow validate "$WF" --json
+striatum --repo "$TARGET" workflow plan     "$WF" --json
+striatum --repo "$TARGET" run prepare       --workflow "$WF" --json
+striatum --repo "$TARGET" run start --run-id <run_id> --json
+striatum --repo "$TARGET" dashboard --run-id <run_id> --once
 ```
 
 ## Verification commands
