@@ -586,3 +586,22 @@ impact: Low risk today because the FORBIDDEN_METRIC_TOKENS are all short and spe
 recommended_action: Document the substring-match rationale as a comment near the function. Alternatively, switch to exact-match semantics using a set lookup for clarity: `metric.lower() in {t.lower() for t in FORBIDDEN_METRIC_TOKENS}`. This trades substring flexibility for precision and makes the contract explicit. No regression risk because all tokens today have no common prefixes across the set.
 follow_up: docs fix or new striatum workflow (low priority)
 
+
+### BUG-034: Surface audit — kayakgen/ui/web/controllers.py — Positive baseline
+
+severity: info
+category: claim_gate
+status: open
+surface: kayakgen/ui/web/controllers.py
+discovered: 2026-05-29 tick-14
+claim: Comprehensive audit of the controllers.py re-export/glue module found no actionable runtime bugs, validator gaps, or state-management issues.
+evidence:
+- kayakgen/ui/web/controllers.py:99-161 — __all__ list contains 61 names, all of which are imported from services modules or defined locally (verified against lines 16-96)
+- kayakgen/ui/web/controllers.py:210-300 — route handlers consistently use try/except blocks with structured error responses (validation_error_payload, cfd_error_response, generative_error_response)
+- kayakgen/ui/web/controllers.py:428-473 — fork endpoint validates new_seed type correctly (line 451: `isinstance(new_seed, int) or isinstance(new_seed, bool)` correctly rejects bools)
+- kayakgen/ui/web/controllers.py:164-499 — register_rest_routes function is idempotent and safe to call multiple times; new stores/managers are created each time
+- kayakgen/ui/web/app.py:932 — re-entrancy guard `_applying_class_preset` prevents state-listener loops when class_preset is changed during hull param changes
+- kayakgen/ui/web/generate_state_listener.py:135-147 — stop_generate_state_listener correctly cleans up the listener thread and restores the original callback
+impact: None. This is a positive baseline scan. The module functions correctly as a thin re-export and REST-route-mounting glue layer.
+recommended_action: No action needed. The surface is settled and can be marked as searched without further follow-up unless the module is modified with new logic.
+follow_up: wontfix (positive baseline)
