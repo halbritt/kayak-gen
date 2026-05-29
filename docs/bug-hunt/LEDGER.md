@@ -1149,3 +1149,72 @@ impact: A CFD run where snappyHexMesh crashed mid-write could produce an evidenc
 recommended_action: Add a model_validator to SnappyHexMeshEvidence that checks: `if self.dispatch_state == "evidence_recorded": verify all required artifacts in REQUIRED_ARTIFACT_NAMES are present in artifact_checksums`. Define REQUIRED_ARTIFACT_NAMES (e.g., {"points", "boundary", "faces", "owner", "neighbour"}) based on RFC 0045's artifact contract. Raise ValueError if any required artifact is missing. This complements BUG-060's fix.
 follow_up: new striatum workflow (coordinated with BUG-060 fix)
 
+
+### BUG-067: signed_volume_m3 lacks NaN/Infinity validator
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/eval/closed_volume/
+discovered: 2026-05-29 tick-23 (re-search 2)
+claim: The `ClosedVolumeDiagnostics.signed_volume_m3` field (line 266 of schemas.py) is a bare `float` with no validator to reject NaN or Infinity values. This contrasts with the principle established in BUG-023 (ResistanceCurve and Hydrostatics lack finite-value validators). If `_signed_volume()` in topology.py encounters degenerate geometry or numerical instability (e.g., zero-area faces, colinear vertices), the floating-point sum at line 208 could produce NaN or Infinity, which then serializes to JSON as `null` or invalid JSON, silently corrupting the evidence record.
+evidence:
+- kayakgen/eval/closed_volume/schemas.py:266 — `signed_volume_m3: float` with no validator
+- kayakgen/eval/closed_volume/topology.py:202-208 — `_signed_volume()` computes `np.einsum(...).sum() / 6.0` without NaN/Infinity guard
+- kayakgen/eval/closed_volume/diagnostics.py:42 — signed_volume computed and passed directly to ClosedVolumeDiagnostics constructor
+- kayakgen/eval/contract.py:196-200 — GZCurve establishes precedent with `_curve_values_must_be_finite()` validator on array fields
+impact: A malformed closed-volume body with degenerate faces or numerical edge cases could produce a diagnostics record with `signed_volume_m3=NaN`, which serializes to JSON null and silently loses the diagnostic signal. Downstream code expecting a float will encounter null and either crash or ignore the value, violating the claim that diagnostics are always present and valid.
+recommended_action: Add a `field_validator` to `ClosedVolumeDiagnostics` that enforces `math.isfinite(value)` on `signed_volume_m3`, raising ValueError if NaN or Infinity is encountered. Alternatively, validate at the `_readiness_reasons()` entry point (diagnostics.py:160) and convert NaN to zero or reject the body upfront. Use the same pattern as GZCurve's `_curve_values_must_be_finite()`.
+follow_up: new striatum workflow
+
+### BUG-068: ClosedVolumeWaterlineMetadata.beam_wl_m lacks finite-value and cross-field constraints
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/eval/closed_volume/
+discovered: 2026-05-29 tick-23 (re-search 2)
+claim: The `ClosedVolumeWaterlineMetadata.beam_wl_m` field (line 163 of schemas.py) is a bare `float` with no `gt=0` or finite-value validator. Per RFC 0022, beam_wl_m is the design waterline beam, which must be positive and non-zero. If upstream Hull.beam_wl_m is mutated post-construction (violating BUG-016's observation that Hull is frozen=False) or set to 0, the generated_hull_plus_deck_body will pass a zero or NaN beam into the waterline_metadata, and the diagnostics will not catch it.
+evidence:
+- kayakgen/eval/closed_volume/schemas.py:157-164 — ClosedVolumeWaterlineMetadata has `beam_wl_m: float` with no constraints
+- kayakgen/eval/closed_volume/generated_body.py:77-83 — beam_wl_m copied from hull.beam_wl_m without post-copy validation
+- kayakgen/model/hull.py:41 — `beam_wl_m: float | None` with only `gt=0` if present; None is allowed
+- RFC 0022 § Waterline semantics states "beam at the design waterline; required for non-None metadata"
+impact: A ClosedVolumeBody with `waterline_metadata.beam_wl_m=0.0` or `beam_wl_m=NaN` will serialize and round-trip through JSON without error. Downstream CFD or hydrostatics code expecting a positive beam value will encounter zero or NaN, causing division-by-zero or silent corruption of normalized ratios (e.g., L/B_wl).
+recommended_action: Add `gt=0` and `math.isfinite()` validators to `ClosedVolumeWaterlineMetadata.beam_wl_m`. Ensure `generated_hull_plus_deck_body()` rejects hulls with `beam_wl_m is None or beam_wl_m <= 0` before passing the beam to waterline_metadata (line 79-82). Add a regression test round-tripping a closed body with waterline_metadata and verifying beam_wl_m is finite and positive.
+follow_up: new striatum workflow
+
+### BUG-069: Float equality for normal_length == 0.0 in point-triangle distance
+
+severity: medium
+category: math
+status: open
+surface: kayakgen/eval/closed_volume/
+discovered: 2026-05-29 tick-23 (re-search 2)
+claim: Line 502 of self_intersection.py uses exact float equality `if normal_length == 0.0` to detect colinear triangles (degenerate case), but `normal_length` is the result of `np.linalg.norm(normal)` where `normal = np.cross(ab, ac)`. Numerically, a nearly-colinear but not-exactly-colinear triangle can have a cross-product magnitude extremely close to zero (e.g., 1e-16) that rounds to 0.0 in IEEE 754 double precision. The exact equality check may miss this case and return a point-in-triangle distance that is incorrect for the degenerate boundary.
+evidence:
+- kayakgen/eval/closed_volume/self_intersection.py:500-508 — `normal_length = float(np.linalg.norm(normal))` followed by `if normal_length == 0.0:`
+- Establishes precedent with BUG-019 (exact float equality for rake), BUG-015 (exact float equality for rake in Hull)
+- No tolerance parameter; no `math.isclose()` call
+- RFC 0021 § Self-intersection diagnostics requires conservative handling of edge cases
+impact: A triangle with vertices that are nearly-colinear (e.g., three points on a line differing by < 1e-15 m) could be misclassified during the self-intersection diagnostic. The distance calculation would use the fallback `min(distance_to_vertices)` instead of the correct plane-distance formula, potentially reporting a false negative in the self-intersection check.
+recommended_action: Replace `if normal_length == 0.0` with `if normal_length < 1e-12` (or a tolerance matched to the degenerate_area_tolerance_m2 constant). Alternatively, use `math.isclose(normal_length, 0.0, abs_tol=1e-12)`. Add a regression test creating a nearly-colinear triangle and verifying the distance calculation is robust.
+follow_up: new striatum workflow
+
+### BUG-070: No cross-field validator for signed_volume vs. readiness level coherence
+
+severity: high
+category: claim_gate
+status: open
+surface: kayakgen/eval/closed_volume/
+discovered: 2026-05-29 tick-23 (re-search 2)
+claim: The `ClosedVolumeDiagnostics` model validator at line 277-288 enforces that RFC 0021 self-intersection status must be "passed" when readiness.level is "closed_volume". However, there is no symmetric cross-field validator ensuring that when readiness.level is "closed_volume", the signed_volume_m3 must be positive (> signed_volume_tolerance_m3). Per diagnostics.py:160-161, the readiness determination itself checks `if signed_volume <= policy.tolerances.signed_volume_tolerance_m3: reasons.append(...)`, but an operator or buggy upstream code could construct a ClosedVolumeDiagnostics record with readiness.level="closed_volume" while signed_volume_m3 is negative or zero, violating the invariant.
+evidence:
+- kayakgen/eval/closed_volume/schemas.py:277-288 — model_validator only checks self_intersection_status, not signed_volume coherence
+- kayakgen/eval/closed_volume/diagnostics.py:160-161 — readiness determination logic checks signed_volume, but validator does not enforce the inverse
+- kayakgen/eval/closed_volume/diagnostics.py:50-59 — readiness.reasons computed at construction; operator could manually override reasons list post-construction if frozen=False
+- RFC 0016 § Readiness gate states "readiness.level='closed_volume' requires positive signed volume and correct orientation"
+impact: An operator can construct a ClosedVolumeDiagnostics record (or craft a JSON payload) with readiness.level="closed_volume" but signed_volume_m3=-5.0, violating the contract. Downstream code expecting "closed_volume" readiness will assume the geometry is valid and produce incorrect CFD setup or hydrostatics, causing silent corruption.
+recommended_action: Add a model_validator to ClosedVolumeDiagnostics that enforces: `if self.readiness.level == "closed_volume": assert self.signed_volume_m3 > self.policy.tolerances.signed_volume_tolerance_m3` and `assert self.self_intersection_status == "passed"`. This complements the existing self-intersection check and ensures both conditions hold together. Document the coherence contract in the docstring.
+follow_up: new striatum workflow
+
