@@ -313,3 +313,20 @@ evidence:
 impact: If the loop precondition ever becomes unsound (spec validator relaxed, pool construction changed), the assertion will crash the runner with a bare AssertionError instead of a structured error message. This violates the RFC 0044 / RFC 0047 contract that all failure paths are traceable via structured error codes.
 recommended_action: Replace the assert with an explicit error: `if best_genome is None: raise RuntimeError("EHVI candidate pool iteration produced no result")` or similar, or document the invariant and suppress the lint warning if the assertion is intentional.
 follow_up: wontfix or code cleanup (low priority; does not affect correctness or reproducibility)
+
+### BUG-018: kayakgen/services/ — searched, no actionable bugs (positive baseline)
+
+severity: info
+category: claim_gate
+status: open
+surface: kayakgen/services/
+discovered: 2026-05-29 tick-8
+claim: Tick 8 searched all 15 service modules; no actionable runtime bugs surfaced beyond the prior findings (BUG-001 through BUG-017).
+evidence:
+- kayakgen/services/identity.py — `design_hash_for_hull()` uses canonical JSON (`sort_keys=True`); deterministic and stable
+- kayakgen/services/evaluation.py:114 — `_row()` closure correctly produces the 4-tuple `(label, value, unit, description)`; downstream consumers (`hydro_rows_from_state` at line 440, `hydro_lines_from_state`) unpack correctly. The workflow 0037/0038/0039 widening is honoured end-to-end.
+- kayakgen/services/generative_jobs.py:983 — `SubprocessGenerativeJobManager._spawn()` uses list-based argv (no shell=True), with `start_new_session=True` for isolation. No command injection.
+- Subprocess env-var inheritance: `_spawn()` does not pass an explicit `env=` parameter, so the worker subprocess inherits the parent environment. This is a documented Python default, not a bug per se; the worker code does not log env-var values today. Recorded as a known-architectural-fact rather than a finding so future audits don't re-surface it.
+impact: No new risks identified. The audit's pipeline-integrity lane (12 positive null findings from the 2026-05-25 full_repo audit) is corroborated by this deeper bug-hunt pass on the same surface.
+recommended_action: Optional follow-up tick: future bug-hunt cycles could focus on the lighter-coverage modules (`cfd_jobs.py`, `build_export.py`, `artifact_store.py`, `design.py`) where this tick's depth was thinner.
+follow_up: wontfix (positive baseline; defer to next audit's pipeline-integrity lane)
