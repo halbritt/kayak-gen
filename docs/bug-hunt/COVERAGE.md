@@ -7,7 +7,7 @@
 | `kayakgen/eval/cfd/` | never | — | Adapter dispatch, env-knob precedence, subprocess error handling, force.dat / case-template parsing. |
 | `kayakgen/eval/closed_volume/` | never | — | Geometry construction, self-intersection diagnostics. |
 | `kayakgen/eval/evidence/` | never | — | Evidence binding chains, `--bind-evidence` invariant gates. |
-| `kayakgen/eval/stability/` | never | — | `EMPTY_STABILITY_FIT_REGISTRY` consumption, accepted-fit lookup, GZ contracts. |
+| `kayakgen/eval/stability/` | 2026-05-29 (search #1) | BUG-001 (critical), BUG-002 (high) | `EMPTY_STABILITY_FIT_REGISTRY` consumption, accepted-fit lookup, GZ contracts. Tick 1 found RFC 0058 / stage-4 discriminator gap (`kind` field) and a missing constrained-trim validator on `StabilityFixturePromotionPacket`. Not settled. |
 | `kayakgen/io/` | never | — | File-format readers/writers; round-trip fidelity. |
 | `kayakgen/model/` | never | — | Pydantic model validators (Hull, claim records, advisory). |
 | `kayakgen/search/active/` | never | — | NSGA-II / EHVI math, seeded determinism, constraint refusal. |
