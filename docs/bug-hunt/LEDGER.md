@@ -746,3 +746,92 @@ evidence:
 impact: A malicious caller or buggy upstream code can pass `BuildExportSpec(n_stations=-100)` which propagates silently, or `n_stations=1e9` which exhausts memory and hangs the process without clear error messaging. The service should refuse obviously-invalid values upfront.
 recommended_action: Convert `BuildExportSpec` to a Pydantic `BaseModel` (not a plain dataclass) and add field validation: `n_stations: int = Field(default=DEFAULT_N_STATIONS, ge=2, le=1000)`. Document the bounds in the class docstring referencing RFC 0051 acceptance criteria. Add a regression test passing out-of-bounds values and asserting they are rejected at construction time.
 follow_up: new striatum workflow
+
+### BUG-043: FreeEquilibriumPoint / FreeEquilibriumTrace lack NaN/Infinity validators
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/eval/stability/
+discovered: 2026-05-29 tick-18
+claim: `FreeEquilibriumPoint` float fields (`theta_deg`, `trim_deg`, `heave_m`) and `FreeEquilibriumTrace.points` accept NaN / inf values without rejection. A fixture with NaN values serialises to JSON `null` and round-trips silently, corrupting downstream GZ comparisons.
+evidence:
+- kayakgen/eval/stability/measured_fixture.py:149-176 — no `isfinite()` checks on theta_deg / trim_deg / heave_m
+- Contrast: GZCurve validators in kayakgen/eval/contract.py reject non-finite values
+impact: Asymmetric validator coverage extending BUG-023's pattern (which found the same gap on ResistanceCurve / Hydrostatics). A NaN-bearing fixture passes acceptance, then propagates corrupt data into the accepted-fit registry; downstream consumers compute on NaN and produce nonsensical results.
+recommended_action: Add `field_validator` or `model_validator(mode="after")` on `FreeEquilibriumPoint` that rejects non-finite values for `theta_deg`, `trim_deg`, `heave_m`. Bundle with BUG-023 and BUG-045 into a single sweep adding finite-value validators across all RFC 0056/0058 numeric schemas.
+follow_up: new striatum workflow (bundle with BUG-023 / BUG-045)
+
+### BUG-044: FreeEquilibriumTrace.points lacks monotonicity validator
+
+severity: high
+category: implementation_gap
+status: open
+surface: kayakgen/eval/stability/
+discovered: 2026-05-29 tick-18
+claim: `FreeEquilibriumTrace.points` is `Field(min_length=3)` with no model_validator enforcing that `points[].theta_deg` is monotonically increasing. RFC 0056's docstring says the trace "varies smoothly with theta_deg", but the schema admits any order — including duplicates and decreasing sequences.
+evidence:
+- kayakgen/eval/stability/measured_fixture.py:159-176 — `class FreeEquilibriumTrace` body has no @model_validator
+- kayakgen/eval/stability/measured_fixture.py:173 — `points: list[FreeEquilibriumPoint] = Field(min_length=3)` (only length constraint)
+- Parent thread verified by reading the full class body
+impact: A malformed or maliciously-constructed fixture with points in random order (0°, 90°, 45°) passes validation. Downstream consumers that iterate `trace.points` assuming monotonic order produce wrong GZ comparisons. The `smoothness_failures: list[str]` field is filled by an external check, not by the validator — so a fixture can have an empty `smoothness_failures` list AND non-monotonic points simultaneously, hiding the violation.
+recommended_action: Add a `model_validator(mode="after")` on `FreeEquilibriumTrace` that walks `self.points` and raises `ValueError` if any adjacent pair has `points[i+1].theta_deg <= points[i].theta_deg`. Add a regression test passing a non-monotonic fixture and asserting refusal.
+follow_up: new striatum workflow
+
+### BUG-045: MeasuredStabilityRow lacks NaN/Infinity validators
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/eval/stability/
+discovered: 2026-05-29 tick-18
+claim: `MeasuredStabilityRow` float fields (`theta_deg`, `gz_m`) accept NaN / inf. Same shape as BUG-043 + BUG-023; this is the third schema in the project with this gap.
+evidence:
+- kayakgen/eval/stability/measured_fixture.py:203-210 — no `isfinite()` checks
+impact: NaN values round-trip through JSON as `null`, then downstream GZ-comparison math produces NaN — silently corrupting the acceptance verdict.
+recommended_action: Bundle with BUG-023 + BUG-043 into a single sweep adding `field_validator` for `isfinite` across all RFC 0056/0058 numeric schemas.
+follow_up: new striatum workflow (bundle with BUG-023 + BUG-043)
+
+### BUG-046: StabilityFitMetrics threshold validators use bare-float comparison
+
+severity: medium
+category: math
+status: open
+surface: kayakgen/eval/stability/
+discovered: 2026-05-29 tick-18
+claim: `StabilityFitMetrics` float fields use `ge` field constraints but the strict-threshold validator in `accepted_fit.py:157` compares with bare `>` operators on bare floats. Combined with BUG-043/045, a near-threshold metric can flip pass/fail based on float-precision noise.
+evidence:
+- kayakgen/eval/stability/measured_fixture.py:82-91 — `StabilityFitMetrics` only has `ge` field constraints, no finite-value validator
+- kayakgen/eval/stability/accepted_fit.py:157 — `>` comparison without tolerance
+impact: A fit-metric value at exactly the threshold (e.g., RMSE=0.05 with a `<0.05` rule) can flip pass/fail depending on float-precision in the upstream computation. Same float-equality pattern family as BUG-015/019/027/032/047 — this is the 5th instance.
+recommended_action: Replace bare-float comparisons with `math.isclose(a, b, abs_tol=PROJECT_TOLERANCE)` or document an explicit precision contract (e.g., "thresholds are exclusive bounds; metric values must be lower by at least `eps=1e-9`").
+follow_up: new striatum workflow (bundle with the float-equality pattern fix)
+
+### BUG-047: LoadingConfiguration._paddler_mass_matches_state uses float equality
+
+severity: medium
+category: math
+status: open
+surface: kayakgen/eval/stability/
+discovered: 2026-05-29 tick-18
+claim: `LoadingConfiguration._paddler_mass_matches_state` at line 103 uses `self.paddler_mass_kg != 0.0` — exact float equality on a JSON-round-trippable field. A paddler mass perturbed by float precision (e.g., 1e-12 after slider rounding) fails the `paddler_state == "absent"` check despite intending zero.
+evidence:
+- kayakgen/eval/stability/measured_fixture.py:103 — `if self.paddler_state == "absent" and self.paddler_mass_kg != 0.0:`
+- Parent thread verified directly
+impact: Same family as BUG-015 / BUG-019 / BUG-027 / BUG-032 / BUG-046 — 6th float-equality instance. A LoadingConfiguration with `paddler_state="absent"` and `paddler_mass_kg=1e-12` raises a confusing error: "paddler_state='absent' requires paddler_mass_kg=0; got paddler_mass_kg=1e-12".
+recommended_action: Replace with `if self.paddler_state == "absent" and abs(self.paddler_mass_kg) > PROJECT_TOLERANCE:`. Document the tolerance in a project-wide constants module (now a strong candidate for its own RFC slice given 6 instances of the pattern).
+follow_up: new striatum workflow (bundle into the float-equality sweep)
+
+### BUG-048: StabilityFitRecord.accepted_at has no range validation
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/eval/stability/
+discovered: 2026-05-29 tick-18
+claim: `StabilityFitRecord.accepted_at` timestamp validator at accepted_fit.py:120/138 checks `is None` but not range bounds. A future timestamp (year 3000) or a timestamp before the fixture's data collection passes validation.
+evidence:
+- kayakgen/eval/stability/accepted_fit.py:120, 138 — None-check only
+impact: Audit trail integrity. A fit accepted with `accepted_at=year-3000` looks legitimate to downstream consumers reading the record. Low impact today (no current operator would construct this maliciously), but documents an audit-trail gap.
+recommended_action: Add range validation: reject timestamps in the future or before a project-epoch constant (e.g., 2025-01-01). Document the epoch in the class docstring.
+follow_up: docs fix or new striatum workflow (low priority)
