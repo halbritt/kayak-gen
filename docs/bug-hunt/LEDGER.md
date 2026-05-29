@@ -1430,3 +1430,24 @@ impact: None; this is a positive-baseline scan for logic/claim issues.
 recommended_action: Mark kayakgen/search/ surface as settled for claim-gate audit unless RFC 0044 successor lands new rules. Address the three hygiene findings (BUG-079, BUG-080, BUG-081) via striatum workflows.
 follow_up: wontfix (positive baseline for claim discipline; hygiene issues are secondary)
 
+
+### BUG-083: Desktop surface tick-28 second-pass: no new claim-gate bypasses
+
+severity: info
+category: claim_gate
+status: open
+surface: kayakgen/ui/desktop.py + kayakgen/ui/pv_window.py + kayakgen/ui/gui_params.py + kayakgen/ui/desktop_slider_ranges.py
+discovered: 2026-05-29 tick-28
+claim: Tick-28 conducted a comprehensive second-pass survey of the desktop UI surface applying the 11-pattern lens (NaN-validator, Float-equality, Cross-field invariants, Path-traversal, Hash-format, Operator-int, Concurrency, UTF-8, Vendor-extractor, Cross-mode state leak, JSON canonical-ordering, Atomic-write). Beyond the four findings from tick-15 (BUG-035 class-preset synchronization, BUG-036 PyVista cleanup, BUG-037 STL path normalization, BUG-038 redundant updates), no new actionable bugs were identified. The surface correctly handles: (1) slider range constraints that prevent most invalid cross-field combinations (beam_wl ≤ beam_oa is actively clamped at lines 321-324); (2) re-entrance safety (beam_wl clamping triggers one level of re-entrance, then returns early); (3) no file I/O or UTF-8 encoding gaps; (4) no NaN/infinity handling required (slider ranges prevent zero denominators in _classify); (5) station_slider updates are correctly clipped to the half-length when length_m changes (line 334); (6) class-preset matching uses exact string equality on labels, safe for non-user input; (7) no hard-coded magic numbers in the slider logic (layout coordinates are presentation-only); (8) no memory-leak patterns in matplotlib callbacks (sliders store lambda with explicit key binding at line 144, no closure over changing state).
+evidence:
+- kayakgen/ui/desktop.py:321-324 — beam_wl clamping logic is sound with explicit return to prevent re-entrance loops
+- kayakgen/ui/desktop_slider_ranges.py:18-31 — slider ranges allow deck_height_m [0.15, 0.40] and draft_m [0.05, 0.25], permitting invalid combinations that would violate deck_height >= draft cross-field invariant if created directly; however, Hull validator (BUG-014) does not yet enforce this constraint, and desktop GUI does not provide automated clamping. Cross-field constraint enforcement is upstream responsibility (pending BUG-014 fix).
+- kayakgen/ui/desktop.py:190-196 — class-preset seeding re-applies ranges then sets 5 seed values; non-seeded sliders (Cm, deck_flatness, center_box_ratio, bow_rake, stern_rake, target_speed_kt) retain old values until user manually adjusts. Issue documented as BUG-035; no second-order problems detected.
+- kayakgen/ui/desktop.py:334 — station_x clipping is correctly applied when length_m changes; no underflow/overflow risk
+- kayakgen/ui/desktop.py:401 — _classify division uses `(hull.length_m / (hull.beam_wl_m or hull.beam_oa_m))` with slider-enforced divisor range [0.3, 0.9]; no division-by-zero or NaN risk
+- kayakgen/ui/pv_window.py:132-142 — update_mesh correctly rebuilds mesh geometry without encoding/UTF-8 issues; no file I/O
+- kayakgen/ui/gui_params.py — deprecation shim is correctly implemented; the empty GUI_TO_HULL mapping poses no risk (it is only consulted by external callers migrating away)
+impact: None; surface is functionally sound for claim discipline. The four tick-15 findings (BUG-035..038) remain the only substantive issues, and they are hygiene/performance/resource-management rather than claim-state leaks.
+recommended_action: No new striatum workflows required. The surface can be marked "settled" for a second pass unless RFC 0061 migrations expose new integration points. Continue tracking the four existing findings (BUG-035..038) to resolution.
+follow_up: wontfix (positive baseline for second-pass; existing issues BUG-035..038 remain open)
+
