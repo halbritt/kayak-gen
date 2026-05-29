@@ -9,7 +9,7 @@
 | `kayakgen/eval/evidence/` | 2026-05-29 (search #1) | BUG-005 (high), BUG-006 (medium) | RFC 0045 binding gate enforcement, artifact sanitization, dispatch_state ordering. Tick 3 found path traversal in polymesh artifact validation and incorrect gate ordering (dispatch_state checked after hash validation). Not settled (1 search). |
 | `kayakgen/eval/stability/` | 2026-05-29 (search #1) | BUG-001 (critical), BUG-002 (high) | `EMPTY_STABILITY_FIT_REGISTRY` consumption, accepted-fit lookup, GZ contracts. Tick 1 found RFC 0058 / stage-4 discriminator gap (`kind` field) and a missing constrained-trim validator on `StabilityFixturePromotionPacket`. Not settled. |
 | `kayakgen/io/` | never | — | File-format readers/writers; round-trip fidelity. |
-| `kayakgen/model/` | never | — | Pydantic model validators (Hull, claim records, advisory). |
+| `kayakgen/model/` | 2026-05-29 (search #1) | BUG-014 (critical), BUG-015 (medium), BUG-016 (low) | Pydantic model validators (Hull, claim records, advisory). Tick 6 found missing cross-field `deck_height_m >= draft_m` validator (geometry.py:207 silently inverts), float-equality rake check in `_validate_distribution_v2_coupling`, and undocumented `frozen=False` on Hull aggregate root. Parent thread verified all three claims against source before recording. Not settled (1 search). |
 | `kayakgen/search/active/` | never | — | NSGA-II / EHVI math, seeded determinism, constraint refusal. |
 | `kayakgen/search/` (non-active) | never | — | Pareto, objective admissibility, sweep planner. |
 | `kayakgen/services/` | never | — | `evaluation.py` view-model helpers, identity / hash routes, design report. |

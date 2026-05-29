@@ -249,3 +249,51 @@ impact: A typo in a non-promotion reason (e.g., `"outside_sea_kayak_calibration_
 recommended_action: Either (1) define a module-level registry of valid non_promotion_reason tokens as named constants (similar to the existing `VALIDATION_FIXTURE_ADMITS_CALIBRATION_BLOCKERS` token), and validate each non_promotion_reason against the registry, or (2) document the known tokens in an RFC note and add a validator that checks for exact membership in a static set.
 follow_up: docs fix or new striatum workflow
 
+### BUG-014: Hull lacks deck_height_m >= draft_m cross-field validator
+
+severity: critical
+category: claim_gate
+status: open
+surface: kayakgen/model/
+discovered: 2026-05-29 tick-6
+claim: `Hull` declares `draft_m` and `deck_height_m` with only `gt=0` field-level constraints; no `model_validator` enforces `deck_height_m >= draft_m`, yet downstream geometry construction assumes the difference is non-negative.
+evidence:
+- kayakgen/model/hull.py:37-38 — `draft_m` and `deck_height_m` each carry `gt=0` but no cross-field validator
+- kayakgen/model/hull.py:77-101 — `_validate_beam_wl` and `_validate_distribution_v2_coupling` are present; no equivalent `_validate_deck_above_draft`
+- kayakgen/model/geometry.py:207 — `local_Deck = (self.H - self.T) * deck_scale` (H = deck_height_m, T = draft_m); a Hull with `deck_height_m < draft_m` produces a negative `local_Deck` and inverts the deck-section curvature silently
+- kayakgen/model/geometry.py:311 — `zs = np.array([(self.H - self.T) * self._get_deck_height_scaling(x) for x in xs])` (same subtraction; same vulnerability)
+impact: An operator can construct `Hull(deck_height_m=0.1, draft_m=0.2)` directly (or via deserialisation of a maliciously crafted hull JSON), pass Pydantic validation, and propagate an inverted-deck geometry through sweep / search / CFD evaluations. The bad geometry produces wrong hydrostatics, wrong resistance, and a `record_hash` that downstream consumers treat as legitimate. No surface today catches the violation.
+recommended_action: Add a `model_validator(mode="after")` to `Hull` named `_validate_deck_above_draft` (or similar) that raises `ValueError` when `self.deck_height_m < self.draft_m`. The default values (0.23 vs 0.12) satisfy this trivially, so existing hulls round-trip. Add a regression test pinning the new gate. Per `feedback_striatum_required`, route through a striatum workflow.
+follow_up: new striatum workflow
+
+### BUG-015: Distribution-v2 rake check uses float equality
+
+severity: medium
+category: math
+status: open
+surface: kayakgen/model/
+discovered: 2026-05-29 tick-6
+claim: `Hull._validate_distribution_v2_coupling` refuses any V2 hull whose `bow_rake` or `stern_rake` is not exactly `1.0`, using `!=` on floats. Hulls round-tripped through JSON or constructed from a near-1.0 value get rejected despite matching the documented intent.
+evidence:
+- kayakgen/model/hull.py:97 — `if self.bow_rake != 1.0 or self.stern_rake != 1.0:` (exact float equality)
+- kayakgen/model/hull.py:45-63 — `bow_rake` and `stern_rake` are `float` in `[0, 1]`; round-trip through JSON or display rounding can perturb a stored 1.0 to 0.9999999999999999
+impact: A legitimate distribution-v2 hull whose rake values have been touched by serialisation noise (export → import, or a slider widget that rounds for display) will be rejected at validation time with the message "geometry_kind='distribution_v2' refuses non-default bow_rake / stern_rake; rake is reported but does not drive the V2 loft". The operator sees a confusing error on a hull they did not modify.
+recommended_action: Replace the `!=` checks with `not math.isclose(self.bow_rake, 1.0)` etc. Pick a tolerance consistent with the rake's documented precision (1e-9 or 1e-6 depending on the slider step). Add a regression test that round-trips a `distribution_v2` hull through `.model_dump_json()` → `.model_validate_json()` and asserts it survives.
+follow_up: new striatum workflow
+
+### BUG-016: Hull is frozen=False without a documented reason
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/model/
+discovered: 2026-05-29 tick-6
+claim: `Hull` sets `model_config = ConfigDict(frozen=False, extra="forbid")`, but the class docstring describes Hull as "the aggregate root [that] owns no derived state" with a Pydantic round-trip contract — a description that reads as if the model should be immutable. No comment explains why `frozen=False`. Downstream consumers (`record_hash`, `design_hash`, `claim_state` linkage) compute at call-time, so post-construction mutation produces a Hull whose hash no longer matches any previously-recorded identity.
+evidence:
+- kayakgen/model/hull.py:29 — `model_config = ConfigDict(frozen=False, extra="forbid")`
+- kayakgen/model/hull.py:104-129 — `record_hash`, `design_hash`, and the backward-compat `.hash()` alias all compute deterministically from current field values
+- Sibling Pydantic models in the project (e.g. `HydrostaticsRowMetadata`, `HullParameterMetadata`) all use `frozen=True`; Hull is the odd one out
+impact: A library caller who mutates `hull.length_m = 10` after construction silently invalidates any cached `record_hash` recorded earlier. The artifact-store (RFC 0049) would see the new hash on the next access and treat the previously-stored record as orphaned. No surface today warns about this.
+recommended_action: Either (a) flip `frozen=True` and update the form-builder / desktop slider paths to construct fresh Hull instances on edits (this matches the "aggregate root owns no derived state" docstring), or (b) keep `frozen=False` and add a comment explaining the form-builder mutation requirement plus a regression test asserting downstream hash recomputation. Document the choice in `kayakgen/model/hull.py` and reflect it in `docs/UBIQUITOUS_LANGUAGE.md` if there's an operator-visible concept involved.
+follow_up: docs fix or new striatum workflow
+
