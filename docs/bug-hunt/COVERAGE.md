@@ -6,7 +6,7 @@
 | `kayakgen/eval/calibration/` | never | — | Fixture promotion validators, source-review packet acceptance, extractor edge cases. |
 | `kayakgen/eval/cfd/` | 2026-05-29 (search #1) | BUG-003 (low), BUG-004 (medium) | Adapter dispatch, env-knob precedence, subprocess error handling, force.dat / case-template parsing. Tick 2 confirmed `shlex.quote` on subprocess args, `RawUnvalidatedClaimFields` enforcement, and three-mechanism opt-in precedence are correct; found a dead `_openfoam_succeeded_path_enabled()` and missing negative-case tests for env-var coercion. Not settled (1 search). |
 | `kayakgen/eval/closed_volume/` | never | — | Geometry construction, self-intersection diagnostics. |
-| `kayakgen/eval/evidence/` | never | — | Evidence binding chains, `--bind-evidence` invariant gates. |
+| `kayakgen/eval/evidence/` | 2026-05-29 (search #1) | BUG-005 (high), BUG-006 (medium) | RFC 0045 binding gate enforcement, artifact sanitization, dispatch_state ordering. Tick 3 found path traversal in polymesh artifact validation and incorrect gate ordering (dispatch_state checked after hash validation). Not settled (1 search). |
 | `kayakgen/eval/stability/` | 2026-05-29 (search #1) | BUG-001 (critical), BUG-002 (high) | `EMPTY_STABILITY_FIT_REGISTRY` consumption, accepted-fit lookup, GZ contracts. Tick 1 found RFC 0058 / stage-4 discriminator gap (`kind` field) and a missing constrained-trim validator on `StabilityFixturePromotionPacket`. Not settled. |
 | `kayakgen/io/` | never | — | File-format readers/writers; round-trip fidelity. |
 | `kayakgen/model/` | never | — | Pydantic model validators (Hull, claim records, advisory). |

@@ -94,3 +94,37 @@ impact: Future maintainers may unknowingly change the check to truthy-style vali
 recommended_action: Add negative test cases to `test_cfd_opt_in_resolver.py` that verify env vars set to "true", "yes", "True", "1.0", "1 ", and "" are all rejected and do not trigger the env_knob mechanism.
 follow_up: new striatum workflow
 
+
+### BUG-005: Path traversal in polyMesh artifact validation
+
+severity: high
+category: security
+status: open
+surface: kayakgen/eval/evidence/
+discovered: 2026-05-29 tick-3
+claim: The `bind_evidence_to_mesh_package` function does not sanitize artifact names from the evidence JSON before constructing file paths, allowing a malicious evidence record to include keys like `../../../etc/passwd` that traverse outside the polymesh_dir and potentially read arbitrary files.
+evidence:
+- kayakgen/eval/snappy_hex_mesh.py:707 - `(polymesh_dir / name).is_file()` where `name` comes from `evidence.artifact_checksums` without path validation
+- kayakgen/eval/snappy_hex_mesh.py:644 - `polymesh_dir / name` in `_recompute_polymesh_checksums` also lacks sanitization
+- Path('/tmp/polyMesh') / '../../../etc/passwd' resolves to '/etc/passwd' and `is_file()` will find it if it exists
+- tests/test_mesh_evidence_binding.py - no test coverage for path traversal attacks
+impact: An attacker who can control the evidence JSON (e.g. via tampering or replay) can craft artifact_checksums with traversal paths to read arbitrary files on the system during the polymesh drift check, disclosing sensitive data (SSH keys, config files, etc.) via timing or error side-channels.
+recommended_action: Sanitize each artifact name before path construction: reject names containing '..', '/', or leading '/', and raise MeshEvidenceBindError with code='invalid_artifact_name' if any traversal attempt is detected.
+follow_up: new striatum workflow
+
+### BUG-006: dispatch_state validation occurs after hash checks
+
+severity: medium
+category: claim_gate
+status: open
+surface: kayakgen/eval/evidence/
+discovered: 2026-05-29 tick-3
+claim: The `bind_evidence_to_mesh_package` function validates `body_ref_hash` and `body_profile` at lines 684-699 before checking if `dispatch_state == "evidence_recorded"` at line 729, allowing incomplete evidence with non-"evidence_recorded" state to pass hash validation and only fail downstream.
+evidence:
+- kayakgen/eval/snappy_hex_mesh.py:684-699 - body_profile and body_ref_hash checked first
+- kayakgen/eval/snappy_hex_mesh.py:729 - dispatch_state checked after hash validation
+- RFC 0045 § Promotion gate states "Returns `None` unless `dispatch_state == 'evidence_recorded'"
+- docs/rfcs/0045-ordinary-package-solver-readiness-promotion.md:107 - dispatch_state is a prerequisite gate
+impact: Evidence with dispatch_state="pending_evidence" but correct body hashes will pass the binding function's hash gates and only fail at line 729 with "evidence_not_recorded". This violates the RFC's gate ordering and leaks information about which hashes match to an attacker who can observe error codes.
+recommended_action: Move the dispatch_state check (line 729) to the beginning of the function, immediately after the body_profile check at line 684, so that incomplete evidence is rejected before any hash validation.
+follow_up: new striatum workflow
