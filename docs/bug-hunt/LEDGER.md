@@ -993,3 +993,89 @@ impact: Advisory UI components render NaN values, creating confusing messages fo
 recommended_action: Add a `@model_validator(mode="after")` to `DesignAdvisory` that checks `math.isfinite(self.l_over_bwl)` and `math.isfinite(self.cp)`. For optional `displaced_mass_kg`, check `self.displaced_mass_kg is None or math.isfinite(self.displaced_mass_kg)`. Add a similar validator to `DesignValidityFinding` or to the `evaluate_design_validity()` and `_finding()` helper to guard against NaN in the `value` and `bounds` fields. Raise ValueError with a clear message if any metric is non-finite, rather than silently accepting and rendering NaN in the UI.
 follow_up: new striatum workflow
 
+
+### BUG-058: NaN/Infinity not validated on CheckMeshSummary float fields
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/eval/evidence/
+discovered: 2026-05-29 tick-22 (re-search 2)
+claim: CheckMeshSummary (lines 106-123 of snappy_hex_mesh.py) accepts float fields `max_non_orthogonality_deg`, `max_skewness`, `aspect_ratio_max` with only `ge=0.0` constraints and no finite-value validators. These fields can be deserialized with NaN or Infinity from JSON, corrupting downstream mesh diagnostics that assume valid numeric values. This mirrors BUG-023 (ResistanceCurve/Hydrostatics) and BUG-048 (stability metrics).
+evidence:
+- kayakgen/eval/snappy_hex_mesh.py:106-123 - CheckMeshSummary fields lack finite-value validators
+- kayakgen/eval/snappy_hex_mesh.py:120-122 - `max_non_orthogonality_deg`, `max_skewness`, `aspect_ratio_max` have only `ge=0.0`, not `finite=True`
+- kayakgen/eval/snappy_hex_mesh.py:557-558 - downstream code embeds these floats in VolumeMeshDiagnostic without validation
+- kayakgen/eval/contract.py:196-200 - GZCurve enforces `_curve_values_must_be_finite()`, showing the pattern is known
+- Tests may construct CheckMeshSummary directly with NaN and see it round-trip to null in JSON serialization
+impact: A mesh evidence record with NaN in `max_skewness` will serialize to JSON with null, deserialize back to NaN, and propagate to the VolumeMeshDiagnostic. Downstream CFD solvers consuming the diagnostic may misinterpret NaN as a sentinel value or crash on unexpected non-finite numeric fields.
+recommended_action: Add `field_validator` to CheckMeshSummary for all float fields to reject NaN/Infinity using `math.isfinite()` or Pydantic's `finite=True` constraint. Match the pattern in GZCurve at line 196-200.
+follow_up: new striatum workflow
+
+### BUG-059: Hash comparison lacks case normalization and format validation
+
+severity: high
+category: security
+status: open
+surface: kayakgen/eval/evidence/
+discovered: 2026-05-29 tick-22 (re-search 2)
+claim: The `bind_evidence_to_mesh_package` function at line 692 compares `evidence.body_ref_hash` directly against `closed_body_hash` using `!=` without normalizing case or validating the hex format. An evidence record with uppercase hex digits (e.g., `"A1B2C3..."`) will not match a lowercase hash (e.g., `"a1b2c3..."`), causing valid evidence to be rejected. Additionally, hashes with leading/trailing whitespace (e.g., `"  a1b2c3... "`from JSON parsing or manual entry) will fail the comparison silently.
+evidence:
+- kayakgen/eval/snappy_hex_mesh.py:692 - `evidence.body_ref_hash != closed_body_hash` (direct string comparison, no case normalization)
+- kayakgen/eval/snappy_hex_mesh.py:719 - artifact checksum comparison `actual.get(name) != recorded.get(name)` also lacks normalization
+- No `.lower()` or `.strip()` applied to hash values before comparison
+- SHA256 hex digests are produced by `hashlib.sha256().hexdigest()` (lowercase) per line 358, but evidence JSON may come from external sources with mixed case
+impact: An evidence record with uppercase or whitespace-padded hash values will be rejected even if the hash is cryptographically correct, blocking legitimate evidence binding. An attacker (or buggy upstream) could craft evidence with uppercase hashes to cause false negatives on hash validation.
+recommended_action: Normalize hashes before comparison: `evidence.body_ref_hash.lower().strip() != closed_body_hash.lower().strip()`. Additionally, validate hash format (64 hex digits) at evidence deserialization time using a Pydantic field_validator that checks `re.match(r"^[a-fA-F0-9]{64}$", value)` and rejects invalid formats.
+follow_up: new striatum workflow
+
+### BUG-060: Empty artifact_checksums allowed in evidence_recorded state
+
+severity: medium
+category: claim_gate
+status: open
+surface: kayakgen/eval/evidence/
+discovered: 2026-05-29 tick-22 (re-search 2)
+claim: The evidence validator at lines 152-175 allows `dispatch_state == "evidence_recorded"` even when `artifact_checksums` is an empty dict `{}`. The blocker check at line 443 flags empty checksums, but the conditional at line 401 only sets `dispatch_state = "evidence_recorded"` when `not blockers`, creating an inconsistency: an operator can construct SnappyHexMeshEvidence with empty `artifact_checksums` and explicitly set `dispatch_state = "evidence_recorded"` manually in JSON, and the validator will accept it if no other blockers are present.
+evidence:
+- kayakgen/eval/snappy_hex_mesh.py:147 - `artifact_checksums: dict[str, str] = Field(default_factory=dict)` allows empty dict
+- kayakgen/eval/snappy_hex_mesh.py:443-444 - `if not artifact_checksums: missing.append("missing_artifact_checksums")`
+- kayakgen/eval/snappy_hex_mesh.py:152-175 - validator only checks gates when `dispatch_state != "evidence_recorded"` (line 154), so manually-set `evidence_recorded` state bypasses the blocker list check
+- RFC 0045 requires "artifact checksums present" as a binding gate; empty dict should always block evidence_recorded state
+impact: An operator can construct evidence JSON with `{"dispatch_state": "evidence_recorded", "artifact_checksums": {}, ...}` and it will pass validation, allowing incomplete evidence to propagate to downstream code expecting valid artifact hashes. The bind_evidence_to_mesh_package function assumes artifact_checksums is non-empty (line 702), and an empty dict will cause downstream logic failures.
+recommended_action: Add a model_validator that checks: `if self.dispatch_state == "evidence_recorded" and not self.artifact_checksums: raise ValueError("evidence_recorded state requires non-empty artifact_checksums")`. Enforce this at deserialization time so manually-constructed JSON records cannot bypass the gate.
+follow_up: new striatum workflow
+
+### BUG-061: Hash whitespace vulnerability in artifact checksum comparison
+
+severity: medium
+category: security
+status: open
+surface: kayakgen/eval/evidence/
+discovered: 2026-05-29 tick-22 (re-search 2)
+claim: Line 719 of `bind_evidence_to_mesh_package` compares artifact checksums without stripping whitespace: `actual.get(name) != recorded.get(name)`. If evidence JSON is hand-edited or if upstream hash computation inadvertently includes leading/trailing whitespace (e.g., from a malformed JSON file with formatting), the comparison will fail even though the hash is correct. This is the same whitespace-handling gap as BUG-059 but applied to artifact_checksums dict values rather than body_ref_hash.
+evidence:
+- kayakgen/eval/snappy_hex_mesh.py:719 - checksum comparison without `.strip()` or `.lower()`
+- kayakgen/eval/cfd/openfoam_v2512_interfoam/evidence.py:113 - checksums produced by `sha256_of_path()` (line 37) which correctly produces lowercase hex with no whitespace
+- JSON round-trip through a human-edited file can introduce trailing/leading spaces
+impact: Artifact checksums with whitespace will fail validation and block evidence binding, even though the underlying artifact is correct. An operator debugging a failed checksum comparison will see a cryptic error message and have no easy way to determine if the issue is whitespace or a real hash mismatch.
+recommended_action: Normalize both actual and recorded hashes before comparison: `actual.get(name, "").lower().strip() != recorded.get(name, "").lower().strip()`. Apply the same normalization pattern introduced in BUG-059.
+follow_up: new striatum workflow
+
+### BUG-062: Patch name and marker allow special characters without sanitization
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/eval/evidence/
+discovered: 2026-05-29 tick-22 (re-search 2)
+claim: SnappyHexMeshPatchEntry fields `name` and `marker` (lines 92-93) carry only `min_length=1` constraints and no character-set validation. These fields are extracted from polyMesh boundary files by `read_poly_mesh_patches()` and can contain arbitrary characters including newlines, quotes, and special characters. When embedded in OpenFOAM case files or downstream diagnostic serialization, unvalidated patch names can cause injection vulnerabilities or confusing error messages.
+evidence:
+- kayakgen/eval/snappy_hex_mesh.py:92-93 - `name: str = Field(min_length=1)`, `marker: str = Field(min_length=1)` with no regex/character-set validation
+- kayakgen/eval/cfd/openfoam_v2512_interfoam/evidence.py:75-102 - `read_poly_mesh_patches()` parses name and marker from regex groups without further validation
+- Line 67-71 regex `_PATCH_BLOCK_RE` and `_TYPE_RE` can match names containing special characters (e.g., "hull-v2", "inlet.main")
+- downstream code at line 520 creates `boundary_markers = {patch.name: patch.marker for patch in boundary_patches}` without encoding/escaping
+impact: Patch names with newlines or quotes could be injected into case files or logs, breaking formatting. Marker names with special characters could cause OpenFOAM parser failures or confusing error messages if case files are regenerated from evidence.
+recommended_action: Add `field_validator` to SnappyHexMeshPatchEntry to validate `name` and `marker` against a safe character set (e.g., alphanumeric + underscore + dash, matching OpenFOAM naming conventions). Reject names/markers with quotes, newlines, or other shell-special characters.
+follow_up: new striatum workflow
+
