@@ -128,3 +128,72 @@ evidence:
 impact: Evidence with dispatch_state="pending_evidence" but correct body hashes will pass the binding function's hash gates and only fail at line 729 with "evidence_not_recorded". This violates the RFC's gate ordering and leaks information about which hashes match to an attacker who can observe error codes.
 recommended_action: Move the dispatch_state check (line 729) to the beginning of the function, immediately after the body_profile check at line 684, so that incomplete evidence is rejected before any hash validation.
 follow_up: new striatum workflow
+
+### BUG-007: Path traversal in promote-fixture fixture_id argument
+
+severity: high
+category: security
+status: open
+surface: kayakgen/cli/
+discovered: 2026-05-29 tick-4
+claim: The `stability promote-fixture` subcommand accepts an arbitrary `fixture_id` argument without path-validation, allowing traversal to arbitrary filesystem locations via paths like `"../../../etc/passwd"`.
+evidence:
+- kayakgen/cli/stability_cli.py:96 - `fixture_path = _DEFAULT_FIXTURES_DIR / fixture_id / "manifest.json"` where fixture_id is unsanitized positional argument
+- kayakgen/cli/stability_cli.py:83-85 - fixture_id is a Typer Argument() with no validation
+- Proof: `Path("data/stability/fixtures") / "../../../etc" / "manifest.json"` resolves outside the intended directory
+- tests/test_cli_stability.py - no test coverage for path traversal attacks
+impact: An operator running `kayakgen stability promote-fixture ../../../etc/passwd --packet ...` can write arbitrary files (via the fixture_path.write_text at line 117) to locations outside the intended fixtures directory, potentially overwriting system files or injecting malicious JSON into trusted locations.
+recommended_action: Sanitize fixture_id by rejecting any value containing "..", "/", or starting with "/" before constructing the path. Alternatively, use Path(fixture_id).resolve() and verify the result is within _DEFAULT_FIXTURES_DIR; raise ValueError if not.
+follow_up: new striatum workflow
+
+### BUG-008: Unrestricted host binding in serve command
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/cli/
+discovered: 2026-05-29 tick-4
+claim: The `kayakgen serve` command accepts `--host` and `--port` arguments without validation, allowing a user (or a script) to accidentally bind to 0.0.0.0 (all interfaces) or an out-of-range port without warning or refusal.
+evidence:
+- kayakgen/cli/main.py:634 - `host: str = typer.Option("127.0.0.1", "--host", help="Bind host.")`
+- kayakgen/cli/main.py:635 - `port: int = typer.Option(8080, "--port", help="Bind port.")`
+- kayakgen/cli/main.py:675 - `web.server.start(host=host, port=port)` passes unsanitized values directly to the web framework
+- No validation of host against a restricted list (localhost, 127.0.0.1, ::1) or explicit allowlist
+- No validation of port against range [1, 65535] or privileged-port warnings
+impact: An operator might accidentally run `kayakgen serve --host 0.0.0.0` intending a local-only server and unintentionally expose the web interface to all network interfaces, violating the documented intent ("Run the Trame web frontend locally"). Similarly, `--port 70000` silently fails or produces cryptic errors rather than rejecting invalid port numbers upfront.
+recommended_action: Add validation in the `serve` command body to reject `--host` values other than "127.0.0.1", "localhost", or "::1" with a clear error message. Validate `--port` is in range [1, 65535]; emit a warning if it is below 1024 (privileged ports).
+follow_up: new striatum workflow
+
+### BUG-009: Unrestricted n_stations parameter in build-export
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/cli/
+discovered: 2026-05-29 tick-4
+claim: The `kayakgen build-export` command accepts `--n-stations` without range validation, allowing a user to specify arbitrarily large values (e.g., `--n-stations 1000000`) that cause excessive memory or CPU consumption.
+evidence:
+- kayakgen/cli/main.py:777-781 - `n_stations: int = typer.Option(32, "--n-stations", ...)` accepts any int without bounds
+- kayakgen/cli/main.py:796 - `BuildExportSpec(n_stations=n_stations)` passes unsanitized value to the service layer
+- RFC 0051 (USER_GUIDE.md line 465) does not document a maximum or recommended range
+- Practical limit is unknown; no test for malformed values
+impact: A user running `kayakgen build-export hull.json --out . --n-stations 1000000` could exhaust memory or hang the process without a helpful error message. The CLI should refuse obviously-unreasonable values or document the practical bounds.
+recommended_action: Add validation to reject n_stations values outside a reasonable range (e.g., [1, 1000]). Emit a clear error message if the value exceeds the range, mentioning the practical constraint.
+follow_up: new striatum workflow
+
+### BUG-010: Undocumented tolerance_percent behavior in migrate-geometry
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/cli/
+discovered: 2026-05-29 tick-4
+claim: The `kayakgen migrate-geometry` command accepts `--tolerance-percent` without bounds validation, and negative or extreme values (e.g., `--tolerance-percent -100` or `--tolerance-percent 1e9`) are silently accepted and produce confusing drift results.
+evidence:
+- kayakgen/cli/migrate_geometry_cli.py:134-143 - `tolerance_percent: float = typer.Option(1.0, ...)` accepts any float
+- kayakgen/cli/migrate_geometry_cli.py:165 - `tolerance_frac = float(tolerance_percent) / 100.0` (no validation before division)
+- kayakgen/cli/migrate_geometry_cli.py:169 - comparison `if drifts[metric] > tolerance_frac` with an invalid threshold produces nonsensical results
+- USER_GUIDE.md line 449 states "tolerance-percent 1.0" but does not constrain valid input range
+impact: Passing `--tolerance-percent -50` or `--tolerance-percent 0` will cause the migration to report failures that do not match the operator's intent. Passing `--tolerance-percent 1e9` will accept all drift values (even 100% drift) silently.
+recommended_action: Validate that `tolerance_percent` is a positive float in a sensible range (e.g., [0.01, 100]). Emit a clear error and exit(1) if outside bounds.
+follow_up: new striatum workflow
