@@ -504,3 +504,50 @@ impact: None; this is a positive baseline scan.
 recommended_action: No action needed for this surface beyond the two issues already logged (BUG-026, BUG-027). Future audits can mark this surface as settled unless RFC 0044 successor lands new objective-admissibility rules.
 follow_up: wontfix (positive baseline)
 
+### BUG-029: validity_badge_title_for() renders NaN / inf in tooltip text
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/ui/web/app.py
+discovered: 2026-05-29 tick-12
+claim: `validity_badge_title_for(badge)` extracts a ratio string from a badge of the form `Custom (L/B_wl=X.X)` via string slicing and embeds it in the tooltip without finite-number validation. If upstream `l_over_bwl` is NaN / inf (which requires Hull validation bypass), the rendered tooltip reads "Hull length-to-beam ratio is nan; ...".
+evidence:
+- kayakgen/ui/web/app.py:324 — `def validity_badge_title_for(badge: str) -> str`
+- kayakgen/ui/web/app.py:349-350 — `if badge.startswith("Custom (L/B_wl="): ratio_part = badge[len("Custom (L/B_wl=") :].rstrip(")")`
+- kayakgen/ui/web/app.py:504, 885 — Hull-validation-bypassed paths construct `"Custom (L/B_wl=0.0)"` as a fallback
+- Parent thread verified the call-site structure via grep
+impact: Cosmetic tooltip glitch only. Hull's `gt=0` validator on `beam_wl_m` normally prevents the NaN-producing upstream. Not a claim-state leak; not a security issue.
+recommended_action: Guard `ratio_part` against `inf` / `nan` by parsing it as a float and falling back to a generic message if non-finite. Or upstream: ensure the formatter clamps before formatting. Low priority; cosmetic only.
+follow_up: docs fix or new striatum workflow (low priority)
+
+### BUG-030: Comparison-source toggle leaks state across mode switch
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/ui/web/app.py
+discovered: 2026-05-29 tick-12
+claim: The Comparison-tab `live_frontier` ↔ `imported_report` toggle does not clear comparison state on mode switch. Switching modes can pair stale candidate lists with empty / new JSON, producing silent failures.
+evidence:
+- kayakgen/ui/web/app.py:1722-1774 — the toggle handler updates `comparison_source` but does not reset `comparison_json`, `comparison_candidate_options`, `selected_candidate_index`
+impact: Operator confusion at minimum; a silently-failed candidate load can look identical to a successful no-op, hiding that the previously-imported report is no longer relevant.
+recommended_action: Add a clear-state action to the toggle `on_change` handler that resets `comparison_json` / `comparison_candidate_options` / `selected_candidate_index`. Add a render-verification test that toggling `live_frontier → imported_report → live_frontier` leaves the state at its initial values.
+follow_up: new striatum workflow
+
+### BUG-031: Hydro-tab description binding pattern note (positive baseline)
+
+severity: info
+category: implementation_gap
+status: open
+surface: kayakgen/ui/web/app.py
+discovered: 2026-05-29 tick-12
+claim: The Hydro-tab tooltip wiring `:title='row.description'` (workflow 0039) does not HTML-escape the description. Safe today because `HYDROSTATICS_ROW_METADATA` descriptions are hardcoded literals; worth documenting for any future surface that sources descriptions from operator input.
+evidence:
+- kayakgen/ui/web/app.py:1587 — `:title='row.description'` binding
+- kayakgen/ui/hydrostatics_metadata.py — descriptions are frozen literals; no operator-controlled paths feed them
+impact: No current risk; recorded as a pattern note so the next audit knows this binding-shape is safe today but would not be if the registry stopped being hardcoded.
+recommended_action: Documentation only — add a comment near the binding noting "safe because HYDROSTATICS_ROW_METADATA descriptions are hardcoded; revisit if descriptions ever source from operator input."
+follow_up: docs fix (low priority)
+
+
