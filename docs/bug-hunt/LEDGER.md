@@ -381,3 +381,72 @@ evidence:
 impact: An operator can construct or deserialize a `Hull` with `deck_height_m < draft_m`, trigger the closed-body builder, and obtain a closed body with correct topology but inverted physical meaning. The downstream diagnostics report no error because the geometry is manifold (just flipped). The CFD workflow would receive geometry with wrong volume signs and wrong hydrostatics.
 recommended_action: Add validation to `generated_hull_plus_deck_mesh` to check that `hull.deck_height_m >= hull.draft_m` before starting geometry construction, raising `ValueError` with a clear message. Alternatively, require the upstream BUG-014 fix (cross-field validator on `Hull`) as a prerequisite and assume the invariant here. Document the dependency on Hull validation in the docstring.
 follow_up: new striatum workflow (coordinated with BUG-014 remediation)
+
+### BUG-022: Path.read_text() and Path.write_text() lack explicit UTF-8 encoding
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/io/
+discovered: 2026-05-29 tick-10
+claim: The `load_hull()`, `save_hull()`, and `save_evaluation()` functions use `Path.read_text()` and `Path.write_text()` without explicitly specifying `encoding="utf-8"`, relying on system locale defaults. This can cause failures on Windows or non-UTF-8 systems (e.g., Windows-1252 or ASCII-only environments).
+evidence:
+- kayakgen/io/json.py:12 - `Path(path).read_text()` (no encoding parameter)
+- kayakgen/io/json.py:16 - `Path(path).write_text(...)` (no encoding parameter)
+- kayakgen/io/json.py:20 - `Path(path).write_text(...)` (no encoding parameter)
+- Python pathlib docs: "If encoding is not specified, locale.getpreferredencoding(False) is used instead"
+- This is locale-dependent and may differ from UTF-8 on Windows
+impact: A system administrator deploying kayak-gen on Windows with non-UTF-8 locale encoding or on a non-UTF-8 filesystem may see Hull JSON files fail to read or write with encoding errors. JSON files containing non-ASCII characters (e.g., names with diacritics, special units) will be silently corrupted or rejected depending on the locale.
+recommended_action: Add explicit `encoding="utf-8"` to all `Path.read_text()` and `Path.write_text()` calls in `kayakgen/io/json.py`. This is the best practice per PEP 597 and ensures portable behavior across systems.
+follow_up: new striatum workflow
+
+### BUG-023: ResistanceCurve and Hydrostatics lack NaN/Infinity validators
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/io/
+discovered: 2026-05-29 tick-10
+claim: The `ResistanceCurve` (lines 102-106) and `Hydrostatics` (lines 64-74) models accept `list[float]` and `float` fields without validators to reject NaN or Infinity values. This contrasts with `GZCurve` and `GZHeelPointMetadata` which enforce finite-value constraints. An attacker or buggy upstream code can construct invalid evaluation records that serialize to JSON with null values, causing downstream deserialization to silently accept incomplete data.
+evidence:
+- kayakgen/eval/contract.py:102-106 - ResistanceCurve has fields `V_knots`, `Fn`, `Rv_N`, `Rw_N`, `Rt_N` with no validators
+- kayakgen/eval/hydrostatics.py:64-74 - Hydrostatics has fields `displaced_volume_m3`, `displaced_mass_kg`, etc. with only `ge=0` constraints, no finite-value checks
+- kayakgen/eval/contract.py:196-200 - GZCurve enforces `_curve_values_must_be_finite()` on its array fields
+- kayakgen/eval/contract.py:127-139 - GZHeelPointMetadata enforces `_finite_or_none()` on float fields
+impact: A ResistanceCurve with NaN in `Rv_N[0]` will serialize to `{"Rv_N":[null, ...]}` and deserialize successfully, leaving downstream resistance calculations to silently skip or misinterpret the null value. Hydrostatics with NaN in `displaced_volume_m3` will round-trip through JSON and silently become null, violating the claim that hydrostatics are always present and valid.
+recommended_action: Add `field_validator` decorators to ResistanceCurve for `V_knots`, `Fn`, `Rv_N`, `Rw_N`, `Rt_N` (and `metadata.fit_metrics`, `metadata.constants`) to reject NaN/Infinity. Add similar validators to Hydrostatics for all float fields and array fields (e.g., `gz_curve`). Use the same pattern as GZCurve's `_curve_values_must_be_finite()`.
+follow_up: new striatum workflow
+
+### BUG-024: JSON writes lack atomic write pattern; partial corruption possible
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/io/
+discovered: 2026-05-29 tick-10
+claim: The `save_hull()` and `save_evaluation()` functions use `Path.write_text()` directly without atomic write semantics (write-to-temp + os.rename). If serialization fails or the process is killed mid-write, the destination file is left in a partially-written state, corrupting the artifact.
+evidence:
+- kayakgen/io/json.py:16 - `Path(path).write_text(hull.model_dump_json(indent=2))` - single direct write
+- kayakgen/io/json.py:20 - `Path(path).write_text(result.model_dump_json(indent=2))` - single direct write
+- The serialization call (model_dump_json) can fail or be interrupted; a process crash or SIGKILL during serialization leaves the file half-written
+- Repeated save_hull calls to the same path will overwrite previous versions non-atomically
+impact: A crash or power failure during a long serialization (e.g., an EvaluationResult with large mesh arrays) will leave a corrupted hull.json or evaluation.json that downstream readers will fail to parse. A subsequent run starting from the corrupted file will fail rather than safely recovering.
+recommended_action: Use the atomic write pattern: serialize to a temporary file in the same directory (or tmpdir), then use os.replace (or shutil.move on Windows) to atomically move the temp file to the target path. Example: `tmp_path = Path(path).with_suffix('.tmp'); tmp_path.write_text(...); os.replace(tmp_path, path)`. This ensures the original file is only updated atomically.
+follow_up: new striatum workflow
+
+### BUG-025: Print statement in generate_stl violates structured logging
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/io/
+discovered: 2026-05-29 tick-10
+claim: The `generate_stl()` method at line 360 of `kayakgen/model/geometry.py` calls `print(f"Saved {filename}")` instead of using structured logging. This violates the project's logging discipline and can interfere with scripts that capture stdout.
+evidence:
+- kayakgen/model/geometry.py:360 - `print(f"Saved {filename}")`
+- kayakgen/io/stl.py:16 calls `geom.generate_stl(part, str(path))` which triggers the print
+- The rest of the codebase uses `logging` module (e.g., kayakgen/cli/main.py, kayakgen/services/*.py)
+impact: A script that invokes `write_stl()` and reads stdout for other purposes (e.g., progress reporting, JSON output) will see unexpected print output. Automated test runs may capture this output as noise. The I/O success is not recorded in the project's structured logs, making it invisible to log aggregation systems.
+recommended_action: Replace the print statement with a structured log message: `logger.info(f"STL written: {filename}")`. Ensure `logger = logging.getLogger(__name__)` is defined in `geometry.py`. Update tests to suppress or ignore this log line if they assert on stdout.
+follow_up: wontfix (low priority) or new striatum workflow
+
