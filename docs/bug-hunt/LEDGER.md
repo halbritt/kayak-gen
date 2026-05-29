@@ -551,3 +551,38 @@ recommended_action: Documentation only — add a comment near the binding noting
 follow_up: docs fix (low priority)
 
 
+
+### BUG-032: Infinity values in frontier z-metric not filtered, producing NaN color ratios
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/ui/web/generate_frontier_view.py
+discovered: 2026-05-29 tick-13
+claim: The `_coerce_float()` function at lines 159-168 guards against NaN but not infinity. Infinity values in the third objective (z-metric) can propagate through the color-ratio calculation and produce NaN when z_low and z_high are both infinity, resulting in SVG data attributes containing the string "nan".
+evidence:
+- kayakgen/ui/web/generate_frontier_view.py:166 — `if result != result:` (NaN check only; misses infinity)
+- kayakgen/ui/web/generate_frontier_view.py:280-282 — infinity values pass through and are included in z_values list
+- kayakgen/ui/web/generate_frontier_view.py:283-284 — `z_low = min(z_values)` and `z_high = max(z_values)` with infinity values
+- kayakgen/ui/web/generate_frontier_view.py:140 — `(value - low) / span` produces NaN when span is NaN (all z_values are infinity)
+- kayakgen/ui/web/generate_frontier_view.py:430 — NaN ratio is HTML-escaped and rendered as the string "nan" in SVG
+impact: Cosmetic rendering issue; SVG data attributes contain the string "nan" instead of a numeric ratio. This could confuse debugging and is inconsistent with the NaN guard applied to the result. No claim-state leak or calculation error, but asymmetric handling of NaN vs infinity.
+recommended_action: Extend the guard in `_coerce_float()` to also reject infinity: `if result != result or math.isinf(result): return None`. Add a regression test that rounds a candidate with infinity in z-metric through the view-model and asserts it does not produce NaN in the ratio.
+follow_up: new striatum workflow (low priority)
+
+### BUG-033: Substring matching in FORBIDDEN_METRIC_TOKENS allows false negatives
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/ui/web/generate_frontier_view.py
+discovered: 2026-05-29 tick-13
+claim: Line 150 uses substring matching (`token in lowered for token in FORBIDDEN_METRIC_TOKENS`) to detect display-only metrics. This is safe for the six token values (max_gz_m, heel_at_max_gz_deg, etc.) but the pattern is fragile. If a metric name like `my_max_gz_m_custom` exists, it would match and be filtered (acceptable). However, if a metric is added that starts with the same prefix but has additional characters (e.g., "gz_m_wrapper" vs "gz_m"), the substring match could produce unexpected behaviour — metrics intended to be allowed might match a forbidden token by accident.
+evidence:
+- kayakgen/ui/web/generate_frontier_view.py:45-52 — FORBIDDEN_METRIC_TOKENS defined as (max_gz_m, heel_at_max_gz_deg, range_positive_stability_deg, area_under_positive_gz_m_deg, righting_moment_nm, gz_m)
+- kayakgen/ui/web/generate_frontier_view.py:148-150 — `_is_forbidden_metric_key` uses substring containment: `any(token in lowered for token in FORBIDDEN_METRIC_TOKENS)`
+- RFC 0057 stage 4 decision D-6 requires "high-angle GZ display-only metrics" to be dropped, but does not specify substring vs exact-match semantics
+impact: Low risk today because the FORBIDDEN_METRIC_TOKENS are all short and specific. But if a new metric like "area_under_positive_gz_m_deg_wrapper" is added, the substring match would incorrectly filter it. Alternatively, a metric like "my_area_under_positive_gz_m_deg_extra" would also be filtered, which is the safe direction but may hide operator mistakes. No current violation, but the pattern is implicit rather than explicit.
+recommended_action: Document the substring-match rationale as a comment near the function. Alternatively, switch to exact-match semantics using a set lookup for clarity: `metric.lower() in {t.lower() for t in FORBIDDEN_METRIC_TOKENS}`. This trades substring flexibility for precision and makes the contract explicit. No regression risk because all tokens today have no common prefixes across the set.
+follow_up: docs fix or new striatum workflow (low priority)
+
