@@ -330,3 +330,54 @@ evidence:
 impact: No new risks identified. The audit's pipeline-integrity lane (12 positive null findings from the 2026-05-25 full_repo audit) is corroborated by this deeper bug-hunt pass on the same surface.
 recommended_action: Optional follow-up tick: future bug-hunt cycles could focus on the lighter-coverage modules (`cfd_jobs.py`, `build_export.py`, `artifact_store.py`, `design.py`) where this tick's depth was thinner.
 follow_up: wontfix (positive baseline; defer to next audit's pipeline-integrity lane)
+
+### BUG-019: Exact float equality for bow_rake/stern_rake plumb detection
+
+severity: medium
+category: math
+status: open
+surface: kayakgen/eval/closed_volume/
+discovered: 2026-05-29 tick-9
+claim: Lines 132-133 of `generated_body.py` use exact float equality `hull.bow_rake == 0.0` and `hull.stern_rake == 0.0` to detect plumb endpoints, but the RFC 0028 specification allows values to be round-tripped through JSON serialisation, which can introduce IEEE 754 perturbations that defeat the exact comparison.
+evidence:
+- kayakgen/eval/closed_volume/generated_body.py:132-133 — `bow_plumb = hull.bow_rake == 0.0` and `stern_plumb = hull.stern_rake == 0.0` use exact float equality
+- kayakgen/model/hull.py:45-63 — `bow_rake` and `stern_rake` are `float` fields that round-trip through JSON
+- RFC 0028 § Acceptance Criteria — "With bow_rake = 0.0, the generated closed-body path has non-zero terminal bow section area"
+- BUG-015 (discovered tick-6) establishes precedent: distribution_v2 rake checks failed on round-tripped values
+impact: A hull with `bow_rake = 0.0` or `stern_rake = 0.0` that is serialized to JSON and deserialized may see the rake perturbed to 0.9999999999999999 or 1.0000000000000002, causing the plumb-endpoint detection to fail silently. The generated body will treat the endpoint as raked rather than plumb, violating the exact-plumb-endpoint closure contract.
+recommended_action: Replace exact float equality with `math.isclose(hull.bow_rake, 0.0)` and `math.isclose(hull.stern_rake, 0.0)` at lines 132-133. Use a tolerance consistent with the model's documented precision (suggest `rel_tol=1e-9, abs_tol=1e-12` to match the existing degenerate-area tolerance). Add a regression test round-tripping a hull with plumb endpoints through JSON and asserting the generated body honours the plumb-endpoint closure.
+follow_up: new striatum workflow
+
+### BUG-020: dispatch_evidence_satisfies_profile always returns False
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/eval/closed_volume/
+discovered: 2026-05-29 tick-9
+claim: The `dispatch_evidence_satisfies_profile()` function at lines 120-138 of `diagnostics.py` unconditionally returns False regardless of whether the evidence matches the required profile and readiness level. Lines 136-138 check `if required_mesh_readiness == "cfd_ready": return False` then `return False`, making the function unable to ever return True.
+evidence:
+- kayakgen/eval/closed_volume/diagnostics.py:136-138 — `if required_mesh_readiness == "cfd_ready": return False` followed unconditionally by `return False`
+- kayakgen/eval/closed_volume/diagnostics.py:133-135 — earlier checks on `required_mesh_profile` also return False, leaving no path to True
+- tests/test_generated_closed_body.py:464-472 — tests assert the function always returns False
+- RFC 0027 documents that "closed-volume diagnostics are safe-slice synthetic-only and never claim cfd_ready"
+impact: Any downstream code expecting `dispatch_evidence_satisfies_profile()` to distinguish valid closed-volume evidence from invalid evidence cannot do so. The function is useless for its documented purpose of allowing "dispatch code to distinguish contract-aware rejection from blind manifest trust" (docstring line 129-130). Dead code path represents either an incomplete implementation or a misunderstood requirement.
+recommended_action: Either (1) remove the function if RFC 0027's safe-slice guarantees the function will never return True, or (2) fix the logic to return True when profile and readiness checks pass (e.g., return True when `required_mesh_profile is None or diagnostics.profile_name == required_mesh_profile` and `required_mesh_readiness != "cfd_ready"`), or (3) document why the function must always return False and add a comment explaining the contract for future readers.
+follow_up: docs fix or new striatum workflow
+
+### BUG-021: Generated closed body inherits inverted deck from BUG-014
+
+severity: high
+category: claim_gate
+status: open
+surface: kayakgen/eval/closed_volume/
+discovered: 2026-05-29 tick-9
+claim: The RFC 0022 generated closed-body builder (`generated_hull_plus_deck_mesh`) consumes the parametric `Hull` without validating that `deck_height_m >= draft_m` (see BUG-014). If the upstream `Hull` has an inverted geometry (deck below draft), the generated body will silently construct an inverted closed-body geometry with the wrong orientation and negative signed volume, which the diagnostics then "fix" by flipping face winding. The fix masks the upstream invariant violation.
+evidence:
+- kayakgen/eval/closed_volume/generated_body.py:127 — `geometry = hull.to_geometry()` consumes Hull directly
+- kayakgen/eval/closed_volume/generated_body.py:174-175 — if signed volume is negative, face winding is flipped: `if _signed_volume(...) < 0.0: face_array = face_array[:, [0, 2, 1]]`
+- kayakgen/model/hull.py:37-38 — (BUG-014) Hull has no `deck_height_m >= draft_m` cross-field validator
+- kayakgen/model/geometry.py:207, 311 — deck calculation `(self.H - self.T) * deck_scale` silently produces negative results when inverted
+impact: An operator can construct or deserialize a `Hull` with `deck_height_m < draft_m`, trigger the closed-body builder, and obtain a closed body with correct topology but inverted physical meaning. The downstream diagnostics report no error because the geometry is manifold (just flipped). The CFD workflow would receive geometry with wrong volume signs and wrong hydrostatics.
+recommended_action: Add validation to `generated_hull_plus_deck_mesh` to check that `hull.deck_height_m >= hull.draft_m` before starting geometry construction, raising `ValueError` with a clear message. Alternatively, require the upstream BUG-014 fix (cross-field validator on `Hull`) as a prerequisite and assume the invariant here. Document the dependency on Hull validation in the docstring.
+follow_up: new striatum workflow (coordinated with BUG-014 remediation)
