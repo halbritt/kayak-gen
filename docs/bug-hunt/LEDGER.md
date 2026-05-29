@@ -1341,3 +1341,23 @@ impact: A RightsChecklist or AcceptedFitRecord with diacritics (e.g., Italian na
 recommended_action: Apply the UTF-8 encoding fix from BUG-074 to all calibration and target-workflow reads. This is part of the same striatum workflow.
 follow_up: consolidate with BUG-074 striatum workflow
 
+
+### BUG-078: JSON canonical ordering gap in io.save_hull() and io.save_evaluation()
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/io/
+discovered: 2026-05-29 tick-26
+claim: The `save_hull()` and `save_evaluation()` functions in `kayakgen/io/json.py` use `model_dump_json()` without specifying key ordering. RFC 0049 requires "canonical-order JSON encoding" (deterministic key ordering) for the `record_hash` contract. Pydantic v2's `model_dump_json()` preserves declaration order (field definition order), not alphabetical order. If a Hull is serialized to JSON by one writer and deserialized/re-serialized by another, the JSON field order may differ, causing the file bytes to differ even though the logical record is identical. This breaks the artifact-store content-addressing invariant: the same logical Hull serialized by different code paths produces different file hashes.
+evidence:
+- kayakgen/io/json.py:16 — `Path(path).write_text(hull.model_dump_json(indent=2))` (no sort_keys parameter)
+- kayakgen/io/json.py:20 — `Path(path).write_text(result.model_dump_json(indent=2))` (no sort_keys parameter)
+- kayakgen/model/hull.py:107 — `Hull.record_hash()` also uses `self.model_dump_json()` without sort_keys (compounding the issue)
+- kayakgen/services/identity.py:46-49 — `_canonical_json()` defines the correct pattern: `json.dumps(value, sort_keys=True, separators=(",", ":"))`
+- RFC 0049 § Identity vocabulary line 80 — "record_hash... the full serialized Pydantic record bytes **after canonical-order JSON encoding**"
+- kayakgen/search/sweep.py calls `save_hull(hull, hull_path)` then stores the file in the artifact store; concurrent writes with different field orderings would produce different artifact hashes for identical hulls
+impact: Two identical `Hull` objects serialized by `save_hull()` at different times or in different code paths may produce JSON with different field ordering, resulting in different file byte hashes. The artifact store's content-addressed design assumes byte-equality for identical logical records; this assumption is violated. A sweep run that re-evaluates a candidate from a previous run may see a different artifact hash and treat the new result as a distinct candidate, duplicating effort and breaking the run's content-addressed identity contract.
+recommended_action: (1) Fix `save_hull()` to use `hull.model_dump_json(...)` with a custom serializer or encoder that sorts keys, or (2) use `json.dumps(hull.model_dump(...), sort_keys=True, indent=2)` to ensure canonical ordering. (3) Apply the same fix to `save_evaluation()` for `EvaluationResult` records. (4) Fix `Hull.record_hash()` in `hull.py` line 107 to use canonical JSON (consider delegating to `kayakgen.services.identity.record_hash(hull.model_dump())` for consistency with the identity service).
+follow_up: new striatum workflow
+
