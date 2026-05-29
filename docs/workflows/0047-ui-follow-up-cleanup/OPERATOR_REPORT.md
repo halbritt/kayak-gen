@@ -2,6 +2,15 @@
 
 Updated: 2026-05-14
 
+> **Note on stale tooling references.** Striatum has since migrated from
+> a Python package (`.venv/bin/striatum`) to a Go binary
+> (`~/.local/bin/striatum`, built via `make install` from
+> `~/git/striatum/`). The `STRIATUM_DAEMON_REQUIRED=0`
+> `STRIATUM_TEST_HARNESS=1` env prefix below was a v1.x test-harness mode
+> that no longer exists in v2.7.x. Any historical command line below is
+> preserved as provenance for the original run; for a current invocation
+> see the active RUNBOOKs.
+
 ## Current state
 
 - Workflow scaffold created for `0047-ui-follow-up-cleanup`.
