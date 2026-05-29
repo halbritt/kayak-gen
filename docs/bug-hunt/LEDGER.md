@@ -671,3 +671,22 @@ evidence:
 impact: Class-preset selection is visibly slower than necessary because plots and metrics are recomputed 5 times instead of once. On slow machines or with high-resolution geometries, this can cause UI lag.
 recommended_action: Extend the `_applying_class` guard to skip the expensive `update_plots()` and `_refresh_metrics()` calls during seeding. After all 5 values are set, call `self.update_plots()` and `self._refresh_metrics()` once explicitly. This matches the web version's `_applying_class_preset` guard pattern (documented at kayakgen/ui/web/app.py:932).
 follow_up: new striatum workflow (performance optimization, medium priority)
+
+### BUG-039: Field-level min_length validator allows whitespace-only strings
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/ui/parameter_metadata.py + kayakgen/ui/hydrostatics_metadata.py
+discovered: 2026-05-29 tick-16
+claim: Both registry models use `Field(min_length=1)` on `parameter`, `label`, and `description` fields, but this validator only checks string length, not content. A whitespace-only string like `"   "` (three spaces) passes validation with length=3, but becomes empty when stripped. The regression tests correctly catch this (they assert `label.strip() == label`), so this is defense-in-depth, not a live bug.
+evidence:
+- kayakgen/ui/parameter_metadata.py:30-33 - `parameter`, `label`, `description` use `Field(min_length=1)`
+- kayakgen/ui/hydrostatics_metadata.py:37-40 - same pattern
+- Pydantic ValidationError only rejects empty strings (length=0), not whitespace-only strings
+- tests/test_hull_parameter_metadata.py:54-61 - test correctly asserts `label.strip() == label and label.strip() != ""`
+- A hypothetical direct construction like `HullParameterMetadata(parameter='test', label='   ', unit=None, description='OK')` passes Pydantic validation
+impact: If a developer manually constructs a registry entry with whitespace-only copy, Pydantic accepts it. The test suite catches the mistake at assertion time, but the validator itself is not a sufficient first-line defense. No operator-facing risk because the registries are hardcoded in source, not user-configurable.
+recommended_action: Add a custom `field_validator` to both models that rejects whitespace-only strings (e.g., `if not value.strip(): raise ValueError('must be non-empty after strip')`). This is a belt-and-suspenders improvement; the test is already correct, but the validator should match the test's intent.
+follow_up: new striatum workflow (optional; test coverage is already adequate)
+
