@@ -1079,3 +1079,73 @@ impact: Patch names with newlines or quotes could be injected into case files or
 recommended_action: Add `field_validator` to SnappyHexMeshPatchEntry to validate `name` and `marker` against a safe character set (e.g., alphanumeric + underscore + dash, matching OpenFOAM naming conventions). Reject names/markers with quotes, newlines, or other shell-special characters.
 follow_up: new striatum workflow
 
+
+### BUG-063: CfdOpenFoamForceDatSample lacks NaN/Infinity validators on numeric fields
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/eval/cfd/
+discovered: 2026-05-29 tick-22 (re-search 2)
+claim: The `CfdOpenFoamForceDatSample` (parsers/openfoam_forces.py:32-52) accepts float and tuple[float, ...] fields (`time_s`, `pressure_force_n`, `viscous_force_n`, `porous_force_n`, `total_force_n`, `drag_force_n`) without validators to reject NaN or Infinity values. These fields are parsed from force.dat by regex (line 80) and can contain NaN if OpenFOAM writes NaN values (due to solver divergence, uninitialized variables, or corrupted output). The parsed samples serialize to JSON with null and propagate NaN through downstream evaluation code.
+evidence:
+- kayakgen/eval/cfd/parsers/openfoam_forces.py:46-51 - float and tuple[float, float, float] fields with no finite-value validators
+- kayakgen/eval/cfd/parsers/openfoam_forces.py:80 - regex parsing does not filter NaN: `float(match.group(0))` can produce NaN from string "nan"
+- kayakgen/eval/cfd/parsers/openfoam_forces.py:175 - last_sample of type CfdOpenFoamForceDatSample is returned without validation
+- kayakgen/eval/contract.py:196-200 - GZCurve enforces _curve_values_must_be_finite(), showing the pattern is known
+- Contrast: tick-21 (BUG-058) found the same gap on CheckMeshSummary; tick-10 (BUG-023) found it on ResistanceCurve
+impact: A force.dat file containing NaN drag values will be parsed successfully, serialize to JSON, and propagate corrupt data into downstream resistance calculations. The raw_unvalidated claim fields do not guarantee numeric integrity, but schema-level validators should still reject obviously-invalid NaN values.
+recommended_action: Add @field_validator to CfdOpenFoamForceDatSample for all float fields to reject NaN/Infinity using `math.isfinite()`. For tuple fields, validate each element: `if any(not math.isfinite(v) for v in value): raise ValueError(...)`. Raise ValueError with a clear message. Bundle with BUG-023, BUG-058 into a comprehensive sweep adding finite-value validators across all numeric schemas.
+follow_up: new striatum workflow (bundle with BUG-023 / BUG-058 remediation)
+
+### BUG-064: Case-render write_text() lacks explicit UTF-8 encoding
+
+severity: medium
+category: implementation_gap
+status: open
+surface: kayakgen/eval/cfd/
+discovered: 2026-05-29 tick-22 (re-search 2)
+claim: The case-render functions in `openfoam_v2512_interfoam/case_render.py` (lines 261, 304, 308, 312, 324) and `openfoam_v2512_interfoam/evidence.py` (line 78) use `Path.read_text()` and `Path.write_text()` without explicitly specifying `encoding="utf-8"`. This mirrors BUG-022 and BUG-040 patterns found in other surfaces; on systems with non-UTF-8 locale encoding, OpenFOAM case dictionaries and boundary files with non-ASCII characters (e.g. comments with diacritics) will fail to read/write.
+evidence:
+- kayakgen/eval/cfd/openfoam_v2512_interfoam/case_render.py:261 - `template_path.read_text()` (no encoding parameter)
+- kayakgen/eval/cfd/openfoam_v2512_interfoam/case_render.py:304, 308, 312, 324 - `write_text(...)` calls (no encoding parameter)
+- kayakgen/eval/cfd/openfoam_v2512_interfoam/evidence.py:78 - `Path(boundary_path).read_text()` (no encoding parameter)
+- kayakgen/eval/cfd/openfoam_v2512_interfoam/runner.py:319 - `log_path.write_text(...)` (no encoding parameter)
+- Python pathlib docs: "If encoding is not specified, locale.getpreferredencoding(False) is used instead" (locale-dependent, not UTF-8)
+impact: On Windows or non-UTF-8 systems, OpenFOAM case files and logs with non-ASCII content will fail to read/write. OpenFOAM boundary files parsed from polyMesh/boundary (evidence.py:78) may be corrupted if they contain non-ASCII characters, blocking evidence binding.
+recommended_action: Add explicit `encoding="utf-8"` to all `Path.read_text()` and `Path.write_text()` calls in case_render.py (lines 261, 304, 308, 312, 324) and evidence.py (line 78) and runner.py (line 319). This is a bulk edit affecting ~5 call sites in the openfoam_v2512_interfoam module. Merge with BUG-022 and BUG-040 fixes in a single sweep.
+follow_up: new striatum workflow (bundle with BUG-022 / BUG-040 remediation)
+
+### BUG-065: force.dat parser does not validate field count against expected layout
+
+severity: high
+category: implementation_gap
+status: open
+surface: kayakgen/eval/cfd/
+discovered: 2026-05-29 tick-22 (re-search 2)
+claim: The `_parse_openfoam_force_dat_line()` function at line 82-95 validates that the field count is either 10 or 13 (v2512 standard vs. with porous), but a forward-compatible OpenFOAM v2606+ release might add additional columns (e.g., poro_x, poro_y, poro_z, extra_x, ...). If a force.dat from a newer OpenFOAM version with 16 fields is encountered, the parser will reject it as malformed, even though the first 10 (or 13) fields contain valid data. This is a hard rejection that treats version drift as fatal rather than tolerant.
+evidence:
+- kayakgen/eval/cfd/parsers/openfoam_forces.py:22-29 - two magic constants: _OPENFOAM_V2512_FORCE_DAT_FIELDS=10, _OPENFOAM_V2512_FORCE_DAT_FIELDS_WITH_POROUS=13
+- kayakgen/eval/cfd/parsers/openfoam_forces.py:82-95 - strict check: `if len(values) == 10: ... elif len(values) == 13: ... else: raise CfdDispatchError(...)`
+- No tolerance for extra fields; no log warning if field count exceeds expected range
+impact: A legitimate force.dat from v2606+ OpenFOAM with forward-compatible extra columns will be rejected, preventing valid evidence collection from newer solver versions. This is a forward-compatibility gap that violates the "raw_unvalidated" contract's intent to accept real solver output without strict schema enforcement.
+recommended_action: Relax the parser to accept field counts >= 10 (or >= 13 if porous is detected) and log a warning if extra fields are present. Extract only the first 10 (or 13) fields and ignore the rest. This allows forward-compatible parsing while still catching truly-malformed output (< 10 fields). Alternatively, document the hard v2512 requirement and raise the error message to mention "v2606+ builds may require a different parser".
+follow_up: new striatum workflow
+
+### BUG-066: Evidence record produced by CFD adapter may lack required fields
+
+severity: high
+category: implementation_gap
+status: open
+surface: kayakgen/eval/cfd/
+discovered: 2026-05-29 tick-22 (re-search 2)
+claim: Tick 21 (BUG-058/059/060/061) identified gaps in how SnappyHexMeshEvidence is constructed and validated. The CFD adapter's evidence binding path in `openfoam_v2512_interfoam/evidence.py:build_snappy_hex_mesh_evidence_from_case()` constructs evidence by reading on-disk polyMesh artifacts and hashing them (lines 105-118). However, if the meshing stage fails to write all required artifacts (e.g., missing "points" or "boundary" file), the checksums dict will be incomplete, yet the function raises FileNotFoundError only when required artifacts are missing (lines 114-117). The adapter then passes this potentially-incomplete evidence to downstream binding logic. No cross-field validator on the evidence ensures that all required checklist items are present before dispatch_state is set to "evidence_recorded".
+evidence:
+- kayakgen/eval/cfd/openfoam_v2512_interfoam/evidence.py:114-118 - FileNotFoundError only raised if "points" or "boundary" is missing; other artifacts may be silently omitted
+- kayakgen/eval/cfd/openfoam_v2512_interfoam/evidence.py:134-176 - build_snappy_hex_mesh_evidence_from_case() passes artifact_checksums to builder with no validation
+- kayakgen/eval/snappy_hex_mesh.py:152-175 - SnappyHexMeshEvidence validator checks for blockers only when dispatch_state != "evidence_recorded" (line 154), allowing operator-constructed records to bypass the checklist
+- Tick 21 (BUG-060) found that empty artifact_checksums can be set to "evidence_recorded" manually
+impact: A CFD run where snappyHexMesh crashed mid-write could produce an evidence record with incomplete artifact_checksums. If the run_record's dispatch_state is manually set to "evidence_recorded" in JSON (or if the binding logic sets it prematurely), downstream mesh consumers will assume the artifact set is complete but will encounter missing checksums during access, causing silent failures or misinterpretation of the evidence state.
+recommended_action: Add a model_validator to SnappyHexMeshEvidence that checks: `if self.dispatch_state == "evidence_recorded": verify all required artifacts in REQUIRED_ARTIFACT_NAMES are present in artifact_checksums`. Define REQUIRED_ARTIFACT_NAMES (e.g., {"points", "boundary", "faces", "owner", "neighbour"}) based on RFC 0045's artifact contract. Raise ValueError if any required artifact is missing. This complements BUG-060's fix.
+follow_up: new striatum workflow (coordinated with BUG-060 fix)
+
