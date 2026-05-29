@@ -450,3 +450,57 @@ impact: A script that invokes `write_stl()` and reads stdout for other purposes 
 recommended_action: Replace the print statement with a structured log message: `logger.info(f"STL written: {filename}")`. Ensure `logger = logging.getLogger(__name__)` is defined in `geometry.py`. Update tests to suppress or ignore this log line if they assert on stdout.
 follow_up: wontfix (low priority) or new striatum workflow
 
+
+### BUG-026: Compare report skips claim-state admissibility gate
+
+severity: high
+category: claim_gate
+status: open
+surface: kayakgen/search/
+discovered: 2026-05-29 tick-11
+claim: RFC 0044 requires `ensure_objectives_claim_admissible_for_search` to be called from "every entry point (sweep planner, active search, comparison runner)" to refuse `raw_unvalidated` and `uncalibrated_comparative` objectives unless opt-in is set. The comparison report in `kayakgen/search/compare.py:build_comparison_report()` calls `ensure_objectives_not_high_angle_gz()` but never calls the claim-state admissibility gate.
+evidence:
+- kayakgen/search/compare.py:188, 196 - only `ensure_objectives_not_high_angle_gz()` is called
+- kayakgen/search/pareto.py:135-154 - function exists, expects `explicit_exploratory` parameter
+- RFC 0044 §Objective-claim gating lines 186-195 - gate requirement stated for "every entry point"
+- tests/test_compare.py:363-410 - test `test_raw_resistance_objective_is_exploratory_and_requires_provenance()` implies the gate should be applied in comparison
+impact: An operator can run `kayakgen compare -o Rt_N_last:min run_dir/` where `Rt_N_last` is a `raw_unvalidated` metric, and the comparison report will accept it and compute a Pareto frontier over raw resistance values without the `explicit_exploratory` opt-in and without marking the report as `exploratory`. This violates the RFC 0044 contract that allows `raw_unvalidated` objectives only under exploratory mode.
+recommended_action: Add a call to `ensure_objectives_claim_admissible_for_search(selected_objectives, explicit_exploratory=False)` in `build_comparison_report()` immediately after line 196, where `ensure_objectives_not_high_angle_gz(selected_objectives)` is called. The gate will refuse any `raw_unvalidated` or `uncalibrated_comparative` metric unless the operator explicitly opts in (which is a future CLI feature for the comparison tool).
+follow_up: new striatum workflow
+
+### BUG-027: Float precision in Pareto dominance comparison lacks tolerance
+
+severity: medium
+category: math
+status: open
+surface: kayakgen/search/
+discovered: 2026-05-29 tick-11
+claim: The `dominates()` function in `kayakgen/search/pareto.py:236-265` uses exact float comparison (`left_value < right_value`, `left_value > right_value`) without tolerance for floating-point round-trip error. Per BUG-015 and BUG-019, objectives often round-trip through JSON serialization, introducing IEEE 754 perturbations. A candidate that is truly non-dominated on a metric (e.g., drag=1.2345 vs drag=1.2345) may be incorrectly considered dominated if the float encoding differs by less than the last significant bit.
+evidence:
+- kayakgen/search/pareto.py:256-263 - exact comparisons `left_value < right_value` and `left_value > right_value`
+- BUG-015 established float-equality risk in rake checks
+- BUG-019 established float-equality risk in plumb endpoint detection
+- No `math.isclose()` tolerance applied to objective comparison
+- Pareto frontier members are returned in input order (line 280-284), so dominance order matters
+impact: Two candidates with objective values that differ by less than machine epsilon (or after lossy JSON round-trip) may incorrectly dominate/be dominated, causing incorrect Pareto frontiers. A candidate that should appear on the frontier may be filtered out, or vice versa. The effect is subtle because it only triggers when candidates have nearly-equal objective values, but the Pareto result becomes non-reproducible across serialization formats.
+recommended_action: Add a tolerance parameter (e.g., `rel_tol=1e-9, abs_tol=1e-12`) to the `dominates()` function and use `math.isclose()` for all four comparisons at lines 257, 259, 261, 263. The tolerance should match the precision documented in `OBJECTIVE_METADATA[...].display_format` or a project-wide constant (e.g., RFC 0052 noise threshold). Add a regression test that round-trips two near-equal candidates through JSON and verifies they remain non-dominated.
+follow_up: new striatum workflow
+
+### BUG-028: Survey completed without actionable findings
+
+severity: info
+category: claim_gate
+status: open
+surface: kayakgen/search/
+discovered: 2026-05-29 tick-11
+claim: Tick 11 surveyed all non-active files in kayakgen/search/ (objectives.py, pareto.py, sweep.py, compare.py, __init__.py). Beyond BUG-026 (missing claim gate in compare) and BUG-027 (float tolerance in dominance), no other actionable bugs surfaced. Variable enumeration in `sweep.py:expand_candidates()` uses itertools.product correctly (line 168); parameter expansion via `np.linspace()` is correct (line 66); candidate hashing is deterministic (line 180); and claim-state aggregation is present (resistance metadata on line 466). The high-angle GZ display-only token is properly respected throughout the surface.
+evidence:
+- kayakgen/search/sweep.py:62-66 - `np.linspace()` correctly expands parameter ranges with specified count
+- kayakgen/search/sweep.py:164-182 - `expand_candidates()` uses `itertools.product()` to enumerate all combinations; order is stable
+- kayakgen/search/sweep.py:466 - resistance claim_state is carried in summary for downstream visibility
+- kayakgen/search/pareto.py:22-46 - HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN and SEARCH_REFUSED_CLAIM_STATES are well-defined
+- No call to `ensure_objectives_claim_admissible_for_search()` is expected in sweep.py (sweep is pre-search infrastructure)
+impact: None; this is a positive baseline scan.
+recommended_action: No action needed for this surface beyond the two issues already logged (BUG-026, BUG-027). Future audits can mark this surface as settled unless RFC 0044 successor lands new objective-admissibility rules.
+follow_up: wontfix (positive baseline)
+
