@@ -605,3 +605,69 @@ evidence:
 impact: None. This is a positive baseline scan. The module functions correctly as a thin re-export and REST-route-mounting glue layer.
 recommended_action: No action needed. The surface is settled and can be marked as searched without further follow-up unless the module is modified with new logic.
 follow_up: wontfix (positive baseline)
+
+### BUG-035: Class-preset slider narrowing lacks synchronization guard
+
+severity: medium
+category: concurrency
+status: open
+surface: kayakgen/ui/desktop.py
+discovered: 2026-05-29 tick-15
+claim: When a class preset is selected, `_on_class_select` narrows slider ranges via `_apply_slider_ranges(kc)` (line 190) before seeding the 5 parameter sliders with new values via `slider.set_val(val)` (line 196). Each `set_val()` call fires `_on_change` callback synchronously, which reads raw slider values from all sliders in the loop at lines 318-319. If a slider's old value was outside the newly-narrowed range, matplotlib may not have clamped it yet, causing `self.params` to be populated with out-of-range values that violate the class constraint.
+evidence:
+- kayakgen/ui/desktop.py:190-196 - `_apply_slider_ranges(kc)` narrows ranges, then loop sets only 5 seed values; other sliders unchanged
+- kayakgen/ui/desktop.py:212-218 - range narrowing modifies `slider.valmin` and `slider.valmax` but does not clamp current slider.val
+- kayakgen/ui/desktop.py:318-319 - `_on_change` reads all slider values indiscriminately, capturing out-of-range values if matplotlib did not clamp
+- matplotlib Slider documentation notes that `valmin`/`valmax` are advisory and do not retroactively clamp `val` on update
+impact: An operator selecting a class preset may see hull parameters that violate the class envelope after the selection completes, if any non-seeded slider had a value outside the new narrowed range. The params dict is populated with out-of-range values, and downstream consumers (hydrostatics evaluation, geometry construction) may silently accept them or produce incorrect results.
+recommended_action: After narrowing ranges in `_apply_slider_ranges(kc)`, immediately clamp all slider values to the new range before seeding: for each slider, set `slider.val = np.clip(slider.val, slider.valmin, slider.valmax)` (without triggering the callback). Alternatively, collect all slider updates into a batch and apply `_on_change` once at the end after all ranges and values are synchronized.
+follow_up: new striatum workflow
+
+### BUG-036: PyVista window lacks explicit cleanup on close
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/ui/desktop.py + kayakgen/ui/pv_window.py
+discovered: 2026-05-29 tick-15
+claim: The PyVista 3D preview window (`PyVistaWindow`) is created on-demand in `_on_open_3d` (line 390) but the window has no explicit close event handler or resource cleanup path. When the user closes the window, the `_pv_window` reference in `KayakGUI` is not cleared, and the next call to `_on_open_3d` attempts to reuse the closed window object instead of creating a fresh one. This can leave PyVista plotter resources allocated even after the window is visually closed.
+evidence:
+- kayakgen/ui/desktop.py:384-393 - `_on_open_3d` checks `if self._pv_window is None or not self._pv_window.isVisible()` but does not call a cleanup method
+- kayakgen/ui/pv_window.py:56-147 - `PyVistaWindow` (subclass of `QMainWindow`) has no `closeEvent` override or destructor to clean up `self._plotter`
+- kayakgen/ui/desktop.py:327, 396 - checks `self._pv_window.isVisible()` but assumes the window can be reused if visible
+impact: Repeated open/close cycles of the 3D preview may accumulate PyVista plotter resources (OpenGL contexts, mesh renderers) without releasing them, leading to gradual memory leaks and potential GPU resource exhaustion on long sessions.
+recommended_action: Add a `closeEvent` handler to `PyVistaWindow` that calls `self._plotter.close()` or equivalent cleanup. Set `self._pv_window = None` in `_on_open_3d` if `isVisible()` returns False, ensuring a fresh window is created on the next open.
+follow_up: new striatum workflow
+
+### BUG-037: STL export path is not normalised before write
+
+severity: low
+category: implementation_gap
+status: open
+surface: kayakgen/ui/desktop.py
+discovered: 2026-05-29 tick-15
+claim: The `_on_generate` method (line 367) uses `QFileDialog.getSaveFileName` to prompt the user for an export path, then constructs hull/deck STL filenames by stripping suffixes and appending `_hull.stl` and `_deck.stl`. The path is not normalised before being passed to `generate_stl`, so a relative `../foo/bar` typed into the dialog writes outside the dialog's initial directory.
+evidence:
+- kayakgen/ui/desktop.py:370-381 - `QFileDialog.getSaveFileName` returns the path string verbatim
+- kayakgen/ui/desktop.py:375 - `stem = path.removesuffix("_hull.stl").removesuffix(".stl")` (no `Path.resolve()`)
+- kayakgen/ui/desktop.py:379-380 - `geom.generate_stl("hull", f"{stem}_hull.stl")` writes to the unsanitized stem location
+impact: **This is not a security boundary issue** — the path is operator-supplied via a save dialog; there is no untrusted JSON / external file driving the write. The threat model differs from BUG-005, BUG-007, and BUG-012 (which were attacker-controlled paths feeding into validation/loading). The actual risk here is operator footgun: typing `../foo/bar` into the dialog writes to a location the operator probably didn't intend. Parent-thread downgrade: subagent classified as `medium/security`; reclassified as `low/implementation_gap` to reflect the trust boundary.
+recommended_action: Normalise the path via `Path(path).resolve()` before passing to `generate_stl`. Optionally clamp to a permitted parent (e.g., the dialog's initial directory) and emit a warning if the resolved path escapes. Low priority; this is defensive ergonomics, not a security fix.
+follow_up: docs fix or new striatum workflow (low priority)
+
+### BUG-038: Slider re-entrance during class-preset seeding lacks protection
+
+severity: low
+category: concurrency
+status: open
+surface: kayakgen/ui/desktop.py
+discovered: 2026-05-29 tick-15
+claim: During class-preset seeding (`_on_class_select` lines 189-197), the code sets `_applying_class = True` as a re-entrance guard and then calls `slider.set_val(val)` five times in a loop. Each call triggers `_on_change` callback, which checks `_applying_class` at line 315 to short-circuit the custom-class flip. However, the guard does not prevent the full `_on_change` logic (plots, 3D timer, metrics refresh) from executing 5 times, resulting in expensive redundant work. The comment at line 191-192 acknowledges this ("Cheap because we set five values") but it is not actually cheap.
+evidence:
+- kayakgen/ui/desktop.py:189-197 - loop executes 5 times, each calling `set_val` which triggers `_on_change`
+- kayakgen/ui/desktop.py:315-329 - `_on_change` runs plots, 3D timer, and metrics refresh every call, even during class preset
+- kayakgen/ui/desktop.py:326 - `self.update_plots()` is O(geometry computation), called 5 times redundantly
+- kayakgen/ui/desktop.py:329 - `self._refresh_metrics()` is O(hydrostatics evaluation), called 5 times redundantly
+impact: Class-preset selection is visibly slower than necessary because plots and metrics are recomputed 5 times instead of once. On slow machines or with high-resolution geometries, this can cause UI lag.
+recommended_action: Extend the `_applying_class` guard to skip the expensive `update_plots()` and `_refresh_metrics()` calls during seeding. After all 5 values are set, call `self.update_plots()` and `self._refresh_metrics()` once explicitly. This matches the web version's `_applying_class_preset` guard pattern (documented at kayakgen/ui/web/app.py:932).
+follow_up: new striatum workflow (performance optimization, medium priority)
