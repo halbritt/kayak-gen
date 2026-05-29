@@ -1451,3 +1451,27 @@ impact: None; surface is functionally sound for claim discipline. The four tick-
 recommended_action: No new striatum workflows required. The surface can be marked "settled" for a second pass unless RFC 0061 migrations expose new integration points. Continue tracking the four existing findings (BUG-035..038) to resolution.
 follow_up: wontfix (positive baseline for second-pass; existing issues BUG-035..038 remain open)
 
+
+### BUG-084: Controllers surface tick-29 second-pass: no new bugs beyond tick-14 baseline
+
+severity: info
+category: claim_gate
+status: open
+surface: kayakgen/ui/web/controllers.py
+discovered: 2026-05-29 tick-29
+claim: Tick-29 conducted a comprehensive second-pass survey of `kayakgen/ui/web/controllers.py` (the REST-route-mounting glue layer) applying the 11-pattern lens: UTF-8 encoding, JSON canonical-ordering, Atomic-write, NaN-validator, Path-traversal, Concurrency, Operator-int bounds, Float-equality, Cross-field validators, Hash-format, Vendor-extractor, and Cross-mode state leak. Beyond the positive baseline established in tick-14 (BUG-034), no new actionable bugs were identified.
+evidence:
+- kayakgen/ui/web/controllers.py:1-536 — comprehensive re-scan covering all 37 async/sync handler functions, helper payload functions, and initialization
+- UTF-8 encoding: no file I/O present; all JSON responses via `web.json_response()` delegated to aiohttp (lines 196-207)
+- Atomic-write: no file writes in this module; service functions (artifacts.py, generative_jobs.py) own persistence
+- Path-traversal: query param `part` (line 218) passed to `stl_bytes_for_part()` which delegates to `geom.mesh(part)` that validates against `PartType = Literal["hull", "deck"]` (geometry.py:33); match_info params (`id`, `job_id`) are passed to service lookups (dict/db queries, not path construction)
+- Concurrency: no mutable state in handlers; stores passed as parameters (lines 166-170) not modified; exception handling guards ensure no cross-request state leaks
+- Operator-int bounds: `since_byte` parsed (line 377) with graceful fallback to 0 on ValueError; downstream `tail_log_file()` clamps negative values (generative_jobs.py) and Python slice semantics handle out-of-bounds reads safely
+- Type validation: line 451 correctly rejects booleans from int field (`isinstance(new_seed, int) or isinstance(new_seed, bool)` is precise; Python bool is int subclass)
+- No float-equality, NaN-validator, or cross-field validator requirements in glue layer
+- No JSON serialization in this module (all responses constructed by service functions)
+- Environment variable handling safe: `_default_generative_jobs_root()` uses `os.environ.get()` safely with explicit override and fallback (lines 510-515)
+impact: None; surface remains a thin, safe re-export and route-mounting glue layer. All substantive logic lives in services/ layer where deeper invariants are checked.
+recommended_action: No new striatum workflows required. Mark `kayakgen/ui/web/controllers.py` as settled for second-pass audit. The four tick-12 findings on the broader web UI surface (BUG-029, BUG-030, BUG-031) remain open but are outside this module's scope.
+follow_up: wontfix (positive baseline for second-pass; controllers.py confirmed settled per tick-29)
+
