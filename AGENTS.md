@@ -27,11 +27,16 @@ keep going.
    this to know what is being built right now. RFCs 0007 (architectural
    revisit) and 0008 (web frontend) are the load-bearing ones for
    any new work; everything else either feeds them or sits on top.
-5. **`generator.py`** — the current implementation. ~180 lines,
-   single class, does one thing (lofted hull → STL). Reading the
-   code and reading RFC 0007 in tandem makes the planned refactor
-   obvious. *Note: `gui.py` and `pyvista_view.py` are co-equal but
-   smaller; defer them unless the task touches the UI.*
+5. **`kayakgen/model/geometry.py`** — the current lofted-geometry
+   implementation. The RFC 0007 architectural revisit has landed;
+   the `kayakgen/` package is now the home for production code.
+   The root-level shims (`generator.py`, `gui.py`, `pyvista_view.py`
+   — 57, 11, and 7 lines respectively) re-export the canonical
+   classes under their pre-refactor names so legacy scripts, tests,
+   and the desktop GUI continue to import them. Read
+   `kayakgen/model/geometry.py` and `kayakgen/model/hull.py` for
+   current behavior; read the shims only when a downstream consumer
+   breaks.
 6. **`docs/CONTEXT_HYGIENE.md`** — vendored from
    [striatum](https://github.com/halbritt/striatum/blob/main/docs/CONTEXT_HYGIENE.md).
    The practices that make sessions in this repo work. Includes the
