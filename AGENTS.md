@@ -55,8 +55,14 @@ subject:
   still mostly TODO. Read them to understand the *framework* the
   project follows; do not read them expecting current content.
   Filling these in is its own future RFC.
-- **`docs/workflows/*.json`** — striatum workflow definitions, not
-  documents. Touch only when authoring or editing a workflow.
+- **`docs/workflows/<NNNN-slug>/`** — striatum workflow scaffolds
+  (workflow.json + RUNBOOK + SOURCES + prompts + roles). These are
+  per-workflow operator playbooks, not documents you need to read
+  for orientation. Touch only when authoring or editing a workflow.
+  Note: a handful of early-era directories (`3d-rendering-design.json/`,
+  `3d-rendering-implement.json/`, `gui-usability.json/`,
+  `layout-station-view.json/`) follow a pre-numbering naming
+  convention and are kept as provenance for the RFCs they produced.
 - **`scripts/codex-striatum-adapter.sh`** — adapter, not project
   surface. Do not read for orientation.
 - **`__pycache__/`, `*.stl`** at repo root — build artifacts;
