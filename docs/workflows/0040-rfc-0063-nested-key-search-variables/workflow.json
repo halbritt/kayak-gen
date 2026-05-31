@@ -1,0 +1,134 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0040-rfc-0063-nested-key-search-variables",
+  "workflow_version": "2026-05-31",
+  "name": "0040 — Nested-key search variables (RFC 0063)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0040-rfc-0063-nested-key-search-variables",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["claude", "--model", "opus", "-p"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["codex", "exec", "--model", "gpt-5.5", "-"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["gemini", "--model", "gemini-3.1-pro-preview"],
+      "capabilities": ["review"]
+    }
+  },
+  "roles": {
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "reviewer":    {"definition_path": "roles/reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/rfcs/0063-nested-key-search-variables.md", "required": true},
+    {"path": "docs/rfcs/0044-active-hull-design-search.md", "required": false},
+    {"path": "docs/rfcs/0047-ehvi-active-search-v2.md", "required": false},
+    {"path": "docs/rfcs/0048-distribution-v2-geometry.md", "required": false},
+    {"path": "kayakgen/search/active/runner.py", "required": true},
+    {"path": "kayakgen/search/active/spec.py", "required": true},
+    {"path": "kayakgen/model/hull.py", "required": true},
+    {"path": "kayakgen/model/distribution_v2.py", "required": true},
+    {"path": "docs/examples/search_touring_sea_kayak_pareto.json", "required": true},
+    {"path": "docs/workflows/0040-rfc-0063-nested-key-search-variables/SOURCES.md", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 2,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement",
+      "type": "build",
+      "title": "Land RFC 0063 dotted-path resolver in _hull_from_genome + tests + example",
+      "role_id": "implementer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Land RFC 0063: extend kayakgen/search/active/runner.py::_hull_from_genome so search-space keys may contain dots (e.g. 'distribution_v2.cross_section_family'); add SearchSpec model_validator that walks dotted paths against a synthesized hull at spec-load time; add tests/test_active_search_nested_keys.py covering dotted-path overlays, missing-path rejection, and flat-key byte-stability; add docs/examples/search_distribution_v2_section_family.json; flip docs/rfcs/0063-nested-key-search-variables.md status from proposed to landed and update docs/rfcs/README.md row.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/search/active/runner.py",
+          "kayakgen/search/active/spec.py",
+          "tests/test_active_search_nested_keys.py",
+          "docs/examples/search_distribution_v2_section_family.json",
+          "docs/rfcs/0063-nested-key-search-variables.md",
+          "docs/rfcs/README.md",
+          "docs/workflows/0040-rfc-0063-nested-key-search-variables/PATCH_SUMMARY.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "CHANGELOG.md",
+          "docs/USER_GUIDE.md",
+          "docs/DECISION_LOG.md",
+          "docs/SPEC.md",
+          "docs/PRD.md",
+          "docs/ROADMAP.md",
+          "docs/ARCHITECTURE_MAP.md",
+          "docs/UBIQUITOUS_LANGUAGE.md",
+          "kayakgen/model/hull.py",
+          "kayakgen/model/distribution_v2.py",
+          "kayakgen/search/sweep.py",
+          "kayakgen/search/objectives.py",
+          "kayakgen/search/pareto.py"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "patch_summary",
+          "kind": "patch_summary",
+          "path": "docs/workflows/0040-rfc-0063-nested-key-search-variables/PATCH_SUMMARY.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Verify dotted-path resolver lands without flat-key regression and with full validator coverage",
+      "role_id": "reviewer",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Verify (a) flat-key search specs produce byte-identical run.json output to the pre-refactor behaviour (regression test enforces); (b) dotted-path keys resolve correctly into nested writes on the synthesized Hull; (c) the SearchSpec model_validator rejects dotted paths that reference non-existent fields at spec-load time with a clear error; (d) the new example config under docs/examples/ runs end-to-end (small smoke-test budget); (e) RFC 0063 cross-references and rfcs/README.md row are coherent. Produce REVIEW.md.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/workflows/0040-rfc-0063-nested-key-search-variables/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review",
+          "kind": "finding",
+          "path": "docs/workflows/0040-rfc-0063-nested-key-search-variables/REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [{"from": "implement", "to": "review", "on": "completed"}],
+  "cycles": []
+}
