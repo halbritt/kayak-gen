@@ -21,6 +21,7 @@ order before continuing the algorithm.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import math
@@ -163,8 +164,39 @@ def _make_sweep_spec_shim(search: SearchSpec) -> SweepSpec:
 # ---------------------------------------------------------------------------
 
 
+def _apply_genome(base: dict[str, Any], genome: dict[str, Any]) -> dict[str, Any]:
+    """Overlay genome values onto base, honoring dotted-path keys (RFC 0063).
+
+    Flat keys (``"length_m"``) overlay at top level — byte-identical to
+    the pre-RFC-0063 ``dict(base) | dict(genome)`` behaviour. Dotted keys
+    (``"distribution_v2.cross_section_family"``) traverse into nested
+    dicts and set the leaf, raising ``ValueError`` if the traversal hits
+    a missing or non-dict node.
+    """
+    attempted = copy.deepcopy(base)
+    for key, value in genome.items():
+        if "." not in key:
+            attempted[key] = value
+            continue
+        parts = key.split(".")
+        cursor: Any = attempted
+        for part in parts[:-1]:
+            if not isinstance(cursor, dict) or part not in cursor or not isinstance(cursor[part], dict):
+                raise ValueError(
+                    f"search variable {key!r} traverses missing or non-dict path "
+                    f"at {part!r} (genome must target an existing nested record)"
+                )
+            cursor = cursor[part]
+        if not isinstance(cursor, dict):
+            raise ValueError(
+                f"search variable {key!r} cannot write leaf {parts[-1]!r} into non-dict node"
+            )
+        cursor[parts[-1]] = value
+    return attempted
+
+
 def _hull_from_genome(spec: SearchSpec, genome: dict[str, Any]) -> tuple[Hull, dict[str, Any]]:
-    attempted = dict(spec.base_hull) | dict(genome)
+    attempted = _apply_genome(spec.base_hull, genome)
     hull = Hull.model_validate(attempted)
     return hull, attempted
 
@@ -233,7 +265,10 @@ def _build_pending_record(
     genome: dict[str, Any],
     generation_index: int,
 ) -> CandidateRecord:
-    attempted = dict(spec.base_hull) | dict(genome)
+    try:
+        attempted = _apply_genome(spec.base_hull, genome)
+    except ValueError:
+        attempted = dict(spec.base_hull) | dict(genome)
     summary = {"queued_in_generation": generation_index}
     return CandidateRecord(
         candidate_index=index,

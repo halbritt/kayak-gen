@@ -1,0 +1,40 @@
+{
+  "schema_version": "1",
+  "name": "distribution-v2-section-family-example",
+  "base_hull": {
+    "geometry_kind": "distribution_v2",
+    "length_m": 5.49,
+    "beam_oa_m": 0.55,
+    "draft_m": 0.12,
+    "distribution_v2": {
+      "waterline_half_breadth": {"kind": "uniform", "value": 0.25},
+      "draft_profile":          {"kind": "uniform", "value": 0.087},
+      "section_area_curve":     {"kind": "uniform", "value": 0.012},
+      "deck_freeboard":         {"kind": "uniform", "value": 0.15},
+      "rocker":                 {"kind": "uniform", "value": 0.0},
+      "cross_section_family":   "round",
+      "deadrise_deg":           0.0
+    }
+  },
+  "search_space": {
+    "length_m": {"kind": "uniform", "min": 5.30, "max": 5.60},
+    "distribution_v2.cross_section_family": {
+      "kind": "choice",
+      "values": ["round", "shallow_arch", "shallow_v", "deep_v", "hard_chine"]
+    },
+    "distribution_v2.deadrise_deg": {"kind": "uniform", "min": 0.0, "max": 15.0}
+  },
+  "algorithm": {
+    "kind": "nsga2",
+    "population_size": 12,
+    "generations": 3,
+    "seed": 1234
+  },
+  "evaluators": {
+    "hydrostatics": true
+  },
+  "budget": {
+    "max_evaluations": 48,
+    "wall_clock_seconds": 600
+  }
+}

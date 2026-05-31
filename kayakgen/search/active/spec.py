@@ -188,6 +188,53 @@ class SearchSpec(BaseModel):
             raise ValueError("search_space must define at least one variable")
         return value
 
+    @model_validator(mode="after")
+    def _validate_dotted_search_keys(self) -> "SearchSpec":
+        """Reject dotted-path keys that don't resolve against base_hull (RFC 0063).
+
+        Catches typos at spec-load time rather than at first-candidate
+        evaluation. The check walks each dotted key against a fully
+        synthesized :class:`Hull` built from ``base_hull`` (so defaults
+        and nested ``distribution_v2`` records are populated) and confirms
+        the traversal reaches an existing leaf.
+        """
+        dotted = [key for key in self.search_space if "." in key]
+        if not dotted:
+            return self
+        # Import locally to avoid a module-level circular import: Hull
+        # transitively imports kayakgen.search.sweep (for EvaluatorOptions
+        # consumers in some test fixtures) on certain Python configurations.
+        from kayakgen.model.hull import Hull
+
+        try:
+            synthesized = Hull.model_validate(self.base_hull)
+        except Exception as exc:
+            raise ValueError(
+                f"cannot validate dotted-path search keys: base_hull does not validate "
+                f"as a Hull ({exc})"
+            ) from exc
+        payload = synthesized.model_dump()
+        for key in dotted:
+            parts = key.split(".")
+            cursor: Any = payload
+            for part in parts[:-1]:
+                if not isinstance(cursor, dict) or part not in cursor:
+                    raise ValueError(
+                        f"search variable {key!r} traverses missing field at {part!r} "
+                        f"(synthesized hull from base_hull has no such nested record)"
+                    )
+                cursor = cursor[part]
+                if cursor is None:
+                    raise ValueError(
+                        f"search variable {key!r} traverses null intermediate at {part!r}; "
+                        f"base_hull must populate the nested record before search can target it"
+                    )
+            if not isinstance(cursor, dict) or parts[-1] not in cursor:
+                raise ValueError(
+                    f"search variable {key!r} terminates at unknown leaf {parts[-1]!r}"
+                )
+        return self
+
 
 TerminationReason = Literal[
     "budget_exhausted",

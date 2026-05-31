@@ -1,6 +1,7 @@
 # RFC 0063: Nested-key search variables for active-search runner
 
-Status: proposed
+Status: landed
+Landed by: workflow 0040-rfc-0063-nested-key-search-variables on 2026-05-31
 Date: 2026-05-31
 Context: RFC 0044 (NSGA-II active search), RFC 0047 (EHVI v2), RFC 0048
 (distribution_v2 geometry), `kayakgen/search/active/runner.py::_hull_from_genome`.
