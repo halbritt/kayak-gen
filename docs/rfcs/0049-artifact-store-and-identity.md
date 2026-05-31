@@ -1,6 +1,6 @@
 # RFC 0049: Artifact Store and Identity Normalization
 
-Status: proposed
+Status: landed Hull.{record,design}_hash + FilesystemArtifactStore + SqliteIndex + kayakgen runs CLI
 Date: 2026-05-16
 Context: Phase 4 of `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`.
 Today's sweep/search/CFD/comparison artifacts live as files in

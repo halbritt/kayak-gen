@@ -1,6 +1,6 @@
 # RFC 0051: Builder-Oriented Exports
 
-Status: proposed
+Status: landed kayakgen build-export + 7 artifact writers under [builder] extras
 Date: 2026-05-16
 Context: Phase 8 item 2 of
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. Today's hull

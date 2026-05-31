@@ -1,6 +1,6 @@
 # RFC 0055: Design Report Export
 
-Status: proposed
+Status: landed kayakgen design-report + jinja2 template + forbidden-copy scan + optional [report] PDF extras
 Date: 2026-05-16
 Context: Phase 8 item 6 of
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. Today's outputs

@@ -1,6 +1,6 @@
 # RFC 0050: Target-Displacement and Target-Trim Design Workflows
 
-Status: proposed
+Status: landed kayakgen target-draft + target-trim subcommands
 Date: 2026-05-16
 Context: Phase 8 item 1 of
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. Today's evaluators

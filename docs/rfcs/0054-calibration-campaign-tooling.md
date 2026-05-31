@@ -1,6 +1,6 @@
 # RFC 0054: Calibration-Campaign Tooling
 
-Status: proposed
+Status: landed kayakgen calibration sub-app + tank/inclining/AcceptedFitRecord schemas + accepted-fit gate wiring
 Date: 2026-05-16
 Context: Phase 8 item 5 of
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. RFCs 0042 / 0027

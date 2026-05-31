@@ -1,6 +1,6 @@
 # RFC 0053: Turning and Edged-Waterline Metrics
 
-Status: proposed
+Status: landed TurningMetrics + opt-in --turning flag + sweep evaluator
 Date: 2026-05-16
 Context: Phase 8 item 4 of
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. Today's

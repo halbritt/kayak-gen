@@ -1,6 +1,6 @@
 # RFC 0052: Sensitivity and Uncertainty Views
 
-Status: proposed
+Status: landed kayakgen sensitivity + ConvergenceFlag + pairwise-noise advisory
 Date: 2026-05-16
 Context: Phase 8 item 3 of
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. Today's evaluator

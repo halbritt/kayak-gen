@@ -63,7 +63,6 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0047](0047-active-search-v2-successor-algorithms.md) | landed v2 EHVI over vendored Cholesky GP (1-3 objectives; additive opt-in; defaults unchanged) | Active search v2 — EHVI/GP Bayesian successor |
 | [0048](0048-geometry-v2-distribution-model.md) | landed v1 distribution_v2 + 6 cross-section families + hydrostatic cross-check + migrate-geometry CLI | Geometry V2 — explicit distribution model + canonical closed-body loft |
 | [0049](0049-artifact-store-and-identity.md) | landed Hull.{record,design}_hash + FilesystemArtifactStore + SqliteIndex + kayakgen runs CLI | Artifact store + identity normalization |
-
 | [0050](0050-target-displacement-and-trim-workflows.md) | landed kayakgen target-draft + target-trim subcommands | Target-displacement and target-trim design workflows |
 | [0051](0051-builder-oriented-exports.md) | landed kayakgen build-export + 7 artifact writers under [builder] extras | Builder-oriented exports (DXF/SVG/offsets) |
 | [0052](0052-sensitivity-and-uncertainty-views.md) | landed kayakgen sensitivity + ConvergenceFlag + pairwise-noise advisory | Sensitivity and uncertainty views |
