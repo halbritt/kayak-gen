@@ -1,6 +1,6 @@
 # RFC 0042: Resistance Calibration Fixture Successor
 
-Status: partial landed source-review-packet-validators + Edinburgh acquisition + real extractor + D025 promotion to validation_fixture; calibration_fixture still blocked by Pacific-canoe envelope and absent accepted-fit workflow
+Status: superseded by RFC 0054 + D006 (closed by RFC 0064); source-review + Edinburgh acquisition complete, kayak-envelope calibration source tracked by D006
 Date: 2026-05-14
 Context: successor to RFC 0019 after RFC 0025 claim gates and RFC 0027
 acceptance gates landed. Current resistance output remains raw ITTC/Michell

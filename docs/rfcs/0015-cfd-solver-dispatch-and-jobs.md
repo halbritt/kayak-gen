@@ -1,6 +1,6 @@
 # RFC 0015: CFD Solver Dispatch and Jobs
 
-Status: partial local-dispatch
+Status: superseded by RFC 0041 (closed by RFC 0064)
 Date: 2026-05-13
 Context: RFC 0008 reserves heavy CFD jobs behind web stubs, RFC 0010 defines
 mesh package/readiness metadata, and RFC 0012 keeps resistance calibration

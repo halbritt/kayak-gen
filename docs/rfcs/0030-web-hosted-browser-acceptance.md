@@ -1,6 +1,6 @@
 # RFC 0030: Web Hosted and Browser Acceptance
 
-Status: proposed
+Status: deferred indefinitely per D023 (closed by RFC 0064)
 Date: 2026-05-13
 Context: closes deferred RFC 0008 hosted-demo, browser acceptance,
 console-clean Lighthouse, plot/dashboard parity, and web CFD route boundaries.

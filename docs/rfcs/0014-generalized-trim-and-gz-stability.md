@@ -1,6 +1,6 @@
 # RFC 0014: Generalized Trim and GZ Stability
 
-Status: partial trim-slice
+Status: superseded by RFC 0043 (closed by RFC 0064)
 Date: 2026-05-13
 Context: RFC 0011 landed explicit load cases and equilibrium sinkage, but left
 generalized trim and high-angle stability open. Workflow 0022 landed compatible

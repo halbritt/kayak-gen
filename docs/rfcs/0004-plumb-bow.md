@@ -1,6 +1,6 @@
 # RFC 0004: Plumb Bow Support
 
-Status: partial safe-slice
+Status: superseded by RFC 0028 (closed by RFC 0064)
 Date: 2026-05-09
 Context: generator.py, gui.py; follows RFC 0003
 

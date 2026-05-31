@@ -1,6 +1,6 @@
 # RFC 0018: Web CFD Job Routes
 
-Status: partial local-web-dispatch
+Status: landed local-dispatch + browser CFD panel; hosted variant deferred per D023 (closed by RFC 0064)
 Date: 2026-05-13
 Context: builds on RFC 0008 web frontend direction, RFC 0010 mesh packages,
 and RFC 0015 local CFD job records.

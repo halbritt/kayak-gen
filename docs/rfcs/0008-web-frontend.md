@@ -1,6 +1,6 @@
 # RFC 0008: Portable Web Frontend (Trame)
 
-Status: partial web-analysis
+Status: superseded by RFC 0032 (closed by RFC 0064); hosted demo deferred per D023
 Date: 2026-05-09
 Context: builds on RFC 0007 (architectural revisit). Touches the
 `kayakgen.ui` and `kayakgen.cli` boundaries; does not change

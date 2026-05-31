@@ -1,6 +1,6 @@
 # RFC 0017: First Real CFD Adapter
 
-Status: proposed
+Status: superseded by RFC 0041 (closed by RFC 0064)
 Date: 2026-05-13
 Context: builds on RFC 0010 mesh packages, RFC 0015 local CFD job dispatch,
 and RFC 0012 resistance provenance boundaries.

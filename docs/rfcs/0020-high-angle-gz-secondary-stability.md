@@ -1,6 +1,6 @@
 # RFC 0020: High-Angle GZ and Secondary Stability
 
-Status: proposed
+Status: superseded by RFC 0024 + RFC 0043 (closed by RFC 0064)
 Date: 2026-05-13
 Context: builds on RFC 0014 generalized trim and reserved `GZCurve` contract,
 and depends on RFC 0016 closed-volume geometry.

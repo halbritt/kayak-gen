@@ -8,6 +8,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Changed
 
+- RFC 0064 landed — burned down 14 outstanding RFC dispositions to
+  `landed` / `superseded by …` / `deferred per D023` so the README
+  index and individual RFC files agree. Stability-rig pair
+  (RFC 0043 stage 4, RFC 0056 fixture promotion) remains deferred
+  per operator's standing decision. Doc-only; no code changes.
 - Audit status hygiene pass: flipped stale `open —` statuses to
   `closed by <ref>` across three audit `SYNTHESIS.md` tables.
   These were findings that had been closed by prior commits in

@@ -1,6 +1,6 @@
 # RFC 0012: Resistance Model Calibration
 
-Status: proposed
+Status: superseded by RFC 0054 + D006 (closed by RFC 0064); calibration tooling complete, data acquisition tracked by D006
 Date: 2026-05-13
 Context: RFC 0005 has landed as a raw comparative filter. The current ITTC
 estimator is usable, while the Michell implementation is documented as an

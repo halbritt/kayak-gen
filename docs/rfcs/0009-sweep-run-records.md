@@ -1,6 +1,6 @@
 # RFC 0009: Sweep and Candidate Run Records
 
-Status: partial landed sweep-run-record slice
+Status: superseded by RFC 0057 (closed by RFC 0064)
 Date: 2026-05-13
 Context: builds on RFC 0007 package/CLI extraction, RFC 0005 resistance
 filtering, RFC 0006 class constraints, and the `kayakgen.search` namespace.

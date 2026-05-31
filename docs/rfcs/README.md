@@ -17,23 +17,23 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0001](0001-template.md) | template | RFC template — copy for new RFCs |
 | [0002](0002-gui-usability.md) | landed | GUI usability improvements |
 | [0003](0003-layout-and-station-view.md) | landed | Window layout and station-view slider |
-| [0004](0004-plumb-bow.md) | partial safe-slice | Plumb bow support (`bow_rake` parameter) |
+| [0004](0004-plumb-bow.md) | superseded by RFC 0028 | Plumb bow support (`bow_rake` parameter) — exact plumb-stem closure semantics owned by 0028; cleanup by RFC 0064 |
 | [0005](0005-cfd-resistance.md) | landed raw-filter | Resistance estimation (Michell + ITTC) |
-| [0006](0006-design-constraints.md) | partial safe-slice | Hull design constraints — canonical parameter space and class presets |
+| [0006](0006-design-constraints.md) | landed | Hull design constraints — canonical parameter space + 4 class presets + beam_wl validation; richer surfacing absorbed by RFC 0031 / 0048 / 0061; cleanup by RFC 0064 |
 | [0007](0007-architectural-revisit.md) | landed | Architectural revisit — extract `kayakgen` package before more parameters land |
-| [0008](0008-web-frontend.md) | partial web-analysis | Portable web frontend via Trame |
-| [0009](0009-sweep-run-records.md) | partial landed sweep-run-record slice | Sweep and candidate run records |
+| [0008](0008-web-frontend.md) | superseded by RFC 0032 | Portable web frontend via Trame — web-analysis safe-slice landed; hosted demo deferred per D023; cleanup by RFC 0064 |
+| [0009](0009-sweep-run-records.md) | superseded by RFC 0057 | Sweep and candidate run records — deterministic runner + records landed; pending lifecycle + generative jobs owned by 0057; cleanup by RFC 0064 |
 | [0010](0010-cfd-ready-mesh-contract.md) | landed package/profile | CFD-ready mesh contract |
 | [0011](0011-hydrostatic-stability-load-cases.md) | landed equilibrium-sinkage + trim-slice | Hydrostatic stability and load cases |
-| [0012](0012-resistance-model-calibration.md) | proposed | Resistance model calibration |
+| [0012](0012-resistance-model-calibration.md) | superseded by RFC 0054 + D006 | Resistance model calibration — tooling complete (`kayakgen calibration`); kayak-envelope measured-resistance source tracked by D006; cleanup by RFC 0064 |
 | [0013](0013-pareto-frontier-comparison-ui.md) | landed report/web-slice | Pareto frontier and candidate comparison UI |
-| [0014](0014-generalized-trim-and-gz-stability.md) | partial trim-slice | Generalized trim and high-angle GZ stability |
-| [0015](0015-cfd-solver-dispatch-and-jobs.md) | partial local-dispatch | CFD solver dispatch and job artifacts |
+| [0014](0014-generalized-trim-and-gz-stability.md) | superseded by RFC 0043 | Generalized trim and high-angle GZ stability — trim equilibrium landed; high-angle GZ owned by 0043; cleanup by RFC 0064 |
+| [0015](0015-cfd-solver-dispatch-and-jobs.md) | superseded by RFC 0041 | CFD solver dispatch and job artifacts — local dispatch landed; real OpenFOAM in 0041; cleanup by RFC 0064 |
 | [0016](0016-closed-volume-geometry.md) | landed synthetic-contract safe-slice | Closed-volume geometry contract |
-| [0017](0017-first-real-cfd-adapter.md) | proposed background; successor 0041 | First real CFD adapter |
-| [0018](0018-web-cfd-job-routes.md) | partial local-web-dispatch | Web CFD job routes |
-| [0019](0019-resistance-calibration-fixtures.md) | proposed background; successor 0042 | Resistance calibration fixtures |
-| [0020](0020-high-angle-gz-secondary-stability.md) | proposed background; successors 0024/0043 | High-angle GZ and secondary stability |
+| [0017](0017-first-real-cfd-adapter.md) | superseded by RFC 0041 | First real CFD adapter — successor 0041 landed; cleanup by RFC 0064 |
+| [0018](0018-web-cfd-job-routes.md) | landed | Web CFD job routes — local dispatch + browser CFD panel; hosted variant deferred per D023; cleanup by RFC 0064 |
+| [0019](0019-resistance-calibration-fixtures.md) | superseded by RFC 0042 | Resistance calibration fixtures — successor 0042 landed; cleanup by RFC 0064 |
+| [0020](0020-high-angle-gz-secondary-stability.md) | superseded by RFC 0024 + RFC 0043 | High-angle GZ and secondary stability — successors landed; cleanup by RFC 0064 |
 | [0021](0021-closed-volume-self-intersection-diagnostics.md) | landed synthetic-diagnostic | Closed-volume self-intersection diagnostics |
 | [0022](0022-generated-closed-body-construction.md) | landed generated-body safe-slice | Generated hull-plus-deck closed-body construction |
 | [0023](0023-watertight-volume-mesh-handoff.md) | landed fixture-handoff | Watertight volume mesh and `cfd_ready` handoff |
@@ -41,21 +41,21 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0025](0025-cfd-calibration-claim-gates.md) | landed claim-gates | CFD and calibration claim gates |
 | [0026](0026-first-real-cfd-fixture-adapter.md) | landed fixture-local-command | First real CFD fixture adapter |
 | [0027](0027-resistance-calibration-acceptance.md) | landed acceptance-gates | Resistance calibration acceptance |
-| [0028](0028-plumb-stem-closure-semantics.md) | partial safe-slice | Plumb-stem closure semantics |
-| [0029](0029-design-constraint-surfacing.md) | proposed background | Design constraint surfacing and validity metadata, superseded by RFC 0031 for implementation |
-| [0030](0030-web-hosted-browser-acceptance.md) | proposed | Web hosted and browser acceptance |
+| [0028](0028-plumb-stem-closure-semantics.md) | landed | Plumb-stem closure semantics — independent stern_rake + cap construction + plumb-aware diagnostics; manufacturing thickness out of scope; cleanup by RFC 0064 |
+| [0029](0029-design-constraint-surfacing.md) | superseded by RFC 0031 | Design constraint surfacing and validity metadata — implementation landed via 0031; cleanup by RFC 0064 |
+| [0030](0030-web-hosted-browser-acceptance.md) | deferred per D023 | Web hosted and browser acceptance — public hosted demo deferred indefinitely; cleanup by RFC 0064 |
 | [0031](0031-design-constraint-surfacing-revision.md) | landed validity-metadata slice | Design constraint surfacing revision |
 | [0032](0032-web-hosted-browser-acceptance-revision.md) | landed local-browser-docs | Web hosted browser acceptance revision |
-| [0033](0033-workspace-ui-rework.md) | partial landed safe-slice | Workspace UI rework — three-region web shell, semantic theme, claim/readiness/status chips |
+| [0033](0033-workspace-ui-rework.md) | superseded by RFC 0034 + RFC 0035 | Workspace UI rework — three-region web shell, semantic theme, claim/readiness/status chips; follow-ups by 0034/0035/0057; cleanup by RFC 0064 |
 | [0034](0034-workspace-ui-follow-up.md) | landed safe-slice | Workspace UI follow-up — dynamic presets, review-card wiring, export menu, and forbidden-copy tests |
 | [0035](0035-ui-follow-up-cleanup.md) | landed safe-slice | UI follow-up cleanup — validity semantics, export/state hygiene, slider-label maintenance |
 | [0036](0036-trame-seed-listener-proof.md) | landed retain-with-trame-state-proof | Trame seed listener proof |
 | [0037](0037-export-row-schema-consolidation.md) | landed subtitle-only-schema | Export row schema consolidation |
 | [0038](0038-export-menu-disabled-copy-polish.md) | landed disabled-copy-polish | Export menu disabled copy polish |
 | [0039](0039-web-snapshot-schema-unification.md) | landed shared-schema-unification | Web snapshot schema unification |
-| [0040](0040-closed-volume-solver-readiness-roadmap.md) | partial landed generated-body-hardening + real snappyHexMesh evidence harness (opt-in env-gated) | Closed-volume solver readiness roadmap |
+| [0040](0040-closed-volume-solver-readiness-roadmap.md) | superseded by RFC 0041 + RFC 0045 | Closed-volume solver readiness roadmap — generated-body hardening + snappyHexMesh evidence (opt-in) landed; real solver + ordinary-package promotion in 0041 / 0045; cleanup by RFC 0064 |
 | [0041](0041-real-cfd-adapter-successor.md) | landed real openfoam-v2512-interfoam-local succeeded path (opt-in env-gated); claim_state stays raw_unvalidated | Real CFD adapter successor |
-| [0042](0042-resistance-calibration-fixture-successor.md) | partial landed source-review-packet-validators + Edinburgh acquisition + extractor + D025 promotion to validation_fixture; calibration still envelope-blocked | Resistance calibration fixture successor |
+| [0042](0042-resistance-calibration-fixture-successor.md) | superseded by RFC 0054 + D006 | Resistance calibration fixture successor — source-review + Edinburgh acquisition + D025 promotion landed; kayak-envelope source tracked by D006; cleanup by RFC 0064 |
 | [0043](0043-high-angle-gz-successor.md) | landed staged surfacing (stages 1-3 + web read model + stage 4 desktop minimal status segment) | High-angle GZ successor |
 | [0044](0044-active-hull-design-search.md) | landed v1 NSGA-II + kayakgen search CLI (additive opt-in; defaults unchanged) | Active hull-design search |
 | [0045](0045-ordinary-package-solver-readiness-promotion.md) | landed kayakgen mesh-evidence + mesh-package --bind-evidence (hash-bound; defaults unchanged) | Ordinary-package solver-readiness promotion |
@@ -77,6 +77,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0061](0061-desktop-sliders-on-hull-parameter-metadata.md) | landed | Desktop sliders on `HullParameterMetadata` — `SLIDERS`/`DEFAULTS`/`GLOBAL_RANGES` keys renamed to canonical Hull JSON names; labels sourced from the RFC 0060 registry; `target_speed_kt` lives in a new sibling `VIEW_PARAMETER_METADATA`; slider ranges in `kayakgen/ui/desktop_slider_ranges.py` (per D043 OQ1); `GUI_TO_HULL` retired to a deprecation shim. Closes D043's named desktop-migration follow-up via workflow `docs/workflows/0034-desktop-sliders-on-registry/`. |
 | [0062](0062-hydrostatics-row-metadata-registry.md) | landed | Hydrostatics row metadata registry — third application of the D043 "presentation-layer registry per surface family" pattern after RFC 0060 and RFC 0061. `HydrostaticsRowMetadata` + `HYDROSTATICS_ROW_METADATA` under `kayakgen/ui/hydrostatics_metadata.py`; `analysis_view_model::hydro_rows` consumes the registry; presentation-only (wire payload byte-stable). Closes audit finding AUD-O-005 via workflow `docs/workflows/0038-hydrostatics-row-metadata-registry/`. |
 | [0063](0063-nested-key-search-variables.md) | landed | Nested-key search variables — dotted-path syntax (`distribution_v2.cross_section_family`, `distribution_v2.deadrise_deg`) for `SearchSpec.search_space` keys so the active-search runner can sweep nested fields. Today's `_hull_from_genome` flat-overlays genome onto base_hull, so categorical / nested distribution_v2 knobs are unreachable from NSGA-II / EHVI. Motivated by the 2026-05-30 Epic 18X Sport exercise that had to fall back to hand-authored hull JSONs + `kayakgen evaluate` per cross-section family. Landed via workflow 0040. |
+| [0064](0064-outstanding-rfc-cleanup.md) | landed | Outstanding-RFC cleanup — disposition table for the 14 non-cleanly-landed RFCs as of 2026-05-31, flipping each to `landed` / `superseded by …` / `deferred per D023` to match the actual codebase state. Stability-rig pair (RFC 0043 stage 4, RFC 0056 fixture promotion) remains deferred per operator's standing decision. Doc-only; no code changes. |
 
 Architecture-plan landing notes (not RFCs themselves; see
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`):

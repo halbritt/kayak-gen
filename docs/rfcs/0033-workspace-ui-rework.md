@@ -1,6 +1,6 @@
 # RFC 0033: Workspace UI Rework
 
-Status: partial landed safe-slice
+Status: superseded by RFC 0034 + RFC 0035 (closed by RFC 0064)
 Date: 2026-05-13
 Context: distills the Claude Design "UI Rework Handoff" bundle for
 `kayak-gen`. Companion to RFC 0008 (web frontend), RFC 0013 (Pareto

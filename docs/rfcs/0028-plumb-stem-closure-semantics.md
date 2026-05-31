@@ -1,6 +1,6 @@
 # RFC 0028: Plumb-Stem Closure Semantics
 
-Status: partial safe-slice
+Status: landed independent stern_rake + cap construction + plumb-aware diagnostics; manufacturing thickness out of scope (closed by RFC 0064)
 Date: 2026-05-13
 Context: closes deferred RFC 0004 exact plumb-stem and watertight semantics;
 depends on the generated closed-body work from RFCs 0022-0024.

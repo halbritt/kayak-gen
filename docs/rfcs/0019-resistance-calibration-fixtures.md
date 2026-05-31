@@ -1,6 +1,6 @@
 # RFC 0019: Resistance Calibration Fixtures
 
-Status: proposed
+Status: superseded by RFC 0042 (closed by RFC 0064)
 Date: 2026-05-13
 Context: builds on RFC 0012 resistance provenance and the workflow 0023 source
 review that accepted an open Pacific-canoe dataset only as a validation
