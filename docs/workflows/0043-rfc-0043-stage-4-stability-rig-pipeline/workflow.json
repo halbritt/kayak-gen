@@ -1,0 +1,422 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0043-rfc-0043-stage-4-stability-rig-pipeline",
+  "workflow_version": "2026-05-31",
+  "name": "0043 — RFC 0043 stage 4 + RFC 0056 stage-4 promotion pipeline (panel design + 3-lane review + implement + 3-lane build review)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0043-rfc-0043-stage-4-stability-rig-pipeline",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "synthesizer",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["claude", "--model", "claude-opus-4-7", "--permission-mode", "bypassPermissions"],
+      "adapter_capabilities": {"agent_loop": true},
+      "capabilities": ["write", "review", "synthesis"],
+      "supervision": {"transport": "pty_helper", "require_tmux": true}
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["codex", "--model", "gpt-5.5", "-c", "model_reasoning_effort=xhigh", "--dangerously-bypass-approvals-and-sandbox"],
+      "adapter_capabilities": {"agent_loop": true},
+      "capabilities": ["write", "review", "synthesis"],
+      "supervision": {"transport": "pty_helper", "require_tmux": true}
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["gemini", "--model", "gemini-3.1-pro-preview"],
+      "adapter_capabilities": {"single_shot": true},
+      "capabilities": ["write", "review"],
+      "supervision": {"transport": "pty_helper", "require_tmux": true}
+    }
+  },
+  "roles": {
+    "designer":     {"definition_path": "roles/designer.md"},
+    "synthesizer":  {"definition_path": "roles/synthesizer.md"},
+    "reviewer":     {"definition_path": "roles/reviewer.md"},
+    "implementer":  {"definition_path": "roles/implementer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/rfcs/0043-high-angle-gz-successor.md", "required": true},
+    {"path": "docs/rfcs/0056-strain-gauged-gz-rig.md", "required": true},
+    {"path": "docs/rfcs/0054-calibration-campaign-tooling.md", "required": false},
+    {"path": "docs/rfcs/0027-resistance-calibration-acceptance.md", "required": false},
+    {"path": "docs/rfcs/0025-cfd-calibration-claim-gates.md", "required": false},
+    {"path": "kayakgen/eval/stability/measured_fixture.py", "required": true},
+    {"path": "kayakgen/eval/claims.py", "required": true},
+    {"path": "kayakgen/eval/calibration/", "required": true},
+    {"path": "kayakgen/cli/main.py", "required": false},
+    {"path": "docs/DECISION_LOG.md", "required": false},
+    {"path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/SOURCES.md", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "allow_same_model_review_pairing": true,
+  "allow_same_model_review_pairing_rationale": "The 3-lane review fans out claude+codex+gemini against the same upstream (synth_design / implement). Two of the three reviewers are always cross-model; same-model pairing is the price of always-3-lane review coverage. Reviewer posture is set per lane (ergonomics_dx / threat_model / devils_advocate) so same-model pairs still produce distinct review signals.",
+  "jobs": [
+    {
+      "id": "design_claude",
+      "type": "draft",
+      "title": "Panel design (claude lane)",
+      "role_id": "designer",
+      "lane_id": "claude",
+      "parallel_group": "design",
+      "fresh_session_required": true,
+      "objective": "Independently design the RFC 0043 stage-4 + RFC 0056 stage-4 promotion pipeline: ingestion CLI, measured_stability_fixture acceptance workflow, claim_state resolution path. Write to claude's design artifact dir; do not coordinate with the other lanes.",
+      "task_prompt": {"path": "prompts/design.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/design/claude/"
+        ],
+        "forbidden_paths": [".striatum/", "kayakgen/", "tests/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "design_claude",
+          "kind": "handoff",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/design/claude/DESIGN.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "design_codex",
+      "type": "draft",
+      "title": "Panel design (codex lane)",
+      "role_id": "designer",
+      "lane_id": "codex",
+      "parallel_group": "design",
+      "fresh_session_required": true,
+      "objective": "Independently design the RFC 0043 stage-4 + RFC 0056 stage-4 promotion pipeline: ingestion CLI, measured_stability_fixture acceptance workflow, claim_state resolution path. Write to codex's design artifact dir; do not coordinate with the other lanes.",
+      "task_prompt": {"path": "prompts/design.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/design/codex/"
+        ],
+        "forbidden_paths": [".striatum/", "kayakgen/", "tests/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "design_codex",
+          "kind": "handoff",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/design/codex/DESIGN.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "design_gemini",
+      "type": "draft",
+      "title": "Panel design (gemini lane)",
+      "role_id": "designer",
+      "lane_id": "gemini",
+      "parallel_group": "design",
+      "fresh_session_required": true,
+      "objective": "Independently design the RFC 0043 stage-4 + RFC 0056 stage-4 promotion pipeline: ingestion CLI, measured_stability_fixture acceptance workflow, claim_state resolution path. Write to gemini's design artifact dir; do not coordinate with the other lanes.",
+      "task_prompt": {"path": "prompts/design.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/design/gemini/"
+        ],
+        "forbidden_paths": [".striatum/", "kayakgen/", "tests/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "design_gemini",
+          "kind": "handoff",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/design/gemini/DESIGN.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "synth_design",
+      "type": "synthesis",
+      "title": "Synthesize the panel into one accepted design",
+      "role_id": "synthesizer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Read the three panel designs, identify shared structure and the points of disagreement, and produce a single accepted design that the implementer will follow. Preserve disagreement explicitly: any open question that the panel did not resolve goes in DESIGN_SYNTHESIS.md as an Open Question with the synthesizer's chosen disposition + rationale.",
+      "task_prompt": {"path": "prompts/synth_design.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/synthesis/"
+        ],
+        "forbidden_paths": [".striatum/", "kayakgen/", "tests/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "design_synthesis",
+          "kind": "handoff",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/synthesis/DESIGN_SYNTHESIS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_design_claude",
+      "type": "review",
+      "title": "Design review (claude lane, ergonomics_dx posture)",
+      "role_id": "reviewer",
+      "lane_id": "claude",
+      "parallel_group": "design_review",
+      "fresh_session_required": true,
+      "reviewer_context_policy": "fresh",
+      "review_posture": "ergonomics_dx",
+      "objective": "Review the synthesized design for operator + developer ergonomics: are the CLI shapes discoverable, do the error messages name the operator's next action, do the claim_state flips surface where the operator will look?",
+      "task_prompt": {"path": "prompts/review_design.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/design/claude/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review_design_claude",
+          "kind": "finding",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/design/claude/REVIEW.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_design_codex",
+      "type": "review",
+      "title": "Design review (codex lane, threat_model posture)",
+      "role_id": "reviewer",
+      "lane_id": "codex",
+      "parallel_group": "design_review",
+      "fresh_session_required": true,
+      "reviewer_context_policy": "fresh",
+      "review_posture": "threat_model",
+      "objective": "Threat-model the design. What can leak across the claim_state gate? What measurement-error / calibration-drift / fixture-misuse path could let an unaccepted measured fixture get treated as accepted? What promotion path bypasses RFC 0027 / 0025 gates?",
+      "task_prompt": {"path": "prompts/review_design.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/design/codex/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review_design_codex",
+          "kind": "finding",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/design/codex/REVIEW.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_design_gemini",
+      "type": "review",
+      "title": "Design review (gemini lane, devils_advocate posture)",
+      "role_id": "reviewer",
+      "lane_id": "gemini",
+      "parallel_group": "design_review",
+      "fresh_session_required": true,
+      "reviewer_context_policy": "fresh",
+      "review_posture": "devils_advocate",
+      "objective": "Adversarially probe the synthesized design. Find the weakest assumption: the fixture-shape choice, the acceptance-gate criterion, the claim_state transition trigger, the operator-action presentation. Argue against the synthesis and document where you would refuse to accept it.",
+      "task_prompt": {"path": "prompts/review_design.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/design/gemini/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review_design_gemini",
+          "kind": "finding",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/design/gemini/REVIEW.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "implement",
+      "type": "build",
+      "title": "Implement the synthesized + reviewed design",
+      "role_id": "implementer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "depends_on_reviews": ["review_design_claude", "review_design_codex", "review_design_gemini"],
+      "objective": "Implement the accepted design (synth_design + design-review convergence). Land: (1) measured-stability ingestion CLI under `kayakgen calibration`; (2) acceptance-gate logic against RFC 0056 schema and RFC 0027/0025 claim gates; (3) claim_state resolution path that flips analytical->measured when an accepted fixture exists; (4) tests for each above; (5) docs (DECISION_LOG.md D-series row + USER_GUIDE.md `kayakgen calibration` section update). Do NOT touch RFC 0043 / RFC 0056 status (workflow tail flips them).",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/cli/main.py",
+          "kayakgen/cli/calibration_cli.py",
+          "kayakgen/eval/stability/measured_fixture.py",
+          "kayakgen/eval/stability/measured_acceptance.py",
+          "kayakgen/eval/claims.py",
+          "kayakgen/eval/calibration/",
+          "tests/test_measured_stability_acceptance.py",
+          "tests/test_measured_stability_ingest.py",
+          "tests/test_claim_state_measured_promotion.py",
+          "docs/USER_GUIDE.md",
+          "docs/DECISION_LOG.md",
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/build/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "docs/rfcs/",
+          "kayakgen/ui/",
+          "kayakgen/services/",
+          "kayakgen/model/hull.py",
+          "kayakgen/model/distribution_v2.py",
+          "kayakgen/search/",
+          "kayakgen/eval/resistance.py",
+          "kayakgen/eval/cfd/",
+          "CHANGELOG.md"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "implementation_handoff",
+          "kind": "handoff",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/build/HANDOFF.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_build_claude",
+      "type": "review",
+      "title": "Build review (claude lane, ergonomics_dx posture)",
+      "role_id": "reviewer",
+      "lane_id": "claude",
+      "parallel_group": "build_review",
+      "fresh_session_required": true,
+      "reviewer_context_policy": "fresh",
+      "review_posture": "ergonomics_dx",
+      "objective": "Review the implementation for operator and developer ergonomics: are the CLI invocations discoverable from `kayakgen calibration --help`? Do error messages name the next operator action? Does USER_GUIDE.md update the right section?",
+      "task_prompt": {"path": "prompts/review_build.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/build/claude/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review_build_claude",
+          "kind": "finding",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/build/claude/REVIEW.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_build_codex",
+      "type": "review",
+      "title": "Build review (codex lane, threat_model posture)",
+      "role_id": "reviewer",
+      "lane_id": "codex",
+      "parallel_group": "build_review",
+      "fresh_session_required": true,
+      "reviewer_context_policy": "fresh",
+      "review_posture": "threat_model",
+      "objective": "Threat-model the build. Find the path where a non-accepted fixture is treated as accepted, or an accepted-fixture claim_state flip escapes the RFC 0027 / 0025 audit trail. Find anywhere a measurement-error or units typo could land silently. Verify the tests cover the threat surface, not just the happy path.",
+      "task_prompt": {"path": "prompts/review_build.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/build/codex/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review_build_codex",
+          "kind": "finding",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/build/codex/REVIEW.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_build_gemini",
+      "type": "review",
+      "title": "Build review (gemini lane, devils_advocate posture)",
+      "role_id": "reviewer",
+      "lane_id": "gemini",
+      "parallel_group": "build_review",
+      "fresh_session_required": true,
+      "reviewer_context_policy": "fresh",
+      "review_posture": "devils_advocate",
+      "objective": "Adversarially probe the implementation. What did the implementer skip that the design called for? What test case is missing where the build would silently regress? What's the weakest part of the acceptance gate the implementer rationalized away? Argue against the build.",
+      "task_prompt": {"path": "prompts/review_build.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/build/gemini/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review_build_gemini",
+          "kind": "finding",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/build/gemini/REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "design_claude",        "to": "synth_design", "on": "completed"},
+    {"from": "design_codex",         "to": "synth_design", "on": "completed"},
+    {"from": "design_gemini",        "to": "synth_design", "on": "completed"},
+    {"from": "synth_design",         "to": "review_design_claude", "on": "completed"},
+    {"from": "synth_design",         "to": "review_design_codex",  "on": "completed"},
+    {"from": "synth_design",         "to": "review_design_gemini", "on": "completed"},
+    {"from": "review_design_claude", "to": "implement", "on": "completed"},
+    {"from": "review_design_codex",  "to": "implement", "on": "completed"},
+    {"from": "review_design_gemini", "to": "implement", "on": "completed"},
+    {"from": "implement",            "to": "review_build_claude", "on": "completed"},
+    {"from": "implement",            "to": "review_build_codex",  "on": "completed"},
+    {"from": "implement",            "to": "review_build_gemini", "on": "completed"}
+  ],
+  "cycles": [
+    {"from": "review_design_claude", "to": "synth_design", "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
+    {"from": "review_design_codex",  "to": "synth_design", "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
+    {"from": "review_design_gemini", "to": "synth_design", "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
+    {"from": "review_build_claude",  "to": "implement",    "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
+    {"from": "review_build_codex",   "to": "implement",    "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
+    {"from": "review_build_gemini",  "to": "implement",    "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true}
+  ]
+}
