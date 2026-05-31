@@ -8,6 +8,9 @@
     "suggested_name": "striatum/0040-rfc-0063-nested-key-search-variables",
     "allow_dirty": false
   },
+  "supervision": {
+    "require_tmux": true
+  },
   "coordinator": {
     "role_id": "implementer",
     "lane_id": "claude"
