@@ -17,7 +17,7 @@ Your assigned posture is one of:
   fixture-misuse path lets an unaccepted fixture get treated as
   accepted? What promotion path bypasses RFC 0027 / 0025 gates?
   Where can a units / scale / sign typo land silently?
-- **devils_advocate** (gemini lane) — adversarial probing of the
+- **devils_advocate** (agy lane) — adversarial probing of the
   weakest assumption. The synthesizer made a choice between
   competing positions in section 2 of the synthesis; argue against
   that choice. Find the assumption load-bearing for the design and

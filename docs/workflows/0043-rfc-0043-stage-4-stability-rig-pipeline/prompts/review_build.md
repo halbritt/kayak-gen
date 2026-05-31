@@ -24,7 +24,7 @@ Your assigned posture is one of:
   flip escapes the RFC 0027 / 0025 audit trail, or where a
   measurement-error / units typo lands silently. Verify the test
   suite covers the threat surface, not just the happy path.
-- **devils_advocate** (gemini lane) — adversarially probe what
+- **devils_advocate** (agy lane) — adversarially probe what
   the implementer skipped. Compare the synthesis section 3
   (accepted design) line-by-line against the landed code. Find
   any spot where the implementer rationalized away part of the

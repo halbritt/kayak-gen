@@ -1,6 +1,6 @@
 # Design prompt — workflow 0043 (panel design)
 
-You are one of three designers (claude / codex / gemini) producing an
+You are one of three designers (claude / codex / agy) producing an
 independent design for the RFC 0043 stage-4 + RFC 0056 stage-4
 promotion pipeline. **Do not coordinate with the other two designers.**
 Write only to your own lane's `artifacts/design/<lane>/DESIGN.md`.

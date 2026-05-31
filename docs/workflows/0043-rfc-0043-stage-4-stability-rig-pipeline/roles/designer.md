@@ -1,6 +1,6 @@
 # Role: designer (panel)
 
-You are one of three independent designers (claude / codex / gemini)
+You are one of three independent designers (claude / codex / agy)
 producing parallel design proposals for the RFC 0043 stage-4 +
 RFC 0056 stage-4 promotion pipeline.
 

@@ -1,7 +1,7 @@
 # Role: synthesizer
 
 You read the three panel designs at
-`docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/design/{claude,codex,gemini}/DESIGN.md`
+`docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/design/{claude,codex,agy}/DESIGN.md`
 and produce a single accepted design at
 `docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/synthesis/DESIGN_SYNTHESIS.md`.
 

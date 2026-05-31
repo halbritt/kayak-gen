@@ -14,7 +14,7 @@ flip analytical-only high-angle GZ output to measured-or-better.
 The workflow shape is **panel design + 3-lane review + implement +
 3-lane build review**:
 
-1. **Panel design** (3 parallel jobs) — claude / codex / gemini each
+1. **Panel design** (3 parallel jobs) — claude / codex / agy each
    write an independent design proposal to their own `artifacts/design/<lane>/DESIGN.md`.
 2. **Synthesize** (1 job) — claude (coordinator) reads the three
    designs, identifies shared structure and disagreements, and
@@ -22,7 +22,7 @@ The workflow shape is **panel design + 3-lane review + implement +
    accepted design plus an Open Questions block where the panel
    diverged.
 3. **3-lane design review** (3 parallel jobs) — claude (ergonomics_dx),
-   codex (threat_model), gemini (devils_advocate) each review the
+   codex (threat_model), agy (devils_advocate) each review the
    synthesized design under their respective posture and write
    `artifacts/review/design/<lane>/REVIEW.md`. A `needs_revision`
    verdict from any lane bounces back to the synthesizer (max 2
@@ -42,15 +42,15 @@ The workflow shape is **panel design + 3-lane review + implement +
 flowchart TD
   dc[design_claude]
   dx[design_codex]
-  dg[design_gemini]
+  dg[design_agy]
   syn[synth_design]
   rdc[review_design_claude<br/>ergonomics_dx]
   rdx[review_design_codex<br/>threat_model]
-  rdg[review_design_gemini<br/>devils_advocate]
+  rdg[review_design_agy<br/>devils_advocate]
   imp[implement]
   rbc[review_build_claude<br/>ergonomics_dx]
   rbx[review_build_codex<br/>threat_model]
-  rbg[review_build_gemini<br/>devils_advocate]
+  rbg[review_build_agy<br/>devils_advocate]
   dc --> syn
   dx --> syn
   dg --> syn
@@ -66,15 +66,15 @@ Artifacts land under
 artifacts/
   design/claude/DESIGN.md
   design/codex/DESIGN.md
-  design/gemini/DESIGN.md
+  design/agy/DESIGN.md
   synthesis/DESIGN_SYNTHESIS.md
   review/design/claude/REVIEW.md
   review/design/codex/REVIEW.md
-  review/design/gemini/REVIEW.md
+  review/design/agy/REVIEW.md
   build/HANDOFF.md
   review/build/claude/REVIEW.md
   review/build/codex/REVIEW.md
-  review/build/gemini/REVIEW.md
+  review/build/agy/REVIEW.md
 ```
 
 ## Scope — what this workflow does NOT cover
@@ -94,7 +94,7 @@ artifacts/
 ## Prerequisites
 
 - `striatum --version` >= 2.8.0.
-- `claude`, `codex`, and `gemini` available on `PATH`.
+- `claude`, `codex`, and `agy` available on `PATH`.
 - `striatum doctor` reports `ok: true`.
 - `.venv/bin/pytest` available in the repo.
 - For each lane, the per-lane `supervision: {transport: pty_helper,
@@ -114,9 +114,9 @@ striatum --repo "$TARGET" branch confirm --run_id "$RUN" \
   --branch striatum/0043-rfc-0043-stage-4-stability-rig-pipeline --json
 striatum --repo "$TARGET" run start --run_id "$RUN" --json
 
-for ROLE_LANE in "designer:claude" "designer:codex" "designer:gemini" \
+for ROLE_LANE in "designer:claude" "designer:codex" "designer:agy" \
                  "synthesizer:claude" \
-                 "reviewer:claude" "reviewer:codex" "reviewer:gemini" \
+                 "reviewer:claude" "reviewer:codex" "reviewer:agy" \
                  "implementer:claude"; do
   ROLE=${ROLE_LANE%:*}; LANE=${ROLE_LANE#*:}
   SESS=$(striatum --repo "$TARGET" register-session \

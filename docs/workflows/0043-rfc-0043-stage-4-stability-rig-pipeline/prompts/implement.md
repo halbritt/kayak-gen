@@ -9,7 +9,7 @@ Read first, in order:
 1. `docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/SOURCES.md`
 2. `docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/synthesis/DESIGN_SYNTHESIS.md`
    — the **accepted design**. Section 3 is your specification.
-3. `docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/design/{claude,codex,gemini}/REVIEW.md`
+3. `docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/design/{claude,codex,agy}/REVIEW.md`
    — adopt every `accept with follow-ups` recommendation that does
    not contradict section 3.
 4. `docs/rfcs/0043-high-angle-gz-successor.md` and

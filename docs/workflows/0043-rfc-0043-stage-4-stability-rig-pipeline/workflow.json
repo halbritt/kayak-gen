@@ -29,11 +29,11 @@
       "capabilities": ["write", "review", "synthesis"],
       "supervision": {"transport": "pty_helper", "require_tmux": true}
     },
-    "gemini": {
+    "agy": {
       "adapter": "process",
-      "display_model": "Gemini Pro 3.1",
-      "command": ["gemini", "--model", "gemini-3.1-pro-preview"],
-      "adapter_capabilities": {"single_shot": true},
+      "display_model": "Gemini 3.5 Flash High (Antigravity)",
+      "command": ["agy", "--dangerously-skip-permissions"],
+      "adapter_capabilities": {"agent_loop": true},
       "capabilities": ["write", "review"],
       "supervision": {"transport": "pty_helper", "require_tmux": true}
     }
@@ -64,7 +64,7 @@
     "require_disjoint_write_scopes": true
   },
   "allow_same_model_review_pairing": true,
-  "allow_same_model_review_pairing_rationale": "The 3-lane review fans out claude+codex+gemini against the same upstream (synth_design / implement). Two of the three reviewers are always cross-model; same-model pairing is the price of always-3-lane review coverage. Reviewer posture is set per lane (ergonomics_dx / threat_model / devils_advocate) so same-model pairs still produce distinct review signals.",
+  "allow_same_model_review_pairing_rationale": "The 3-lane review fans out claude+codex+agy against the same upstream (synth_design / implement). Two of the three reviewers are always cross-model; same-model pairing is the price of always-3-lane review coverage. Reviewer posture is set per lane (ergonomics_dx / threat_model / devils_advocate) so same-model pairs still produce distinct review signals. agy is the Antigravity CLI replacement for the deprecated gemini-cli (Google EOLs gemini-cli for Google One / unpaid tiers on 2026-06-18).",
   "jobs": [
     {
       "id": "design_claude",
@@ -121,28 +121,28 @@
       ]
     },
     {
-      "id": "design_gemini",
+      "id": "design_agy",
       "type": "draft",
-      "title": "Panel design (gemini lane)",
+      "title": "Panel design (agy lane)",
       "role_id": "designer",
-      "lane_id": "gemini",
+      "lane_id": "agy",
       "parallel_group": "design",
       "fresh_session_required": true,
-      "objective": "Independently design the RFC 0043 stage-4 + RFC 0056 stage-4 promotion pipeline: ingestion CLI, measured_stability_fixture acceptance workflow, claim_state resolution path. Write to gemini's design artifact dir; do not coordinate with the other lanes.",
+      "objective": "Independently design the RFC 0043 stage-4 + RFC 0056 stage-4 promotion pipeline: ingestion CLI, measured_stability_fixture acceptance workflow, claim_state resolution path. Write to agy's design artifact dir; do not coordinate with the other lanes.",
       "task_prompt": {"path": "prompts/design.md"},
       "write_scope": {
         "mode": "repo_write",
         "repo_write": true,
         "allowed_paths": [
-          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/design/gemini/"
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/design/agy/"
         ],
         "forbidden_paths": [".striatum/", "kayakgen/", "tests/"]
       },
       "expected_artifacts": [
         {
-          "logical_name": "design_gemini",
+          "logical_name": "design_agy",
           "kind": "handoff",
-          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/design/gemini/DESIGN.md",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/design/agy/DESIGN.md",
           "required": true
         }
       ]
@@ -232,11 +232,11 @@
       ]
     },
     {
-      "id": "review_design_gemini",
+      "id": "review_design_agy",
       "type": "review",
-      "title": "Design review (gemini lane, devils_advocate posture)",
+      "title": "Design review (agy lane, devils_advocate posture)",
       "role_id": "reviewer",
-      "lane_id": "gemini",
+      "lane_id": "agy",
       "parallel_group": "design_review",
       "fresh_session_required": true,
       "reviewer_context_policy": "fresh",
@@ -247,15 +247,15 @@
         "mode": "review_only_artifact",
         "repo_write": false,
         "allowed_paths": [
-          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/design/gemini/"
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/design/agy/"
         ],
         "forbidden_paths": [".striatum/"]
       },
       "expected_artifacts": [
         {
-          "logical_name": "review_design_gemini",
+          "logical_name": "review_design_agy",
           "kind": "finding",
-          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/design/gemini/REVIEW.md",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/design/agy/REVIEW.md",
           "required": true
         }
       ]
@@ -267,7 +267,7 @@
       "role_id": "implementer",
       "lane_id": "claude",
       "fresh_session_required": true,
-      "depends_on_reviews": ["review_design_claude", "review_design_codex", "review_design_gemini"],
+      "depends_on_reviews": ["review_design_claude", "review_design_codex", "review_design_agy"],
       "objective": "Implement the accepted design (synth_design + design-review convergence). Land: (1) measured-stability ingestion CLI under `kayakgen calibration`; (2) acceptance-gate logic against RFC 0056 schema and RFC 0027/0025 claim gates; (3) claim_state resolution path that flips analytical->measured when an accepted fixture exists; (4) tests for each above; (5) docs (DECISION_LOG.md D-series row + USER_GUIDE.md `kayakgen calibration` section update). Do NOT touch RFC 0043 / RFC 0056 status (workflow tail flips them).",
       "task_prompt": {"path": "prompts/implement.md"},
       "write_scope": {
@@ -368,11 +368,11 @@
       ]
     },
     {
-      "id": "review_build_gemini",
+      "id": "review_build_agy",
       "type": "review",
-      "title": "Build review (gemini lane, devils_advocate posture)",
+      "title": "Build review (agy lane, devils_advocate posture)",
       "role_id": "reviewer",
-      "lane_id": "gemini",
+      "lane_id": "agy",
       "parallel_group": "build_review",
       "fresh_session_required": true,
       "reviewer_context_policy": "fresh",
@@ -383,15 +383,15 @@
         "mode": "review_only_artifact",
         "repo_write": false,
         "allowed_paths": [
-          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/build/gemini/"
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/build/agy/"
         ],
         "forbidden_paths": [".striatum/"]
       },
       "expected_artifacts": [
         {
-          "logical_name": "review_build_gemini",
+          "logical_name": "review_build_agy",
           "kind": "finding",
-          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/build/gemini/REVIEW.md",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/review/build/agy/REVIEW.md",
           "required": true
         }
       ]
@@ -400,23 +400,23 @@
   "edges": [
     {"from": "design_claude",        "to": "synth_design", "on": "completed"},
     {"from": "design_codex",         "to": "synth_design", "on": "completed"},
-    {"from": "design_gemini",        "to": "synth_design", "on": "completed"},
+    {"from": "design_agy",        "to": "synth_design", "on": "completed"},
     {"from": "synth_design",         "to": "review_design_claude", "on": "completed"},
     {"from": "synth_design",         "to": "review_design_codex",  "on": "completed"},
-    {"from": "synth_design",         "to": "review_design_gemini", "on": "completed"},
+    {"from": "synth_design",         "to": "review_design_agy", "on": "completed"},
     {"from": "review_design_claude", "to": "implement", "on": "completed"},
     {"from": "review_design_codex",  "to": "implement", "on": "completed"},
-    {"from": "review_design_gemini", "to": "implement", "on": "completed"},
+    {"from": "review_design_agy", "to": "implement", "on": "completed"},
     {"from": "implement",            "to": "review_build_claude", "on": "completed"},
     {"from": "implement",            "to": "review_build_codex",  "on": "completed"},
-    {"from": "implement",            "to": "review_build_gemini", "on": "completed"}
+    {"from": "implement",            "to": "review_build_agy", "on": "completed"}
   ],
   "cycles": [
     {"from": "review_design_claude", "to": "synth_design", "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
     {"from": "review_design_codex",  "to": "synth_design", "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
-    {"from": "review_design_gemini", "to": "synth_design", "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
+    {"from": "review_design_agy", "to": "synth_design", "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
     {"from": "review_build_claude",  "to": "implement",    "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
     {"from": "review_build_codex",   "to": "implement",    "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
-    {"from": "review_build_gemini",  "to": "implement",    "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true}
+    {"from": "review_build_agy",  "to": "implement",    "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true}
   ]
 }
