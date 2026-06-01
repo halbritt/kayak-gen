@@ -22,7 +22,6 @@ from kayakgen.eval.closed_volume import (
     diagnose_closed_volume_body,
 )
 from kayakgen.eval.contract import GZCurve, GZHeelPointMetadata, LoadCase
-from kayakgen.eval.stability.accepted_fit import EMPTY_STABILITY_FIT_REGISTRY
 from kayakgen.eval.stability.heeled_section_integrator import (
     GZ_SINKAGE_MAX_ITERATIONS,
     _generated_body_station_sections,
@@ -42,6 +41,28 @@ from kayakgen.eval.stability.warnings import (
     _dedupe,
 )
 from kayakgen.model.hull import Hull
+
+# RFC 0043 stage 4: the analytical generated-body GZ evaluator version. An
+# accepted StabilityFitRecord only backs a claim-label flip when its
+# ``analytical_evaluator_version`` matches this constant (registry gate 10).
+# Bump this whenever the generated-body GZ math changes in a way that
+# invalidates a prior measured-vs-analytical fit.
+ANALYTICAL_EVALUATOR_VERSION = "rfc-0043-generated-body-v1"
+
+
+def _loaded_fit_registry() -> object:
+    """Lazy, mtime-memoized accessor for the accepted-fit registry (RFC 0043 §C.4).
+
+    Imported lazily to avoid a module-load cycle (``registry`` imports
+    ``ANALYTICAL_EVALUATOR_VERSION`` from this module). The underlying
+    ``load_stability_fit_registry`` memoizes by fits-dir mtime, so calling this
+    per hull is cheap and picks up ``promote-fixture`` / ``accept-fit`` writes
+    on the next evaluation without a process restart.
+    """
+
+    from kayakgen.eval.stability.registry import load_stability_fit_registry
+
+    return load_stability_fit_registry()
 
 
 def evaluate_gz_curve(
@@ -384,7 +405,7 @@ def _generated_body_gz_curve(
     if load_case.kg_reference_value_m is not None and load_case.kg_reference != "keel":
         warnings.append("kg_reference_normalized_to_keel")
     result_semantics = resolve_analytical_claim_label(
-        hull, fit_registry=EMPTY_STABILITY_FIT_REGISTRY
+        hull, fit_registry=_loaded_fit_registry()
     )
     return GeneratedBodyGZCurve(
         status="computed",
