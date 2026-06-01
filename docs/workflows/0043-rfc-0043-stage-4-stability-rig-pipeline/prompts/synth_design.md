@@ -69,6 +69,33 @@ Echo the design prompt's "What you are NOT doing" block so the
 implementer doesn't reach into out-of-scope areas. Add anything
 the panel uncovered that should also be excluded.
 
+## Hard boundary — synthesis is prose, not code
+
+You write exactly ONE file: `DESIGN_SYNTHESIS.md`. You do NOT create
+or edit any `.py` file, anything under `kayakgen/` or `tests/`, the
+CLI, or USER_GUIDE.md. The implementer (a separate, downstream,
+build-reviewed job) writes the code from your prose. Illustrative
+fenced snippets inside the markdown are encouraged; finished modules
+on disk are forbidden and will wedge the run by tripping
+`scope-check` (your write_scope is the synthesis dir only). Describe
+the implementation; never author it.
+
+## Known required boundary to carry into the accepted design
+
+The threat-model review of the first design pass established a
+load-bearing requirement the accepted design MUST encode in
+section 3.B (acceptance gate): **the accepted measured-stability
+fixture must be represented as a separate, hash-bound acceptance
+artifact** — an `AcceptedStabilityFixtureRecord` (sibling to
+RFC 0054's `AcceptedFitRecord`) written to `data/stability/fits/`,
+whose hash binds the accepted fixture to the exact
+`MeasuredStabilityFixture` manifest it was derived from. A measured
+fixture is NOT "accepted" by flipping a flag in place; acceptance
+produces a distinct, hash-bound record so the claim_state resolution
+path can verify provenance and the RFC 0027/0025 audit trail stays
+intact. Make this explicit in the accepted design and reference it
+from section 3.C (claim-state resolution).
+
 ## Output
 
 One file: `docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/synthesis/DESIGN_SYNTHESIS.md`.
