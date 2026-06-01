@@ -1,6 +1,6 @@
 # RFC 0043: High-Angle GZ Successor
 
-Status: partial landed staged surfacing (stages 1-3 CLI + sweep artifacts + comparison + web read model; stage 4 desktop intentionally minimal)
+Status: landed stages 1-3 + stage-4 claim-integrity pipeline (accepted-fit registry + 13-gate chain flips the analytical high-angle GZ label; `kayakgen/eval/stability/registry.py`); first promotion of a real measured fixture still gated on D007/D014 rig data
 Date: 2026-05-14
 Context: successor to RFC 0020 and RFC 0024, using the generated closed-body
 handoff work from RFC 0022 and preserving the unavailable-result boundary for

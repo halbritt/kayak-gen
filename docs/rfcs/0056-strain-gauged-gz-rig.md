@@ -1,6 +1,6 @@
 # RFC 0056: Strain-Gauged Moment-Arm Rig for Measured High-Angle GZ
 
-Status: landed (schemas only)
+Status: landed schemas + stage-4 acceptance pipeline (MeasuredStabilityFixture schema + the registry gate-chain that consumes it via RFC 0043 stage 4); first promotion of a real measured fixture still gated on D007/D014 rig data
 Date: 2026-05-16; schema landing 2026-05-19
 Context: extends the calibration-fixture family (RFC 0019, RFC 0027,
 RFC 0042) into measured *stability* data, and supplies the validation

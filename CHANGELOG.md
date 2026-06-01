@@ -6,6 +6,27 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
+### Added
+
+- RFC 0043 stage 4 — measured-stability accepted-fit registry. New
+  `kayakgen/eval/stability/registry.py` lands the 13-gate provenance
+  chain that flips the analytical high-angle GZ claim label
+  (`unvalidated_hydrostatic_comparison` →
+  `validated_hydrostatic_comparison`) only when the full chain is intact:
+  immutable fixture manifest + hash-bound acceptance record
+  (`promotion.json`) + strict-accepted `StabilityFitRecord` with a
+  matching `ANALYTICAL_EVALUATOR_VERSION` and hull-family coverage.
+  Fixture presence alone never flips the label. The evaluator call site
+  consumes the live, mtime-memoized registry; defaults stay byte-stable
+  (empty registry per D039) until a real fixture is promoted — which
+  remains gated on D007/D014 physical rig data. Designed + threat-model
+  reviewed via workflow 0043 (3-run striatum review arc); the CLI
+  surface (`promote-fixture` / `accept-fit` / `claim-status`), the two
+  web call-site swaps, and remaining docs are tracked in the workflow's
+  `HANDOFF.md` / `CLI_COMPLETION_HANDOFF.md`. RFC 0043 + RFC 0056 status
+  updated to "stage-4 pipeline landed; first promotion gated on rig
+  data."
+
 ### Changed
 
 - RFC 0064 landed — burned down 14 outstanding RFC dispositions to
