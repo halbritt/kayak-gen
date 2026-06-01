@@ -29,12 +29,27 @@ Your `REVIEW.md` carries:
 
 ### Decision
 
-One of `accept`, `accept with follow-ups`, `needs_revision`.
+Your verdict MUST be exactly one of these three:
+`accept` · `accept_with_findings` · `needs_revision`.
 
-A `needs_revision` verdict bounces the synthesizer; the cycle
-allows two revisions per reviewer before the workflow escalates.
-Use it when a defect would invalidate the implementer's path, not
-when you just disagree with a chosen disposition.
+**Do NOT use `reject`.** In this workflow `reject` is a terminal,
+non-recoverable verdict: it fails the review job permanently, cannot
+be re-cycled, retried, or overridden, and wedges the entire run with
+no operator recovery path. It is NOT the right tool for "this design
+has serious problems that must be fixed" — that is exactly what
+`needs_revision` is for. No matter how serious your findings, if the
+synthesizer could in principle revise the design to address them,
+return `needs_revision`, not `reject`. A `needs_revision` verdict
+bounces the synthesizer; the cycle allows two revisions before the
+workflow escalates to the operator. Reserve any instinct to "hard
+stop" for the escalation channel, never `reject`.
+
+Use `needs_revision` when a defect would invalidate the
+implementer's path; use `accept_with_findings` when the design is
+sound but carries non-blocking findings; use `accept` when it is
+sound and you have nothing blocking. Do not return `needs_revision`
+merely because you disagree with a chosen disposition the synthesis
+already reasoned through.
 
 ### Posture-scoped findings
 

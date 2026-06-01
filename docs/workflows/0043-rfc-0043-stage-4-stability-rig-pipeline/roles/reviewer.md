@@ -30,19 +30,27 @@ You do NOT:
 
 ## Decision discipline
 
-`accept` means: the design (or implementation) is correct in your
-posture and the implementer (or operator) can proceed without
-further review-side intervention.
+Your verdict is exactly one of: `accept`, `accept_with_findings`,
+`needs_revision`. **Never `reject`** — in this workflow `reject` is
+terminal and non-recoverable: it permanently fails the review job,
+cannot be cycled/retried/overridden, and wedges the whole run.
+However serious your findings, if the upstream could revise to
+address them, the correct verdict is `needs_revision`.
 
-`accept with follow-ups` means: correct in your posture, but
-non-blocking findings exist. List them in the report; the
-implementer addresses what's feasible and ignores the rest.
+`accept` means: correct in your posture; proceed without further
+review-side intervention.
+
+`accept_with_findings` means: correct in your posture, but
+non-blocking findings exist. List them; the upstream addresses
+what's feasible and ignores the rest.
 
 `needs_revision` means: a defect in your posture would block
-correct realization. Cite the specific defect, the exact file:line
-or section to change, and the suggested remediation. Vague
-`needs_revision` verdicts that don't name remediation are
-worth less; the workflow does not block on stylistic disputes.
+correct realization — this is the verdict for serious problems,
+not `reject`. Cite the specific defect, the exact file:line or
+section to change, and the suggested remediation. Vague
+`needs_revision` verdicts that don't name remediation are worth
+less; the workflow does not block on stylistic disputes. The cycle
+allows two revisions before escalating to the operator.
 
 ## Tone
 

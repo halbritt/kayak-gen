@@ -37,12 +37,21 @@ Your `REVIEW.md` carries:
 
 ### Decision
 
-One of `accept`, `accept with follow-ups`, `needs_revision`.
+Your verdict MUST be exactly one of these three:
+`accept` · `accept_with_findings` · `needs_revision`.
 
-A `needs_revision` verdict bounces the implementer; the cycle
-allows two revisions per reviewer. Use it for defects that block
-the design from being correctly realized, not for refactor
-preferences.
+**Do NOT use `reject`.** In this workflow `reject` is a terminal,
+non-recoverable verdict: it fails the review job permanently, cannot
+be re-cycled, retried, or overridden, and wedges the run with no
+operator recovery path. However serious your findings, if the
+implementer could revise the code to address them, return
+`needs_revision`, not `reject`. A `needs_revision` verdict bounces
+the implementer; the cycle allows two revisions before escalation.
+
+Use `needs_revision` for defects that block the design from being
+correctly realized; `accept_with_findings` for sound code with
+non-blocking findings; `accept` for sound code with nothing
+blocking. Not for refactor preferences.
 
 ### Required checks
 
