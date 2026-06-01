@@ -1,0 +1,182 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0043-rfc-0043-stage-4-cli-completion",
+  "workflow_version": "2026-06-01",
+  "name": "0043 stage-4 CLI completion (2-lane claude+codex: implement CLI+web+hull_class+docs, then 2-lane build review)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0043-rfc-0043-stage-4-stability-rig-pipeline-cli-completion",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "claude"
+  },
+  "lanes": {
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.7",
+      "command": ["claude", "--model", "claude-opus-4-7", "--permission-mode", "bypassPermissions"],
+      "adapter_capabilities": {"agent_loop": true},
+      "capabilities": ["write", "review", "synthesis"],
+      "supervision": {"transport": "pty_helper", "require_tmux": true}
+    },
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["codex", "--model", "gpt-5.5", "-c", "model_reasoning_effort=xhigh", "--dangerously-bypass-approvals-and-sandbox"],
+      "adapter_capabilities": {"agent_loop": true},
+      "capabilities": ["write", "review", "synthesis"],
+      "supervision": {"transport": "pty_helper", "require_tmux": true}
+    }
+  },
+  "roles": {
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "reviewer":    {"definition_path": "roles/reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/build/CLI_COMPLETION_HANDOFF.md", "required": true},
+    {"path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/synthesis/DESIGN_SYNTHESIS.md", "required": true},
+    {"path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/SOURCES.md", "required": true},
+    {"path": "kayakgen/eval/stability/registry.py", "required": true},
+    {"path": "kayakgen/eval/stability/evaluator.py", "required": true},
+    {"path": "kayakgen/eval/stability/high_angle_contracts.py", "required": true},
+    {"path": "kayakgen/eval/stability/accepted_fit.py", "required": true},
+    {"path": "kayakgen/eval/stability/measured_fixture.py", "required": true},
+    {"path": "kayakgen/cli/stability_cli.py", "required": true},
+    {"path": "kayakgen/model/hull.py", "required": true},
+    {"path": "kayakgen/ui/web/generate_frontier_view.py", "required": false},
+    {"path": "kayakgen/ui/web/generate_spec_form.py", "required": false},
+    {"path": "tests/test_stability_fit_registry.py", "required": false},
+    {"path": "tests/test_resolve_analytical_claim_label.py", "required": false},
+    {"path": "docs/rfcs/0043-high-angle-gz-successor.md", "required": false},
+    {"path": "docs/rfcs/0056-strain-gauged-gz-rig.md", "required": false}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "allow_same_model_review_pairing": true,
+  "allow_same_model_review_pairing_rationale": "2-lane claude+codex. The implementer runs on claude, so the claude build-reviewer (ergonomics_dx) is same-model with its upstream while the codex build-reviewer (threat_model) is cross-model. The threat_model posture is the load-bearing reviewer for this run (it gates the new hull_class plumbing and the acceptance-gate surface) and is cross-model; the same-model claude pass adds the ergonomics_dx posture. Distinct postures produce distinct signals even on the same model.",
+  "jobs": [
+    {
+      "id": "implement",
+      "type": "build",
+      "title": "Implement the CLI + web + hull_class + docs completion surface",
+      "role_id": "implementer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Land the remaining RFC 0043 stage-4 surface per CLI_COMPLETION_HANDOFF.md (sections 1-6): (1) rewrite promote-fixture to write promotion.json without mutating the manifest; (2) change accept-fit to the --fit-record/--fixture-id/--out signature, dropping --packet; (3) add the read-only claim-status command; (4) update stability --help + structured refusal copy from REASON_NEXT_ACTION; (5) swap the two web call-sites off EMPTY_STABILITY_FIT_REGISTRY to a lazy mtime-memoized loaded registry; (6) add the three test files + conftest triple factory + sweep test_cli_stability.py; (7) docs (USER_GUIDE, SOURCES, DECISION_LOG). ALSO plumb hull_class end-to-end so resolve_analytical_claim_label flips a real Hull (see prompt addendum). Do NOT touch docs/rfcs/ or CHANGELOG.md.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/cli/stability_cli.py",
+          "kayakgen/eval/stability/registry.py",
+          "kayakgen/ui/web/generate_frontier_view.py",
+          "kayakgen/ui/web/generate_spec_form.py",
+          "kayakgen/model/hull.py",
+          "tests/test_measured_stability_acceptance.py",
+          "tests/test_measured_stability_ingest.py",
+          "tests/test_claim_state_measured_promotion.py",
+          "tests/test_cli_stability.py",
+          "tests/test_resolve_analytical_claim_label.py",
+          "tests/conftest.py",
+          "docs/USER_GUIDE.md",
+          "docs/DECISION_LOG.md",
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/SOURCES.md",
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/build/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "docs/rfcs/",
+          "CHANGELOG.md",
+          "kayakgen/model/distribution_v2.py",
+          "kayakgen/search/",
+          "kayakgen/eval/resistance.py",
+          "kayakgen/eval/cfd/",
+          "kayakgen/services/",
+          "kayakgen/eval/stability/evaluator.py",
+          "kayakgen/eval/stability/high_angle_contracts.py"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "cli_completion_result",
+          "kind": "handoff",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/artifacts/build/CLI_COMPLETION_RESULT.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_build_claude",
+      "type": "review",
+      "title": "Build review (claude lane, ergonomics_dx posture)",
+      "role_id": "reviewer",
+      "lane_id": "claude",
+      "parallel_group": "build_review",
+      "fresh_session_required": true,
+      "reviewer_context_policy": "fresh",
+      "review_posture": "ergonomics_dx",
+      "objective": "Review the completion build for operator + developer ergonomics: does `kayakgen stability --help` list claim-status; do promote-fixture / accept-fit / claim-status run end-to-end on an in-test triple; does each refusal emit one structured JSON line whose next_action names the operator's remediation; does the USER_GUIDE stage-4 subsection let an operator run the pipeline; is the accept-fit breaking-flag error path discoverable (names --packet as removed, points at --fixture-id).",
+      "task_prompt": {"path": "prompts/review_build.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/completion/artifacts/review/build/claude/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review_build_claude",
+          "kind": "finding",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/completion/artifacts/review/build/claude/REVIEW.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_build_codex",
+      "type": "review",
+      "title": "Build review (codex lane, threat_model posture)",
+      "role_id": "reviewer",
+      "lane_id": "codex",
+      "parallel_group": "build_review",
+      "fresh_session_required": true,
+      "reviewer_context_policy": "fresh",
+      "review_posture": "threat_model",
+      "objective": "Threat-model the completion build. Find any path where the claim label flips without the full hash-bound chain (manifest + accepted promotion.json + strict-accepted fit + evaluator-version match + hull_family_scope coverage). Scrutinize the NEW hull_class plumbing: can a wrong, over-broad, or attacker-controlled hull_class let a fit flip a hull it should not cover? Confirm an unset hull_class keeps the unvalidated label. Confirm promote-fixture does not mutate the manifest and accept-fit refuses unpromoted / sha256-mismatch / evaluator-version-mismatch / strict-skipped fixtures. Verify the tests cover the threat surface, not just the happy path, and that the real-Hull production-flip test actually exercises the production resolver (not a stub).",
+      "task_prompt": {"path": "prompts/review_build.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/completion/artifacts/review/build/codex/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "review_build_codex",
+          "kind": "finding",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/completion/artifacts/review/build/codex/REVIEW.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "implement", "to": "review_build_claude", "on": "completed"},
+    {"from": "implement", "to": "review_build_codex",  "on": "completed"}
+  ],
+  "cycles": [
+    {"from": "review_build_claude", "to": "implement", "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
+    {"from": "review_build_codex",  "to": "implement", "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true}
+  ]
+}
