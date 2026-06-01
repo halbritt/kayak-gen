@@ -78,6 +78,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0062](0062-hydrostatics-row-metadata-registry.md) | landed | Hydrostatics row metadata registry — third application of the D043 "presentation-layer registry per surface family" pattern after RFC 0060 and RFC 0061. `HydrostaticsRowMetadata` + `HYDROSTATICS_ROW_METADATA` under `kayakgen/ui/hydrostatics_metadata.py`; `analysis_view_model::hydro_rows` consumes the registry; presentation-only (wire payload byte-stable). Closes audit finding AUD-O-005 via workflow `docs/workflows/0038-hydrostatics-row-metadata-registry/`. |
 | [0063](0063-nested-key-search-variables.md) | landed | Nested-key search variables — dotted-path syntax (`distribution_v2.cross_section_family`, `distribution_v2.deadrise_deg`) for `SearchSpec.search_space` keys so the active-search runner can sweep nested fields. Today's `_hull_from_genome` flat-overlays genome onto base_hull, so categorical / nested distribution_v2 knobs are unreachable from NSGA-II / EHVI. Motivated by the 2026-05-30 Epic 18X Sport exercise that had to fall back to hand-authored hull JSONs + `kayakgen evaluate` per cross-section family. Landed via workflow 0040. |
 | [0064](0064-outstanding-rfc-cleanup.md) | landed | Outstanding-RFC cleanup — disposition table for the 14 non-cleanly-landed RFCs as of 2026-05-31, flipping each to `landed` / `superseded by …` / `deferred per D023` to match the actual codebase state. Stability-rig pair (RFC 0043 stage 4, RFC 0056 fixture promotion) remains deferred per operator's standing decision. Doc-only; no code changes. |
+| [0065](0065-ui-polish-redesign.md) | proposed | UI polish redesign — a coherent visual-system pass over the landed workspace: extend `kayakgen/ui/theme.py` with spacing/density/radius/elevation/focus-ring/state tokens, one information hierarchy across the three-region shell + Generate panel, uniform control and empty/loading/error states, and accessible focus/keyboard behaviour. Sequenced into safe slices (theme tokens → shell layout → per-panel states → Playwright/Chromium committed-baseline visual-regression harness + a11y/Lighthouse gates). Preserves every claim/readiness/status chip and the RFC 0032 web-analysis boundary; adds no analysis capability or claim-state literal. Desktop polish deferred (Slice 5, operator-gated per D009/D021). Docs-only; authorises no behaviour change. Adds DECISION_LOG row D047 (committed screenshot baselines). |
 
 Architecture-plan landing notes (not RFCs themselves; see
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`):
@@ -166,6 +167,31 @@ maintenance, desktop slider fallback cleanup, and focused tests/docs. It did
 not reopen desktop parity, hosted CFD, real solvers, calibrated drag, final
 prediction, high-angle `GZ`, web-side mesh-package authoring beyond existing
 safe entries, or watertight `cfd_ready` promotion.
+
+RFC 0065 (proposed) is the visual-system polish pass that sits on top of
+that spine. Where RFC 0033/0034/0035 built the workspace *structure* —
+the three-region shell, the semantic `theme.py` token module, the
+claim/readiness/status chips, and the dynamic bindings — and where RFC
+0057/0060/0061/0062 added *content* — the Generate panel plus the
+presentation-layer label/tooltip registries (`HullParameterMetadata`,
+`VIEW_PARAMETER_METADATA`, `HydrostaticsRowMetadata`) — RFC 0065 makes
+the accreted surface look designed rather than assembled: it completes
+`theme.py` into a full visual system (spacing, density, radius/elevation,
+focus-ring, state tokens on top of the existing colour/typography/chip/
+contrast tokens), imposes one information hierarchy across the shell and
+the Generate panel, makes control and empty/loading/error states uniform,
+and adds accessible focus/keyboard behaviour. It is sequenced into safe
+slices (theme tokens → shell layout → per-panel states → a
+Playwright/Chromium committed-baseline visual-regression harness with
+a11y and Lighthouse gates) and is docs-only as written. Crucially it adds
+no analysis capability and changes no claim line: every chip, every
+raw/local/unvalidated/uncalibrated caption, the RFC 0033 §8 no-go list,
+and the RFC 0032 web-analysis boundary survive the restyle intact, and
+the `data-testid` hook contract stays internal (any renamed/moved hook is
+reflected in `tests/test_web_layout.py` / `tests/test_web_inline_help.py`).
+Desktop visual polish is the explicitly-deferred, operator-gated Slice 5
+per D009 / D021; the core slices give the desktop only token-level
+inheritance through the existing `theme.py` helpers.
 
 RFCs 0036-0039 are proposed workflow 0048 UI successor scopes for workflow
 0047 final-review findings FR1-FR4: Trame same-seed listener proof or removal,
