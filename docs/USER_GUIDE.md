@@ -249,6 +249,86 @@ upgrade contract (`resolve_analytical_claim_label`) wires through but
 defaults to an empty fit registry until stage 4 promotes the first
 fixture.
 
+#### Stage 4 — accepted-fit registry and label flip
+
+A `StabilityFitRecord` written under `data/stability/fits/` and
+bound to an accepted `MeasuredStabilityFixture` flips the analytical
+high-angle GZ claim label from `unvalidated_hydrostatic_comparison` to
+`validated_hydrostatic_comparison` for hulls inside the fit's
+`hull_family_scope`. The flip propagates to the high-angle GZ JSON
+output, the web Generate frontier colour token, and the Generate panel
+`cfd_in_loop_evaluator_status` admonition.
+
+Acceptance produces three on-disk artifacts:
+
+1. `data/stability/fixtures/<fixture_id>/manifest.json` — the
+   immutable `MeasuredStabilityFixture` JSON. After `ingest-rig-run`
+   writes it, no later command (including `promote-fixture`) mutates
+   its bytes.
+2. `data/stability/fixtures/<fixture_id>/promotion.json` — the
+   `AcceptedStabilityFixtureRecord` (the persisted
+   `StabilityFixturePromotionPacket` whose `fixture_ref.fixture_sha256`
+   hash-binds it to the manifest). **The manifest's `intended_use`
+   field is a hint only; the canonical acceptance signal is
+   `promotion.json` with `promotion_target =
+   "measured_stability_fixture"`.**
+3. `data/stability/fits/<fit_id>.json` — the `StabilityFitRecord`
+   whose `fixtures[].fixture_sha256` re-binds to the same manifest
+   bytes.
+
+The stage-4 CLI signature for `accept-fit` requires `--fit-record`,
+`--fixture-id`, and `--out` (the prior `--packet` flag is REMOVED;
+acceptance is anchored on the fixture directory's `promotion.json`):
+
+```bash
+kayakgen stability accept-fit \
+  --fit-record path/to/fit_record.json \
+  --fixture-id alpha-2026-05 \
+  --out data/stability/fits/<fit_id>.json
+```
+
+Inspect the resolved claim label for a hull without running the
+evaluator:
+
+```bash
+kayakgen stability claim-status hull.json --fits-root data/stability/fits
+```
+
+`claim-status` prints a single JSON line carrying `hull_class`,
+`design_hash`, `claim_label`, `covering_fit_id`, `fits_root`,
+`fits_loaded`, and `dropped_fit_count`. Add `--debug` to receive a
+`diagnostics` list naming each dropped fit and the gate it failed.
+
+Override the registry root with `KAYAKGEN_STABILITY_FITS_ROOT`
+(explicit `--fits-root` wins over the env, env wins over the default
+`data/stability/fits`). Fits failing any §B gate (sha256 mismatch,
+below threshold, `strict=false`, tampered, evaluator-version mismatch,
+rights not authorized, …) are dropped at load time and do not flip the
+label.
+
+Every CLI refusal emits one structured JSON line with the shape:
+
+```json
+{
+  "ok": false,
+  "code": "fixture_sha256_mismatch",
+  "fixture_id": "msf-2026-001",
+  "details": {"expected_sha256": "abcdef…", "actual_sha256": "012345…"},
+  "next_action": "re-ingest if the manifest changed intentionally, else re-sign the packet against the new bytes."
+}
+```
+
+The `next_action` text comes from
+`kayakgen.eval.stability.registry.REASON_NEXT_ACTION` — that mapping is
+the single source of truth for operator-facing remediation copy. The
+high-angle GZ claim-state flip only happens when the full provenance
+chain holds: an immutable fixture manifest, a strict-accepted
+`promotion.json`, and a `StabilityFitRecord` whose
+`analytical_evaluator_version` matches the runtime and whose
+`hull_family_scope` covers the hull. The hull itself must carry a
+`hull_class` value (e.g. `sea_kayak`); a `hull_class=null` hull stays
+`unvalidated_hydrostatic_comparison` regardless of registry contents.
+
 ### `sweep`
 
 Run a deterministic JSON sweep and write candidate records:

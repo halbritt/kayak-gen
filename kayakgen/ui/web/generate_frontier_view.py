@@ -28,12 +28,26 @@ from __future__ import annotations
 import html
 from typing import Any, Iterable, Mapping
 
-from kayakgen.eval.stability.accepted_fit import EMPTY_STABILITY_FIT_REGISTRY
 from kayakgen.eval.stability.high_angle_contracts import (
     resolve_analytical_claim_label,
 )
 from kayakgen.ui import theme
 from kayakgen.ui.web.state import HULL_STATE_FIELDS
+
+
+def _loaded_fit_registry() -> object:
+    """Lazy, mtime-memoized accessor for the accepted-fit registry (RFC 0043 §C.4).
+
+    Mirrors :func:`kayakgen.eval.stability.evaluator._loaded_fit_registry`. The
+    underlying :func:`load_stability_fit_registry` memoizes by fits-dir mtime
+    so a Trame session that mid-flight runs ``promote-fixture`` / ``accept-fit``
+    sees the new registry on the next frontier-view refresh without a process
+    restart. Imported lazily to keep this module's cold-start surface tight.
+    """
+
+    from kayakgen.eval.stability.registry import load_stability_fit_registry
+
+    return load_stability_fit_registry()
 
 
 # ---------------------------------------------------------------------------
@@ -565,7 +579,7 @@ def refresh_frontier_view(app: Any, job_id: str) -> dict[str, Any]:
         x_metric=x_metric,
         y_metric=y_metric,
         z_metric=z_metric,
-        fit_registry=EMPTY_STABILITY_FIT_REGISTRY,
+        fit_registry=_loaded_fit_registry(),
     )
 
     app.state.generative_frontier_view_available = bool(view_model.get("available"))

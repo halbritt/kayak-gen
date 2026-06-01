@@ -59,6 +59,7 @@ REASON_FIXTURE_SHA256_MISMATCH: Final[str] = "fixture_sha256_mismatch"
 REASON_FIXTURE_NOT_PROMOTED: Final[str] = "fixture_not_promoted"
 REASON_PROMOTION_PACKET_REVIEW_INCOMPLETE: Final[str] = "promotion_packet_review_incomplete"
 REASON_FIT_RECORD_DOES_NOT_CITE_FIXTURE: Final[str] = "fit_record_does_not_cite_fixture"
+REASON_FIT_HULL_CLASS_FIXTURE_MISMATCH: Final[str] = "fit_hull_class_fixture_mismatch"
 REASON_VALID_HEEL_RANGE_DISJOINT: Final[str] = "valid_heel_range_disjoint"
 REASON_EVALUATOR_VERSION_MISMATCH: Final[str] = "evaluator_version_mismatch"
 REASON_STRICT_CHECK_SKIPPED: Final[str] = "strict_check_skipped_blocks_acceptance"
@@ -82,6 +83,7 @@ REASON_NEXT_ACTION: Final[Mapping[str, str]] = {
     REASON_FIXTURE_NOT_PROMOTED: "packet's promotion_target is not measured_stability_fixture; revise and re-sign.",
     REASON_PROMOTION_PACKET_REVIEW_INCOMPLETE: "one of the five required reviews is not accepted; re-sign.",
     REASON_FIT_RECORD_DOES_NOT_CITE_FIXTURE: "pass `--fixture-id` matching a fixtures[].fixture_id and re-run accept-fit.",
+    REASON_FIT_HULL_CLASS_FIXTURE_MISMATCH: "the fit's hull_family_scope.hull_class must equal the fixture's hull_identity.hull_class; re-fit with the matching hull class.",
     REASON_VALID_HEEL_RANGE_DISJOINT: "re-fit on a heel range covering both fixture and fit.",
     REASON_EVALUATOR_VERSION_MISMATCH: "runtime evaluator changed; re-run accept-fit to record the new version.",
     REASON_STRICT_CHECK_SKIPPED: "re-fit with strict=True.",
@@ -292,6 +294,22 @@ def _evaluate_single_fixture_chain(
             f"manifest ({manifest.fixture_id},{manifest_sha[:8]})",
         )
 
+    # Gate 8a: the fit's hull-family scope is bound to the fixture's measured
+    # hull identity. Without this, a strict accepted fit anchored to a sea_kayak
+    # fixture could declare hull_family_scope.hull_class="sprint_k1" and a
+    # sprint hull's design hash, and the resolver would flip a sprint hull
+    # against a sea-kayak measurement — exactly the over-broad cross-class path
+    # the threat-model review surfaced. Equality is the minimum binding; a
+    # successor RFC may relax it with an explicit cross-family-scope review
+    # artifact.
+    if fit.hull_family_scope.hull_class != manifest.hull_identity.hull_class:
+        return (
+            False,
+            REASON_FIT_HULL_CLASS_FIXTURE_MISMATCH,
+            f"fit hull_family_scope.hull_class={fit.hull_family_scope.hull_class!r} "
+            f"!= fixture hull_identity.hull_class={manifest.hull_identity.hull_class!r}",
+        )
+
     # Gate 9: heel-range overlap.
     if not _heel_ranges_overlap(fit.valid_heel_range_deg, manifest.valid_heel_range_deg):
         return (
@@ -335,7 +353,9 @@ def _resolve_evidence(fixture_dir: Path, raw: str) -> Path:
 # Registry loader (memoized by fits-root mtime)
 # ---------------------------------------------------------------------------
 
-_REGISTRY_CACHE: dict[tuple[str, int], tuple[StabilityFitRecord, ...]] = {}
+_REGISTRY_CACHE: dict[
+    tuple[str, int, int, str], tuple[StabilityFitRecord, ...]
+] = {}
 
 
 def load_stability_fit_registry(
@@ -370,7 +390,12 @@ def load_stability_fit_registry(
     if not fits_root.is_dir():
         return ((), ()) if with_diagnostics else ()
 
-    cache_key = (str(fits_root.resolve()), _dir_mtime_ns(fits_root))
+    # Gate 10 (evaluator-version match) depends on ``version`` — the cache key
+    # MUST include it, or a second load under a stale runtime version would
+    # return a tuple cached under the matching version and silently bypass the
+    # version gate. (Threat-model review, finding 2.)
+    mtime_ns, entry_count = _dir_fingerprint(fits_root)
+    cache_key = (str(fits_root.resolve()), mtime_ns, entry_count, version)
     if not with_diagnostics and cache_key in _REGISTRY_CACHE:
         return _REGISTRY_CACHE[cache_key]
 
@@ -414,28 +439,43 @@ def load_stability_fit_registry(
     return result
 
 
-def _dir_mtime_ns(path: Path) -> int:
-    """Max mtime over the fits dir + the sibling fixtures tree.
+def _dir_fingerprint(path: Path) -> tuple[int, int]:
+    """``(max_mtime_ns, entry_count)`` over the fits dir + the sibling fixtures tree.
 
-    Acceptance depends on both trees, so the cache must invalidate when EITHER
-    changes (e.g. ``promote-fixture`` writes a new ``promotion.json``).
+    Walks EVERY entry (files + directories, any extension) under the fixtures
+    tree, not only ``*.json``. Gate 3 trace evidence is non-JSON
+    (``cal/pre.csv``, ``cal/post.csv``), so filtering to ``*.json`` would let
+    a cached passing fit stay loaded after its trace evidence is deleted —
+    the parent directory's mtime advances on delete, but a JSON-only filter
+    never inspects it.
+
+    Returning ``entry_count`` alongside the mtime defends against the
+    sub-mtime-granularity race where a file is created and deleted within a
+    single mtime tick (observed on tmpfs-backed pytest ``tmp_path`` trees):
+    deleting any tracked file drops the count regardless of whether the
+    parent dir's mtime managed to advance. (Threat-model review revision 1,
+    P1.)
     """
 
     newest = path.stat().st_mtime_ns
+    count = 1
     fixtures = _fixtures_root(path)
     if fixtures.is_dir():
         newest = max(newest, fixtures.stat().st_mtime_ns)
-        for child in fixtures.rglob("*.json"):
+        count += 1
+        for child in fixtures.rglob("*"):
             try:
                 newest = max(newest, child.stat().st_mtime_ns)
+                count += 1
             except OSError:
                 continue
-    for child in path.glob("*.json"):
+    for child in path.glob("*"):
         try:
             newest = max(newest, child.stat().st_mtime_ns)
+            count += 1
         except OSError:
             continue
-    return newest
+    return newest, count
 
 
 def clear_registry_cache() -> None:
@@ -460,6 +500,7 @@ __all__ = [
     "OPERATOR_MAX_HYSTERESIS_BOUND_FRACTION",
     "REASON_EVALUATOR_VERSION_MISMATCH",
     "REASON_FIT_METRICS_OUT_OF_THRESHOLDS",
+    "REASON_FIT_HULL_CLASS_FIXTURE_MISMATCH",
     "REASON_FIT_RECORD_DOES_NOT_CITE_FIXTURE",
     "REASON_FIT_RECORD_UNREADABLE",
     "REASON_FIXTURE_BOUNDS_TOO_LOOSE",

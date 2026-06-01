@@ -26,6 +26,26 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   `HANDOFF.md` / `CLI_COMPLETION_HANDOFF.md`. RFC 0043 + RFC 0056 status
   updated to "stage-4 pipeline landed; first promotion gated on rig
   data."
+- RFC 0043 stage 4 — CLI + web + `hull_class` completion (closes the
+  surface the registry core left open). `kayakgen stability`:
+  `promote-fixture` now writes `data/stability/fixtures/<id>/promotion.json`
+  verbatim **without** mutating the manifest; `accept-fit` switches to
+  `--fit-record / --fixture-id / --out` (legacy `--packet` removed, with a
+  pointer refusal); new read-only `claim-status hull.json [--fits-root]
+  [--debug]`; every gate refusal emits one structured JSON line whose
+  `next_action` comes from `registry.REASON_NEXT_ACTION`. The two web call
+  sites (`generate_frontier_view.py`, `generate_spec_form.py`) swap
+  `EMPTY_STABILITY_FIT_REGISTRY` for a lazy mtime-memoized loader.
+  **`Hull` gains `hull_class: str | None = None`** so the analytical label
+  flip works on real generated hulls (the `None` default keeps an untagged
+  hull `unvalidated_hydrostatic_comparison`); a registry-cache key fix
+  (`_dir_fingerprint` walks non-JSON trace evidence) closes a cache-freshness
+  bypass. Tests: §7 gate 89 passed, `ruff` clean, stability/evaluator suite
+  unregressed. Landed via the workflow 0043 `cli-completion` striatum run
+  (`run_f34bef1c…`, claude implement + claude ergonomics_dx/threat_model
+  build review, both accepting). See D045/D046 and the operator report for
+  the codex-lane verdict defect that forced the threat_model gate onto the
+  claude lane. RFC 0043/0056 status unchanged (still rig-gated on D007/D014).
 
 ### Changed
 

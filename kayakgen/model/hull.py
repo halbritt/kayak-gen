@@ -64,6 +64,20 @@ class Hull(BaseModel):
     geometry_kind: Literal["lofted", "distribution_v2"] = "lofted"
     distribution_v2: DistributionV2Spec | None = None
 
+    hull_class: str | None = Field(
+        default=None,
+        description=(
+            "Hull-family tag drawn from the calibration vocabulary "
+            "(``sea_kayak``, ``sprint_k1``, ``kayak_general``, "
+            "``pacific_canoe_like_slender``, …). RFC 0043 stage 4: a real "
+            "value is REQUIRED for the analytical high-angle GZ label to "
+            "flip to ``validated_hydrostatic_comparison``. ``None`` (the "
+            "safe default) keeps the label unvalidated regardless of "
+            "fit-registry contents — this preserves the threat-model "
+            "invariant in ``resolve_analytical_claim_label``."
+        ),
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _seed_legacy_symmetric_stern_rake(cls, data: object) -> object:

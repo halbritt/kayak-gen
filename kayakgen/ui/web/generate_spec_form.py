@@ -30,10 +30,7 @@ from typing import Any, Mapping
 
 from trame.widgets import vuetify3 as v3
 
-from kayakgen.eval.stability.accepted_fit import (
-    EMPTY_STABILITY_FIT_REGISTRY,
-    HullFamilyScope,
-)
+from kayakgen.eval.stability.accepted_fit import HullFamilyScope
 from kayakgen.search.active.spec import SearchSpec
 from kayakgen.search.objectives import (
     OBJECTIVE_METADATA,
@@ -46,7 +43,6 @@ from kayakgen.services.generative_jobs import (
     cfd_in_loop_evaluator_status,
 )
 from kayakgen.ui.parameter_metadata import (
-    HULL_PARAMETER_METADATA,
     description,
     label_with_unit,
 )
@@ -882,19 +878,35 @@ def _current_hull_family_scope(state: Any) -> HullFamilyScope | None:
         return None
 
 
+def _loaded_fit_registry() -> object:
+    """Lazy, mtime-memoized accessor for the accepted-fit registry (RFC 0043 §C.4).
+
+    Mirrors :func:`kayakgen.eval.stability.evaluator._loaded_fit_registry`. The
+    underlying :func:`load_stability_fit_registry` memoizes by fits-dir mtime
+    so a Trame session that mid-flight runs ``promote-fixture`` / ``accept-fit``
+    sees the new registry on the next form refresh without a process restart.
+    Imported lazily to keep this module's cold-start surface tight.
+    """
+
+    from kayakgen.eval.stability.registry import load_stability_fit_registry
+
+    return load_stability_fit_registry()
+
+
 def refresh_cfd_in_loop_status(app: Any) -> CFDInLoopEvaluatorStatus:
     """Recompute CFD-in-loop graduation status for the form (D-14).
 
-    Always passes ``registry=()`` — no real fits land until RFC 0058
-    stage 4. The result is mirrored to
-    ``state.generative_cfd_in_loop_status`` so the rendered
-    acknowledgement checkbox hides reactively when the helper returns
-    ``"first_class"``.
+    Consults the live accepted-fit registry via :func:`_loaded_fit_registry`
+    (RFC 0043 stage 4): once both an analytical accepted fit AND a CFD-in-loop
+    accepted fit cover the hull family, the helper returns ``"first_class"``
+    and the acknowledgement checkbox hides reactively. The registry loader
+    memoizes by fits-dir mtime, so the Trame session picks up
+    ``promote-fixture`` / ``accept-fit`` writes on the next refresh.
     """
 
     scope = _current_hull_family_scope(app.state)
     status = cfd_in_loop_evaluator_status(
-        registry=EMPTY_STABILITY_FIT_REGISTRY, hull_scope=scope
+        registry=_loaded_fit_registry(), hull_scope=scope
     )
     app.state.generative_cfd_in_loop_status = status
     return status

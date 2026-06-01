@@ -1,5 +1,65 @@
 # CLI-completion handoff — RFC 0043 stage 4
 
+> ## ⚠ REVISION 1 — ALREADY LANDED ON DISK; VERIFY + PUBLISH + COMPLETE (READ FIRST)
+>
+> **Status: the three codex threat_model findings below were already fixed on
+> disk by a prior implement session that was killed by a daemon restart before
+> it could `complete` the work packet.** The fixes are present in the working
+> tree and `docs/.../artifacts/build/CLI_COMPLETION_RESULT.md` already has a full
+> "Revision 1" section. The §7 gate is green (89 passed, including the 3 new
+> finding-fix tests).
+>
+> **Your job on this attempt: do NOT re-implement.** Instead:
+> 1. Run the §7 gate (below) + `ruff check kayakgen/ tests/` and confirm green.
+> 2. Skim the working-tree diff to confirm the three fixes are present:
+>    cache-key invalidation on trace-evidence change in `registry.py` + test
+>    `test_registry_cache_invalidates_when_trace_evidence_disappears`; a
+>    production-path flip test that goes through `load_stability_fit_registry()`;
+>    and a fit-vs-fixture hull-class mismatch test +
+>    `REASON_FIT_HULL_CLASS_FIXTURE_MISMATCH` in the reason-completeness set.
+> 3. Re-publish `CLI_COMPLETION_RESULT.md` under YOUR byline (keep/extend the
+>    existing Revision 1 section) and **complete the work packet.**
+> 4. Do NOT `git commit` or `git push` — landing is the parent operator's step.
+>
+> The three findings (for reference; the full review is at
+> `docs/.../completion/artifacts/review/build/codex/REVIEW.md`; the claude
+> ergonomics_dx reviewer already returned `accept_with_findings`):
+>
+> **P1 — Registry cache can keep a fit loaded after its trace evidence
+> disappears.** `load_stability_fit_registry()` gates calibration-trace evidence
+> on disk (`registry.py:215-223`), but the mtime cache key
+> (`registry.py:439-460`) only watches the fits dir, fixtures root, and `*.json`
+> files — **not** the non-JSON trace evidence (`fixtures/<id>/cal/pre.csv`,
+> `post.csv`) or its directories. So a fit that passed gate 3 can stay cached and
+> keep flipping the label after the evidence is deleted/moved, violating the
+> "current full chain required for flip" invariant. **Fix:** include resolved
+> evidence paths + evidence-dir mtimes in the cache key (or scan all files under
+> the fixture tree, not only `*.json`, or drop the cache on the flipping path).
+> **Add a regression** that loads a passing fit, deletes `cal/pre.csv` (or
+> `post.csv`), and asserts the next *non-diagnostic* load drops the fit **without**
+> manually clearing the cache.
+>
+> **P2 — The "production" resolver test does not exercise the production chain.**
+> `tests/test_resolve_analytical_claim_label.py:139-154` hands a hand-built
+> `StabilityFitRecord` straight to `resolve_analytical_claim_label` — no manifest,
+> no `promotion.json`, no on-disk hash binding, no registry gates. It would still
+> pass if the loader or a call-site swap regressed. **Fix:** keep the resolver
+> unit test, but add a real production-path test that stages the full acceptance
+> triple under a tmp fits/fixtures root and asserts the flip **through
+> `load_stability_fit_registry()` via the same path the evaluator/CLI/web use**
+> (this is the addendum's "real-Hull production flip" requirement — make it
+> genuinely go through the loader).
+>
+> **P2 — The new hull-class fixture-binding gate lacks threat-surface coverage.**
+> The build added a binding check (`registry.py:297-311`): the fit's
+> `hull_family_scope.hull_class` must equal the fixture's
+> `hull_identity.hull_class` (`REASON_FIT_HULL_CLASS_FIXTURE_MISMATCH`). There is
+> **no test** staging a promoted `sea_kayak` fixture with a strict accepted fit
+> declaring `sprint_k1` asserting that reason, and the reason is **missing from
+> the emitted-reason completeness set** at `tests/test_stability_fit_registry.py:382-399`.
+> **Fix:** add the fit-vs-fixture hull-class mismatch registry test and include
+> `REASON_FIT_HULL_CLASS_FIXTURE_MISMATCH` in the next-action/reason completeness set.
+
 The claim-integrity **core** is landed and green (commit `8e5c68e`):
 `kayakgen/eval/stability/registry.py` (13-gate accepted-fit registry),
 the `ANALYTICAL_EVALUATOR_VERSION` constant + evaluator call-site swap,

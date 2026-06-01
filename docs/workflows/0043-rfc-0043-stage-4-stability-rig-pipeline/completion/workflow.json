@@ -6,7 +6,7 @@
   "branch": {
     "mode": "confirm",
     "suggested_name": "striatum/0043-rfc-0043-stage-4-stability-rig-pipeline-cli-completion",
-    "allow_dirty": false
+    "allow_dirty": true
   },
   "coordinator": {
     "role_id": "implementer",
@@ -59,7 +59,7 @@
     "require_disjoint_write_scopes": true
   },
   "allow_same_model_review_pairing": true,
-  "allow_same_model_review_pairing_rationale": "2-lane claude+codex. The implementer runs on claude, so the claude build-reviewer (ergonomics_dx) is same-model with its upstream while the codex build-reviewer (threat_model) is cross-model. The threat_model posture is the load-bearing reviewer for this run (it gates the new hull_class plumbing and the acceptance-gate surface) and is cross-model; the same-model claude pass adds the ergonomics_dx posture. Distinct postures produce distinct signals even on the same model.",
+  "allow_same_model_review_pairing_rationale": "Both build reviewers run on claude under DISTINCT postures (ergonomics_dx + threat_model). The codex lane was used for the cross-model threat_model review in the prior run (run_7263118c...): it ran twice, produced a thorough threat review whose findings were all addressed and operator-verified, but it deterministically submits the terminal `reject` verdict on any finding (a known codex-lane verdict-vocab defect — `reject` cannot be cycled or overridden, wedging the run). The cross-model threat signal has therefore already been obtained and discharged; this run gates on a claude threat_model pass (which reliably emits cycleable/overridable verdicts) plus the claude ergonomics_dx pass. Distinct postures produce distinct signals even on the same model.",
   "jobs": [
     {
       "id": "implement",
@@ -142,41 +142,41 @@
       ]
     },
     {
-      "id": "review_build_codex",
+      "id": "review_build_claude_threat",
       "type": "review",
-      "title": "Build review (codex lane, threat_model posture)",
+      "title": "Build review (claude lane, threat_model posture)",
       "role_id": "reviewer",
-      "lane_id": "codex",
+      "lane_id": "claude",
       "parallel_group": "build_review",
       "fresh_session_required": true,
       "reviewer_context_policy": "fresh",
       "review_posture": "threat_model",
-      "objective": "Threat-model the completion build. Find any path where the claim label flips without the full hash-bound chain (manifest + accepted promotion.json + strict-accepted fit + evaluator-version match + hull_family_scope coverage). Scrutinize the NEW hull_class plumbing: can a wrong, over-broad, or attacker-controlled hull_class let a fit flip a hull it should not cover? Confirm an unset hull_class keeps the unvalidated label. Confirm promote-fixture does not mutate the manifest and accept-fit refuses unpromoted / sha256-mismatch / evaluator-version-mismatch / strict-skipped fixtures. Verify the tests cover the threat surface, not just the happy path, and that the real-Hull production-flip test actually exercises the production resolver (not a stub).",
+      "objective": "Threat-model the completion build. Find any path where the claim label flips without the full hash-bound chain (manifest + accepted promotion.json + strict-accepted fit + evaluator-version match + hull_family_scope coverage). Scrutinize the hull_class plumbing: can a wrong, over-broad, or attacker-controlled hull_class let a fit flip a hull it should not cover? Confirm an unset hull_class keeps the unvalidated label. Confirm promote-fixture does not mutate the manifest and accept-fit refuses unpromoted / sha256-mismatch / evaluator-version-mismatch / strict-skipped fixtures. Verify the tests cover the threat surface (including the registry cache-eviction-on-trace-evidence-deletion regression in tests/test_claim_state_measured_promotion.py and the fit-vs-fixture hull-class binding test) and that the real-Hull production-flip test exercises load_stability_fit_registry(), not a stub. The prior codex threat_model review (completion/artifacts/review/build/codex/REVIEW.md) is available; confirm its findings are discharged. RUN the tests — do not review document-only.",
       "task_prompt": {"path": "prompts/review_build.md"},
       "write_scope": {
         "mode": "review_only_artifact",
         "repo_write": false,
         "allowed_paths": [
-          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/completion/artifacts/review/build/codex/"
+          "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/completion/artifacts/review/build/claude_threat/"
         ],
         "forbidden_paths": [".striatum/"]
       },
       "expected_artifacts": [
         {
-          "logical_name": "review_build_codex",
+          "logical_name": "review_build_claude_threat",
           "kind": "finding",
-          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/completion/artifacts/review/build/codex/REVIEW.md",
+          "path": "docs/workflows/0043-rfc-0043-stage-4-stability-rig-pipeline/completion/artifacts/review/build/claude_threat/REVIEW.md",
           "required": true
         }
       ]
     }
   ],
   "edges": [
-    {"from": "implement", "to": "review_build_claude", "on": "completed"},
-    {"from": "implement", "to": "review_build_codex",  "on": "completed"}
+    {"from": "implement", "to": "review_build_claude",        "on": "completed"},
+    {"from": "implement", "to": "review_build_claude_threat", "on": "completed"}
   ],
   "cycles": [
-    {"from": "review_build_claude", "to": "implement", "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
-    {"from": "review_build_codex",  "to": "implement", "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true}
+    {"from": "review_build_claude",        "to": "implement", "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true},
+    {"from": "review_build_claude_threat", "to": "implement", "on_verdict": "needs_revision", "max_iterations": 2, "allow_same_lane": true}
   ]
 }

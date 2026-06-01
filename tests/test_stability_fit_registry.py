@@ -278,6 +278,24 @@ def test_gate_disjoint_heel_range(tmp_path):
     assert _reason(tmp_path, fx, _packet(fx), fit) == reg.REASON_VALID_HEEL_RANGE_DISJOINT
 
 
+def test_gate_fit_hull_class_fixture_mismatch(tmp_path):
+    """Gate 8a (threat-model review revision 1, P2): a strict accepted fit
+    anchored to a sea_kayak measured fixture but declaring
+    ``hull_family_scope.hull_class="sprint_k1"`` is dropped at load time. The
+    binding equality is the load-bearing safety surface — without it, an
+    accepted fit could re-target a measured rig run to a different hull family
+    by editing only the fit's scope, never the measured manifest."""
+    fx = _fixture()  # hull_identity.hull_class="sea_kayak"
+    fit = _fit(
+        fx,
+        hull_family_scope=HullFamilyScope(
+            hull_class="sprint_k1",
+            design_hash_envelope=["deadbeef"],
+        ),
+    )
+    assert _reason(tmp_path, fx, _packet(fx), fit) == reg.REASON_FIT_HULL_CLASS_FIXTURE_MISMATCH
+
+
 def test_gate_loose_self_declared_bounds(tmp_path):
     # drift_bound_fraction default is 0.005 (operator max). Widen it past the max.
     fx = _fixture(calibration_trace=CalibrationTrace(
@@ -392,6 +410,7 @@ def test_every_reason_has_a_next_action():
         reg.REASON_FIXTURE_NOT_PROMOTED,
         reg.REASON_PROMOTION_PACKET_REVIEW_INCOMPLETE,
         reg.REASON_FIT_RECORD_DOES_NOT_CITE_FIXTURE,
+        reg.REASON_FIT_HULL_CLASS_FIXTURE_MISMATCH,
         reg.REASON_VALID_HEEL_RANGE_DISJOINT,
         reg.REASON_EVALUATOR_VERSION_MISMATCH,
         reg.REASON_STRICT_CHECK_SKIPPED,
