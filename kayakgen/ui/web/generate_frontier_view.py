@@ -604,10 +604,14 @@ def frontier_view_css() -> str:
     """Return the CSS for the frontier view; references theme CSS variables only."""
 
     parts: list[str] = [
-        ".kg-frontier-section { display: flex; flex-direction: column; gap: 0.75rem; }",
+        ".kg-frontier-section { "
+        f"display: flex; flex-direction: column; gap: {theme.SPACING['space-3']}; "
+        "}",
         ".kg-frontier-scatter-svg { background: var(--surface-panel); "
-        "border: 1px solid var(--surface-border); border-radius: 4px; width: 100%; "
-        "max-width: 480px; }",
+        f"border: {theme.BORDERS['border-width-thin']} solid var(--surface-border); "
+        f"border-radius: {theme.RADII['radius-sm']}; width: 100%; "
+        f"max-width: {theme.DENSITY['frontier-max-width']}; "
+        "}",
         ".kg-frontier-point { stroke: var(--surface-border); stroke-width: 1; }",
     ]
     for claim_state, token in _CLAIM_STATE_COLOR_TOKENS.items():
@@ -697,7 +701,11 @@ def render_frontier_view_section(app: Any) -> None:
                 **{"data-testid": "frontier-scatter"},
             ):
                 trame_matplotlib.Figure(
-                    style="width: 100%; max-width: 480px; height: 220px;",
+                    style=(
+                        "width: 100%; "
+                        f"max-width: {theme.DENSITY['frontier-max-width']}; "
+                        f"height: {theme.DENSITY['frontier-scatter-height']};"
+                    ),
                 )
         except Exception:  # pragma: no cover - widget optional
             html_widgets.Div(

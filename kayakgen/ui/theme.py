@@ -56,8 +56,15 @@ COLORS_LIGHT: Final[dict[str, str]] = {
     "state-error-bg": "#fbe0dd",
     "state-info": "#126f86",
     "state-info-bg": "#d9eff4",
+    "state-focus-ring": "#005f5b",
     "state-focus-rail": "#087d74",
     "state-focus-row": "#dff3ee",
+    "state-hover-surface": "#e6eee9",
+    "state-hover-text": "#18221f",
+    "state-active-surface": "#d8dee2",
+    "state-active-text": "#18221f",
+    "state-disabled-surface": "#e6eee9",
+    "state-disabled-text": "#43524d",
     "state-delta-pos": "#1c6b36",
     "state-delta-neg": "#a32f28",
     "data-hull": "#126f86",
@@ -118,8 +125,15 @@ COLORS_DARK: Final[dict[str, str]] = {
     "state-error-bg": "#561b18",
     "state-info": "#65bdd2",
     "state-info-bg": "#173542",
+    "state-focus-ring": "#77d6ca",
     "state-focus-rail": "#58d2c6",
     "state-focus-row": "#203e38",
+    "state-hover-surface": "#24322d",
+    "state-hover-text": "#eef5f1",
+    "state-active-surface": "#364842",
+    "state-active-text": "#eef5f1",
+    "state-disabled-surface": "#24322d",
+    "state-disabled-text": "#becac4",
     "state-delta-pos": "#8fd89d",
     "state-delta-neg": "#ff9f96",
     "data-hull": "#65bdd2",
@@ -150,6 +164,57 @@ TYPOGRAPHY: Final[dict[str, str]] = {
     "type-body": "400 0.875rem/1.45 var(--font-condensed)",
     "type-caption": "500 0.72rem/1.35 var(--font-condensed)",
     "type-metric": "500 0.78rem/1.4 var(--font-mono)",
+}
+
+SPACING: Final[dict[str, str]] = {
+    "space-0": "0",
+    "space-1": "0.25rem",
+    "space-2": "0.5rem",
+    "space-3": "0.75rem",
+    "space-4": "1rem",
+    "space-5": "1.25rem",
+    "space-6": "1.5rem",
+    "space-7": "2rem",
+    "screen-reader-offset": "-10000px",
+}
+
+
+DENSITY: Final[dict[str, str]] = {
+    "control-height-compact": "32px",
+    "control-height-default": "40px",
+    "row-height-compact": "32px",
+    "table-row-padding-y": "0.25rem",
+    "table-row-padding-x": "0.5rem",
+    "viewport-height": "520px",
+    "viewport-min-height": "480px",
+    "frontier-max-width": "480px",
+    "frontier-scatter-height": "220px",
+    "screen-reader-size": "1px",
+}
+
+
+RADII: Final[dict[str, str]] = {
+    "radius-none": "0",
+    "radius-xs": "2px",
+    "radius-sm": "4px",
+    "radius-md": "6px",
+    "radius-lg": "8px",
+}
+
+
+ELEVATION: Final[dict[str, str]] = {
+    "elevation-none": "none",
+    "elevation-panel": "0 1px 2px rgb(15 23 42 / 0.08)",
+    "elevation-overlay": "0 8px 24px rgb(15 23 42 / 0.16)",
+}
+
+
+BORDERS: Final[dict[str, str]] = {
+    "border-width-none": "0",
+    "border-width-thin": "1px",
+    "border-width-focus": "2px",
+    "state-focus-ring-width": "2px",
+    "border-style-solid": "solid",
 }
 
 
@@ -344,7 +409,17 @@ CONTRAST_MANIFEST: Final[tuple[ContrastPair, ...]] = (
     ContrastPair("chip.advisory", "state-advisory-text", "state-advisory-bg"),
     ContrastPair("chip.success", "state-success-text", "state-success-bg"),
     ContrastPair("chip.error", "state-error-text", "state-error-bg"),
+    ContrastPair("focus.ring.panel", "state-focus-ring", "surface-panel", 3.0),
+    ContrastPair(
+        "focus.ring.viewport",
+        "state-focus-ring",
+        "surface-viewport-bg",
+        3.0,
+    ),
     ContrastPair("focus.rail", "state-focus-rail", "surface-viewport-bg", 3.0),
+    ContrastPair("state.hover", "state-hover-text", "state-hover-surface"),
+    ContrastPair("state.active", "state-active-text", "state-active-surface"),
+    ContrastPair("state.disabled", "state-disabled-text", "state-disabled-surface", 3.0),
     ContrastPair("data.hull", "data-hull", "surface-panel", 3.0),
     ContrastPair("data.deck", "data-deck", "surface-panel", 3.0),
     ContrastPair("delta.pos", "state-delta-pos", "surface-panel", 3.0),
@@ -376,8 +451,9 @@ def css_root_block(dark: bool = False) -> str:
     lines = [":root {"]
     for name, value in _tokens(dark).items():
         lines.append(f"  --{name}: {value};")
-    for name, value in TYPOGRAPHY.items():
-        lines.append(f"  --{name}: {value};")
+    for token_map in (TYPOGRAPHY, SPACING, DENSITY, RADII, ELEVATION, BORDERS):
+        for name, value in token_map.items():
+            lines.append(f"  --{name}: {value};")
     lines.append("}")
     return "\n".join(lines)
 
@@ -410,10 +486,18 @@ def _vuetify_theme(name: str, colors: ColorTokens, *, dark: bool) -> dict[str, o
             "viewport": colors["surface-viewport-bg"],
             "hull": colors["data-hull"],
             "deck": colors["data-deck"],
+            "focus-ring": colors["state-focus-ring"],
+            "state-hover-surface": colors["state-hover-surface"],
+            "state-hover-text": colors["state-hover-text"],
+            "state-active-surface": colors["state-active-surface"],
+            "state-active-text": colors["state-active-text"],
+            "state-disabled-surface": colors["state-disabled-surface"],
+            "state-disabled-text": colors["state-disabled-text"],
         },
         "variables": {
             "theme-name": name,
             "border-color": colors["surface-border"],
+            "focus-ring-width": BORDERS["state-focus-ring-width"],
             "high-emphasis-opacity": 1.0,
             "medium-emphasis-opacity": 0.74,
             "disabled-opacity": 0.38,

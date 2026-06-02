@@ -1420,8 +1420,10 @@ class KayakgenApp:
                     hide_details=True,
                     classes="kg-share-state-probe",
                     style=(
-                        "position: absolute; left: -10000px; top: auto; "
-                        "width: 1px; height: 1px; overflow: hidden;"
+                        "position: absolute; "
+                        f"left: {theme.SPACING['screen-reader-offset']}; top: auto; "
+                        f"width: {theme.DENSITY['screen-reader-size']}; "
+                        f"height: {theme.DENSITY['screen-reader-size']}; overflow: hidden;"
                     ),
                     **{
                         "data-testid": "share-url-state",
@@ -1498,7 +1500,8 @@ class KayakgenApp:
                                 with v3.VSheet(
                                     classes="kg-vtk-frame",
                                     style=(
-                                        "height: 520px; min-height: 480px; "
+                                        f"height: {theme.DENSITY['viewport-height']}; "
+                                        f"min-height: {theme.DENSITY['viewport-min-height']}; "
                                         "width: 100%;"
                                     ),
                                 ):
@@ -1507,7 +1510,8 @@ class KayakgenApp:
                                         ref="view",
                                         classes="kg-vtk-viewport",
                                         style=(
-                                            "height: 100%; min-height: 480px; "
+                                            "height: 100%; "
+                                            f"min-height: {theme.DENSITY['viewport-min-height']}; "
                                             "width: 100%; display: block;"
                                         ),
                                         **{"data-testid": "geometry-vtk-view"},

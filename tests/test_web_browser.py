@@ -317,6 +317,17 @@ def _slider_number(page, key: str, attr: str) -> float:
     return float(value)
 
 
+def _select_class_preset(page, label: str) -> None:
+    page.locator(".kg-class-preset-select").click()
+    page.get_by_role("option", name=label, exact=True).click()
+
+
+def _class_preset_value(page) -> str:
+    value = page.evaluate("() => window.trame?.state?.get?.('class_preset')")
+    assert isinstance(value, str)
+    return value
+
+
 def _assert_parameter_slider_label_geometry(page) -> None:
     expected = {
         "length_m": "Length (m)",
@@ -481,13 +492,7 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 _assert_parameter_slider_accessibility(page)
                 _assert_nonblank_3d(page)
 
-                elite_preset = page.locator(
-                    ".kg-class-preset-radio input[type='radio'][value='surfski_elite']"
-                )
-                custom_preset = page.locator(
-                    ".kg-class-preset-radio input[type='radio'][value='custom']"
-                )
-                elite_preset.check(force=True)
+                _select_class_preset(page, "Elite surfski")
                 page.wait_for_function(
                     """
                     () => Math.abs(parseFloat(
@@ -504,31 +509,26 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 page.get_by_text("In Elite surfski envelope").first.wait_for(timeout=10_000)
                 # Selecting the preset fires same-seed hull updates through Trame; this
                 # assertion pins the retained listener guard without private-helper calls.
-                assert elite_preset.is_checked()
-                assert not custom_preset.is_checked()
+                assert _class_preset_value(page) == "surfski_elite"
 
                 # Reselecting the same preset must also keep preset bounds until an
                 # actual hull edit flips the selector to custom.
-                elite_preset.check(force=True)
+                _select_class_preset(page, "Elite surfski")
                 page.wait_for_function(
                     """
-                    () => document.querySelector(
-                      ".kg-class-preset-radio input[type='radio'][value='surfski_elite']"
-                    )?.checked === true
+                    () => window.trame?.state?.get?.("class_preset") === "surfski_elite"
                     """,
                     timeout=10_000,
                 )
                 assert abs(_slider_number(page, "length_m", "aria-valuemin") - 5.8) < 1e-6
                 assert abs(_slider_number(page, "length_m", "aria-valuemax") - 6.4) < 1e-6
-                assert not custom_preset.is_checked()
+                assert _class_preset_value(page) == "surfski_elite"
 
                 page.locator(".kg-param-length_m [role='slider']").first.focus()
                 page.keyboard.press("ArrowRight")
                 page.wait_for_function(
                     """
-                    () => document.querySelector(
-                      ".kg-class-preset-radio input[type='radio'][value='custom']"
-                    )?.checked === true
+                    () => window.trame?.state?.get?.("class_preset") === "custom"
                     """,
                     timeout=10_000,
                 )
@@ -551,9 +551,16 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 page.get_by_role("tab", name="Mesh").click()
                 page.get_by_text("Hull diagnostics").first.wait_for(timeout=10_000)
                 page.get_by_text("Deck diagnostics").first.wait_for(timeout=10_000)
-                page.get_by_text("Boundary edges:").first.wait_for(timeout=10_000)
-                page.get_by_text("(welded primary)").first.wait_for(timeout=10_000)
-                page.get_by_text("Raw detail:").first.wait_for(timeout=10_000)
+                page.get_by_text("Boundary edges (perimeter; acceptable)").first.wait_for(
+                    timeout=10_000
+                )
+                page.get_by_text("(welded),").first.wait_for(timeout=10_000)
+                page.get_by_text("Non-manifold edges (must be 0)").first.wait_for(
+                    timeout=10_000
+                )
+                page.get_by_text("Degenerate faces (must be 0)").first.wait_for(
+                    timeout=10_000
+                )
                 page.get_by_text("watertight-solid").first.wait_for(timeout=10_000)
                 page.get_by_text("not watertight cfd_ready").first.wait_for(timeout=10_000)
 

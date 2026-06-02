@@ -8,6 +8,15 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- RFC 0065 Slice 1 theme-token foundation: `kayakgen/ui/theme.py` now
+  exposes additive spacing, density, radius, elevation, border,
+  focus-ring, and state-token maps; CSS/Vuetify helpers emit them for
+  both palettes; contrast tests cover the new focus and state pairs.
+  The web shell and Generate frontier view now route existing inline
+  dimensions through those tokens with no intended layout or claim-copy
+  change, and the UI orphan-literal lint now blocks raw dimension,
+  radius, shadow, outline, and focus literals outside `theme.py`.
+
 - RFC 0043 stage 4 — measured-stability accepted-fit registry. New
   `kayakgen/eval/stability/registry.py` lands the 13-gate provenance
   chain that flips the analytical high-angle GZ claim label
@@ -49,6 +58,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Changed
 
+- Workflow 0057 / RFC 0065 Slice 1 remediation: updated the real-browser
+  acceptance test to drive the toolbar class `VSelect` and the current
+  mesh-diagnostics table labels after review found stale expectations for
+  the removed class-preset radio group and old preformatted mesh lines.
+  This is test-only; class-selection behavior, layout hooks, claim copy,
+  and the Slice 1 token values are unchanged.
 - RFC 0064 landed — burned down 14 outstanding RFC dispositions to
   `landed` / `superseded by …` / `deferred per D023` so the README
   index and individual RFC files agree. Stability-rig pair
