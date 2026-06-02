@@ -18,6 +18,12 @@ def pytest_addoption(parser):
         default=False,
         help="Fail instead of skipping when required Playwright/Chromium tooling is missing.",
     )
+    parser.addoption(
+        "--update-visual-baselines",
+        action="store_true",
+        default=False,
+        help="Regenerate committed browser screenshot baselines.",
+    )
 
 
 # ---------------------------------------------------------------------------

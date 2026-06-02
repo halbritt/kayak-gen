@@ -22,6 +22,8 @@ import sys
 import time
 import zlib
 from contextlib import closing
+from dataclasses import dataclass
+from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -35,6 +37,24 @@ PLAYWRIGHT_SETUP = (
     "`python -m playwright install chromium`."
 )
 RENDER_SELECTOR = "canvas, img, [class*='vtk'], [class*='Vtk']"
+VISUAL_BASELINE_DIR = Path(__file__).parent / "visual_baselines"
+VISUAL_MASK_FILL = "#f3f4f6"
+VISUAL_PIXEL_CHANNEL_TOLERANCE = 8
+VISUAL_MISMATCH_PIXEL_RATIO = 0.02
+
+
+@dataclass(frozen=True)
+class VisualViewport:
+    name: str
+    width: int
+    height: int
+
+
+VISUAL_VIEWPORTS: tuple[VisualViewport, ...] = (
+    VisualViewport("1440x900", 1440, 900),
+    VisualViewport("1024x768", 1024, 768),
+    VisualViewport("960x720", 960, 720),
+)
 
 
 def _browser_acceptance_required(request: pytest.FixtureRequest) -> bool:
@@ -56,6 +76,14 @@ def _load_playwright(request: pytest.FixtureRequest):
     return playwright_api
 
 
+def _load_playwright_optional(request: pytest.FixtureRequest):
+    try:
+        import playwright.sync_api as playwright_api
+    except ImportError:
+        pytest.skip(f"Playwright is not installed. {PLAYWRIGHT_SETUP}")
+    return playwright_api
+
+
 def _launch_chromium(playwright_api, pw, request: pytest.FixtureRequest):
     try:
         return pw.chromium.launch(headless=True)
@@ -64,6 +92,13 @@ def _launch_chromium(playwright_api, pw, request: pytest.FixtureRequest):
         if _browser_acceptance_required(request):
             pytest.fail(message)
         pytest.skip(message)
+
+
+def _launch_chromium_optional(playwright_api, pw):
+    try:
+        return pw.chromium.launch(headless=True)
+    except playwright_api.Error as exc:
+        pytest.skip(f"Chromium is not installed. {PLAYWRIGHT_SETUP} {exc}")
 
 
 def _free_port() -> int:
@@ -210,6 +245,133 @@ def _assert_nonblank_3d(page) -> None:
     assert max_rgb - min_rgb > 8
 
 
+def _wait_for_workspace_shell(page) -> None:
+    page.get_by_text("kayakgen").first.wait_for(timeout=10_000)
+    page.get_by_text("Length (m)").first.wait_for(timeout=10_000)
+    page.get_by_text("Metrics").first.wait_for(timeout=10_000)
+    page.get_by_text("Hydrostatics").first.wait_for(timeout=10_000)
+
+
+def _mask_vtk_viewport(page) -> None:
+    page.evaluate(
+        """
+        ({selector, fill}) => {
+          document.querySelectorAll(".kg-visual-mask").forEach((el) => el.remove());
+          const targets = Array.from(document.querySelectorAll(selector))
+            .filter((el) => {
+              const rect = el.getBoundingClientRect();
+              return rect.width > 0 && rect.height > 0;
+            });
+          if (targets.length === 0) {
+            throw new Error(`no VTK viewport found for visual mask: ${selector}`);
+          }
+          for (const target of targets) {
+            const rect = target.getBoundingClientRect();
+            const mask = document.createElement("div");
+            mask.className = "kg-visual-mask";
+            mask.setAttribute("data-testid", "visual-vtk-mask");
+            Object.assign(mask.style, {
+              position: "fixed",
+              left: `${rect.left}px`,
+              top: `${rect.top}px`,
+              width: `${rect.width}px`,
+              height: `${rect.height}px`,
+              background: fill,
+              zIndex: "2147483647",
+              pointerEvents: "none",
+            });
+            document.body.appendChild(mask);
+          }
+        }
+        """,
+        arg={
+            "selector": "[data-testid='geometry-vtk-view'], .kg-vtk-viewport",
+            "fill": VISUAL_MASK_FILL,
+        },
+    )
+
+
+def _capture_masked_workspace_png(page, viewport: VisualViewport) -> bytes:
+    _wait_for_workspace_shell(page)
+    _assert_nonblank_3d(page)
+    _mask_vtk_viewport(page)
+    page.wait_for_timeout(250)
+    png = page.screenshot(full_page=False, timeout=10_000)
+    assert _png_size(png) == (viewport.width, viewport.height)
+    return png
+
+
+@dataclass(frozen=True)
+class VisualCompareResult:
+    passed: bool
+    mismatch_ratio: float
+    max_channel_delta: int
+    actual_path: Path
+    diff_path: Path
+
+
+def _compare_visual_png(
+    *,
+    actual_png: bytes,
+    baseline_path: Path,
+    output_dir: Path,
+    viewport_name: str,
+) -> VisualCompareResult:
+    try:
+        from PIL import Image, ImageChops
+    except ImportError:
+        pytest.skip("Pillow is required for visual-baseline comparison.")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    actual_path = output_dir / f"{viewport_name}.actual.png"
+    diff_path = output_dir / f"{viewport_name}.diff.png"
+    actual_path.write_bytes(actual_png)
+
+    actual = Image.open(actual_path).convert("RGBA")
+    expected = Image.open(baseline_path).convert("RGBA")
+    if actual.size != expected.size:
+        diff = Image.new("RGBA", actual.size, (255, 0, 255, 255))
+        diff.save(diff_path)
+        return VisualCompareResult(
+            passed=False,
+            mismatch_ratio=1.0,
+            max_channel_delta=255,
+            actual_path=actual_path,
+            diff_path=diff_path,
+        )
+
+    diff = ImageChops.difference(actual, expected)
+    mismatched = 0
+    max_delta = 0
+    pixel_count = actual.size[0] * actual.size[1]
+    diff_bytes = diff.tobytes()
+    for idx in range(0, len(diff_bytes), 4):
+        delta = max(diff_bytes[idx], diff_bytes[idx + 1], diff_bytes[idx + 2])
+        max_delta = max(max_delta, delta)
+        if delta > VISUAL_PIXEL_CHANNEL_TOLERANCE:
+            mismatched += 1
+    ratio = mismatched / max(1, pixel_count)
+    if ratio > VISUAL_MISMATCH_PIXEL_RATIO:
+        amplified = diff.point(lambda value: min(255, value * 8))
+        amplified.save(diff_path)
+        return VisualCompareResult(
+            passed=False,
+            mismatch_ratio=ratio,
+            max_channel_delta=max_delta,
+            actual_path=actual_path,
+            diff_path=diff_path,
+        )
+    if diff_path.exists():
+        diff_path.unlink()
+    return VisualCompareResult(
+        passed=True,
+        mismatch_ratio=ratio,
+        max_channel_delta=max_delta,
+        actual_path=actual_path,
+        diff_path=diff_path,
+    )
+
+
 def _png_rgb_range(png: bytes) -> tuple[int, int]:
     assert png.startswith(b"\x89PNG\r\n\x1a\n")
     pos = 8
@@ -255,6 +417,16 @@ def _png_rgb_range(png: bytes) -> tuple[int, int]:
             max_rgb = max(max_rgb, *rgb)
         prev = scan
     return min_rgb, max_rgb
+
+
+def _png_size(png: bytes) -> tuple[int, int]:
+    assert png.startswith(b"\x89PNG\r\n\x1a\n")
+    length = struct.unpack(">I", png[8:12])[0]
+    chunk_type = png[12:16]
+    assert length == 13
+    assert chunk_type == b"IHDR"
+    width, height = struct.unpack(">II", png[16:24])
+    return int(width), int(height)
 
 
 def _unfilter_png_scanline(
@@ -462,6 +634,61 @@ def _assert_parameter_slider_accessibility(page) -> None:
         visible_label = row.locator(".v-slider__label").first.text_content()
         assert visible_label == expected_label
         assert page.get_by_role("group", name=visible_label, exact=True).count() == 1
+
+
+@pytest.mark.browser_acceptance
+@pytest.mark.parametrize("viewport", VISUAL_VIEWPORTS, ids=lambda viewport: viewport.name)
+def test_web_workspace_visual_baseline(
+    request: pytest.FixtureRequest,
+    tmp_path: Path,
+    viewport: VisualViewport,
+) -> None:
+    playwright_api = _load_playwright_optional(request)
+    update_baselines = bool(request.config.getoption("--update-visual-baselines"))
+    baseline_path = VISUAL_BASELINE_DIR / f"{viewport.name}.png"
+    url, proc = _start_server()
+    try:
+        with playwright_api.sync_playwright() as pw:
+            browser = None
+            try:
+                browser = _launch_chromium_optional(playwright_api, pw)
+                page = browser.new_page(
+                    viewport={"width": viewport.width, "height": viewport.height}
+                )
+                failures = _collect_browser_failures(page)
+                page.goto(url, wait_until="networkidle", timeout=30_000)
+                actual_png = _capture_masked_workspace_png(page, viewport)
+                _assert_no_browser_failures(failures)
+            finally:
+                if browser is not None:
+                    browser.close()
+    finally:
+        _stop_server(proc)
+
+    if update_baselines:
+        VISUAL_BASELINE_DIR.mkdir(parents=True, exist_ok=True)
+        baseline_path.write_bytes(actual_png)
+        return
+
+    if not baseline_path.exists():
+        pytest.skip(
+            f"visual baseline is missing for {viewport.name}; regenerate with "
+            "--update-visual-baselines"
+        )
+
+    result = _compare_visual_png(
+        actual_png=actual_png,
+        baseline_path=baseline_path,
+        output_dir=tmp_path / "visual_baseline_diffs",
+        viewport_name=viewport.name,
+    )
+    if not result.passed:
+        pytest.skip(
+            "advisory visual baseline mismatch for "
+            f"{viewport.name}: mismatch_ratio={result.mismatch_ratio:.4f}, "
+            f"max_channel_delta={result.max_channel_delta}; "
+            f"actual={result.actual_path}; diff={result.diff_path}"
+        )
 
 
 @pytest.mark.browser_acceptance

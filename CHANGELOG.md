@@ -8,6 +8,15 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- RFC 0065 Slice 0 visual-baseline scaffold: the browser-acceptance
+  profile now captures advisory Playwright/Chromium screenshots at
+  1440x900, 1024x768, and 960x720, masks the live VTK viewport out of
+  comparison, asserts that each PNG decodes to its configured viewport
+  dimensions, supports `--update-visual-baselines`, and commits today's
+  masked shell PNGs under `tests/visual_baselines/`. Mismatches write
+  actual/diff PNGs and skip in Slice 0; the hard visual gate remains
+  Slice 4 scope.
+
 - RFC 0065 Slice 1 theme-token foundation: `kayakgen/ui/theme.py` now
   exposes additive spacing, density, radius, elevation, border,
   focus-ring, and state-token maps; CSS/Vuetify helpers emit them for
