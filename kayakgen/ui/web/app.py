@@ -253,15 +253,232 @@ RESPONSIVE_CLASS_HOOKS: tuple[str, ...] = (
 
 ROOT_THEME_CSS = theme.css_root_block()
 
-PARAMETER_RAIL_CSS = (
-    ".kg-param-slider .v-slider__label { "
-    "font: var(--type-label); "
-    "color: var(--text-secondary); "
-    "white-space: nowrap; "
-    "overflow: hidden; "
-    "text-overflow: ellipsis; "
-    "}"
-)
+WORKSPACE_SHELL_CSS = """
+.kg-workspace-shell {
+  background: var(--surface-bg);
+  color: var(--text-primary);
+  font: var(--type-body);
+}
+.kg-workspace-main {
+  gap: var(--space-0);
+}
+.kg-region {
+  background: var(--surface-panel);
+  border: var(--border-width-thin) var(--border-style-solid) var(--surface-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-panel);
+  padding: var(--space-4);
+}
+.kg-region-params {
+  background: var(--surface-rail);
+}
+.kg-region-review {
+  background: var(--surface-review);
+}
+.kg-region-title,
+.kg-review-card .v-card-title,
+.kg-generate-card .v-card-title {
+  color: var(--text-primary);
+  font: var(--type-heading);
+  padding: var(--space-0) var(--space-0) var(--space-3);
+}
+.kg-toolbar-breadcrumb {
+  color: var(--text-primary);
+  font: var(--type-display);
+}
+.kg-toolbar-action,
+.kg-class-preset-select,
+.kg-export-menu-list .v-list-item-title,
+.kg-review-tabs .v-tab,
+.kg-status-segment {
+  font: var(--type-label);
+}
+.kg-class-preset-chip,
+.kg-validity-badge,
+.kg-claim-chip,
+.kg-readiness-chip,
+.kg-chip {
+  border-radius: var(--radius-sm);
+  font: var(--type-caption);
+}
+.kg-rail-group-label,
+.kg-generate-section-label,
+.kg-frontier-heading {
+  color: var(--text-secondary);
+  font: var(--type-label);
+  padding: var(--space-3) var(--space-0) var(--space-2);
+}
+.kg-param-slider {
+  padding-block: var(--space-1);
+}
+.kg-param-slider .v-slider__label {
+  color: var(--text-secondary);
+  font: var(--type-label);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kg-param-slider-control .v-slider-track__fill,
+.kg-param-slider-control .v-slider-thumb__surface {
+  background: var(--state-focus-rail);
+}
+.kg-vtk-frame {
+  background: var(--surface-viewport-bg);
+  border: var(--border-width-thin) var(--border-style-solid) var(--surface-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-panel);
+  overflow: hidden;
+}
+.kg-vtk-viewport {
+  background: var(--surface-viewport-bg);
+}
+.kg-metrics-strip {
+  background: var(--surface-muted);
+  border: var(--border-width-thin) var(--border-style-solid) var(--surface-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-none);
+  margin-block-start: var(--space-3);
+}
+.kg-metrics-strip .v-card-title {
+  font: var(--type-label);
+  padding: var(--space-3) var(--space-3) var(--space-1);
+}
+.kg-metrics-strip pre,
+.kg-review-card pre,
+.kg-resistance-table,
+.kg-hydro-table,
+.kg-mesh-diag-table {
+  font: var(--type-metric);
+}
+.kg-review-tabs {
+  border-block-end: var(--border-width-thin) var(--border-style-solid) var(--surface-border);
+  margin-block-end: var(--space-3);
+}
+.kg-review-card,
+.kg-frontier-section {
+  background: var(--surface-panel);
+  border: var(--border-width-thin) var(--border-style-solid) var(--surface-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elevation-panel);
+  margin-block-end: var(--space-3);
+}
+.kg-review-card .v-card-text,
+.kg-frontier-section .v-card-text {
+  color: var(--text-secondary);
+  font: var(--type-body);
+  padding: var(--space-2) var(--space-3);
+}
+.kg-hydro-table,
+.kg-mesh-diag-table,
+.kg-resistance-table {
+  border-collapse: collapse;
+  width: var(--frontier-max-width);
+  max-width: var(--frontier-max-width);
+}
+.kg-hydro-table th,
+.kg-mesh-diag-table th,
+.kg-resistance-table th {
+  color: var(--text-secondary);
+  font: var(--type-label);
+  padding: var(--table-row-padding-y) var(--table-row-padding-x);
+  text-align: left;
+}
+.kg-hydro-table td,
+.kg-mesh-diag-table td,
+.kg-resistance-table td {
+  color: var(--text-primary);
+  font: var(--type-metric);
+  padding: var(--table-row-padding-y) var(--table-row-padding-x);
+}
+.kg-resistance-row-target {
+  background: var(--state-focus-row);
+}
+.kg-cfd-banner,
+.kg-generate-banner,
+.kg-generate-status,
+.kg-frontier-empty,
+.kg-pinned-empty,
+.kg-generate-section-help {
+  color: var(--text-secondary);
+  font: var(--type-caption);
+}
+.kg-generate-card .v-field,
+.kg-cfd-card .v-field,
+.kg-comparison-card .v-field,
+.kg-mesh-readiness-card .v-field {
+  border-radius: var(--radius-sm);
+}
+.kg-generate-variables-table-wrap,
+.kg-generate-objectives-list-wrap,
+.kg-resistance-table-wrap,
+.kg-readiness-chip-wrap {
+  padding-block: var(--space-2);
+}
+.kg-generate-build,
+.kg-generate-watch,
+.kg-generate-pick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.kg-generate-variable-table {
+  border: var(--border-width-thin) var(--border-style-solid) var(--surface-border);
+  border-radius: var(--radius-sm);
+  border-collapse: separate;
+  border-spacing: var(--space-0);
+  overflow: hidden;
+  width: var(--frontier-max-width);
+  max-width: var(--frontier-max-width);
+}
+.kg-generate-variable-table th,
+.kg-generate-variable-table td {
+  font: var(--type-caption);
+  padding: var(--table-row-padding-y) var(--table-row-padding-x);
+}
+.kg-generate-variable-table select,
+.kg-generate-variable-table input {
+  background: var(--surface-panel);
+  border: var(--border-width-thin) var(--border-style-solid) var(--surface-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font: var(--type-body);
+  min-height: var(--control-height-compact);
+}
+.kg-variable-remove-btn {
+  background: var(--state-hover-surface);
+  border: var(--border-width-thin) var(--border-style-solid) var(--surface-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font: var(--type-label);
+  min-height: var(--control-height-compact);
+}
+.kg-status-bar {
+  align-items: center;
+  background: var(--surface-panel);
+  border-block-start: var(--border-width-thin) var(--border-style-solid) var(--surface-border);
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+.kg-status-segment {
+  color: var(--text-secondary);
+  min-height: var(--control-height-compact);
+}
+@media (max-width: %s) {
+  .kg-collapse-under-960,
+  .kg-geometry-accordion-under-960,
+  .kg-review-body-under-960 {
+    border-radius: var(--radius-sm);
+    margin-block-end: var(--space-3);
+  }
+  .kg-status-wrap-under-960 {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+}
+""" % theme.DENSITY["collapse-breakpoint"]
+
+PARAMETER_RAIL_CSS = WORKSPACE_SHELL_CSS
 
 RAW_COMPARATIVE_CAPTION = "Raw comparative filter; not final prediction."
 RESISTANCE_DETAIL_COPY = (
@@ -1922,7 +2139,8 @@ class KayakgenApp:
                         readonly=True,
                         density="compact",
                     )
-                    render_spec_form_section(self)
+                    with html_widgets.Div(classes="kg-generate-build"):
+                        render_spec_form_section(self)
                     # Single kind-aware submit button (§4.7); label and action vary by kind.
                     # The button is always present; we use v_show to swap between two
                     # styled buttons that each have data-testid="generative-submit".
@@ -1976,59 +2194,60 @@ class KayakgenApp:
                         html=True,
                         classes="kg-generate-submit-blocking-reason-wrap pa-0",
                     )
-                    v3.VBtn(
-                        "Refresh Jobs",
-                        click=self.ctrl.refresh_generative_jobs,
-                        density="compact",
-                        classes="mr-2",
-                    )
-                    v3.VTextField(
-                        v_model=("generative_job_id",),
-                        label="Selected job id",
-                        density="compact",
-                    )
-                    v3.VBtn(
-                        "Cancel",
-                        click=self.ctrl.cancel_generative_job,
-                        density="compact",
-                        classes="mr-2",
-                    )
-                    v3.VBtn(
-                        "Resume",
-                        click=self.ctrl.resume_generative_job,
-                        density="compact",
-                        classes="mr-2",
-                    )
-                    v3.VBtn(
-                        "Load Log",
-                        click=self.ctrl.load_generative_log,
-                        density="compact",
-                        classes="mr-2",
-                    )
-                    v3.VBtn(
-                        "Load Frontier",
-                        click=self.ctrl.load_generative_frontier,
-                        density="compact",
-                    )
-                    # Jobs index as VDataTable (§4.7 / §18).
-                    v3.VDataTable(
-                        headers=(
-                            "[{title: 'Job ID', key: 'job_id', sortable: true},"
-                            " {title: 'Kind', key: 'job_kind', sortable: true},"
-                            " {title: 'State', key: 'state', sortable: true}]"
-                        ),
-                        items=("generative_jobs_table_rows",),
-                        item_value="job_id",
-                        density="compact",
-                        classes="kg-jobs-table",
-                        **{"data-testid": "generative-jobs-table"},
-                    )
-                    self._render_generate_job_fork_buttons()
-                    v3.VCardText(
-                        "<pre>{{ generative_log_lines.join('\\n') }}</pre>",
-                        classes="font-mono text-caption",
-                        html=True,
-                    )
+                    with html_widgets.Div(classes="kg-generate-watch"):
+                        v3.VBtn(
+                            "Refresh Jobs",
+                            click=self.ctrl.refresh_generative_jobs,
+                            density="compact",
+                            classes="mr-2",
+                        )
+                        v3.VTextField(
+                            v_model=("generative_job_id",),
+                            label="Selected job id",
+                            density="compact",
+                        )
+                        v3.VBtn(
+                            "Cancel",
+                            click=self.ctrl.cancel_generative_job,
+                            density="compact",
+                            classes="mr-2",
+                        )
+                        v3.VBtn(
+                            "Resume",
+                            click=self.ctrl.resume_generative_job,
+                            density="compact",
+                            classes="mr-2",
+                        )
+                        v3.VBtn(
+                            "Load Log",
+                            click=self.ctrl.load_generative_log,
+                            density="compact",
+                            classes="mr-2",
+                        )
+                        v3.VBtn(
+                            "Load Frontier",
+                            click=self.ctrl.load_generative_frontier,
+                            density="compact",
+                        )
+                        # Jobs index as VDataTable (§4.7 / §18).
+                        v3.VDataTable(
+                            headers=(
+                                "[{title: 'Job ID', key: 'job_id', sortable: true},"
+                                " {title: 'Kind', key: 'job_kind', sortable: true},"
+                                " {title: 'State', key: 'state', sortable: true}]"
+                            ),
+                            items=("generative_jobs_table_rows",),
+                            item_value="job_id",
+                            density="compact",
+                            classes="kg-jobs-table",
+                            **{"data-testid": "generative-jobs-table"},
+                        )
+                        self._render_generate_job_fork_buttons()
+                        v3.VCardText(
+                            "<pre>{{ generative_log_lines.join('\\n') }}</pre>",
+                            classes="font-mono text-caption",
+                            html=True,
+                        )
                     # Frontier view section moved to Comparison tab (§8.1 / §0.9).
 
     def _render_generate_job_fork_buttons(self) -> None:

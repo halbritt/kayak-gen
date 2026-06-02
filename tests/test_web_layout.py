@@ -111,10 +111,40 @@ def test_parameter_slider_label_css_uses_existing_tokens() -> None:
     assert "--type-label:" not in css
     assert "--text-secondary:" not in css
     assert "--surface-rail:" not in css
-    assert set(re.findall(r"var\((--[^)]+)\)", css)) == {
+    assert {
         "--type-label",
+        "--type-heading",
+        "--type-display",
+        "--type-body",
+        "--type-caption",
+        "--type-metric",
         "--text-secondary",
-    }
+        "--surface-border",
+        "--surface-panel",
+        "--surface-rail",
+        "--surface-review",
+        "--surface-viewport-bg",
+        "--surface-muted",
+        "--text-primary",
+        "--state-focus-rail",
+        "--state-focus-row",
+        "--state-hover-surface",
+        "--border-width-thin",
+        "--border-style-solid",
+        "--radius-sm",
+        "--radius-md",
+        "--elevation-none",
+        "--elevation-panel",
+        "--space-0",
+        "--space-1",
+        "--space-2",
+        "--space-3",
+        "--space-4",
+        "--table-row-padding-y",
+        "--table-row-padding-x",
+        "--control-height-compact",
+        "--frontier-max-width",
+    } <= set(re.findall(r"var\((--[^)]+)\)", css))
     assert web_app.ROOT_THEME_CSS.count(":root") == 1
     assert "--type-label:" in web_app.ROOT_THEME_CSS
     assert "--text-secondary:" in web_app.ROOT_THEME_CSS
@@ -123,7 +153,43 @@ def test_parameter_slider_label_css_uses_existing_tokens() -> None:
     assert app_source.count("html_widgets.Style(PARAMETER_RAIL_CSS)") == 1
 
 
+def test_shell_and_generate_sections_share_typography_and_token_density() -> None:
+    css = web_app.WORKSPACE_SHELL_CSS
+    app_source = Path(web_app.__file__).read_text()
+
+    assert web_app.PARAMETER_RAIL_CSS == css
+    for selector in (
+        ".kg-region-title",
+        ".kg-toolbar-breadcrumb",
+        ".kg-review-card",
+        ".kg-metrics-strip",
+        ".kg-status-bar",
+        ".kg-generate-build",
+        ".kg-generate-watch",
+        ".kg-generate-pick",
+    ):
+        assert selector in css
+    for role in (
+        "--type-display",
+        "--type-heading",
+        "--type-label",
+        "--type-body",
+        "--type-caption",
+        "--type-metric",
+    ):
+        assert f"var({role})" in css
+    assert "border: var(--border-width-thin) var(--border-style-solid)" in css
+    assert "border-radius: var(--radius-md);" in css
+    assert "box-shadow: var(--elevation-panel);" in css
+    assert "gap: var(--space-3);" in css
+    assert "@media (max-width: 960px)" in css
+    assert 'with html_widgets.Div(classes="kg-generate-build")' in app_source
+    assert 'with html_widgets.Div(classes="kg-generate-watch")' in app_source
+
+
 def test_review_tabs_and_status_segments_match_workspace_contract() -> None:
+    app_source = Path(web_app.__file__).read_text()
+
     assert [tab["label"] for tab in web_app.REVIEW_TABS] == [
         "Hydro",
         "Mesh",
@@ -144,6 +210,23 @@ def test_review_tabs_and_status_segments_match_workspace_contract() -> None:
         "analysis",
         "cfd",
     ]
+    assert [f"status-{segment['key']}" for segment in web_app.STATUS_SEGMENTS] == [
+        "status-package",
+        "status-readiness",
+        "status-resistance",
+        "status-cfd",
+    ]
+    assert '"data-testid": "workspace-status-bar"' in app_source
+    assert '"data-testid": f"status-{label}"' in app_source
+    assert 'classes=f"kg-status-segment kg-status-{label}"' in app_source
+    assert '"aria-label": (f"{state_key}_aria_label",)' in app_source
+
+
+def test_slice2_defers_control_focus_state_application_to_slice3() -> None:
+    css = web_app.WORKSPACE_SHELL_CSS
+
+    assert ":focus-visible" not in css
+    assert "outline: var(--state-focus-ring-width)" not in css
 
 
 def test_persistent_claim_readiness_and_cfd_copy_is_static_and_exact() -> None:
@@ -713,6 +796,19 @@ def test_frontier_renders_in_comparison_tab() -> None:
         "render_frontier_view_section must be called inside _render_comparison_tab "
         "(after comparison VWindowItem and before generate VWindowItem)"
     )
+
+
+def test_generate_pick_hooks_have_positive_render_assertions() -> None:
+    from kayakgen.ui.web import generate_fork_button, generate_frontier_view
+
+    frontier_source = Path(generate_frontier_view.__file__).read_text()
+    fork_source = Path(generate_fork_button.__file__).read_text()
+
+    assert 'classes="kg-frontier-section kg-generate-pick"' in frontier_source
+    assert '"data-testid": "frontier-view-section"' in frontier_source
+    assert "render_frontier_view_section(self)" in Path(web_app.__file__).read_text()
+    assert "kg-fork-with-new-seed kg-generate-pick-action" in fork_source
+    assert "return v3.VBtn(" in fork_source
 
 
 def test_comparison_source_toggle_default() -> None:

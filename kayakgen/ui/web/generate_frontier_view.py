@@ -647,7 +647,7 @@ def render_frontier_view_section(app: Any) -> None:
     html_widgets.Style(frontier_view_css())
 
     with v3.VCard(
-        classes="kg-frontier-section",
+        classes="kg-frontier-section kg-generate-pick",
         **{"data-testid": "frontier-view-section"},
     ):
         v3.VCardSubtitle("Pareto frontier", classes="kg-frontier-heading")

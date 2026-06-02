@@ -63,7 +63,7 @@ def render_fork_button(app: Any, *, job_summary: dict[str, Any]) -> Any:
         FORK_BUTTON_LABEL,
         click=(app.ctrl.fork_generative_job, f"['{job_id}', {seed_hint}]"),
         density="compact",
-        classes="kg-fork-with-new-seed",
+        classes="kg-fork-with-new-seed kg-generate-pick-action",
     )
 
 

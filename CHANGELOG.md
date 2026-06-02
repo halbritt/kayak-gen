@@ -67,6 +67,17 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Changed
 
+- RFC 0065 Slice 2 shell-layout reflow: the Trame workspace shell now
+  applies the Slice 1 spacing, density, radius, elevation, border,
+  focus-ring, state, and typography tokens across the Parameters rail,
+  Geometry viewport/metrics strip, Review cards/tabs, status bar, and
+  Generate build/watch/pick surfaces. The existing three-region hooks,
+  status segments, 960px collapse hooks, claim/readiness/status copy,
+  REST boundary, and generated-analysis semantics are unchanged.
+  Review remediation removed the premature Slice 3 focus-visible control
+  styling from the Slice 2 CSS and added positive layout-test assertions
+  for the status-bar and Generate pick/action hook contracts.
+
 - Workflow 0057 / RFC 0065 Slice 1 remediation: updated the real-browser
   acceptance test to drive the toolbar class `VSelect` and the current
   mesh-diagnostics table labels after review found stale expectations for
