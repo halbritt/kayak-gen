@@ -14,4 +14,8 @@ data/stability/fits/
 # were removed in 2026-05-16 cleanup; any new root-level STL output from
 # `kayakgen generate` or `python generator.py` is ignored.
 /*.stl
+
+# Striatum daemon status dump (transient operator-state snapshot written to the
+# repo root by `striatum status ... --output`); not authored, not tracked.
+/status.json
 .claude/
