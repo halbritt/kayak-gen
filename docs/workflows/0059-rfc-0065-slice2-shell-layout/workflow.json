@@ -1,0 +1,204 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0059-rfc-0065-slice2-shell-layout",
+  "workflow_version": "2026-06-02",
+  "name": "0059 - RFC 0065 Slice 2 shell layout & information hierarchy",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0059-rfc-0065-slice2-shell-layout",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "codex"
+  },
+  "lanes": {
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["bash", ".striatum/bin/codex-supervised-wrapper.sh"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.8",
+      "command": ["bash", ".striatum/bin/claude-supervised-wrapper.sh"],
+      "capabilities": ["review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["bash", ".striatum/bin/gemini-supervised-wrapper.sh"],
+      "capabilities": ["review", "synthesis"]
+    }
+  },
+  "roles": {
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_claims": {"definition_path": "roles/reviewer_claims.md"},
+    "reviewer_ops_tests": {"definition_path": "roles/reviewer_ops_tests.md"},
+    "findings_ledger": {"definition_path": "roles/findings_ledger.md"},
+    "remediator": {"definition_path": "roles/remediator.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/DECISION_LOG.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/rfcs/0065-ui-polish-redesign.md", "required": true},
+    {"path": "docs/rfcs/0033-workspace-ui-rework.md", "required": true},
+    {"path": "docs/WEB_VERIFICATION.md", "required": true},
+    {"path": "docs/workflows/0059-rfc-0065-slice2-shell-layout/SLICE_2_DECISIONS.md", "required": true},
+    {"path": "kayakgen/ui/theme.py", "required": true},
+    {"path": "kayakgen/ui/web/app.py", "required": true},
+    {"path": "kayakgen/ui/web/generate_spec_form.py", "required": true},
+    {"path": "kayakgen/ui/web/generate_frontier_view.py", "required": true},
+    {"path": "tests/test_web_layout.py", "required": true},
+    {"path": "tests/test_web_inline_help.py", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement_shell_layout",
+      "type": "synthesis",
+      "title": "Re-flow the three-region shell onto Slice 1 tokens and one typographic hierarchy",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Re-flow the three-region web shell (region-params / region-geometry / region-review), the toolbar, the four status-bar segments (package / readiness / resistance / cfd), and the Generate panel (build / watch / pick) onto the Slice 1 theme tokens (SPACING / DENSITY / RADII / ELEVATION / BORDERS / focus-ring / state) and one typographic hierarchy using the existing TYPOGRAPHY roles (type-display / type-heading / type-label / type-body / type-caption / type-metric), applied consistently so heading weight signals section importance the same way in every panel, with consistent section rhythm and card/strip density. Touch kayakgen/ui/web/app.py and the Generate-panel modules (generate_spec_form.py, generate_frontier_view.py, generate_fork_button.py, generate_state_listener.py); style only through tokens — add no new inline dimension/radius/elevation/border/colour literal (the widened tests/test_ui_theme.py orphan lint stays green). If a genuine token gap appears, add it ADDITIVELY to kayakgen/ui/theme.py per Slice 1 D1 (rename/remove/re-type no existing token) and extend CONTRAST_MANIFEST + the lint accordingly. Preserve the 1440x900 first-viewport contract (full Parameters rail, 3D viewport, metrics strip, first Review tab, status bar) and the <=960px collapse behaviour (kg-collapse-under-960, kg-geometry-accordion-under-960, kg-review-body-under-960, kg-status-wrap-under-960) — restyle the collapse, do not remove it; conservative mobile posture, no new mobile-editing affordance. Keep the region-params/-geometry/-review data-testids and the four status segments (data-testid workspace-status-bar + status-{package,readiness,resistance,cfd}). Any other data-testid/kg-* hook MAY be renamed/moved/removed but EVERY such change MUST be reflected in tests/test_web_layout.py (and tests/test_web_inline_help.py if an inline-help hook moves) in this slice. Claim line is byte-stable: touch no CHIP_SPECS/CHIP_LABELS/CHIP_CLASSES text or class, recolour no chip, keep every persistent caption (resistance, high-angle GZ, CFD local/artifact, not-watertight-cfd_ready) byte-identical, keep the RFC 0033 section 8 no-go list absent. Add no REST route or claim_state/Readiness/accepted_uses literal (RFC 0032 boundary). Docs: CHANGELOG.md only; do NOT touch docs/USER_GUIDE.md or docs/WEB_VERIFICATION.md (Slice 4); do not ratify DECISION_LOG D047. See SLICE_2_DECISIONS.md D1-D8.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/ui/web/",
+          "kayakgen/ui/theme.py",
+          "tests/test_web_layout.py",
+          "tests/test_web_inline_help.py",
+          "tests/test_ui_theme.py",
+          "tests/test_web.py",
+          "CHANGELOG.md",
+          "striatum/0059-rfc-0065-slice2-shell-layout/implementation/"
+        ],
+        "forbidden_paths": [".striatum/", "docs/USER_GUIDE.md", "docs/WEB_VERIFICATION.md", "docs/DECISION_LOG.md"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0059-rfc-0065-slice2-shell-layout/implementation/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review traceability to RFC 0065 Slice 2 decisions",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Review every workflow 0059 change for traceability to RFC 0065 section 2 and SLICE_2_DECISIONS.md (D1-D8). Flag scope creep: any token re-typing/removal (Slice 1 boundary), any control-state or empty/loading/error-state change (Slice 3), any harness or WEB_VERIFICATION.md/USER_GUIDE.md change or D047 ratification (Slice 4), any touched CHIP_* entry or persistent caption, any recoloured chip, any new REST route/claim_state/Readiness/accepted_uses literal. Confirm styling is token-only (no new inline dimension/colour literal; orphan lint green); the typographic hierarchy uses the TYPOGRAPHY roles consistently; the region-params/-geometry/-review test-ids and the four status segments survive; the 1440x900 first-viewport contract and the <=960px collapse hooks hold; and EVERY renamed/moved/removed data-testid/kg-* hook is reflected in tests/test_web_layout.py (and test_web_inline_help.py where relevant).",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0059-rfc-0065-slice2-shell-layout/reviews/traceability/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0059-rfc-0065-slice2-shell-layout/reviews/traceability/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_claims",
+      "type": "review",
+      "title": "Review claims and user-facing boundaries",
+      "role_id": "reviewer_claims",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Review every workflow 0059 change for claim truthfulness. Confirm CHIP_SPECS/CHIP_LABELS/CHIP_CLASSES text and semantic class are byte-identical and no chip is recoloured into the success palette; every persistent caption (resistance 'Raw comparative filter; not final prediction.' and uncalibrated copy; the high-angle GZ caption; the CFD local-jobs and raw-artifact banners; the not-watertight-cfd_ready negation) is byte-identical after the reflow; no new claim_state/Readiness/accepted_uses literal and no new REST route (RFC 0032 boundary); the RFC 0033 section 8 no-go list stays absent from rendered output; and the reflow did not move an unvalidated/raw result into a position or treatment that reads as a confident/validated/calibrated claim. New or moved ARIA labels and tooltips carry no claim semantics.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0059-rfc-0065-slice2-shell-layout/reviews/claims/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0059-rfc-0065-slice2-shell-layout/reviews/claims/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_ops_tests",
+      "type": "review",
+      "title": "Review tests, determinism, and operational behaviour",
+      "role_id": "reviewer_ops_tests",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Review workflow 0059 tests for determinism and coverage. Confirm tests/test_web_layout.py reflects EVERY renamed/moved/removed data-testid/kg-* hook (no orphaned assertion against a hook that no longer exists, and a positive assertion for each new hook name); the region-params/-geometry/-review test-ids and the four status segments (status-package/readiness/resistance/cfd + workspace-status-bar) still assert; the 1440x900 first-viewport and the <=960px collapse hooks are asserted; tests/test_web_inline_help.py reflects any moved inline-help hook; the widened orphan-literal lint (tests/test_ui_theme.py) still passes (token-only styling, no new inline dimension/colour literal); the desktop rendered-bbox tests stay green; and the full repo suite minus env-gated smoke is green with git diff --check, the forbidden-copy scan, and the import-boundary scans passing. Tests must not depend on wall-clock sleeps.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0059-rfc-0065-slice2-shell-layout/reviews/ops_tests/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0059-rfc-0065-slice2-shell-layout/reviews/ops_tests/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "synthesis",
+      "title": "Build findings ledger",
+      "role_id": "findings_ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate the three review findings into must-fix remediation items and non-blocking successor items (pointing at a later RFC 0065 slice where appropriate) without inventing new design scope. Cross-check each finding against SLICE_2_DECISIONS.md; a finding that would reopen a settled decision belongs in the non-blocking successor bucket with an explicit pointer to the row it would override.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0059-rfc-0065-slice2-shell-layout/ledger/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "findings_ledger", "kind": "findings_ledger", "path": "striatum/0059-rfc-0065-slice2-shell-layout/ledger/FINDINGS_LEDGER.md", "required": true}
+      ]
+    },
+    {
+      "id": "remediate_findings",
+      "type": "synthesis",
+      "title": "Remediate review findings",
+      "role_id": "remediator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Fix the must-fix findings from the ledger, update CHANGELOG.md and this workflow's OPERATOR_REPORT.md, and preserve all SLICE_2_DECISIONS.md decisions and the no-claims boundaries (token-only styling, byte-stable claim line, region + status + collapse contract intact, every hook change reflected in the layout tests, USER_GUIDE.md/WEB_VERIFICATION.md untouched, D047 not ratified). Run tests/test_web_layout.py, tests/test_web_inline_help.py, tests/test_ui_theme.py, the desktop rendered-bbox tests, and the full repo suite minus the env-gated smoke before publishing.",
+      "task_prompt": {"path": "prompts/remediate.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "CHANGELOG.md",
+          "docs/workflows/0059-rfc-0065-slice2-shell-layout/OPERATOR_REPORT.md",
+          "kayakgen/ui/",
+          "tests/",
+          "striatum/0059-rfc-0065-slice2-shell-layout/remediation/"
+        ],
+        "forbidden_paths": [".striatum/", "docs/USER_GUIDE.md", "docs/WEB_VERIFICATION.md", "docs/DECISION_LOG.md"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0059-rfc-0065-slice2-shell-layout/remediation/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final review workflow 0059",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Final-review workflow 0059 for accepted Slice 2 scope, decision fidelity (D1-D8), and no-claims boundaries. Confirm the shell, toolbar, four status segments, and Generate panel re-flowed onto Slice 1 tokens and one TYPOGRAPHY hierarchy; styling is token-only (orphan lint green); the region-params/-geometry/-review test-ids and four status segments survive; the 1440x900 first-viewport contract and <=960px collapse hold; every renamed/moved hook is reflected in tests/test_web_layout.py (+ test_web_inline_help.py); the claim line and RFC 0032 boundary are intact; USER_GUIDE.md/WEB_VERIFICATION.md were not touched and D047 was not ratified; and the full repo suite minus env-gated smoke is green.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0059-rfc-0065-slice2-shell-layout/final/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "final_review", "kind": "finding", "path": "striatum/0059-rfc-0065-slice2-shell-layout/final/FINAL_REVIEW.md", "required": true}
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "implement_shell_layout", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_shell_layout", "to": "review_claims", "on": "completed"},
+    {"from": "implement_shell_layout", "to": "review_ops_tests", "on": "completed"},
+
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_claims", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops_tests", "to": "findings_ledger", "on": "completed"},
+
+    {"from": "findings_ledger", "to": "remediate_findings", "on": "completed"},
+    {"from": "remediate_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {"from": "final_review", "to": "remediate_findings", "on_verdict": "needs_revision", "max_iterations": 1}
+  ]
+}
