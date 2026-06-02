@@ -118,6 +118,37 @@ def test_mesh_chip_pair_tooltips_present() -> None:
     assert "Live hull/deck readiness" in web_app.MESH_LIVE_READINESS_CHIP_TITLE
 
 
+def test_slice3_state_hooks_are_present_in_inline_help_contract() -> None:
+    """Slice 3 state surfaces keep stable hooks alongside existing help hooks."""
+
+    from kayakgen.ui.web import generate_frontier_view
+
+    app_source = Path(web_app.__file__).read_text()
+    frontier_source = Path(generate_frontier_view.__file__).read_text()
+
+    for hook in (
+        "share-url-state",
+        "invalid-hull-state",
+        "comparison-no-report-state",
+        "comparison-report-present-state",
+        "cfd-no-job-state",
+        "cfd-status-state",
+        "generative-jobs-empty-state",
+        "generative-jobs-running-state",
+        "generative-jobs-failed-state",
+        "generative-jobs-cancelled-state",
+        "generative-jobs-resumable-state",
+    ):
+        assert hook in app_source
+
+    for hook in (
+        "frontier-view-loading",
+        "frontier-view-empty",
+        "frontier-view-rendered",
+    ):
+        assert hook in frontier_source
+
+
 # ---------------------------------------------------------------------------
 # AUD-O-004 — submit-button disabled reason
 # ---------------------------------------------------------------------------

@@ -67,6 +67,18 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Changed
 
+- RFC 0065 Slice 3 control/state pass: the Trame shell and Generate
+  panel now apply uniform token-sourced default/hover/focus/active/
+  disabled treatment to buttons, tabs, selects, sliders, toggles, and
+  native Generate-form controls. The Generate jobs table, Pareto
+  frontier, Comparison, Mesh, CFD, Share URL state, and invalid-hull
+  banners now expose explicit empty/loading/error/status hooks. Claim,
+  readiness, disabled-control, CFD, resistance, high-angle GZ, and
+  watertight-readiness copy is unchanged; no REST or analysis boundary
+  changed. Review remediation extended the forbidden-copy/no-go scrub to
+  include the Pareto-frontier render source, closing the Slice 3 D6
+  coverage gap without changing rendered copy or behavior.
+
 - RFC 0065 Slice 2 shell-layout reflow: the Trame workspace shell now
   applies the Slice 1 spacing, density, radius, elevation, border,
   focus-ring, state, and typography tokens across the Parameters rail,

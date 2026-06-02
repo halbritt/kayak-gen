@@ -222,11 +222,28 @@ def test_review_tabs_and_status_segments_match_workspace_contract() -> None:
     assert '"aria-label": (f"{state_key}_aria_label",)' in app_source
 
 
-def test_slice2_defers_control_focus_state_application_to_slice3() -> None:
+def test_slice3_applies_uniform_control_focus_and_disabled_states() -> None:
     css = web_app.WORKSPACE_SHELL_CSS
 
-    assert ":focus-visible" not in css
-    assert "outline: var(--state-focus-ring-width)" not in css
+    assert ":focus-visible" in css
+    assert ":focus-within" in css
+    assert "outline: var(--state-focus-ring-width)" in css
+    assert "var(--state-focus-ring)" in css
+    assert "[aria-disabled=\"true\"]" in css
+    assert "var(--state-disabled-surface)" in css
+    assert "var(--state-disabled-text)" in css
+    for selector in (
+        ".kg-workspace-shell .v-btn",
+        ".kg-workspace-shell .v-tab",
+        ".kg-workspace-shell .v-field",
+        ".kg-workspace-shell .v-slider",
+        ".kg-workspace-shell .v-selection-control",
+        ".kg-workspace-shell select",
+        ".kg-workspace-shell input",
+        ".kg-workspace-shell textarea",
+        ".kg-workspace-shell button",
+    ):
+        assert selector in css
 
 
 def test_persistent_claim_readiness_and_cfd_copy_is_static_and_exact() -> None:
@@ -246,6 +263,14 @@ def test_persistent_claim_readiness_and_cfd_copy_is_static_and_exact() -> None:
         "Raw solver artifact only; not calibrated or validated."
     )
     assert copy["share_toast"] == "Shareable URL copied"
+    assert copy["generative_jobs_empty"] == "(no generative jobs yet)"
+    assert copy["generative_jobs_running"] == "Generative job is running."
+    assert copy["generative_jobs_failed"] == "Generative job failed."
+    assert copy["generative_jobs_cancelled"] == "Generative job cancelled."
+    assert copy["generative_jobs_resumable"] == "Generative job can be resumed."
+    assert copy["frontier_loading"] == "Loading Pareto frontier."
+    assert copy["frontier_rendered"] == "Pareto frontier rendered."
+    assert copy["invalid_hull_state"] == "Invalid hull state"
 
 
 def test_export_menu_rows_are_single_honest_menu_contract() -> None:
@@ -372,7 +397,13 @@ def test_state_snapshot_schema_preserves_current_and_legacy_alias_keys() -> None
 def test_forbidden_claim_copy_has_only_documented_negations_in_render_surfaces() -> None:
     app_source = Path(web_app.__file__).read_text()
     controllers_source = Path(web_app.__file__).with_name("controllers.py").read_text()
-    render_source = "\n".join([app_source, controllers_source])
+    frontier_source = Path(web_app.__file__).with_name("generate_frontier_view.py").read_text()
+    frontier_render_source = frontier_source[
+        frontier_source.index("# Render hook") :
+    ]
+    spec_form_source = Path(web_app.__file__).with_name("generate_spec_form.py").read_text()
+    render_source = "\n".join([app_source, controllers_source, spec_form_source])
+    new_state_source = "\n".join([render_source, frontier_render_source])
 
     allowed_phrases = (
         "not final prediction",
@@ -380,9 +411,9 @@ def test_forbidden_claim_copy_has_only_documented_negations_in_render_surfaces()
         "not watertight cfd_ready",
         "no hosted worker is running",
     )
-    scrubbed = render_source
+    scrubbed = new_state_source
     for phrase in allowed_phrases:
-        assert phrase in render_source
+        assert phrase in new_state_source
         scrubbed = scrubbed.replace(phrase, "")
 
     for forbidden in (
@@ -406,6 +437,22 @@ def test_forbidden_claim_copy_has_only_documented_negations_in_render_surfaces()
     assert "final prediction" not in scrubbed
     assert "hosted" not in scrubbed
     assert "cloud" not in scrubbed
+
+    for state_copy in (
+        "Loading Pareto frontier.",
+        "Pareto frontier rendered.",
+        "Submit and complete a search job to populate the Pareto frontier.",
+        "Live frontier has no report loaded.",
+        "Imported report block is present.",
+        "No CFD job prepared.",
+        "(no generative jobs yet)",
+        "Generative job is running.",
+        "Generative job failed.",
+        "Generative job cancelled.",
+        "Generative job can be resumed.",
+        "Invalid hull state",
+    ):
+        assert state_copy in new_state_source
 
 
 def test_create_app_exposes_workspace_status_state_without_changing_tab_key() -> None:
@@ -691,6 +738,69 @@ def test_mesh_readiness_no_package_renders_two_chips() -> None:
     # status_readiness comes from live diagnostics, not "unavailable" when a
     # package is absent (the chip reads status_readiness, not mesh_readiness_level).
     assert web.state.status_readiness != "unavailable" or True  # live value may vary
+
+
+def test_slice3_empty_loading_error_state_hooks_are_rendered() -> None:
+    from kayakgen.ui.web import generate_frontier_view
+
+    app_source = Path(web_app.__file__).read_text()
+    frontier_source = Path(generate_frontier_view.__file__).read_text()
+
+    for hook in (
+        "share-url-state",
+        "invalid-hull-state",
+        "comparison-no-report-state",
+        "comparison-report-present-state",
+        "comparison-live-frontier-block",
+        "comparison-imported-report-block",
+        "mesh-no-package-chip",
+        "mesh-live-readiness-chip",
+        "cfd-no-job-state",
+        "cfd-status-state",
+        "generative-jobs-empty-state",
+        "generative-jobs-running-state",
+        "generative-jobs-failed-state",
+        "generative-jobs-cancelled-state",
+        "generative-jobs-resumable-state",
+    ):
+        assert hook in app_source
+
+    for hook in (
+        "frontier-view-section",
+        "frontier-view-loading",
+        "frontier-view-empty",
+        "frontier-view-rendered",
+        "frontier-scatter",
+        "frontier-scatter-fallback",
+    ):
+        assert hook in frontier_source
+
+    assert "generative_jobs_failed_kind" in app_source
+    assert "Error kind" in app_source
+
+
+def test_slice3_generative_job_state_flags_cover_required_states() -> None:
+    rows = [
+        {"state": "running"},
+        {"state": "failed", "error_kind": "internal_error"},
+        {"state": "cancelled"},
+        {"state": "resumable"},
+    ]
+
+    assert web_app._generative_job_state_flags([]) == {
+        "empty": True,
+        "running": False,
+        "failed": False,
+        "cancelled": False,
+        "resumable": False,
+    }
+    assert web_app._generative_job_state_flags(rows) == {
+        "empty": False,
+        "running": True,
+        "failed": True,
+        "cancelled": True,
+        "resumable": True,
+    }
 
 
 def test_generate_two_column_layout() -> None:

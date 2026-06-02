@@ -549,12 +549,14 @@ def refresh_frontier_view(app: Any, job_id: str) -> dict[str, Any]:
     manager = getattr(app, "_generative_manager", None)
     if manager is None:
         app.state.generative_frontier_view_available = False
+        app.state.generative_frontier_rendered = False
         return {"available": False, "rows": [], "scatter_points": [], "axis_labels": {"x": "", "y": "", "z": None}}
 
     try:
         payload = generative_job_frontier_payload(manager, job_id)
     except Exception:  # noqa: BLE001 - defensive at the boundary
         app.state.generative_frontier_view_available = False
+        app.state.generative_frontier_rendered = False
         return {"available": False, "rows": [], "scatter_points": [], "axis_labels": {"x": "", "y": "", "z": None}}
 
     metric_options = _candidate_metric_choices(payload)
@@ -583,6 +585,7 @@ def refresh_frontier_view(app: Any, job_id: str) -> dict[str, Any]:
     )
 
     app.state.generative_frontier_view_available = bool(view_model.get("available"))
+    app.state.generative_frontier_rendered = bool(view_model.get("available"))
     app.state.generative_frontier_x_metric = x_metric
     app.state.generative_frontier_y_metric = y_metric
     app.state.generative_frontier_z_metric = z_metric or ""
@@ -652,12 +655,26 @@ def render_frontier_view_section(app: Any) -> None:
     ):
         v3.VCardSubtitle("Pareto frontier", classes="kg-frontier-heading")
 
+        v3.VCardText(
+            "Loading Pareto frontier.",
+            v_if=("generative_frontier_loading",),
+            classes="kg-state-panel kg-state-panel--running kg-frontier-loading",
+            **{"data-testid": "frontier-view-loading"},
+        )
+
         # Empty-state hint.
         v3.VCardText(
             "Submit and complete a search job to populate the Pareto frontier.",
-            v_if=("!generative_frontier_view_available",),
-            classes="kg-frontier-empty",
+            v_if=("!generative_frontier_loading && !generative_frontier_view_available",),
+            classes="kg-state-panel kg-frontier-empty",
             **{"data-testid": "frontier-view-empty"},
+        )
+
+        v3.VCardText(
+            "Pareto frontier rendered.",
+            v_if=("generative_frontier_rendered",),
+            classes="kg-state-panel kg-state-panel--rendered kg-frontier-rendered",
+            **{"data-testid": "frontier-view-rendered"},
         )
 
         with html_widgets.Div(

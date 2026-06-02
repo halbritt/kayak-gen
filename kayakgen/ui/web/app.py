@@ -408,6 +408,62 @@ WORKSPACE_SHELL_CSS = """
 .kg-mesh-readiness-card .v-field {
   border-radius: var(--radius-sm);
 }
+.kg-workspace-shell .v-btn,
+.kg-workspace-shell .v-tab,
+.kg-workspace-shell .v-field,
+.kg-workspace-shell .v-slider,
+.kg-workspace-shell .v-selection-control,
+.kg-workspace-shell select,
+.kg-workspace-shell input,
+.kg-workspace-shell textarea,
+.kg-workspace-shell button {
+  border-radius: var(--radius-sm);
+}
+.kg-workspace-shell .v-btn:hover,
+.kg-workspace-shell .v-tab:hover,
+.kg-workspace-shell select:hover,
+.kg-workspace-shell input:hover,
+.kg-workspace-shell textarea:hover,
+.kg-variable-remove-btn:hover {
+  background: var(--state-hover-surface);
+  color: var(--state-hover-text);
+}
+.kg-workspace-shell .v-btn:active,
+.kg-workspace-shell .v-tab:active,
+.kg-workspace-shell button:active {
+  background: var(--state-active-surface);
+  color: var(--state-active-text);
+}
+.kg-workspace-shell .v-btn:focus-visible,
+.kg-workspace-shell .v-tab:focus-visible,
+.kg-workspace-shell .v-field:focus-within,
+.kg-workspace-shell .v-slider:focus-within,
+.kg-workspace-shell .v-selection-control:focus-within,
+.kg-workspace-shell select:focus-visible,
+.kg-workspace-shell input:focus-visible,
+.kg-workspace-shell textarea:focus-visible,
+.kg-workspace-shell button:focus-visible {
+  outline: var(--state-focus-ring-width) var(--border-style-solid) var(--state-focus-ring);
+  outline-offset: var(--space-1);
+}
+.kg-workspace-shell .v-btn--disabled,
+.kg-workspace-shell .v-tab--disabled,
+.kg-workspace-shell .v-field--disabled,
+.kg-workspace-shell [aria-disabled="true"],
+.kg-workspace-shell select:disabled,
+.kg-workspace-shell input:disabled,
+.kg-workspace-shell textarea:disabled,
+.kg-workspace-shell button:disabled {
+  background: var(--state-disabled-surface);
+  color: var(--state-disabled-text);
+  cursor: not-allowed;
+}
+.kg-workspace-shell .v-btn--active,
+.kg-workspace-shell .v-tab--selected,
+.kg-workspace-shell .v-btn-toggle .v-btn--active {
+  background: var(--state-active-surface);
+  color: var(--state-active-text);
+}
 .kg-generate-variables-table-wrap,
 .kg-generate-objectives-list-wrap,
 .kg-resistance-table-wrap,
@@ -464,6 +520,32 @@ WORKSPACE_SHELL_CSS = """
   color: var(--text-secondary);
   min-height: var(--control-height-compact);
 }
+.kg-state-panel {
+  background: var(--surface-muted);
+  border: var(--border-width-thin) var(--border-style-solid) var(--surface-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font: var(--type-caption);
+  margin-block: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+.kg-state-panel--running {
+  background: var(--state-info-bg);
+  color: var(--state-info);
+}
+.kg-state-panel--failed,
+.kg-state-panel--cancelled {
+  background: var(--state-error-bg);
+  color: var(--state-error-text);
+}
+.kg-state-panel--resumable {
+  background: var(--state-advisory-bg);
+  color: var(--state-advisory-text);
+}
+.kg-state-panel--rendered {
+  background: var(--state-focus-row);
+  color: var(--text-primary);
+}
 @media (max-width: %s) {
   .kg-collapse-under-960,
   .kg-geometry-accordion-under-960,
@@ -501,6 +583,14 @@ WATERTIGHT_DISABLED_COPY = (
 )
 CFD_ARTIFACT_STRAPLINE = "Raw solver artifact only; not calibrated or validated."
 SHARE_TOAST_COPY = "Shareable URL copied"
+GENERATIVE_JOBS_EMPTY_COPY = "(no generative jobs yet)"
+GENERATIVE_JOBS_RUNNING_COPY = "Generative job is running."
+GENERATIVE_JOBS_FAILED_COPY = "Generative job failed."
+GENERATIVE_JOBS_CANCELLED_COPY = "Generative job cancelled."
+GENERATIVE_JOBS_RESUMABLE_COPY = "Generative job can be resumed."
+FRONTIER_LOADING_COPY = "Loading Pareto frontier."
+FRONTIER_RENDERED_COPY = "Pareto frontier rendered."
+INVALID_HULL_STATE_COPY = "Invalid hull state"
 
 PERSISTENT_COPY: dict[str, str] = {
     "raw_comparative_filter": RAW_COMPARATIVE_CAPTION,
@@ -511,6 +601,14 @@ PERSISTENT_COPY: dict[str, str] = {
     "cfd_local_banner": CFD_LOCAL_FILESYSTEM_NOTICE,
     "cfd_artifact_strapline": CFD_ARTIFACT_STRAPLINE,
     "share_toast": SHARE_TOAST_COPY,
+    "generative_jobs_empty": GENERATIVE_JOBS_EMPTY_COPY,
+    "generative_jobs_running": GENERATIVE_JOBS_RUNNING_COPY,
+    "generative_jobs_failed": GENERATIVE_JOBS_FAILED_COPY,
+    "generative_jobs_cancelled": GENERATIVE_JOBS_CANCELLED_COPY,
+    "generative_jobs_resumable": GENERATIVE_JOBS_RESUMABLE_COPY,
+    "frontier_loading": FRONTIER_LOADING_COPY,
+    "frontier_rendered": FRONTIER_RENDERED_COPY,
+    "invalid_hull_state": INVALID_HULL_STATE_COPY,
 }
 
 _SLIDER_BY_KEY = {key: (label, vmin, vmax, step) for key, label, vmin, vmax, step in SLIDER_DEFS}
@@ -691,6 +789,17 @@ def _resistance_table_html(rows: list[dict[str, Any]]) -> str:
     return header + "".join(body) + "</tbody></table>"
 
 
+def _generative_job_state_flags(rows: list[dict[str, Any]]) -> dict[str, bool]:
+    states = {str(row.get("state") or "") for row in rows}
+    return {
+        "empty": not rows,
+        "running": bool(states & {"queued", "running"}),
+        "failed": "failed" in states,
+        "cancelled": "cancelled" in states,
+        "resumable": "resumable" in states,
+    }
+
+
 class KayakgenApp:
     """Trame app driving the kayakgen web UI."""
 
@@ -723,6 +832,8 @@ class KayakgenApp:
         self.state.validity_badge_title = validity_badge_title_for(
             "Custom (L/B_wl=0.0)"
         )
+        self.state.invalid_hull_state_visible = False
+        self.state.invalid_hull_state_lines = []
         self._init_slider_bounds()
         self._applying_class_preset = False
         self._active_preset_seed_name = ""
@@ -811,8 +922,16 @@ class KayakgenApp:
         )
         self.state.generative_jobs_lines = []
         self.state.generative_jobs_table_rows = []
+        self.state.generative_jobs_empty = True
+        self.state.generative_jobs_running = False
+        self.state.generative_jobs_failed = False
+        self.state.generative_jobs_cancelled = False
+        self.state.generative_jobs_resumable = False
+        self.state.generative_jobs_failed_kind = ""
         self.state.generative_log_lines = []
         self.state.generative_frontier_lines = []
+        self.state.generative_frontier_loading = False
+        self.state.generative_frontier_rendered = False
         self._rebuild_scene(hull)
 
         self.ctrl.export_stl = lambda part: self._export_stl(part)
@@ -979,10 +1098,14 @@ class KayakgenApp:
             details = payload.get("details", [])
             messages = [f"{d['field']}: {d['message']}" for d in details]
             self.state.metrics_lines = ["Invalid hull state", *messages]
+            self.state.invalid_hull_state_visible = True
+            self.state.invalid_hull_state_lines = [INVALID_HULL_STATE_COPY, *messages]
             self.state.advisory_count = 0
             self.state.advisory_lines = ["Advisories unavailable for invalid hull state."]
             self._refresh_status_segments()
             return
+        self.state.invalid_hull_state_visible = False
+        self.state.invalid_hull_state_lines = []
         self.state.metrics_lines = [
             f"Displacement {m['displaced_mass_kg']:7.1f} kg",
             f"Wetted surf  {m['wetted_surface_m2']:7.3f} m²",
@@ -1408,6 +1531,13 @@ class KayakgenApp:
         rows: list[str] = []
         table_rows: list[dict[str, Any]] = []
         for job in listing.get("jobs", []):
+            error_kind = ""
+            try:
+                full_job = self._generative_manager.get(str(job["job_id"]))
+                if full_job.error is not None:
+                    error_kind = full_job.error.kind
+            except Exception:  # noqa: BLE001 - summary rows remain useful
+                error_kind = ""
             rows.append(
                 f"{job['job_id']}\t{job['job_kind']}\t{job['state']}\t"
                 f"{job['realized_evaluations']}/{job['completed_count']}c/"
@@ -1418,12 +1548,28 @@ class KayakgenApp:
                     "job_id": job["job_id"],
                     "job_kind": job["job_kind"],
                     "state": job["state"],
+                    "error_kind": error_kind,
+                    "resumable": bool(job["state"] in {"resumable", "failed", "cancelled"}),
                 }
             )
         if not rows:
-            rows = ["(no generative jobs yet)"]
+            rows = [GENERATIVE_JOBS_EMPTY_COPY]
         self.state.generative_jobs_lines = rows
         self.state.generative_jobs_table_rows = table_rows
+        flags = _generative_job_state_flags(table_rows)
+        self.state.generative_jobs_empty = flags["empty"]
+        self.state.generative_jobs_running = flags["running"]
+        self.state.generative_jobs_failed = flags["failed"]
+        self.state.generative_jobs_cancelled = flags["cancelled"]
+        self.state.generative_jobs_resumable = flags["resumable"]
+        self.state.generative_jobs_failed_kind = next(
+            (
+                str(row.get("error_kind") or "")
+                for row in table_rows
+                if row.get("state") == "failed" and row.get("error_kind")
+            ),
+            "",
+        )
         refresh_concurrency_advisory(self)
 
     def _cancel_generative_job(self) -> None:
@@ -1514,11 +1660,17 @@ class KayakgenApp:
         job_id = str(self.state.generative_job_id or "").strip()
         if not job_id:
             return
+        self.state.generative_frontier_loading = True
         try:
             refresh_frontier_view(self, job_id)
         except Exception:  # noqa: BLE001
             # Frontier view is read-only; refusal is non-fatal.
             return
+        finally:
+            self.state.generative_frontier_loading = False
+        self.state.generative_frontier_rendered = bool(
+            self.state.generative_frontier_view_available
+        )
 
     def _fork_generative_job(
         self, job_id: str, new_seed: int | None
@@ -1645,6 +1797,7 @@ class KayakgenApp:
                     **{
                         "data-testid": "share-url-state",
                         "aria-hidden": "true",
+                        "aria-live": "polite",
                         "tabindex": "-1",
                     },
                 )
@@ -1682,6 +1835,13 @@ class KayakgenApp:
                             "aria-label": ("validity_badge_aria_label",),
                             "title": ("validity_badge_title",),
                         },
+                    )
+                    v3.VCardText(
+                        "<pre>{{ invalid_hull_state_lines.join('\\n') }}</pre>",
+                        v_show=("invalid_hull_state_visible",),
+                        classes="kg-state-panel kg-state-panel--failed",
+                        html=True,
+                        **{"data-testid": "invalid-hull-state"},
                     )
                     for group_label, keys in PARAMETER_GROUPS:
                         v3.VDivider(classes="mt-3")
@@ -1979,6 +2139,12 @@ class KayakgenApp:
                             "data-testid": "comparison-source-help",
                         },
                     )
+                    v3.VCardText(
+                        "Live frontier has no report loaded.",
+                        v_show=("comparison_source === 'live_frontier'",),
+                        classes="kg-state-panel",
+                        **{"data-testid": "comparison-no-report-state"},
+                    )
                     # Live frontier block.
                     with html_widgets.Div(
                         v_show=("comparison_source === 'live_frontier'",),
@@ -1993,6 +2159,11 @@ class KayakgenApp:
                         classes="kg-comparison-imported-report",
                         **{"data-testid": "comparison-imported-report-block"},
                     ):
+                        v3.VCardText(
+                            "Imported report block is present.",
+                            classes="kg-state-panel kg-state-panel--rendered",
+                            **{"data-testid": "comparison-report-present-state"},
+                        )
                         v3.VTextarea(
                             v_model=("comparison_json",),
                             label="Comparison report JSON",
@@ -2047,6 +2218,19 @@ class KayakgenApp:
                 v3.VCardText("{{ cfd_local_banner }}", classes="kg-cfd-banner")
                 v3.VCardText("{{ cfd_artifact_strapline }}", classes="kg-cfd-banner")
                 with v3.VCardText():
+                    v3.VCardText(
+                        "No CFD job prepared.",
+                        v_show=("!cfd_job_id",),
+                        classes="kg-state-panel",
+                        **{"data-testid": "cfd-no-job-state"},
+                    )
+                    v3.VCardText(
+                        "<pre>{{ cfd_status_lines.join('\\n') }}</pre>",
+                        v_show=("!!cfd_job_id",),
+                        classes="kg-state-panel kg-cfd-status-state",
+                        html=True,
+                        **{"data-testid": "cfd-status-state"},
+                    )
                     v3.VSelect(
                         v_model=("cfd_solver_profile",),
                         items=("cfd_profile_options",),
@@ -2229,12 +2413,46 @@ class KayakgenApp:
                             click=self.ctrl.load_generative_frontier,
                             density="compact",
                         )
+                        v3.VCardText(
+                            GENERATIVE_JOBS_EMPTY_COPY,
+                            v_show=("generative_jobs_empty",),
+                            classes="kg-state-panel",
+                            **{"data-testid": "generative-jobs-empty-state"},
+                        )
+                        v3.VCardText(
+                            GENERATIVE_JOBS_RUNNING_COPY,
+                            v_show=("generative_jobs_running",),
+                            classes="kg-state-panel kg-state-panel--running",
+                            **{"data-testid": "generative-jobs-running-state"},
+                        )
+                        v3.VCardText(
+                            (
+                                GENERATIVE_JOBS_FAILED_COPY
+                                + " {{ generative_jobs_failed_kind }}"
+                            ),
+                            v_show=("generative_jobs_failed",),
+                            classes="kg-state-panel kg-state-panel--failed",
+                            **{"data-testid": "generative-jobs-failed-state"},
+                        )
+                        v3.VCardText(
+                            GENERATIVE_JOBS_CANCELLED_COPY,
+                            v_show=("generative_jobs_cancelled",),
+                            classes="kg-state-panel kg-state-panel--cancelled",
+                            **{"data-testid": "generative-jobs-cancelled-state"},
+                        )
+                        v3.VCardText(
+                            GENERATIVE_JOBS_RESUMABLE_COPY,
+                            v_show=("generative_jobs_resumable",),
+                            classes="kg-state-panel kg-state-panel--resumable",
+                            **{"data-testid": "generative-jobs-resumable-state"},
+                        )
                         # Jobs index as VDataTable (§4.7 / §18).
                         v3.VDataTable(
                             headers=(
                                 "[{title: 'Job ID', key: 'job_id', sortable: true},"
                                 " {title: 'Kind', key: 'job_kind', sortable: true},"
-                                " {title: 'State', key: 'state', sortable: true}]"
+                                " {title: 'State', key: 'state', sortable: true},"
+                                " {title: 'Error kind', key: 'error_kind', sortable: true}]"
                             ),
                             items=("generative_jobs_table_rows",),
                             item_value="job_id",
