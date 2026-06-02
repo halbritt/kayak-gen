@@ -1,0 +1,209 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0061-rfc-0065-slice4-visual-regression",
+  "workflow_version": "2026-06-02",
+  "name": "0061 - RFC 0065 Slice 4 visual-regression hard gate + a11y + Lighthouse",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0061-rfc-0065-slice4-visual-regression",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "codex"
+  },
+  "lanes": {
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["bash", ".striatum/bin/codex-supervised-wrapper.sh"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.8",
+      "command": ["bash", ".striatum/bin/claude-supervised-wrapper.sh"],
+      "capabilities": ["review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["bash", ".striatum/bin/gemini-supervised-wrapper.sh"],
+      "capabilities": ["review", "synthesis"]
+    }
+  },
+  "roles": {
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_claims": {"definition_path": "roles/reviewer_claims.md"},
+    "reviewer_ops_tests": {"definition_path": "roles/reviewer_ops_tests.md"},
+    "findings_ledger": {"definition_path": "roles/findings_ledger.md"},
+    "remediator": {"definition_path": "roles/remediator.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/DECISION_LOG.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/rfcs/0065-ui-polish-redesign.md", "required": true},
+    {"path": "docs/rfcs/0033-workspace-ui-rework.md", "required": true},
+    {"path": "docs/WEB_VERIFICATION.md", "required": true},
+    {"path": "docs/USER_GUIDE.md", "required": true},
+    {"path": "docs/workflows/0061-rfc-0065-slice4-visual-regression/SLICE_4_DECISIONS.md", "required": true},
+    {"path": "tests/test_web_browser.py", "required": true},
+    {"path": "tests/visual_baselines/README.md", "required": true},
+    {"path": "kayakgen/ui/theme.py", "required": true},
+    {"path": "tests/test_ui_theme.py", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement_visual_regression",
+      "type": "synthesis",
+      "title": "Flip the visual-regression compare to a hard gate, add a11y checks + Lighthouse, regenerate baselines, ratify D047",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Land RFC 0065 Slice 4. STEP 1 (baselines first): on this canonical render environment (this host's Chromium build), regenerate the three committed PNG baselines under tests/visual_baselines/ (1440x900, 1024x768, 960x720) via the existing `--update-visual-baselines` path so they capture the POST-Slice-2/3 appearance (the current committed PNGs are the pre-redesign Slice 0 capture and WILL mismatch). Review the regenerated PNGs as an explained diff (note in the patch summary what visibly changed and why — the Slice 2 reflow + Slice 3 states), with the 3D VtkRemoteView region masked out as today. STEP 2: in tests/test_web_browser.py, flip the visual compare in the browser-acceptance profile from advisory to a HARD FAILURE when the per-viewport pixel-difference exceeds a DOCUMENTED tolerance (choose a tolerance that absorbs anti-aliasing/font-hinting jitter without hiding real regressions; keep the VTK mask; keep missing Playwright/Chromium a SKIP in the optional smoke and a HARD FAILURE in the acceptance profile). STEP 3: add acceptance-profile a11y checks — deterministic focus order across the shell, a visible focus ring sourced from the Slice 1 --state-focus-ring token on the focused control, a minimum hit-target size on interactive controls, and contrast satisfying CONTRAST_MANIFEST (the manifest contrast test stays a mandatory pytest gate needing no browser; extend CONTRAST_MANIFEST additively in theme.py only if a new a11y pair is needed). Apply only MINIMAL token-sourced code fixes if an a11y assertion legitimately fails (e.g. a control missing the focus ring or below hit-target min). STEP 4: record a Lighthouse Best-Practices >= 90 result (optional, tool-dependent; not a mandatory pytest gate). STEP 5: retain ALL existing behavioural acceptance checks (nonblank-3D before AND after a control mutation; Share-URL reload round-trip with the same Hull.hash(); STL bytes via POST /api/stl?part=hull; console/page-error/network cleanliness) — they must still pass; add no new network allowlist entry without the documented URL pattern, expected status, rationale, and removal-condition note. STEP 6 (docs — Slice 4 is the ONLY slice that touches these): update docs/WEB_VERIFICATION.md with the baseline-update procedure (canonical OS + Chromium build, the regeneration command, the reviewed-diff expectation) and the mandatory-vs-optional gate table; update docs/USER_GUIDE.md to describe the polish behaviour and the new verification gate; ratify DECISION_LOG row D047 (flip status proposed -> accepted, recording the chosen tolerance + in-repo PNG storage); add a CHANGELOG.md entry. Claim line byte-stable (touch no CHIP_*/caption, recolour no chip); RFC 0032 boundary intact (no new route/claim_state/Readiness/accepted_uses literal, no analysis surface). Preserve the Slice 2/3 region/status/collapse/first-viewport contract and the empty/loading/error hooks. See SLICE_4_DECISIONS.md D1-D8.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "tests/test_web_browser.py",
+          "tests/visual_baselines/",
+          "tests/test_ui_theme.py",
+          "tests/test_web_layout.py",
+          "kayakgen/ui/theme.py",
+          "kayakgen/ui/web/",
+          "docs/WEB_VERIFICATION.md",
+          "docs/USER_GUIDE.md",
+          "docs/DECISION_LOG.md",
+          "CHANGELOG.md",
+          "striatum/0061-rfc-0065-slice4-visual-regression/implementation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0061-rfc-0065-slice4-visual-regression/implementation/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review traceability to RFC 0065 Slice 4 decisions",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Review every workflow 0061 change for traceability to RFC 0065 section 5 and SLICE_4_DECISIONS.md (D1-D8). Confirm the baselines were regenerated on the canonical env (the PNG diff is explained, not unexplained churn) BEFORE the compare was flipped to hard; the visual compare is now a HARD FAILURE in the acceptance profile with a documented per-viewport tolerance and the VTK mask retained; the a11y checks (focus order, visible focus ring from the Slice 1 token, hit-target min, CONTRAST_MANIFEST) are present with the documented SKIP-vs-HARD posture; Lighthouse >= 90 is recorded (not a mandatory pytest gate); all retained behavioural checks remain; docs/WEB_VERIFICATION.md has the baseline-update procedure + the mandatory-vs-optional table; docs/USER_GUIDE.md is updated; DECISION_LOG D047 is ratified (proposed -> accepted). Flag scope creep: any new analysis surface/route/claim literal, any CHIP_*/caption change, any layout re-flow beyond minimal a11y fixes, or any CONTRAST_MANIFEST/theme change that is not additive.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0061-rfc-0065-slice4-visual-regression/reviews/traceability/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0061-rfc-0065-slice4-visual-regression/reviews/traceability/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_claims",
+      "type": "review",
+      "title": "Review claims and user-facing boundaries",
+      "role_id": "reviewer_claims",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Review every workflow 0061 change for claim truthfulness. Confirm CHIP_SPECS/CHIP_LABELS/CHIP_CLASSES are byte-identical and no chip is recoloured; every persistent caption (resistance, high-angle GZ, CFD local/artifact, not-watertight-cfd_ready) is byte-identical; the regenerated screenshot baselines do not bake an unvalidated/raw result into a confident/validated/calibrated visual treatment (the masked 3D region aside, the captured chips/captions still read as raw/advisory where they must); the docs updates (WEB_VERIFICATION.md, USER_GUIDE.md) describe only polish + the verification gate and introduce NO new capability/availability/claim language and no RFC 0033 section 8 no-go term; DECISION_LOG D047 ratification records the harness shape only and asserts no analysis claim; no new claim_state/Readiness/accepted_uses literal and no new REST route (RFC 0032 boundary); the RFC 0032 web-analysis boundary text in the docs is unchanged.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0061-rfc-0065-slice4-visual-regression/reviews/claims/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0061-rfc-0065-slice4-visual-regression/reviews/claims/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_ops_tests",
+      "type": "review",
+      "title": "Review tests, determinism, and the gate posture",
+      "role_id": "reviewer_ops_tests",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Review workflow 0061 for gate correctness and determinism. Confirm: the regenerated baselines (1440x900/1024x768/960x720) match the current post-redesign render so the HARD compare passes within the documented tolerance, and the compare actually fails on an injected over-tolerance diff (not a no-op); the VTK region is masked; missing Playwright/Chromium SKIPs the optional smoke and HARD-FAILS the acceptance profile; the a11y checks (focus order, visible ring, hit-target, contrast) are deterministic and assert real conditions; the CONTRAST_MANIFEST pytest gate passes in both palettes; the retained behavioural checks (nonblank-3D before/after, Share reload round-trip, STL via POST /api/stl?part=hull, console/network cleanliness) still pass; the Lighthouse result is recorded (not a hard pytest gate); the full repo suite minus env-gated smoke is green except the known pre-existing NB-2 services-import-boundary failure (out of scope); and git diff --check passes. If the canonical browser-acceptance run cannot execute in this lane, run a SHORT targeted verification, publish the verdict while the lease is warm, THEN run the longer suite (per the operator hazard about lease expiry on long foreground commands).",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0061-rfc-0065-slice4-visual-regression/reviews/ops_tests/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0061-rfc-0065-slice4-visual-regression/reviews/ops_tests/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "synthesis",
+      "title": "Build findings ledger",
+      "role_id": "findings_ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate the three review findings into must-fix remediation items and non-blocking successor items (pointing at a follow-up workflow where appropriate) without inventing new design scope. Cross-check each finding against SLICE_4_DECISIONS.md. Treat the known NB-2 services-import-boundary failure as a non-blocking successor (hygiene follow-up), not a Slice 4 must-fix. Flag any baseline PNG that was committed without an explained diff as a must-fix.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0061-rfc-0065-slice4-visual-regression/ledger/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "findings_ledger", "kind": "findings_ledger", "path": "striatum/0061-rfc-0065-slice4-visual-regression/ledger/FINDINGS_LEDGER.md", "required": true}
+      ]
+    },
+    {
+      "id": "remediate_findings",
+      "type": "synthesis",
+      "title": "Remediate review findings",
+      "role_id": "remediator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Fix the must-fix findings from the ledger, update CHANGELOG.md and this workflow's OPERATOR_REPORT.md, and preserve all SLICE_4_DECISIONS.md decisions and the no-claims boundaries (byte-stable claim line; regenerated baselines as an explained diff; the hard gate + documented tolerance + VTK mask; the SKIP-vs-HARD a11y posture; the retained behavioural checks; D047 ratified; WEB_VERIFICATION.md + USER_GUIDE.md describing only polish + the gate). Re-run the CONTRAST_MANIFEST gate, the desktop rendered-bbox tests, the visual-baseline compare on the canonical env, and the full repo suite minus the env-gated smoke before publishing.",
+      "task_prompt": {"path": "prompts/remediate.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "CHANGELOG.md",
+          "docs/WEB_VERIFICATION.md",
+          "docs/USER_GUIDE.md",
+          "docs/DECISION_LOG.md",
+          "docs/workflows/0061-rfc-0065-slice4-visual-regression/OPERATOR_REPORT.md",
+          "kayakgen/ui/",
+          "tests/",
+          "striatum/0061-rfc-0065-slice4-visual-regression/remediation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0061-rfc-0065-slice4-visual-regression/remediation/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final review workflow 0061 — RFC 0065 completion",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Final-review workflow 0061 for accepted Slice 4 scope, decision fidelity (D1-D8), and no-claims boundaries — and confirm RFC 0065 is COMPLETE. Confirm the baselines were regenerated on the canonical env (explained diff); the visual compare is a HARD gate with a documented tolerance and the VTK mask; missing Playwright/Chromium SKIPs optional smoke and HARD-FAILS the acceptance profile; the a11y checks (focus order, visible ring, hit-target, contrast) pass with the documented posture; Lighthouse >= 90 recorded; all retained behavioural checks pass; docs/WEB_VERIFICATION.md documents the baseline-update procedure + the mandatory-vs-optional table; docs/USER_GUIDE.md is updated; DECISION_LOG D047 is ratified (proposed -> accepted); the claim line and RFC 0032 boundary are intact; and the full repo suite minus env-gated smoke is green except the known pre-existing NB-2 services-import-boundary failure (documented, out of scope).",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0061-rfc-0065-slice4-visual-regression/final/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "final_review", "kind": "finding", "path": "striatum/0061-rfc-0065-slice4-visual-regression/final/FINAL_REVIEW.md", "required": true}
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "implement_visual_regression", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_visual_regression", "to": "review_claims", "on": "completed"},
+    {"from": "implement_visual_regression", "to": "review_ops_tests", "on": "completed"},
+
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_claims", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops_tests", "to": "findings_ledger", "on": "completed"},
+
+    {"from": "findings_ledger", "to": "remediate_findings", "on": "completed"},
+    {"from": "remediate_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {"from": "final_review", "to": "remediate_findings", "on_verdict": "needs_revision", "max_iterations": 1}
+  ]
+}
