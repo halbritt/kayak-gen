@@ -1,0 +1,199 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0057-rfc-0065-slice1-theme-tokens",
+  "workflow_version": "2026-06-02",
+  "name": "0057 - RFC 0065 Slice 1 theme-token foundation",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0057-rfc-0065-slice1-theme-tokens",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "codex"
+  },
+  "lanes": {
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["bash", ".striatum/bin/codex-supervised-wrapper.sh"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.8",
+      "command": ["bash", ".striatum/bin/claude-supervised-wrapper.sh"],
+      "capabilities": ["review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["bash", ".striatum/bin/gemini-supervised-wrapper.sh"],
+      "capabilities": ["review", "synthesis"]
+    }
+  },
+  "roles": {
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_claims": {"definition_path": "roles/reviewer_claims.md"},
+    "reviewer_ops_tests": {"definition_path": "roles/reviewer_ops_tests.md"},
+    "findings_ledger": {"definition_path": "roles/findings_ledger.md"},
+    "remediator": {"definition_path": "roles/remediator.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/DECISION_LOG.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/rfcs/0065-ui-polish-redesign.md", "required": true},
+    {"path": "docs/rfcs/0033-workspace-ui-rework.md", "required": true},
+    {"path": "docs/workflows/0057-rfc-0065-slice1-theme-tokens/SLICE_1_DECISIONS.md", "required": true},
+    {"path": "kayakgen/ui/theme.py", "required": true},
+    {"path": "tests/test_ui_theme.py", "required": true},
+    {"path": "kayakgen/ui/web/app.py", "required": true},
+    {"path": "kayakgen/ui/web/generate_frontier_view.py", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement_theme_tokens",
+      "type": "synthesis",
+      "title": "Extend the theme module into a complete visual-token system",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Extend kayakgen/ui/theme.py with named SPACING, DENSITY, RADII, ELEVATION, BORDERS maps, a focus-ring token (--state-focus-ring colour + ring width), and state tokens (hover/active/disabled surface + text), additively — renaming, removing, or re-typing no existing token. Colour-bearing tokens resolve in both COLORS_LIGHT and COLORS_DARK; dimensionless tokens are palette-independent single maps. Grow css_root_block(dark) and vuetify_theme_config() to emit the new tokens; leave matplotlib_rc_params/vtk_background_rgb behaviour unchanged. Extend CONTRAST_MANIFEST so the focus ring is visible against surface-panel and surface-viewport-bg and the state surface/text tokens clear their minimum ratios in both palettes. Widen the tests/test_ui_theme.py orphan-literal lint to fail on a raw dimension (px/rem/em), border-radius/box-shadow/outline-width, or focus literal outside theme.py under kayakgen/ui/, and migrate the existing inline dimension literals in kayakgen/ui/web/app.py and kayakgen/ui/web/generate_frontier_view.py to the new tokens so the clean tree passes; include a negative test that the lint fails on a planted literal. Token values must equal the literals they replace — no layout/behaviour change. Do not rename/move any data-testid or kg-* hook, do not touch any CHIP_* entry or persistent caption, do not recolour a chip, add no REST route or claim_state/Readiness/accepted_uses literal, and do not touch docs/USER_GUIDE.md or docs/WEB_VERIFICATION.md. Add a CHANGELOG.md entry. See SLICE_1_DECISIONS.md D1-D8.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/ui/theme.py",
+          "tests/test_ui_theme.py",
+          "kayakgen/ui/web/app.py",
+          "kayakgen/ui/web/generate_frontier_view.py",
+          "CHANGELOG.md",
+          "striatum/0057-rfc-0065-slice1-theme-tokens/implementation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0057-rfc-0065-slice1-theme-tokens/implementation/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review traceability to RFC 0065 Slice 1 decisions",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Review every workflow 0057 change for traceability to RFC 0065 section 1 and SLICE_1_DECISIONS.md (D1-D8). Flag scope creep: any layout/hierarchy change (Slice 2), control/empty-state change (Slice 3), harness or WEB_VERIFICATION.md/USER_GUIDE.md change (Slice 4), data-testid/kg-* rename, touched CHIP_* or caption, or any re-typed/removed existing token. Confirm the extension is additive and the inline-literal migration is a literal-to-token substitution, not a value change.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0057-rfc-0065-slice1-theme-tokens/reviews/traceability/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0057-rfc-0065-slice1-theme-tokens/reviews/traceability/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_claims",
+      "type": "review",
+      "title": "Review claims and user-facing boundaries",
+      "role_id": "reviewer_claims",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Review every workflow 0057 change for claim truthfulness. Confirm CHIP_SPECS/CHIP_LABELS/CHIP_CLASSES are byte-identical and no chip is recoloured into the success palette; every persistent caption (resistance, high-angle GZ, CFD local/artifact, not-watertight-cfd_ready) is unchanged; no new claim_state/Readiness/accepted_uses literal and no new REST route (RFC 0032 boundary); the RFC 0033 section 8 no-go list stays absent; and new state/focus token names carry no claim semantics.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0057-rfc-0065-slice1-theme-tokens/reviews/claims/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0057-rfc-0065-slice1-theme-tokens/reviews/claims/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_ops_tests",
+      "type": "review",
+      "title": "Review tests, determinism, and operational behaviour",
+      "role_id": "reviewer_ops_tests",
+      "lane_id": "gemini",
+      "fresh_session_required": true,
+      "objective": "Review workflow 0057 tests for determinism and coverage. Confirm the widened orphan-literal lint fails on a planted dimension/radius/shadow/focus literal outside theme.py and passes clean (not a no-op); CONTRAST_MANIFEST covers the focus-ring and state tokens and every pair clears its min_ratio in both palettes; every new colour-bearing token resolves in both COLORS_LIGHT and COLORS_DARK while dimensionless tokens are single maps; css_root_block(dark) emits each new variable and vuetify_theme_config() maps the state/focus tokens; the desktop rendered-bbox tests stay green; theme.py has no module-level side effects; and the full repo suite minus env-gated smoke is green with git diff --check, forbidden-copy, and import-boundary scans passing.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0057-rfc-0065-slice1-theme-tokens/reviews/ops_tests/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0057-rfc-0065-slice1-theme-tokens/reviews/ops_tests/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "synthesis",
+      "title": "Build findings ledger",
+      "role_id": "findings_ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate the three review findings into must-fix remediation items and non-blocking successor items (pointing at a later RFC 0065 slice where appropriate) without inventing new design scope. Cross-check each finding against SLICE_1_DECISIONS.md.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0057-rfc-0065-slice1-theme-tokens/ledger/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "findings_ledger", "kind": "findings_ledger", "path": "striatum/0057-rfc-0065-slice1-theme-tokens/ledger/FINDINGS_LEDGER.md", "required": true}
+      ]
+    },
+    {
+      "id": "remediate_findings",
+      "type": "synthesis",
+      "title": "Remediate review findings",
+      "role_id": "remediator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Fix the must-fix findings from the ledger, update CHANGELOG.md and this workflow's OPERATOR_REPORT.md, and preserve all SLICE_1_DECISIONS.md decisions and the no-claims boundaries (token values equal to the literals they replace, byte-stable claim line, USER_GUIDE.md/WEB_VERIFICATION.md untouched). Run tests/test_ui_theme.py, the desktop rendered-bbox tests, and the full repo suite minus the env-gated smoke before publishing.",
+      "task_prompt": {"path": "prompts/remediate.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "CHANGELOG.md",
+          "docs/workflows/0057-rfc-0065-slice1-theme-tokens/OPERATOR_REPORT.md",
+          "kayakgen/ui/",
+          "tests/",
+          "striatum/0057-rfc-0065-slice1-theme-tokens/remediation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0057-rfc-0065-slice1-theme-tokens/remediation/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final review workflow 0057",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Final-review workflow 0057 for accepted Slice 1 scope, decision fidelity (D1-D8), and no-claims boundaries. Confirm the theme module ships the spacing/density/radius/elevation/border/focus-ring/state tokens in both palettes, the widened orphan lint and extended contrast manifest are green, the desktop rendered-bbox tests pass, the claim line and RFC 0032 boundary are intact, USER_GUIDE.md/WEB_VERIFICATION.md were not touched, D047 was not ratified, and the full repo suite minus env-gated smoke is green.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0057-rfc-0065-slice1-theme-tokens/final/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "final_review", "kind": "finding", "path": "striatum/0057-rfc-0065-slice1-theme-tokens/final/FINAL_REVIEW.md", "required": true}
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "implement_theme_tokens", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_theme_tokens", "to": "review_claims", "on": "completed"},
+    {"from": "implement_theme_tokens", "to": "review_ops_tests", "on": "completed"},
+
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_claims", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops_tests", "to": "findings_ledger", "on": "completed"},
+
+    {"from": "findings_ledger", "to": "remediate_findings", "on": "completed"},
+    {"from": "remediate_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {"from": "final_review", "to": "remediate_findings", "on_verdict": "needs_revision", "max_iterations": 1}
+  ]
+}
