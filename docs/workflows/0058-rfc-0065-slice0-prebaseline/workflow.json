@@ -1,0 +1,180 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0058-rfc-0065-slice0-prebaseline",
+  "workflow_version": "2026-06-02",
+  "name": "0058 - RFC 0065 Slice 0 pre-redesign screenshot baseline",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0058-rfc-0065-slice0-prebaseline",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "implementer",
+    "lane_id": "codex"
+  },
+  "lanes": {
+    "codex": {
+      "adapter": "process",
+      "display_model": "Codex GPT-5.5",
+      "command": ["bash", ".striatum/bin/codex-supervised-wrapper.sh"],
+      "capabilities": ["write", "review", "synthesis"]
+    },
+    "claude": {
+      "adapter": "process",
+      "display_model": "Claude Opus 4.8",
+      "command": ["bash", ".striatum/bin/claude-supervised-wrapper.sh"],
+      "capabilities": ["review", "synthesis"]
+    },
+    "gemini": {
+      "adapter": "process",
+      "display_model": "Gemini Pro 3.1",
+      "command": ["bash", ".striatum/bin/gemini-supervised-wrapper.sh"],
+      "capabilities": ["review", "synthesis"]
+    }
+  },
+  "roles": {
+    "implementer": {"definition_path": "roles/implementer.md"},
+    "reviewer_traceability": {"definition_path": "roles/reviewer_traceability.md"},
+    "reviewer_ops_tests": {"definition_path": "roles/reviewer_ops_tests.md"},
+    "findings_ledger": {"definition_path": "roles/findings_ledger.md"},
+    "remediator": {"definition_path": "roles/remediator.md"},
+    "final_reviewer": {"definition_path": "roles/final_reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/DECISION_LOG.md", "required": true},
+    {"path": "docs/rfcs/README.md", "required": true},
+    {"path": "docs/rfcs/0065-ui-polish-redesign.md", "required": true},
+    {"path": "docs/workflows/0058-rfc-0065-slice0-prebaseline/SLICE_0_DECISIONS.md", "required": true},
+    {"path": "tests/test_web_browser.py", "required": true},
+    {"path": "tests/conftest.py", "required": true},
+    {"path": "kayakgen/ui/web/app.py", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 2,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "implement_baseline",
+      "type": "synthesis",
+      "title": "Land screenshot-capture scaffolding + commit today's baseline",
+      "role_id": "implementer",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Land RFC 0065 Slice 0: add Playwright/Chromium screenshot capture to the browser-acceptance profile (tests/test_web_browser.py or a new tests/web_visual.py) at 1440x900, 1024x768, and a <=960px width, masking the 3D VtkRemoteView region (geometry-vtk-view / .kg-vtk-viewport) out of the pixel comparison. Add a compare-with-tolerance helper (current vs committed baseline, masked region excluded) that writes actual+diff PNGs on mismatch; in Slice 0 this is ADVISORY (SKIP without Playwright/Chromium; mismatch reports, not a hard failure) - the hard gate is Slice 4. Add --update-visual-baselines to tests/conftest.py. Capture and commit the CURRENT shell's baselines under tests/visual_baselines/<viewport>.png plus tests/visual_baselines/README.md documenting the canonical render env (this host OS + Chromium build) and the regeneration command. Add a CHANGELOG.md entry. No kayakgen/ui/ source change, no data-testid/kg-* rename, no CHIP_*/caption/claim-state change, RFC 0032 boundary intact; do not touch docs/USER_GUIDE.md or docs/WEB_VERIFICATION.md. If deterministic capture is too flaky, record it and escalate the tolerance/canonical-env choice in the patch summary. See SLICE_0_DECISIONS.md S0-D1..S0-D6.",
+      "task_prompt": {"path": "prompts/implement.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "tests/test_web_browser.py",
+          "tests/web_visual.py",
+          "tests/conftest.py",
+          "tests/visual_baselines/",
+          "CHANGELOG.md",
+          "striatum/0058-rfc-0065-slice0-prebaseline/implementation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0058-rfc-0065-slice0-prebaseline/implementation/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_traceability",
+      "type": "review",
+      "title": "Review traceability to RFC 0065 Slice 0 decisions",
+      "role_id": "reviewer_traceability",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Review every workflow 0058 change for traceability to RFC 0065's Slice 0 line and SLICE_0_DECISIONS.md (S0-D1..S0-D6). Flag scope creep: any kayakgen/ui/ source change, information-hierarchy reflow (Slice 2), control/empty-state work (Slice 3), a HARD-FAILURE gate or a11y/Lighthouse/WEB_VERIFICATION.md edits (Slice 4), a data-testid/kg-* rename, a touched CHIP_*/caption, or a new claim/readiness literal. Confirm the baseline is of the current shell and the 3D region is masked.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0058-rfc-0065-slice0-prebaseline/reviews/traceability/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0058-rfc-0065-slice0-prebaseline/reviews/traceability/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "review_ops_tests",
+      "type": "review",
+      "title": "Review capture determinism, masking, and operational behaviour",
+      "role_id": "reviewer_ops_tests",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Review workflow 0058 for capture at all three viewports with the 3D VtkRemoteView region masked out of the diff; the compare advisory in Slice 0 (not a hard gate; SKIP without Playwright/Chromium); --update-visual-baselines regenerating the baselines; the committed PNGs being the current shell with a canonical-env README; the existing behavioural browser-acceptance checks (nonblank 3D, Share reload, STL bytes, console/network cleanliness) still green; no wall-clock-sleep flakiness; git diff --check clean; the rest of the suite green. Flag env-fragility likely to false-positive the next slice's diff and recommend a tolerance/canonical-env path.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0058-rfc-0065-slice0-prebaseline/reviews/ops_tests/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "review", "kind": "finding", "path": "striatum/0058-rfc-0065-slice0-prebaseline/reviews/ops_tests/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "findings_ledger",
+      "type": "synthesis",
+      "title": "Build findings ledger",
+      "role_id": "findings_ledger",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Deduplicate the two review findings into must-fix remediation items and non-blocking successor items (Slice 4 for the hard gate / exact tolerance / canonical-env hardening / a11y, where appropriate) without inventing new design scope. Cross-check each finding against SLICE_0_DECISIONS.md.",
+      "task_prompt": {"path": "prompts/findings_ledger.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0058-rfc-0065-slice0-prebaseline/ledger/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "findings_ledger", "kind": "findings_ledger", "path": "striatum/0058-rfc-0065-slice0-prebaseline/ledger/FINDINGS_LEDGER.md", "required": true}
+      ]
+    },
+    {
+      "id": "remediate_findings",
+      "type": "synthesis",
+      "title": "Remediate review findings",
+      "role_id": "remediator",
+      "lane_id": "codex",
+      "fresh_session_required": true,
+      "objective": "Fix the must-fix findings from the ledger, update CHANGELOG.md and this workflow's OPERATOR_REPORT.md, and preserve all SLICE_0_DECISIONS.md decisions (no kayakgen/ui/ source or appearance change, compare stays advisory, USER_GUIDE.md/WEB_VERIFICATION.md untouched). Run the browser-acceptance profile and the full repo suite minus the env-gated smoke before publishing; heartbeat the lease during long Playwright runs.",
+      "task_prompt": {"path": "prompts/remediate.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "tests/",
+          "tests/visual_baselines/",
+          "CHANGELOG.md",
+          "docs/workflows/0058-rfc-0065-slice0-prebaseline/OPERATOR_REPORT.md",
+          "striatum/0058-rfc-0065-slice0-prebaseline/remediation/"
+        ],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"logical_name": "patch_summary", "kind": "patch_summary", "path": "striatum/0058-rfc-0065-slice0-prebaseline/remediation/PATCH_SUMMARY.md", "required": true}
+      ]
+    },
+    {
+      "id": "final_review",
+      "type": "review",
+      "title": "Final review workflow 0058",
+      "role_id": "final_reviewer",
+      "lane_id": "claude",
+      "fresh_session_required": true,
+      "objective": "Final-review workflow 0058 for accepted Slice 0 scope, decision fidelity (S0-D1..S0-D6), and the no-appearance-change invariant. Confirm capture at the three viewports with the 3D region masked; committed in-repo baselines of the current shell + canonical-env README + --update-visual-baselines; the compare advisory (not a hard gate); no kayakgen/ui/ source/layout/claim change; USER_GUIDE.md/WEB_VERIFICATION.md untouched and D047 not ratified; the behavioural browser-acceptance checks and the full repo suite minus env-gated smoke green.",
+      "task_prompt": {"path": "prompts/final_review.md"},
+      "write_scope": {"mode": "review_only_artifact", "repo_write": false, "allowed_paths": ["striatum/0058-rfc-0065-slice0-prebaseline/final/"], "forbidden_paths": [".striatum/"]},
+      "expected_artifacts": [
+        {"logical_name": "final_review", "kind": "finding", "path": "striatum/0058-rfc-0065-slice0-prebaseline/final/FINAL_REVIEW.md", "required": true}
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "implement_baseline", "to": "review_traceability", "on": "completed"},
+    {"from": "implement_baseline", "to": "review_ops_tests", "on": "completed"},
+
+    {"from": "review_traceability", "to": "findings_ledger", "on": "completed"},
+    {"from": "review_ops_tests", "to": "findings_ledger", "on": "completed"},
+
+    {"from": "findings_ledger", "to": "remediate_findings", "on": "completed"},
+    {"from": "remediate_findings", "to": "final_review", "on": "completed"}
+  ],
+  "cycles": [
+    {"from": "final_review", "to": "remediate_findings", "on_verdict": "needs_revision", "max_iterations": 1}
+  ]
+}
