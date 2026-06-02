@@ -149,8 +149,8 @@ def test_parameter_slider_label_css_uses_existing_tokens() -> None:
     assert "--type-label:" in web_app.ROOT_THEME_CSS
     assert "--text-secondary:" in web_app.ROOT_THEME_CSS
     assert "--surface-rail:" in web_app.ROOT_THEME_CSS
-    assert app_source.count("html_widgets.Style(ROOT_THEME_CSS)") == 1
-    assert app_source.count("html_widgets.Style(PARAMETER_RAIL_CSS)") == 1
+    assert app_source.count("self.state.workspace_style_html =") == 1
+    assert app_source.count('html_widgets.Div(v_html=("workspace_style_html",))') == 1
 
 
 def test_shell_and_generate_sections_share_typography_and_token_density() -> None:

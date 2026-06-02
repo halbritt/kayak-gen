@@ -442,7 +442,10 @@ WORKSPACE_SHELL_CSS = """
 .kg-workspace-shell select:focus-visible,
 .kg-workspace-shell input:focus-visible,
 .kg-workspace-shell textarea:focus-visible,
-.kg-workspace-shell button:focus-visible {
+.kg-workspace-shell button:focus-visible,
+.kg-toolbar-action:focus-visible,
+.kg-export-menu-under-1200:focus-visible,
+.kg-class-preset-select:focus-within {
   outline: var(--state-focus-ring-width) var(--border-style-solid) var(--state-focus-ring);
   outline-offset: var(--space-1);
 }
@@ -813,6 +816,9 @@ class KayakgenApp:
         self.server = server if server is not None else get_server(client_type="vue3")
         self.state = self.server.state
         self.ctrl = self.server.controller
+        self.state.workspace_style_html = (
+            f"<style>{ROOT_THEME_CSS}</style><style>{PARAMETER_RAIL_CSS}</style>"
+        )
 
         if initial_hull is None and initial_query:
             initial_hull = hull_from_query_string(initial_query)
@@ -1755,8 +1761,6 @@ class KayakgenApp:
 
     def _build_layout(self) -> None:
         with SinglePageWithDrawerLayout(self.server) as layout:
-            html_widgets.Style(ROOT_THEME_CSS)
-            html_widgets.Style(PARAMETER_RAIL_CSS)
             layout.title.set_text("kayakgen")
 
             with layout.toolbar:
@@ -1865,6 +1869,7 @@ class KayakgenApp:
                     v3.VDivider(classes="mt-3")
 
             with layout.content:
+                html_widgets.Div(v_html=("workspace_style_html",))
                 with v3.VContainer(
                     fluid=True,
                     classes="fill-height pa-0 kg-workspace-shell kg-workspace-grid",

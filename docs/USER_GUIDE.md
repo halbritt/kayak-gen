@@ -972,6 +972,12 @@ detail area on the right: **Hydro**, **Mesh**, **Comparison**, and
 the previous monolithic layout into these four tabs; the wire payload of
 `build_spec_from_form_state` is unchanged across the redesign, so saved
 specs and shared URLs from before the rework continue to load correctly.
+The RFC 0065 polish pass applies the shared theme tokens across the same
+workspace: denser section rhythm, token-sourced focus rings, consistent
+control states, explicit empty/loading/error states, and the same
+first-viewport / under-960px collapse behavior. This is presentation-only;
+it does not add routes, evaluators, solver capability, or new claim/readiness
+states.
 
 **Param rail.** Sliders for the canonical hull-shape inputs. The class
 selector reseeds `length_m`, `beam_oa_m`, `beam_wl_m`, `draft_m`, and `Cp`
@@ -1076,6 +1082,12 @@ tab sit side-by-side and the Generate form uses its two-column layout.
 On narrow viewports (under ~960px) Vuetify's grid stacks the columns
 vertically; the validity badge remains pinned at the top of the rail
 section.
+
+**Browser verification.** The required browser-acceptance profile now includes
+hard masked visual-regression screenshots at `1440x900`, `1024x768`, and
+`960x720`, plus focus-order, visible focus-ring, hit-target, contrast, Share
+URL reload, STL API, nonblank-3D, and browser-cleanliness checks. Baseline
+regeneration and tolerance details live in `docs/WEB_VERIFICATION.md`.
 
 **Export menu.** Lists Hull STL, Deck STL, Hydro JSON, Stability JSON,
 and Mesh package. Hull and Deck STL use the existing local STL

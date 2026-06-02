@@ -8,6 +8,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- RFC 0065 Slice 4 remediation added no-browser regression coverage for the
+  visual PNG comparator. Synthetic PNG tests now prove that an over-tolerance
+  masked screenshot diff fails and writes actual/diff evidence, while a
+  below-ratio diff still passes without writing a diff artifact.
+
 - RFC 0065 Slice 0 visual-baseline scaffold: the browser-acceptance
   profile now captures advisory Playwright/Chromium screenshots at
   1440x900, 1024x768, and 960x720, masks the live VTK viewport out of
@@ -66,6 +71,20 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   claude lane. RFC 0043/0056 status unchanged (still rig-gated on D007/D014).
 
 ### Changed
+
+- RFC 0065 Slice 4 visual-regression hard gate: the browser-acceptance
+  profile now hard-fails masked screenshot diffs above the documented
+  tolerance (per-channel delta `8`, mismatch ratio `0.02`) against the
+  committed in-repo PNG baselines at 1440x900, 1024x768, and 960x720.
+  The same profile now checks deterministic toolbar focus order, a
+  token-sourced `--state-focus-ring`, 24 px minimum hit targets, and
+  `CONTRAST_MANIFEST` in both palettes while retaining nonblank-3D,
+  Share reload, STL API, and browser-cleanliness checks. The web app now
+  renders the existing token CSS through the Trame content slot so the
+  Slice 2/3 visual-system styling is present in Chromium; regenerated
+  baselines reflect that post-polish shell. D047 is ratified as accepted,
+  and `docs/WEB_VERIFICATION.md` records the baseline procedure, gate
+  table, and Lighthouse Best Practices 100 result.
 
 - RFC 0065 Slice 3 control/state pass: the Trame shell and Generate
   panel now apply uniform token-sourced default/hover/focus/active/

@@ -23,6 +23,7 @@ import time
 import zlib
 from contextlib import closing
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -30,6 +31,7 @@ from urllib.request import urlopen
 import pytest
 
 from kayakgen.model.hull import Hull
+from kayakgen.ui import theme
 from kayakgen.ui.web.state import hull_from_query_string, state_dict_from_hull
 
 PLAYWRIGHT_SETUP = (
@@ -41,6 +43,7 @@ VISUAL_BASELINE_DIR = Path(__file__).parent / "visual_baselines"
 VISUAL_MASK_FILL = "#f3f4f6"
 VISUAL_PIXEL_CHANNEL_TOLERANCE = 8
 VISUAL_MISMATCH_PIXEL_RATIO = 0.02
+A11Y_MIN_HIT_TARGET_PX = 24
 
 
 @dataclass(frozen=True)
@@ -372,6 +375,72 @@ def _compare_visual_png(
     )
 
 
+def _synthetic_rgba_png(
+    size: tuple[int, int],
+    fill: tuple[int, int, int, int],
+    pixels: dict[tuple[int, int], tuple[int, int, int, int]] | None = None,
+) -> bytes:
+    Image = pytest.importorskip("PIL.Image", reason="Pillow is required for PNG tests.")
+    image = Image.new("RGBA", size, fill)
+    for xy, rgba in (pixels or {}).items():
+        image.putpixel(xy, rgba)
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def test_compare_visual_png_fails_over_tolerance_and_writes_diff(tmp_path: Path) -> None:
+    baseline_path = tmp_path / "baseline.png"
+    baseline_path.write_bytes(_synthetic_rgba_png((10, 10), (255, 255, 255, 255)))
+    actual_png = _synthetic_rgba_png(
+        (10, 10),
+        (255, 255, 255, 255),
+        {
+            (0, 0): (0, 0, 0, 255),
+            (1, 0): (0, 0, 0, 255),
+            (2, 0): (0, 0, 0, 255),
+        },
+    )
+
+    result = _compare_visual_png(
+        actual_png=actual_png,
+        baseline_path=baseline_path,
+        output_dir=tmp_path / "diffs",
+        viewport_name="synthetic",
+    )
+
+    assert result.passed is False
+    assert result.mismatch_ratio == pytest.approx(0.03)
+    assert result.max_channel_delta == 255
+    assert result.actual_path.exists()
+    assert result.diff_path.exists()
+
+
+def test_compare_visual_png_passes_under_mismatch_ratio_without_diff(
+    tmp_path: Path,
+) -> None:
+    baseline_path = tmp_path / "baseline.png"
+    baseline_path.write_bytes(_synthetic_rgba_png((10, 10), (255, 255, 255, 255)))
+    actual_png = _synthetic_rgba_png(
+        (10, 10),
+        (255, 255, 255, 255),
+        {(0, 0): (0, 0, 0, 255)},
+    )
+
+    result = _compare_visual_png(
+        actual_png=actual_png,
+        baseline_path=baseline_path,
+        output_dir=tmp_path / "diffs",
+        viewport_name="synthetic",
+    )
+
+    assert result.passed is True
+    assert result.mismatch_ratio == pytest.approx(0.01)
+    assert result.max_channel_delta == 255
+    assert result.actual_path.exists()
+    assert not result.diff_path.exists()
+
+
 def _png_rgb_range(png: bytes) -> tuple[int, int]:
     assert png.startswith(b"\x89PNG\r\n\x1a\n")
     pos = 8
@@ -636,6 +705,179 @@ def _assert_parameter_slider_accessibility(page) -> None:
         assert page.get_by_role("group", name=visible_label, exact=True).count() == 1
 
 
+def _hex_to_rgb_ints(value: str) -> tuple[int, int, int]:
+    hex_value = value.removeprefix("#")
+    return tuple(int(hex_value[index : index + 2], 16) for index in (0, 2, 4))
+
+
+def _linear_channel(channel: float) -> float:
+    if channel <= 0.04045:
+        return channel / 12.92
+    return ((channel + 0.055) / 1.055) ** 2.4
+
+
+def _relative_luminance(rgb: tuple[int, int, int]) -> float:
+    red, green, blue = (_linear_channel(channel / 255.0) for channel in rgb)
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+
+
+def _contrast_ratio(foreground: tuple[int, int, int], background: tuple[int, int, int]) -> float:
+    lighter = max(_relative_luminance(foreground), _relative_luminance(background))
+    darker = min(_relative_luminance(foreground), _relative_luminance(background))
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def _assert_contrast_manifest() -> None:
+    failures = []
+    for palette_name, tokens in (("light", theme.COLORS_LIGHT), ("dark", theme.COLORS_DARK)):
+        for pair in theme.CONTRAST_MANIFEST:
+            foreground = _hex_to_rgb_ints(tokens[pair.foreground_token])
+            background = _hex_to_rgb_ints(tokens[pair.background_token])
+            ratio = _contrast_ratio(foreground, background)
+            if ratio < pair.min_ratio:
+                failures.append(
+                    f"{palette_name}.{pair.name}: {ratio:.2f} < {pair.min_ratio:.2f}"
+                )
+    assert failures == [], "contrast manifest failures:\n" + "\n".join(failures)
+
+
+def _assert_workspace_focus_order_and_ring(page) -> None:
+    expected_prefix = [
+        "combobox:custom",
+        "button:reset",
+        "button:share",
+        "button:export",
+    ]
+    page.locator(".kg-class-preset-select input").focus()
+
+    observed: list[str] = []
+    ring_failures: list[str] = []
+    for index in range(len(expected_prefix)):
+        result = page.evaluate(
+            """
+            (focusRingToken) => {
+              const el = document.activeElement;
+              const descriptor = (node) => {
+                if (!node) return "";
+                const role = node.getAttribute("role") || node.tagName.toLowerCase();
+                const text = (
+                  node.innerText
+                  || node.value
+                  || node.getAttribute("aria-label")
+                  || node.textContent
+                  || ""
+                ).trim().replace(/\\s+/g, " ").toLowerCase();
+                return `${role}:${text}`;
+              };
+              const expected = getComputedStyle(document.documentElement)
+                .getPropertyValue(focusRingToken).trim();
+              const probe = document.createElement("span");
+              probe.style.color = expected;
+              document.body.appendChild(probe);
+              const expectedColor = getComputedStyle(probe).color;
+              probe.remove();
+              let hasRing = false;
+              for (
+                let cursor = el;
+                cursor && cursor !== document.body;
+                cursor = cursor.parentElement
+              ) {
+                const style = getComputedStyle(cursor);
+                if (
+                  style.outlineStyle !== "none"
+                  && parseFloat(style.outlineWidth) >= 1
+                  && style.outlineColor === expectedColor
+                ) {
+                  hasRing = true;
+                  break;
+                }
+              }
+              return {descriptor: descriptor(el), hasRing};
+            }
+            """,
+            arg="--state-focus-ring",
+        )
+        observed.append(result["descriptor"])
+        if not result["hasRing"]:
+            ring_failures.append(result["descriptor"])
+        if index < len(expected_prefix) - 1:
+            page.keyboard.press("Tab")
+
+    failures = []
+    for index, expected in enumerate(expected_prefix):
+        if not observed[index].startswith(expected):
+            failures.append(f"focus {index}: {observed[index] or '<none>'} != {expected}")
+    for failure in ring_failures:
+        failures.append(f"missing token focus ring: {failure}")
+
+    assert failures == [], (
+        "workspace focus-order/focus-ring failures:\n"
+        + "\n".join(failures)
+        + "\nobserved order:\n"
+        + "\n".join(observed)
+    )
+
+
+def _assert_workspace_hit_targets(page) -> None:
+    failures = page.evaluate(
+        """
+        (minimum) => {
+          const visibleRect = (el) => {
+            const style = getComputedStyle(el);
+            if (
+              style.display === "none"
+              || style.visibility === "hidden"
+              || Number(style.opacity) === 0
+            ) {
+              return null;
+            }
+            const rect = el.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) return null;
+            return rect;
+          };
+          const label = (el) => (
+            el.innerText
+            || el.value
+            || el.getAttribute("aria-label")
+            || el.getAttribute("role")
+            || el.tagName
+          ).trim().replace(/\\s+/g, " ");
+          const selectors = [
+            ".kg-workspace-shell button:not(:disabled)",
+            ".kg-workspace-shell [role='button']:not([aria-disabled='true'])",
+            ".kg-workspace-shell [role='tab']",
+            ".kg-workspace-shell [role='slider']",
+            ".kg-workspace-shell input:not([type='hidden']):not([tabindex='-1'])",
+            ".kg-workspace-shell select",
+            ".kg-workspace-shell textarea",
+          ].join(",");
+          const controls = Array.from(document.querySelectorAll(selectors));
+          const failures = [];
+          for (const control of controls) {
+            const target = control.closest(".v-slider")
+              || control.closest(".v-field")
+              || control.closest(".v-btn")
+              || control.closest("button")
+              || control;
+            const rect = visibleRect(target);
+            if (!rect) continue;
+            if (rect.width < minimum || rect.height < minimum) {
+              failures.push(
+                `${label(control)}: ${rect.width.toFixed(1)}x${rect.height.toFixed(1)}`
+              );
+            }
+          }
+          return failures;
+        }
+        """,
+        arg=A11Y_MIN_HIT_TARGET_PX,
+    )
+    assert failures == [], (
+        f"interactive controls below {A11Y_MIN_HIT_TARGET_PX}px hit target:\n"
+        + "\n".join(failures)
+    )
+
+
 @pytest.mark.browser_acceptance
 @pytest.mark.parametrize("viewport", VISUAL_VIEWPORTS, ids=lambda viewport: viewport.name)
 def test_web_workspace_visual_baseline(
@@ -643,7 +885,8 @@ def test_web_workspace_visual_baseline(
     tmp_path: Path,
     viewport: VisualViewport,
 ) -> None:
-    playwright_api = _load_playwright_optional(request)
+    acceptance_required = _browser_acceptance_required(request)
+    playwright_api = _load_playwright(request)
     update_baselines = bool(request.config.getoption("--update-visual-baselines"))
     baseline_path = VISUAL_BASELINE_DIR / f"{viewport.name}.png"
     url, proc = _start_server()
@@ -651,7 +894,7 @@ def test_web_workspace_visual_baseline(
         with playwright_api.sync_playwright() as pw:
             browser = None
             try:
-                browser = _launch_chromium_optional(playwright_api, pw)
+                browser = _launch_chromium(playwright_api, pw, request)
                 page = browser.new_page(
                     viewport={"width": viewport.width, "height": viewport.height}
                 )
@@ -671,10 +914,13 @@ def test_web_workspace_visual_baseline(
         return
 
     if not baseline_path.exists():
-        pytest.skip(
+        message = (
             f"visual baseline is missing for {viewport.name}; regenerate with "
             "--update-visual-baselines"
         )
+        if acceptance_required:
+            pytest.fail(message)
+        pytest.skip(message)
 
     result = _compare_visual_png(
         actual_png=actual_png,
@@ -683,12 +929,15 @@ def test_web_workspace_visual_baseline(
         viewport_name=viewport.name,
     )
     if not result.passed:
-        pytest.skip(
-            "advisory visual baseline mismatch for "
+        message = (
+            "visual baseline mismatch for "
             f"{viewport.name}: mismatch_ratio={result.mismatch_ratio:.4f}, "
             f"max_channel_delta={result.max_channel_delta}; "
             f"actual={result.actual_path}; diff={result.diff_path}"
         )
+        if acceptance_required:
+            pytest.fail(message)
+        pytest.skip("advisory " + message)
 
 
 @pytest.mark.browser_acceptance
@@ -717,6 +966,9 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 page.get_by_text("Comparison").first.wait_for(timeout=10_000)
                 _assert_parameter_slider_label_geometry(page)
                 _assert_parameter_slider_accessibility(page)
+                _assert_contrast_manifest()
+                _assert_workspace_focus_order_and_ring(page)
+                _assert_workspace_hit_targets(page)
                 _assert_nonblank_3d(page)
 
                 _select_class_preset(page, "Elite surfski")

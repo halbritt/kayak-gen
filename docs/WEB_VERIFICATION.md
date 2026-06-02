@@ -66,7 +66,57 @@ In this profile, missing Playwright or Chromium is a hard failure. The test
 starts `kayakgen serve`, opens the local app in headless Chromium, verifies
 browser-visible controls, metrics, compact analysis rows, nonblank 3D evidence
 before and after a representative control mutation, Share URL reload, STL bytes
-from the browser-facing API path, and console/page/network cleanliness.
+from the browser-facing API path, console/page/network cleanliness, hard
+visual-regression screenshots, and browser-level accessibility checks.
+
+### Visual Baselines
+
+The RFC 0065 Slice 4 visual-regression gate stores committed PNG baselines
+directly in this repo under `tests/visual_baselines/` for these browser
+viewports:
+
+- `1440x900.png`
+- `1024x768.png`
+- `960x720.png`
+
+The canonical render environment for the current baselines is:
+
+- OS: `Linux proximal 6.8.0-111-generic #111-Ubuntu SMP PREEMPT_DYNAMIC Sat Apr 11 23:16:02 UTC 2026 x86_64`
+- Chromium: Playwright Chromium `147.0.7727.15`
+  (`/home/halbritt/.cache/ms-playwright/chromium-1217/chrome-linux64/chrome`)
+- Capture date: `2026-06-02`
+
+The nondeterministic 3D `VtkRemoteView` region is masked before capture. Its
+liveness stays covered by the separate nonblank-3D checks before and after a
+control mutation.
+
+Regenerate baselines only on the canonical render environment:
+
+```bash
+.venv/bin/python -m pytest \
+  tests/test_web_browser.py::test_web_workspace_visual_baseline \
+  --update-visual-baselines -q
+```
+
+Review regenerated PNGs as an explained diff. A baseline update must describe
+what visibly changed and why; unexplained binary churn is not acceptable.
+
+The hard compare uses a per-channel tolerance of `8` and a per-viewport
+mismatch-pixel ratio tolerance of `0.02` after masking the 3D viewport. The
+channel tolerance absorbs antialiasing and font-hinting jitter; the ratio bound
+keeps layout, chip-colour, claim-copy, and state-treatment changes visible.
+When the ratio exceeds `0.02`, the acceptance profile fails and writes
+`*.actual.png` plus amplified `*.diff.png` files in the pytest temporary
+directory.
+
+### Mandatory vs Optional Gates
+
+| Check | Optional smoke | Acceptance profile |
+| --- | --- | --- |
+| Screenshot visual regression | SKIP if Playwright/Chromium absent; mismatches are advisory outside `--browser-acceptance` | HARD FAILURE if Playwright/Chromium is absent, a baseline is missing, or masked diff exceeds tolerance |
+| Focus order / visible focus ring / hit targets | SKIP if Playwright/Chromium absent | HARD FAILURE; focus ring must use `--state-focus-ring`, controls must meet the 24 px minimum target |
+| Contrast vs `CONTRAST_MANIFEST` | Mandatory pytest gate; no browser needed | Rechecked inside the browser-acceptance profile against the same manifest |
+| Lighthouse Best Practices >= 90 | Optional, tool-dependent | Optional, tool-dependent; record the score, do not make it a pytest gate |
 
 Browser acceptance has no broad Trame, VTK, or `/paraview/` allowlist. The
 local server handles the exact historical `POST /paraview/` browser probe with a
@@ -139,6 +189,11 @@ npx lighthouse http://127.0.0.1:8080/ --only-categories=best-practices
 
 Record the Lighthouse Best Practices score before claiming the RFC 0008
 Lighthouse criterion. The target remains Best Practices >= 90.
+
+RFC 0065 Slice 4 result: Lighthouse ran on `2026-06-02` with
+`npx --yes lighthouse@latest`, `CHROME_PATH` pointed at Playwright Chromium
+`147.0.7727.15`, and a local `kayakgen serve` instance. Best Practices scored
+`1.0` (100).
 
 Workflow 0020 result: Lighthouse ran with `npx --yes lighthouse@latest` and
 Playwright's Chromium against a local server. Best Practices scored 92. The
