@@ -402,6 +402,8 @@ def test_forbidden_claim_copy_has_only_documented_negations_in_render_surfaces()
     app_source = Path(web_app.__file__).read_text()
     presentation_source = Path(web_app.__file__).with_name("presentation.py").read_text()
     layout_source = Path(web_app.__file__).with_name("layout.py").read_text()
+    handlers_source = Path(web_app.__file__).with_name("handlers.py").read_text()
+    generate_panel_source = Path(web_app.__file__).with_name("generate_panel.py").read_text()
     controllers_source = Path(web_app.__file__).with_name("controllers.py").read_text()
     frontier_source = Path(web_app.__file__).with_name("generate_frontier_view.py").read_text()
     frontier_render_source = frontier_source[
@@ -409,7 +411,15 @@ def test_forbidden_claim_copy_has_only_documented_negations_in_render_surfaces()
     ]
     spec_form_source = Path(web_app.__file__).with_name("generate_spec_form.py").read_text()
     render_source = "\n".join(
-        [app_source, presentation_source, layout_source, controllers_source, spec_form_source]
+        [
+            app_source,
+            presentation_source,
+            layout_source,
+            handlers_source,
+            generate_panel_source,
+            controllers_source,
+            spec_form_source,
+        ]
     )
     new_state_source = "\n".join([render_source, frontier_render_source])
 
