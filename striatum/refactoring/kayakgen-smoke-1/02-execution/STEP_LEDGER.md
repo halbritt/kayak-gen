@@ -221,3 +221,79 @@ Execution proceeds to S0.
   - ruff → exit 0. Extras-less import check → OK.
 - **Commit:** `f9b2ad0`
 - **Rollback unit:** revert commit `f9b2ad0`.
+
+### S5 (+S5t) — handlers.py (HandlersMixin); final shape
+
+- **Pre-slice dirty check (stop condition 8):** clean.
+- **What changed:** `kayakgen/ui/web/handlers.py` (new),
+  `kayakgen/ui/web/app.py`, plus the S5t union expansion in
+  `tests/test_web_layout.py`. Handlers region (`_current_hull` …
+  `_load_cfd_raw_result`) relocated **byte-identically** (verified against
+  `HEAD:app.py`); `class KayakgenApp(HandlersMixin, GeneratePanelMixin,
+  LayoutMixin, SceneMixin)` — the plan §6 composition order, methods
+  disjoint, MRO inert; 30 now-unused app.py imports pruned;
+  `STATE_SNAPSHOT_KEYS` re-export retained (`# noqa: F401`) because
+  `test_web_layout.py` reads it via `web_app.` (invariant 2).
+  **app.py settles at 355 lines** (≤ the goal's ~600 cap; plan projected
+  ≈400–450): import/re-export block, `__init__` + parameter-rail state,
+  mixin composition, `create_app`.
+- **Net diff:** app.py +3/−434; handlers.py ~68 non-relocation lines
+  (docstring + imports + mixin declaration) → S5 net ≈ 71 (cap 100).
+  S5t: test_web_layout.py +11/−1 (cap 20).
+- **Preservation claim:** `create_app`/`KayakgenApp` import paths +
+  signatures unchanged; trame ctrl/state bindings identical
+  (byte-identical bodies; strict browser gate green).
+- **S5t detail:** C2(ii) final union expansion — the forbidden-claim test
+  now scans app.py + presentation.py + layout.py + handlers.py +
+  generate_panel.py + controllers + spec form (+ frontier render hook):
+  the claim-vocabulary guard covers every render-feeding module, as
+  discharged. No other test strings were displaced at S5 — the plan's S5t
+  expectation of share-toast pointer redirects had already been satisfied
+  at S1 (the literal's definition moved then; recorded in the S1 entry).
+- **Verification:**
+  - Targeted: `pytest -q tests/test_web.py tests/test_web_layout.py
+    tests/test_web_inline_help.py tests/test_generative_jobs_web.py
+    tests/test_cli_serve.py` → `93 passed in 54.36s`
+  - Full suite → `1 failed, 1307 passed, 4 skipped in 497.90s (0:08:17)`;
+    failure set exactly the F3 singleton. **Bar met.**
+  - **Strict browser acceptance (C5, mandatory gate):**
+    `KAYAKGEN_BROWSER_ACCEPTANCE=1 .venv/bin/python -m pytest
+    tests/test_web_browser.py -m browser_acceptance -q` →
+    `4 passed, 2 deselected in 36.64s`. **Gate green.**
+  - **Extras-less full suite (§1.3 method, once after S5):**
+    `20 failed, 1114 passed, 24 skipped, 4 errors in 356.59s` — the
+    failure/error id set is **identical** to §1.3's named set
+    (collection errors: `test_generate_spec_form.py`,
+    `test_hull_parameter_metadata.py`; runtime errors: the two
+    `test_cli_serve.py` manager tests; failures: 4 ×
+    `test_generative_jobs_fork.py` + 15 × `test_generative_jobs_web.py` +
+    the F3 singleton). The set did not grow. **Bar met.**
+  - ruff → exit 0. Extras-less import check → OK.
+- **Commit:** `170b01f`
+- **Rollback unit:** revert commit `170b01f` (head of stack at campaign end).
+
+## Campaign close-out
+
+All slices S0 → S5(+S5t) landed in order with per-slice verification; no
+stop condition fired. Final landed stack (oldest → newest code commits):
+`24be568` (S0), `cf3c8bc` (S1+S1t), `47804a7` (S2), `c1414c6` (S3),
+`f9b2ad0` (S4+S4t), `170b01f` (S5+S5t). Rollback remains LIFO-only per
+plan §7: revert from `170b01f` backwards.
+
+Final post-S5 verification (the repository's full verification suite, §8):
+
+| Command | Bar | Observed |
+|---|---|---|
+| Full suite | failure set == F3 singleton | **PASS** — 1 failed / 1307 passed / 4 skipped |
+| ruff | exit 0 | **PASS** |
+| Strict browser acceptance | 4 passed, 2 deselected | **PASS** |
+| Extras-less full suite | §1.3 failure/error id set, no growth | **PASS** — exact set |
+| Import check | clean | **PASS** |
+
+Target shape delivered: `kayakgen/ui/web/` now holds `presentation.py`,
+`scene.py`, `generate_panel.py`, `layout.py`, `handlers.py` as siblings
+imported by `app.py` (dependency direction sibling → imported-by-app,
+invariant 7 held; no sibling imports `app.py`), and `app.py` is a
+355-line integrator. Frozen surfaces untouched: `tests/test_web_browser.py`,
+`tests/test_import_boundaries.py`, `tests/test_services_boundaries.py`,
+`pyproject.toml` (verified: no commit in the stack touches them).
