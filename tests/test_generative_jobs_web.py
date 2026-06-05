@@ -513,7 +513,7 @@ def test_generate_panel_renders_stage4_sections_and_fork_buttons(
     tmp_path: Path, monkeypatch
 ) -> None:
     from kayakgen.model.hull import Hull
-    from kayakgen.ui.web import app as app_module
+    from kayakgen.ui.web import layout as layout_module
     from kayakgen.ui.web.app import create_app
     from kayakgen.ui.web.generate_state_listener import stop_generate_state_listener
 
@@ -544,7 +544,7 @@ def test_generate_panel_renders_stage4_sections_and_fork_buttons(
                 ),
             ]
 
-    monkeypatch.setattr(app_module, "render_fork_button", fake_render_fork_button)
+    monkeypatch.setattr(layout_module, "render_fork_button", fake_render_fork_button)
     web = create_app(initial_hull=Hull(), generative_manager=FakeManager())
     try:
         assert calls == ["done-job"]

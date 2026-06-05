@@ -38,7 +38,7 @@ def test_hydro_tab_template_binds_title_to_row_description() -> None:
     suppress the tooltip naturally.
     """
 
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
 
     # The Hydro-tab template binds the description as a hover tooltip.
     assert ":title='row.description'" in app_source, (
@@ -107,6 +107,7 @@ def test_hydro_tab_warning_rows_have_empty_description() -> None:
     # Independent finger-test: the layout source MUST NOT hard-code any
     # tooltip text for Warning rows — the suppression flows from the
     # empty-string description in the state.
-    app_source = Path(web_app.__file__).read_text()
+    here = Path(web_app.__file__)
+    app_source = here.read_text() + here.with_name("layout.py").read_text()
     # Defensive: there must be no literal Warning-tooltip activator.
     assert "Warning tooltip" not in app_source

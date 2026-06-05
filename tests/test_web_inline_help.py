@@ -82,7 +82,7 @@ def test_comparison_source_toggle_subtitle_present() -> None:
     ``live_frontier`` and ``imported_report`` so neither value depends on
     clicking the button to discover its meaning."""
 
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
     presentation_source = Path(web_app.__file__).with_name("presentation.py").read_text()
 
     # Subtitle copy constants — defined in presentation.py.
@@ -106,7 +106,7 @@ def test_mesh_chip_pair_tooltips_present() -> None:
     """Both ``mesh-no-package-chip`` and ``mesh-live-readiness-chip`` carry
     a ``title`` tooltip with the documented explanation."""
 
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
 
     # The no-package chip must be tagged with its title constant.
     assert "MESH_NO_PACKAGE_CHIP_TITLE" in app_source
@@ -124,7 +124,7 @@ def test_slice3_state_hooks_are_present_in_inline_help_contract() -> None:
 
     from kayakgen.ui.web import generate_frontier_view
 
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
     frontier_source = Path(generate_frontier_view.__file__).read_text()
 
     for hook in (
@@ -196,7 +196,7 @@ def test_submit_disabled_when_no_variables() -> None:
     )
 
     # And the visible span markup must reference the live state.
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
     assert "submit-blocking-reason-search" in app_source
     assert "submit-blocking-reason-sweep" in app_source
     assert "generative_submit_blocking_reason" in app_source
@@ -236,7 +236,7 @@ def test_submit_button_has_aria_describedby() -> None:
     """Both kind-aware Submit buttons must point ``aria-describedby`` at the
     visible blocking-reason span."""
 
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
     assert 'aria-describedby": "submit-blocking-reason-search' in app_source
     assert 'aria-describedby": "submit-blocking-reason-sweep' in app_source
     assert 'disabled=("generative_submit_disabled' in app_source

@@ -66,7 +66,8 @@ def test_parameter_rail_groups_cover_visible_hull_fields_and_target_speed() -> N
 
 
 def test_parameter_slider_labels_spacing_and_accessibility_contract() -> None:
-    app_source = Path(web_app.__file__).read_text()
+    here = Path(web_app.__file__)
+    app_source = here.read_text() + here.with_name("layout.py").read_text()
     presentation_source = Path(web_app.__file__).with_name("presentation.py").read_text()
     expected_labels = [label for _key, label, _vmin, _vmax, _step in web_app.SLIDER_DEFS]
 
@@ -150,13 +151,14 @@ def test_parameter_slider_label_css_uses_existing_tokens() -> None:
     assert "--type-label:" in web_app.ROOT_THEME_CSS
     assert "--text-secondary:" in web_app.ROOT_THEME_CSS
     assert "--surface-rail:" in web_app.ROOT_THEME_CSS
+    layout_source = Path(web_app.__file__).with_name("layout.py").read_text()
     assert app_source.count("self.state.workspace_style_html =") == 1
-    assert app_source.count('html_widgets.Div(v_html=("workspace_style_html",))') == 1
+    assert layout_source.count('html_widgets.Div(v_html=("workspace_style_html",))') == 1
 
 
 def test_shell_and_generate_sections_share_typography_and_token_density() -> None:
     css = web_app.WORKSPACE_SHELL_CSS
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
 
     assert web_app.PARAMETER_RAIL_CSS == css
     for selector in (
@@ -189,7 +191,7 @@ def test_shell_and_generate_sections_share_typography_and_token_density() -> Non
 
 
 def test_review_tabs_and_status_segments_match_workspace_contract() -> None:
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
 
     assert [tab["label"] for tab in web_app.REVIEW_TABS] == [
         "Hydro",
@@ -275,7 +277,8 @@ def test_persistent_claim_readiness_and_cfd_copy_is_static_and_exact() -> None:
 
 
 def test_export_menu_rows_are_single_honest_menu_contract() -> None:
-    app_source = Path(web_app.__file__).read_text()
+    here = Path(web_app.__file__)
+    app_source = here.read_text() + here.with_name("layout.py").read_text()
 
     assert [row["label"] for row in web_app.EXPORT_MENU_ROWS] == [
         "Hull STL",
@@ -398,13 +401,16 @@ def test_state_snapshot_schema_preserves_current_and_legacy_alias_keys() -> None
 def test_forbidden_claim_copy_has_only_documented_negations_in_render_surfaces() -> None:
     app_source = Path(web_app.__file__).read_text()
     presentation_source = Path(web_app.__file__).with_name("presentation.py").read_text()
+    layout_source = Path(web_app.__file__).with_name("layout.py").read_text()
     controllers_source = Path(web_app.__file__).with_name("controllers.py").read_text()
     frontier_source = Path(web_app.__file__).with_name("generate_frontier_view.py").read_text()
     frontier_render_source = frontier_source[
         frontier_source.index("# Render hook") :
     ]
     spec_form_source = Path(web_app.__file__).with_name("generate_spec_form.py").read_text()
-    render_source = "\n".join([app_source, presentation_source, controllers_source, spec_form_source])
+    render_source = "\n".join(
+        [app_source, presentation_source, layout_source, controllers_source, spec_form_source]
+    )
     new_state_source = "\n".join([render_source, frontier_render_source])
 
     allowed_phrases = (
@@ -620,10 +626,11 @@ def test_target_speed_edit_does_not_flip_class_preset() -> None:
 
 
 def test_resistance_mesh_and_export_render_contract_is_present() -> None:
-    # Pre-split single-file read; S1 split these strings across app.py + presentation.py.
+    # Pre-split single-file read; S1/S4 split these strings across three modules.
     app_source = (
         Path(web_app.__file__).read_text()
         + Path(web_app.__file__).with_name("presentation.py").read_text()
+        + Path(web_app.__file__).with_name("layout.py").read_text()
     )
 
     assert "kg-resistance-card" in app_source
@@ -653,7 +660,8 @@ def test_share_action_keeps_encoded_url_in_state_but_uses_copied_status() -> Non
 
 
 def test_pinned_share_url_field_is_not_rendered_in_layout_source() -> None:
-    app_source = Path(web_app.__file__).read_text()
+    here = Path(web_app.__file__)
+    app_source = here.read_text() + here.with_name("layout.py").read_text()
     presentation_source = Path(web_app.__file__).with_name("presentation.py").read_text()
 
     assert 'label="Shareable URL"' not in app_source
@@ -672,7 +680,8 @@ def test_class_preset_radio_group_removed_from_rail() -> None:
     not changed). The radio group was removed as part of §0.3 / §4.2
     ParameterRailHeader refactor.
     """
-    app_source = Path(web_app.__file__).read_text()
+    here = Path(web_app.__file__)
+    app_source = here.read_text() + here.with_name("layout.py").read_text()
 
     # Toolbar VSelect must still exist.
     assert "v_model=(\"class_preset\",)" in app_source or "v_model=('class_preset',)" in app_source
@@ -690,10 +699,11 @@ def test_validity_badge_visible_in_parameter_rail() -> None:
     source ordering: the badge must appear after the region-params open
     and before the next VWindowItem.
     """
-    # Constants-before-layout order, as pre-split (S1: anchor now in presentation.py).
+    # Constants-before-layout order, as pre-split (S1/S4 moved the anchors).
     app_source = (
         Path(web_app.__file__).with_name("presentation.py").read_text()
         + Path(web_app.__file__).read_text()
+        + Path(web_app.__file__).with_name("layout.py").read_text()
     )
 
     params_idx = app_source.find('"region-params"')
@@ -717,7 +727,8 @@ def test_validity_badge_visible_in_parameter_rail() -> None:
 
 def test_refresh_analysis_button_removed() -> None:
     """No VBtn with text 'Refresh Analysis' should appear in the Hydro tab."""
-    app_source = Path(web_app.__file__).read_text()
+    here = Path(web_app.__file__)
+    app_source = here.read_text() + here.with_name("layout.py").read_text()
     assert "Refresh Analysis" not in app_source
 
 
@@ -728,7 +739,7 @@ def test_mesh_readiness_no_package_renders_two_chips() -> None:
     render the live status_readiness value. The text 'unavailable' must
     not appear as the chip text for the live chip.
     """
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
 
     # Both chip test-ids must be present in the source.
     assert "mesh-no-package-chip" in app_source
@@ -754,7 +765,7 @@ def test_mesh_readiness_no_package_renders_two_chips() -> None:
 def test_slice3_empty_loading_error_state_hooks_are_rendered() -> None:
     from kayakgen.ui.web import generate_frontier_view
 
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
     frontier_source = Path(generate_frontier_view.__file__).read_text()
 
     for hook in (
@@ -838,7 +849,7 @@ def test_generate_single_submit_button() -> None:
     Both buttons have data-testid='generative-submit' and are toggled
     via v_show / v-show.
     """
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
 
     # Both Submit buttons must carry the same data-testid.
     assert app_source.count('"generative-submit"') >= 2
@@ -903,7 +914,7 @@ def test_frontier_renders_in_comparison_tab() -> None:
     VWindowItem(value='generate') open. The Generate tab source must not
     contain the frontier-view-section call.
     """
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
 
     comparison_idx = app_source.find('VWindowItem(value="comparison")')
     frontier_call_idx = app_source.find("render_frontier_view_section(self)")
@@ -927,7 +938,8 @@ def test_generate_pick_hooks_have_positive_render_assertions() -> None:
 
     assert 'classes="kg-frontier-section kg-generate-pick"' in frontier_source
     assert '"data-testid": "frontier-view-section"' in frontier_source
-    assert "render_frontier_view_section(self)" in Path(web_app.__file__).read_text()
+    here = Path(web_app.__file__)
+    assert "render_frontier_view_section(self)" in here.with_name("layout.py").read_text()
     assert "kg-fork-with-new-seed kg-generate-pick-action" in fork_source
     assert "return v3.VBtn(" in fork_source
 
@@ -938,7 +950,7 @@ def test_comparison_source_toggle_default() -> None:
     Default state must be 'live_frontier'. Both toggle option values
     must appear in the layout source.
     """
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
 
     assert "comparison-source-toggle" in app_source
     assert "live_frontier" in app_source
@@ -955,7 +967,7 @@ def test_jobs_index_is_table() -> None:
     ``<pre>{{ generative_jobs_lines.join('\\n') }}</pre>``. The new
     pattern uses a VDataTable with data-testid='generative-jobs-table'.
     """
-    app_source = Path(web_app.__file__).read_text()
+    app_source = Path(web_app.__file__).with_name("layout.py").read_text()
 
     # New VDataTable must be present.
     assert "generative-jobs-table" in app_source
