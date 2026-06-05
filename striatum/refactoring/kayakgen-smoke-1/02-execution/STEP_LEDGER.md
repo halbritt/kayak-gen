@@ -54,4 +54,21 @@ Execution proceeds to S0.
 
 ## Slice entries
 
-(appended one per slice, before the next slice starts)
+(one per slice, written before the next slice starts)
+
+### S0 — characterization: jobs_root value pin in serve manager tests
+
+- **Pre-slice dirty check (stop condition 8):** `git status --short` clean.
+- **What changed:** `tests/test_cli_serve.py` only. Added one equality
+  assertion (plus comment) to each of the two manager tests:
+  `assert f"jobs_root={tmp_path / 'jobs'}" in result.output`. No source change.
+- **Net diff:** +5 lines (cap 10). Gross == net (no relocation).
+- **Preservation claim:** documents current `KAYAKGEN_GENERATIVE_JOBS_ROOT`
+  resolution; behavior untouched.
+- **Verification:**
+  - `pytest -q tests/test_cli_serve.py` → `3 passed in 0.71s`
+  - `.venv/bin/python -m ruff check kayakgen tests` → exit 0
+  - Full suite → `1 failed, 1307 passed, 4 skipped in 510.64s (0:08:30)`;
+    failure set exactly the F3 singleton. **Bar met.**
+- **Commit:** `24be568`
+- **Rollback unit:** revert commit `24be568`.
