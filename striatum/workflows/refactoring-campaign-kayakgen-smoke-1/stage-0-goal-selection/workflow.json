@@ -1,0 +1,560 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "refactoring-campaign-kayakgen-smoke-1-goal-selection",
+  "workflow_version": "2026-06-05",
+  "name": "Refactoring Campaign \u2014 Stage 0: Goal Selection",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/refactoring-campaign-kayakgen-smoke-1",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "coordinator",
+    "lane_id": "proposal"
+  },
+  "lanes": {
+    "proposal": {
+      "adapter": "process",
+      "display_model": "claude",
+      "command": [
+        "claude",
+        "--dangerously-skip-permissions"
+      ],
+      "adapter_capabilities": {
+        "agent_loop": true
+      },
+      "supervision": {
+        "transport": "pty_helper",
+        "compatible": true,
+        "require_tmux": true
+      },
+      "capabilities": [
+        "write",
+        "synthesis"
+      ]
+    },
+    "review": {
+      "adapter": "process",
+      "display_model": "agy",
+      "command": [
+        "agy"
+      ],
+      "adapter_capabilities": {
+        "agent_loop": true
+      },
+      "supervision": {
+        "transport": "pty_helper",
+        "compatible": true,
+        "require_tmux": true
+      },
+      "capabilities": [
+        "review"
+      ]
+    },
+    "arbitration": {
+      "adapter": "process",
+      "display_model": "claude",
+      "command": [
+        "claude",
+        "--dangerously-skip-permissions"
+      ],
+      "adapter_capabilities": {
+        "agent_loop": true
+      },
+      "supervision": {
+        "transport": "pty_helper",
+        "compatible": true,
+        "require_tmux": true
+      },
+      "capabilities": [
+        "write",
+        "synthesis"
+      ]
+    },
+    "decision": {
+      "adapter": "process",
+      "display_model": "claude",
+      "command": [
+        "claude",
+        "--dangerously-skip-permissions"
+      ],
+      "adapter_capabilities": {
+        "agent_loop": true
+      },
+      "supervision": {
+        "transport": "pty_helper",
+        "compatible": true,
+        "require_tmux": true
+      },
+      "capabilities": [
+        "write",
+        "synthesis"
+      ]
+    }
+  },
+  "roles": {
+    "coordinator": {
+      "definition_path": "roles/coordinator.md"
+    },
+    "problem_framer": {
+      "definition_path": "roles/problem_framer.md"
+    },
+    "proposer_a": {
+      "definition_path": "roles/proposer_a.md"
+    },
+    "proposer_b": {
+      "definition_path": "roles/proposer_b.md"
+    },
+    "proposer_c": {
+      "definition_path": "roles/proposer_c.md"
+    },
+    "scorekeeper": {
+      "definition_path": "roles/scorekeeper.md"
+    },
+    "tradeoff_ledger": {
+      "definition_path": "roles/tradeoff_ledger.md"
+    },
+    "arbitrator": {
+      "definition_path": "roles/arbitrator.md"
+    },
+    "dissent_reviewer": {
+      "definition_path": "roles/dissent_reviewer.md"
+    },
+    "principal_decider": {
+      "definition_path": "roles/principal_decider.md"
+    }
+  },
+  "context_docs": [
+    {
+      "path": "README.md",
+      "required": false
+    },
+    {
+      "path": "ARCHITECTURE.md",
+      "required": false
+    }
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 3,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "survey_candidates",
+      "type": "synthesis",
+      "title": "Survey candidate refactoring goals",
+      "role_id": "problem_framer",
+      "lane_id": "proposal",
+      "objective": "Read the repository and publish a survey of candidate behavior-preserving refactoring goals with the fixed scorecard dimensions.",
+      "task_prompt": {
+        "path": "prompts/survey_candidates.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/00-goal/PROBLEM_BRIEF.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "problem_brief",
+          "kind": "handoff",
+          "path": "striatum/refactoring/kayakgen-smoke-1/00-goal/PROBLEM_BRIEF.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "propose_goal_a",
+      "type": "synthesis",
+      "title": "Champion goal A",
+      "role_id": "proposer_a",
+      "lane_id": "proposal",
+      "parallel_group": "proposals",
+      "fresh_session_required": true,
+      "objective": "Champion one candidate refactoring goal from the problem brief as goal A, independently of the other proposers.",
+      "task_prompt": {
+        "path": "prompts/propose_goal.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/00-goal/proposals/GOAL_A.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "goal_a",
+          "kind": "handoff",
+          "path": "striatum/refactoring/kayakgen-smoke-1/00-goal/proposals/GOAL_A.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "propose_goal_b",
+      "type": "synthesis",
+      "title": "Champion goal B",
+      "role_id": "proposer_b",
+      "lane_id": "proposal",
+      "parallel_group": "proposals",
+      "fresh_session_required": true,
+      "objective": "Champion one candidate refactoring goal from the problem brief as goal B, independently of the other proposers.",
+      "task_prompt": {
+        "path": "prompts/propose_goal.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/00-goal/proposals/GOAL_B.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "goal_b",
+          "kind": "handoff",
+          "path": "striatum/refactoring/kayakgen-smoke-1/00-goal/proposals/GOAL_B.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "propose_goal_c",
+      "type": "synthesis",
+      "title": "Champion goal C",
+      "role_id": "proposer_c",
+      "lane_id": "proposal",
+      "parallel_group": "proposals",
+      "fresh_session_required": true,
+      "objective": "Champion one candidate refactoring goal from the problem brief as goal C, independently of the other proposers.",
+      "task_prompt": {
+        "path": "prompts/propose_goal.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/00-goal/proposals/GOAL_C.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "goal_c",
+          "kind": "handoff",
+          "path": "striatum/refactoring/kayakgen-smoke-1/00-goal/proposals/GOAL_C.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "score_goal_a",
+      "type": "review",
+      "title": "Score goal A",
+      "role_id": "scorekeeper",
+      "lane_id": "review",
+      "parallel_group": "scorecards",
+      "fresh_session_required": true,
+      "reviewer_context_policy": "fresh",
+      "review_posture": "custom:maintainer_cost",
+      "objective": "Score goal A against the fixed refactoring-goal dimensions from the problem brief.",
+      "task_prompt": {
+        "path": "prompts/score_goal.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/00-goal/scorecards/SCORECARD_A.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          ".gemini/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "scorecard_a",
+          "kind": "finding",
+          "path": "striatum/refactoring/kayakgen-smoke-1/00-goal/scorecards/SCORECARD_A.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "score_goal_b",
+      "type": "review",
+      "title": "Score goal B",
+      "role_id": "scorekeeper",
+      "lane_id": "review",
+      "parallel_group": "scorecards",
+      "fresh_session_required": true,
+      "reviewer_context_policy": "fresh",
+      "review_posture": "custom:maintainer_cost",
+      "objective": "Score goal B against the fixed refactoring-goal dimensions from the problem brief.",
+      "task_prompt": {
+        "path": "prompts/score_goal.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/00-goal/scorecards/SCORECARD_B.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          ".gemini/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "scorecard_b",
+          "kind": "finding",
+          "path": "striatum/refactoring/kayakgen-smoke-1/00-goal/scorecards/SCORECARD_B.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "score_goal_c",
+      "type": "review",
+      "title": "Score goal C",
+      "role_id": "scorekeeper",
+      "lane_id": "review",
+      "parallel_group": "scorecards",
+      "fresh_session_required": true,
+      "reviewer_context_policy": "fresh",
+      "review_posture": "custom:maintainer_cost",
+      "objective": "Score goal C against the fixed refactoring-goal dimensions from the problem brief.",
+      "task_prompt": {
+        "path": "prompts/score_goal.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/00-goal/scorecards/SCORECARD_C.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          ".gemini/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "scorecard_c",
+          "kind": "finding",
+          "path": "striatum/refactoring/kayakgen-smoke-1/00-goal/scorecards/SCORECARD_C.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "compile_tradeoffs",
+      "type": "synthesis",
+      "title": "Compile tradeoffs",
+      "role_id": "tradeoff_ledger",
+      "lane_id": "proposal",
+      "objective": "Compile goal proposals and scorecards into a normalized tradeoff ledger.",
+      "task_prompt": {
+        "path": "prompts/compile_tradeoffs.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/00-goal/TRADEOFF_LEDGER.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "tradeoff_ledger",
+          "kind": "findings_ledger",
+          "path": "striatum/refactoring/kayakgen-smoke-1/00-goal/TRADEOFF_LEDGER.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "arbitrate",
+      "type": "synthesis",
+      "title": "Arbitrate preferred goal",
+      "role_id": "arbitrator",
+      "lane_id": "arbitration",
+      "fresh_session_required": true,
+      "objective": "Select exactly one refactoring goal from the tradeoff ledger and evidence, or refuse all candidates with reasons.",
+      "task_prompt": {
+        "path": "prompts/arbitrate.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/00-goal/ARBITRATOR_SYNTHESIS.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "arbitrator_synthesis",
+          "kind": "synthesis",
+          "path": "striatum/refactoring/kayakgen-smoke-1/00-goal/ARBITRATOR_SYNTHESIS.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "review_dissent",
+      "type": "review",
+      "title": "Review dissent",
+      "role_id": "dissent_reviewer",
+      "lane_id": "review",
+      "fresh_session_required": true,
+      "reviewer_context_policy": "fresh",
+      "review_posture": "devils_advocate",
+      "objective": "Try to falsify the goal arbitration before the decision is recorded.",
+      "task_prompt": {
+        "path": "prompts/review_dissent.md"
+      },
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/00-goal/DISSENT_REVIEW.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          ".gemini/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "dissent_review",
+          "kind": "finding",
+          "path": "striatum/refactoring/kayakgen-smoke-1/00-goal/DISSENT_REVIEW.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "record_goal_decision",
+      "type": "synthesis",
+      "title": "Record goal decision",
+      "role_id": "principal_decider",
+      "lane_id": "decision",
+      "objective": "Publish the named refactoring goal as the campaign's decision artifact, the input to stage 1.",
+      "task_prompt": {
+        "path": "prompts/record_goal_decision.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/00-goal/GOAL_DECISION.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "goal_decision",
+          "kind": "decision",
+          "path": "striatum/refactoring/kayakgen-smoke-1/00-goal/GOAL_DECISION.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "survey_candidates",
+      "to": "propose_goal_a",
+      "on": "completed"
+    },
+    {
+      "from": "survey_candidates",
+      "to": "propose_goal_b",
+      "on": "completed"
+    },
+    {
+      "from": "survey_candidates",
+      "to": "propose_goal_c",
+      "on": "completed"
+    },
+    {
+      "from": "propose_goal_a",
+      "to": "score_goal_a",
+      "on": "completed"
+    },
+    {
+      "from": "propose_goal_b",
+      "to": "score_goal_b",
+      "on": "completed"
+    },
+    {
+      "from": "propose_goal_c",
+      "to": "score_goal_c",
+      "on": "completed"
+    },
+    {
+      "from": "score_goal_a",
+      "to": "compile_tradeoffs",
+      "on": "completed"
+    },
+    {
+      "from": "score_goal_b",
+      "to": "compile_tradeoffs",
+      "on": "completed"
+    },
+    {
+      "from": "score_goal_c",
+      "to": "compile_tradeoffs",
+      "on": "completed"
+    },
+    {
+      "from": "compile_tradeoffs",
+      "to": "arbitrate",
+      "on": "completed"
+    },
+    {
+      "from": "arbitrate",
+      "to": "review_dissent",
+      "on": "completed"
+    },
+    {
+      "from": "review_dissent",
+      "to": "record_goal_decision",
+      "on": "completed"
+    }
+  ],
+  "cycles": [
+    {
+      "from": "review_dissent",
+      "to": "arbitrate",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1,
+      "allow_same_lane": true
+    }
+  ]
+}

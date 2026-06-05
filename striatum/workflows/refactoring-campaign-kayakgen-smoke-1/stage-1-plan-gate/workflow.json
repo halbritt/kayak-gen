@@ -1,0 +1,297 @@
+{
+  "schema_version": "striatum.workflow.v1.1",
+  "workflow_id": "refactoring-campaign-kayakgen-smoke-1-plan-gate",
+  "workflow_version": "2026-06-05",
+  "name": "Refactoring Campaign \u2014 Stage 1: Plan Gate",
+  "allow_same_model_review_pairing": true,
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/refactoring-campaign-kayakgen-smoke-1",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "plan_holder",
+    "lane_id": "local"
+  },
+  "lanes": {
+    "local": {
+      "adapter": "process",
+      "display_model": "claude",
+      "command": [
+        "claude",
+        "--dangerously-skip-permissions"
+      ],
+      "adapter_capabilities": {
+        "agent_loop": true
+      },
+      "supervision": {
+        "transport": "pty_helper",
+        "compatible": true,
+        "require_tmux": true
+      },
+      "capabilities": [
+        "write",
+        "review"
+      ]
+    }
+  },
+  "roles": {
+    "plan_holder": {
+      "definition_path": "roles/plan_holder.md"
+    },
+    "falsifier": {
+      "definition_path": "roles/falsifier.md"
+    },
+    "adjudicator": {
+      "definition_path": "roles/adjudicator.md"
+    },
+    "committer": {
+      "definition_path": "roles/committer.md"
+    }
+  },
+  "context_docs": [
+    {
+      "path": "striatum/refactoring/kayakgen-smoke-1/00-goal/GOAL_DECISION.md",
+      "required": false
+    }
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 1,
+    "require_disjoint_write_scopes": true
+  },
+  "phases": [
+    {
+      "id": "dialogue",
+      "name": "Dialogue",
+      "description": "Plan authored, then challenged by falsifiers and adjudicated",
+      "synthesis_job_id": "adjudicate"
+    },
+    {
+      "id": "commit",
+      "name": "Commit",
+      "description": "Gated plan published only after the ledger clears",
+      "synthesis_job_id": "gate_summary"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "author_plan",
+      "type": "build",
+      "title": "Author refactoring plan",
+      "role_id": "plan_holder",
+      "lane_id": "local",
+      "phase_id": "dialogue",
+      "objective": "Run the preflight against the goal named in the stage-0 decision artifact and publish the refactoring plan as the claim falsifiers will challenge.",
+      "task_prompt": {
+        "path": "prompts/author_plan.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/01-plan/REFACTORING_PLAN.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "refactoring_plan",
+          "kind": "work_plan",
+          "path": "striatum/refactoring/kayakgen-smoke-1/01-plan/REFACTORING_PLAN.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "falsifier_1",
+      "type": "build",
+      "title": "Falsifier 1 \u2014 maintainability and migration risk",
+      "role_id": "falsifier",
+      "lane_id": "local",
+      "phase_id": "dialogue",
+      "objective": "Attack the plan's preservation claims and slice decomposition from the maintainability and migration-risk posture; publish the strongest falsifying challenge you can justify.",
+      "task_prompt": {
+        "path": "prompts/falsify_plan.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/01-plan/falsifier_1/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "falsifier_1",
+          "kind": "handoff",
+          "path": "striatum/refactoring/kayakgen-smoke-1/01-plan/falsifier_1/FALSIFIER.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "falsifier_2",
+      "type": "build",
+      "title": "Falsifier 2 \u2014 frozen surfaces and reversibility",
+      "role_id": "falsifier",
+      "lane_id": "local",
+      "phase_id": "dialogue",
+      "objective": "Attack the plan's frozen-surface inventory, rollback units, and verification commands from the reversibility posture; publish the strongest falsifying challenge you can justify.",
+      "task_prompt": {
+        "path": "prompts/falsify_plan.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/01-plan/falsifier_2/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "falsifier_2",
+          "kind": "handoff",
+          "path": "striatum/refactoring/kayakgen-smoke-1/01-plan/falsifier_2/FALSIFIER.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "adjudicate",
+      "type": "phase_synthesis",
+      "title": "Adjudicate plan challenges",
+      "role_id": "adjudicator",
+      "lane_id": "local",
+      "phase_id": "dialogue",
+      "fresh_session_required": true,
+      "objective": "Read only the dialogue trajectory and publish the collaboration ledger verdict: does the plan survive falsification, and which objections become binding constraints?",
+      "task_prompt": {
+        "path": "prompts/adjudicate_plan.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/01-plan/adjudicator/"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "collaboration_ledger_${cycle}",
+          "kind": "collaboration_ledger",
+          "path": "striatum/refactoring/kayakgen-smoke-1/01-plan/adjudicator/COLLABORATION_LEDGER_${cycle}.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "commit_plan",
+      "type": "synthesis",
+      "title": "Commit gated plan",
+      "role_id": "committer",
+      "lane_id": "local",
+      "phase_id": "commit",
+      "objective": "Publish the gated plan \u2014 the refactoring plan amended with every binding constraint from the adjudicator ledger \u2014 only after the ledger records a clearing verdict.",
+      "task_prompt": {
+        "path": "prompts/commit_plan.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/01-plan/COMMITTED_PLAN.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "committed_plan",
+          "kind": "synthesis",
+          "path": "striatum/refactoring/kayakgen-smoke-1/01-plan/COMMITTED_PLAN.md",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "gate_summary",
+      "type": "phase_synthesis",
+      "title": "Summarize plan gate",
+      "role_id": "adjudicator",
+      "lane_id": "local",
+      "phase_id": "commit",
+      "objective": "Summarize the cleared plan gate: verdict, binding constraints, and the committed plan stage 2 must execute.",
+      "task_prompt": {
+        "path": "prompts/gate_summary.md"
+      },
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "striatum/refactoring/kayakgen-smoke-1/01-plan/GATE_SUMMARY.md"
+        ],
+        "forbidden_paths": [
+          ".striatum/"
+        ]
+      },
+      "expected_artifacts": [
+        {
+          "logical_name": "gate_summary",
+          "kind": "synthesis",
+          "path": "striatum/refactoring/kayakgen-smoke-1/01-plan/GATE_SUMMARY.md",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "author_plan",
+      "to": "falsifier_1",
+      "on": "completed"
+    },
+    {
+      "from": "falsifier_1",
+      "to": "falsifier_2",
+      "on": "completed"
+    },
+    {
+      "from": "falsifier_2",
+      "to": "adjudicate",
+      "on": "completed"
+    },
+    {
+      "from": "adjudicate",
+      "to": "commit_plan",
+      "on": "completed"
+    },
+    {
+      "from": "commit_plan",
+      "to": "gate_summary",
+      "on": "completed"
+    }
+  ],
+  "cycles": [
+    {
+      "from": "adjudicate",
+      "to": "falsifier_1",
+      "on_verdict": "needs_revision",
+      "max_iterations": 1,
+      "allow_same_model": true,
+      "allow_same_lane": true
+    }
+  ]
+}
