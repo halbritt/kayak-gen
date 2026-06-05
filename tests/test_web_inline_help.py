@@ -83,10 +83,11 @@ def test_comparison_source_toggle_subtitle_present() -> None:
     clicking the button to discover its meaning."""
 
     app_source = Path(web_app.__file__).read_text()
+    presentation_source = Path(web_app.__file__).with_name("presentation.py").read_text()
 
-    # Subtitle copy constants — defined in app.py.
-    assert "Live frontier: candidates from this session" in app_source
-    assert "Imported report: a saved design-report JSON" in app_source
+    # Subtitle copy constants — defined in presentation.py.
+    assert "Live frontier: candidates from this session" in presentation_source
+    assert "Imported report: a saved design-report JSON" in presentation_source
 
     # Subtitle data-testid lands in the rendered HTML helper block.
     assert "comparison-source-help" in app_source
