@@ -654,7 +654,7 @@ def serve(
         InProcessGenerativeJobManager,
         SubprocessGenerativeJobManager,
     )
-    from kayakgen.ui.web.app import _default_generative_jobs_root_for_app
+    from kayakgen.ui.web.generate_panel import _default_generative_jobs_root_for_app
 
     jobs_root = _default_generative_jobs_root_for_app()
     if jobs_in_process:
