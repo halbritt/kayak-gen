@@ -72,3 +72,49 @@ Execution proceeds to S0.
     failure set exactly the F3 singleton. **Bar met.**
 - **Commit:** `24be568`
 - **Rollback unit:** revert commit `24be568`.
+
+### S1 (+S1t) — presentation.py extraction
+
+- **Pre-slice dirty check (stop condition 8):** clean.
+- **What changed:** `kayakgen/ui/web/presentation.py` (new),
+  `kayakgen/ui/web/app.py`, plus S1t test edits in `tests/test_web_layout.py`
+  and `tests/test_web_inline_help.py`. app.py lines 98–710 (constants/CSS/copy,
+  `validity_badge_title_for`, `_param_row_raw_attrs`) and 766–803 (`_pre_html`,
+  `_resistance_table_html`, `_generative_job_state_flags`) relocated
+  **byte-identically** (verified by substring comparison against
+  `HEAD:app.py`); app.py re-exports all 46 names by name (`# noqa: F401`);
+  now-unused `class_preset_options` dropped from app.py's controllers import.
+- **Net diff:** app.py +48 (re-export block) / 1 import-name deletion;
+  presentation.py ~21 non-relocation lines (docstring + imports). S1 net ≈ 70
+  (cap 80). S1t: layout +16/−5, inline_help +4/−3 ≈ 16 edited lines (cap 20).
+- **Preservation claim:** byte-identical constant values and helper bodies;
+  every F1 name importable from `kayakgen.ui.web.app` — verified by an
+  identity check (`getattr(app, n) is getattr(presentation, n)` for all 46).
+- **S1t detail (all assertion strings unchanged):**
+  - C2(i) step 1: `presentation_source` read added in
+    `test_parameter_slider_labels...`; aria-label assertion repointed.
+  - C2(ii): union test scans `presentation.py` via the `with_name` idiom.
+  - Mechanical pointer redirects for S1-displaced strings the plan's
+    inventory did not itemize line-by-line but declares as the default edit:
+    `test_web_layout.py` resistance/export contract (single-file read became
+    app+presentation concatenation — equivalent for its all-positive
+    assertions), share-URL positive (`"Shareable URL copied"`, displaced at
+    S1, not S5 as the plan's S5t row guessed; redirected here per the F2
+    same-commit rule), badge-ordering anchor (`"region-params"` now in
+    presentation.py; read prepends presentation.py preserving the original
+    constants-before-layout order), and `test_web_inline_help.py`
+    comparison-toggle copy constants.
+  - `test_hydro_tab_descriptions.py`: **no S1 edit needed** (plan listed it
+    in S1t's files; its assertions target layout-region text that moves at
+    S4) — null finding, recorded.
+- **Verification:**
+  - Targeted (decision §4 row 1): `pytest -q tests/test_web.py
+    tests/test_web_layout.py tests/test_web_inline_help.py
+    tests/test_generate_panel_label_rendering.py
+    tests/test_hydro_tab_descriptions.py` → `81 passed in 50.52s`
+  - Full suite → `1 failed, 1307 passed, 4 skipped in 491.57s (0:08:11)`;
+    failure set exactly the F3 singleton. **Bar met.**
+  - ruff → exit 0. Extras-less import check → OK.
+- **Commit:** `cf3c8bc`
+- **Rollback unit:** revert commit `cf3c8bc` (LIFO: unwound last once
+  successors land).
