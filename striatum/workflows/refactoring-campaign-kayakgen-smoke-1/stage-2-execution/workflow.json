@@ -96,11 +96,22 @@
         "mode": "repo_write",
         "repo_write": true,
         "allowed_paths": [
-          "src/example/",
+          "kayakgen/ui/web/",
+          "kayakgen/cli/main.py",
+          "tests/test_cli_serve.py",
+          "tests/test_web_layout.py",
+          "tests/test_web_inline_help.py",
+          "tests/test_hydro_tab_descriptions.py",
+          "tests/test_generative_jobs_web.py",
           "striatum/refactoring/kayakgen-smoke-1/02-execution/STEP_LEDGER.md"
         ],
         "forbidden_paths": [
-          ".striatum/"
+          ".striatum/",
+          ".gemini/",
+          "tests/test_web_browser.py",
+          "tests/test_import_boundaries.py",
+          "tests/test_services_boundaries.py",
+          "pyproject.toml"
         ]
       },
       "expected_artifacts": [
