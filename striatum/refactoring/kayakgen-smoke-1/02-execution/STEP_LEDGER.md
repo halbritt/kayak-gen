@@ -140,3 +140,35 @@ Execution proceeds to S0.
   - ruff → exit 0. Extras-less import check → OK.
 - **Commit:** `47804a7`
 - **Rollback unit:** revert commit `47804a7`.
+
+### S3 — generate_panel.py (GeneratePanelMixin) + cli redirect
+
+- **Pre-slice dirty check (stop condition 8):** clean.
+- **What changed:** `kayakgen/ui/web/generate_panel.py` (new),
+  `kayakgen/ui/web/app.py`, `kayakgen/cli/main.py` (1 import line).
+  Panel region (the plan's 1473–1751 range, which includes
+  `load_from_query`) and `_default_generative_jobs_root_for_app` relocated
+  **byte-identically** (verified against `HEAD:app.py`);
+  `class KayakgenApp(GeneratePanelMixin, SceneMixin)`; app.py re-imports the
+  jobs-root resolver (used in `__init__`, so the
+  `kayakgen.ui.web.app._default_generative_jobs_root_for_app` alias holds);
+  `cli/main.py:657` now imports from `generate_panel` (within the declared
+  ≤2-line budget); 16 now-unused app.py imports pruned via ruff --fix.
+  Per C6, generate_panel.py imports `generate_spec_form` names at module
+  level (trame-bearing licensed by the §1.3 precedent).
+- **Net diff:** app.py +5/−312 (panel import block + class line);
+  cli/main.py 1 modified line; generate_panel.py ~50 non-relocation lines
+  (docstring + imports + mixin declaration). Net ≈ 56 (cap 60).
+- **Preservation claim:** submit/cancel/fork/resume payloads and transition
+  order unchanged (byte-identical method bodies; runtime-asserting tests
+  green); jobs-root resolution value-pinned by S0 stays green.
+- **Verification:**
+  - `pytest -q tests/test_generative_jobs_web.py tests/test_cli_serve.py`
+    → `18 passed in 8.22s`
+  - Full suite → `1 failed, 1307 passed, 4 skipped in 496.40s (0:08:16)`;
+    failure set exactly the F3 singleton. **Bar met.**
+  - ruff → exit 0. Extras-less import check → OK.
+  - Browser insurance (non-gating, non-strict) → `4 passed, 2 deselected
+    in 35.84s`.
+- **Commit:** `c1414c6`
+- **Rollback unit:** revert commit `c1414c6`.
