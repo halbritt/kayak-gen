@@ -19,3 +19,6 @@ data/stability/fits/
 # repo root by `striatum status ... --output`); not authored, not tracked.
 /status.json
 .claude/
+
+# agy (gemini CLI) lane-local settings; not authored, not tracked.
+/.gemini/
