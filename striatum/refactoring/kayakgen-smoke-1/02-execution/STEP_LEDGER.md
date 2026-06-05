@@ -172,3 +172,52 @@ Execution proceeds to S0.
     in 35.84s`.
 - **Commit:** `c1414c6`
 - **Rollback unit:** revert commit `c1414c6`.
+
+### S4 (+S4t) — layout.py (LayoutMixin)
+
+- **Pre-slice dirty check (stop condition 8):** clean.
+- **What changed:** `kayakgen/ui/web/layout.py` (new), `kayakgen/ui/web/app.py`,
+  plus S4t edits in `tests/test_web_layout.py`, `tests/test_web_inline_help.py`,
+  `tests/test_hydro_tab_descriptions.py`, `tests/test_generative_jobs_web.py`.
+  Layout region (`_region_attrs`, `_build_layout`, `_render_export_menu`,
+  `_export_menu_action`, all `_render_*_tab`, `_render_generate_job_fork_buttons`,
+  `_render_status_bar`) relocated **byte-identically** (verified against
+  `HEAD:app.py`); `class KayakgenApp(GeneratePanelMixin, LayoutMixin,
+  SceneMixin)`; 8 now-unused app.py imports pruned (html, trame widget/layout
+  imports, render hooks).
+- **Net diff:** app.py +2/−791; layout.py ~49 non-relocation lines (docstring +
+  imports + mixin declaration) → S4 code net ≈ 51 (cap 80). S4t: layout
+  +30/−18, inline_help +5/−5, hydro +3/−2, generative_jobs_web +2/−2 → raw
+  insertions 40 (== cap 40); by per-redirect edit-unit counting ≈ 32,
+  matching the plan's estimate.
+- **Preservation claim:** `LAYOUT_TEST_IDS`/`REGION_CLASSES` values, DOM ids,
+  widget construction order unchanged (byte-identical bodies; strict browser
+  gate is the end-to-end witness and is green).
+- **S4t detail (all assertion strings unchanged):**
+  - **C1 discharged:** monkeypatch at `test_generative_jobs_web.py:547` now
+    targets `kayakgen.ui.web.layout`; the fake and `calls == ["done-job"]`
+    untouched; the fork-button test passes post-S4.
+  - **C2(i) step 2 / C2(iii):** slider-construction positives and the eight
+    negative assertions now evaluate against an app.py+layout.py union read —
+    for negatives this is exactly the declared `app.py ∪ layout.py` scope; for
+    positives the union is the pre-split single-file semantics.
+  - **C2(ii) step 2:** forbidden-claim union test scans layout.py.
+  - Bulk pointer redirects to layout.py for functions whose every target
+    moved; split reads where mixed (css-tokens test keeps the
+    `workspace_style_html` init count on app.py and redirects the
+    `html_widgets.Div(v_html=…)` count to layout.py).
+  - Ordering tests (badge-in-rail, comparison-tab-order) keep their find
+    anchors in one concatenated read preserving pre-split source order.
+- **Verification:**
+  - Targeted: `pytest -q tests/test_web_layout.py tests/test_web_inline_help.py
+    tests/test_hydro_tab_descriptions.py tests/test_generative_jobs_web.py`
+    → `65 passed in 40.58s`
+  - Full suite → `1 failed, 1307 passed, 4 skipped in 491.55s (0:08:11)`;
+    failure set exactly the F3 singleton. **Bar met.**
+  - **Strict browser acceptance (C5, mandatory gate):**
+    `KAYAKGEN_BROWSER_ACCEPTANCE=1 .venv/bin/python -m pytest
+    tests/test_web_browser.py -m browser_acceptance -q` →
+    `4 passed, 2 deselected in 35.67s`. **Gate green.**
+  - ruff → exit 0. Extras-less import check → OK.
+- **Commit:** `f9b2ad0`
+- **Rollback unit:** revert commit `f9b2ad0`.
