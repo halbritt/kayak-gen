@@ -118,3 +118,25 @@ Execution proceeds to S0.
 - **Commit:** `cf3c8bc`
 - **Rollback unit:** revert commit `cf3c8bc` (LIFO: unwound last once
   successors land).
+
+### S2 — scene.py (SceneMixin)
+
+- **Pre-slice dirty check (stop condition 8):** clean.
+- **What changed:** `kayakgen/ui/web/scene.py` (new), `kayakgen/ui/web/app.py`.
+  `_build_polydata` + `_make_actor` (module functions) and `_rebuild_scene`
+  relocated **byte-identically** (verified against `HEAD:app.py`);
+  `class KayakgenApp(SceneMixin)`; app.py re-exports `_build_polydata` /
+  `_make_actor` (`# noqa: F401`, defensive — no test imports them; the only
+  external reference is `test_ui_theme.py`'s AST walk, which rglobs all of
+  `kayakgen/ui/` and so scans scene.py automatically); now-unused
+  `import numpy as np` removed from app.py.
+- **Net diff:** app.py +6/−66; scene.py ~20 non-relocation lines (docstring,
+  imports, mixin declaration). Net ≈ 26 (cap 40).
+- **Preservation claim:** byte-identical actor/mesh construction; no
+  state-key changes (mixin methods read the same instance attributes).
+- **Verification:**
+  - Full suite → `1 failed, 1307 passed, 4 skipped in 503.00s (0:08:22)`;
+    failure set exactly the F3 singleton. **Bar met.**
+  - ruff → exit 0. Extras-less import check → OK.
+- **Commit:** `47804a7`
+- **Rollback unit:** revert commit `47804a7`.
