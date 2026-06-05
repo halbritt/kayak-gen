@@ -39,6 +39,9 @@ def test_serve_defaults_to_subprocess_manager(
     assert result.exit_code == 0, result.output
     assert "detached subprocesses" in result.output
     assert "jobs_root=" in result.output
+    # Characterization (plan §1.4): the echoed jobs_root resolves to the
+    # KAYAKGEN_GENERATIVE_JOBS_ROOT override, not the home fallback.
+    assert f"jobs_root={tmp_path / 'jobs'}" in result.output
 
     # KayakgenApp was constructed with the subprocess manager.
     construct_kwargs = mock_server_start.call_args.kwargs
@@ -61,6 +64,8 @@ def test_serve_jobs_in_process_opt_in(
 
     assert result.exit_code == 0, result.output
     assert "in-process threads" in result.output
+    # Characterization (plan §1.4): same jobs_root pin for the in-process path.
+    assert f"jobs_root={tmp_path / 'jobs'}" in result.output
 
     construct_kwargs = mock_server_start.call_args.kwargs
     from kayakgen.services.generative_jobs import InProcessGenerativeJobManager
