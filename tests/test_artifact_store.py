@@ -468,6 +468,64 @@ def test_missing_store_with_drifted_canonical_raises(
 
 
 # ---------------------------------------------------------------------------
+# Workflow 0066 / audit G9: BUG-041 concurrent-writer TOCTOU pin
+
+
+def test_concurrent_identical_put_in_toctou_window_is_benign(
+    tmp_path: Path, isolated_index: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Audit G9: claimed-safe -> proven-safe, at the level a deterministic
+    test can honestly pin.
+
+    The put path's TOCTOU window is between ``store_path.exists()`` and
+    the dedupe/replace. A competing intact write of the same content is
+    injected exactly there: the patched ``exists`` plants the competitor's
+    file at the content address and still reports False, so our put
+    proceeds down the fresh-write branch and ``os.replace``s the occupant
+    with identical bytes — last-writer-wins on identical content.
+
+    What this does NOT prove: true parallel interleaving (two real
+    processes racing partial writes at byte level). It pins the worst
+    ORDERING the window permits, relying on ``_atomic_write_bytes``'s
+    temp-sibling + ``os.replace`` for the no-torn-bytes property within
+    each writer."""
+
+    payload = {"k": "racer"}
+    data = json.dumps(payload, indent=2).encode("utf-8")
+    artifact_hash = hashlib.sha256(data).hexdigest()
+    run_dir = tmp_path / "run-race"
+    store = FilesystemArtifactStore(run_dir, run_id="race")
+    store_path = run_dir / "_store" / f"{artifact_hash}.json"
+
+    real_exists = Path.exists
+    competing_writes = []
+
+    def exists_with_competing_write(self: Path, *args: object, **kwargs: object):
+        if self == store_path and not real_exists(self):
+            # The competing writer lands an intact copy of the same
+            # content inside the window: after our check, before our write.
+            self.write_bytes(data)
+            competing_writes.append(self)
+            return False  # what OUR process observed at check time
+        return real_exists(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    with monkeypatch.context() as m:
+        m.setattr(Path, "exists", exists_with_competing_write)
+        ref = store.put_json("sweep_run_record", payload)
+
+    assert competing_writes == [store_path]  # the race actually happened
+    assert ref.artifact_hash == artifact_hash
+    # the content address ends intact with the correct hash
+    final = store_path.read_bytes()
+    assert final == data
+    assert hashlib.sha256(final).hexdigest() == artifact_hash
+    # no torn temp files left behind by either writer
+    assert list(store_path.parent.glob(".*")) == []
+    # and the serve-only-verified read path agrees
+    assert store.get_json(ref) == payload
+
+
+# ---------------------------------------------------------------------------
 # Workflow 0063 / audit R6: SqliteIndex schema versioning (rebuild-not-migrate)
 
 
