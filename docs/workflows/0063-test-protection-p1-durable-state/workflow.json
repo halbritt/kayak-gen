@@ -1,0 +1,141 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0063-test-protection-p1-durable-state",
+  "workflow_version": "2026-06-06",
+  "name": "0063 - Test-protection P1: durable-state hardening (atomic store, sqlite versioning, canonical-hash pin)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0063-test-protection-p1-durable-state",
+    "allow_dirty": false
+  },
+  "coordinator": {"role_id": "author", "lane_id": "author"},
+  "lanes": {
+    "author": {
+      "adapter": "process",
+      "display_model": "claude",
+      "command": ["claude", "--dangerously-skip-permissions"],
+      "adapter_capabilities": {"agent_loop": true},
+      "supervision": {"transport": "pty_helper", "compatible": true, "require_tmux": true},
+      "capabilities": ["write"],
+      "worktree_isolation": "per_job"
+    },
+    "reviewer": {
+      "adapter": "process",
+      "display_model": "codex",
+      "command": ["codex", "--yolo"],
+      "adapter_capabilities": {"agent_loop": true},
+      "supervision": {"transport": "pty_helper", "compatible": true, "require_tmux": true},
+      "capabilities": ["review"]
+    }
+  },
+  "roles": {
+    "author": {"definition_path": "roles/author.md"},
+    "reviewer": {"definition_path": "roles/reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/RELEASE_DISCIPLINE.md", "required": true},
+    {"path": "KAYAKGEN_TEST_COVERAGE_AUDIT_CLAUDE_OPUS_4_8_2026-06-06.md", "required": true},
+    {"path": "KAYAKGEN_TEST_PROTECTION_REMEDIATION_PLAN_CLAUDE_OPUS_4_8_2026-06-06.md", "required": true},
+    {"path": "docs/workflows/0063-test-protection-p1-durable-state/SOURCES.md", "required": true},
+    {"path": "kayakgen/services/artifact_store.py", "required": true},
+    {"path": "kayakgen/io/json.py", "required": true},
+    {"path": "kayakgen/eval/stability/registry.py", "required": true},
+    {"path": "tests/test_artifact_store.py", "required": true},
+    {"path": "tests/test_stability_fit_registry.py", "required": true}
+  ],
+  "parallelism": {"mode": "declared", "max_active_jobs": 1, "require_disjoint_write_scopes": true},
+  "jobs": [
+    {
+      "id": "draft",
+      "type": "draft",
+      "title": "Implement P1 durable-state slices: atomic store writes, sqlite schema versioning, canonical-hash pin",
+      "role_id": "author",
+      "lane_id": "author",
+      "fresh_session_required": true,
+      "objective": "Land the three P1 durable-state items from the 2026-06-06 remediation plan, in order, one commit per slice. SLICE 1 (P1-STORE-ATOMIC, audit R5+R9): in kayakgen/services/artifact_store.py FilesystemArtifactStore._put_bytes, write store bytes to a temp sibling then os.replace; on the exists() dedupe branch, verify byte length (cheap) and rehash on mismatch, repairing a corrupt store file instead of linking it; apply the same temp+os.replace pattern and explicit encoding='utf-8' to save_hull/save_evaluation in kayakgen/io/json.py. CRITICAL INVARIANT: the emitted JSON bytes themselves must remain byte-identical (model_dump_json(indent=2)); only the write mechanics change — the existing design-hash and round-trip tests must pass unchanged. Add tests: a truncated/corrupt file pre-staged at the hash path is detected and repaired by the next put of the same content (canonical path receives intact bytes); save_hull round-trips non-ASCII content under explicit utf-8. SLICE 2 (P1-SQLITE-VERSION, audit R6): in SqliteIndex, set PRAGMA user_version to a schema-version constant at creation; on open, if the on-disk user_version is lower than current, drop all index tables and recreate (the index is a rebuildable read-model; full migration machinery is explicitly out of scope), emitting a UserWarning that names the rebuild; add a test that creates a DB with a missing column at user_version 0 and asserts an upsert triggers rebuild-not-OperationalError, plus a test that current-version DBs are NOT rebuilt on reopen (no data loss on normal reuse). SLICE 3 (P1-SHA-PIN): add one regression test (tests/test_stability_fit_registry.py) pinning fixture_canonical_sha256(make_stability_acceptance_triple().fixture) to its literal hex digest, with a comment explaining a failure means the pydantic serialization changed and every signed promotion packet is invalidated — handle as an evaluator-version event, never by just updating the hash. Do NOT modify kayakgen/eval/stability/registry.py (forbidden path): the pin is test-only. GATE: .venv/bin/python -m pytest -q -> 0 failed, exactly the 4 documented OpenFOAM skips; .venv/bin/python -m ruff check kayakgen tests -> clean. Heartbeat before/after the ~9-minute run. Publish DRAFT.md: per-slice shas + diffstat, the corruption-repair test evidence, the rebuild-vs-preserve sqlite evidence, the pinned digest, and the full-gate tail.",
+      "task_prompt": {"path": "prompts/draft.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/services/artifact_store.py",
+          "kayakgen/io/json.py",
+          "tests/test_artifact_store.py",
+          "tests/test_hull_roundtrip.py",
+          "tests/test_stability_fit_registry.py",
+          "CHANGELOG.md",
+          "striatum/0063-test-protection-p1-durable-state/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "kayakgen/eval/stability/registry.py",
+          "tests/test_services_boundaries.py",
+          "tests/test_import_boundaries.py"
+        ]
+      },
+      "expected_artifacts": [
+        {"kind": "handoff", "logical_name": "draft", "path": "striatum/0063-test-protection-p1-durable-state/DRAFT.md", "required": true}
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Review durable-state hardening for byte-stability, repair semantics, and gate integrity",
+      "role_id": "reviewer",
+      "lane_id": "reviewer",
+      "fresh_session_required": true,
+      "objective": "Review the three durable-state slices. Verify: (1) _put_bytes is atomic (temp + os.replace, same filesystem) and the dedupe branch actually repairs corrupt bytes (run the new corruption test; consider an adversarial variant: corrupt file with CORRECT length — is it caught or documented as out of scope?); JSON payload bytes are unchanged (design-hash + round-trip tests untouched and green). (2) SqliteIndex rebuild triggers only on user_version mismatch — verify a current-version DB is NOT dropped on reopen, and the rebuild warning names what happened; confirm kayakgen runs list works against a rebuilt DB. (3) The SHA pin is test-only (kayakgen/eval/stability/registry.py untouched — check git diff) and its comment explains the evaluator-version-event response. (4) Run the FULL gate yourself: .venv/bin/python -m pytest -q (0 failed, exactly 4 documented skips) and ruff clean. Write your findings file BEFORE the ~9-minute run and heartbeat around it. Verdict semantics: accept / accept_with_findings for anything the apply job can fix; needs_revision only for scope violations or a red gate; NEVER terminal reject (operator hazard: it wedges the run).",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0063-test-protection-p1-durable-state/review/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"kind": "finding", "logical_name": "review", "path": "striatum/0063-test-protection-p1-durable-state/review/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "apply",
+      "type": "synthesis",
+      "title": "Apply accepted review findings and finalize the durable-state landing",
+      "role_id": "author",
+      "lane_id": "author",
+      "fresh_session_required": true,
+      "objective": "Apply every must-fix finding from the review, scoped to the three slices — no new design scope. Update CHANGELOG.md if user-visible behavior changed; write docs/workflows/0063-test-protection-p1-durable-state/OPERATOR_REPORT.md (slices landed, audit rows closed: R5, R6, R9, plus the section-6 sha-pin; what remains: workflows C and D per the plan's routing). Re-run the FULL gate (0 failed / 4 documented skips; ruff clean) with heartbeats. Commit the reviewer's REVIEW.md alongside the close-out. Publish SUMMARY.md. Leave the slice stack on the run branch; merging to main is the operator's step.",
+      "task_prompt": {"path": "prompts/apply.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/services/artifact_store.py",
+          "kayakgen/io/json.py",
+          "tests/test_artifact_store.py",
+          "tests/test_hull_roundtrip.py",
+          "tests/test_stability_fit_registry.py",
+          "CHANGELOG.md",
+          "docs/workflows/0063-test-protection-p1-durable-state/OPERATOR_REPORT.md",
+          "striatum/0063-test-protection-p1-durable-state/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "kayakgen/eval/stability/registry.py",
+          "tests/test_services_boundaries.py",
+          "tests/test_import_boundaries.py"
+        ]
+      },
+      "expected_artifacts": [
+        {"kind": "synthesis", "logical_name": "summary", "path": "striatum/0063-test-protection-p1-durable-state/SUMMARY.md", "required": true}
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "draft", "on": "completed", "to": "review"},
+    {"from": "review", "on": "completed", "to": "apply"}
+  ],
+  "cycles": [
+    {"from": "review", "on_verdict": "needs_revision", "to": "draft", "max_iterations": 1}
+  ]
+}
