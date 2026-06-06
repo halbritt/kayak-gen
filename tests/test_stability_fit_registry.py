@@ -477,26 +477,28 @@ def test_unreadable_fit_recorded_in_diagnostics(tmp_path):
 
 
 def test_every_reason_has_a_next_action():
-    # Every gate constant the loader can emit has operator-facing remediation copy.
+    """Every gate constant the loader can emit has operator-facing
+    remediation copy (audit §5 note, P2-REASON-ENUM).
+
+    The expected set is DERIVED from the registry module namespace rather
+    than hand-enumerated: a future gate constant (any new ``REASON_*``)
+    cannot ship without an entry in ``REASON_NEXT_ACTION`` — this test
+    fails the moment the constant lands, naming the missing code.
+    """
+
     emitted = {
-        reg.REASON_FIXTURE_MANIFEST_MISSING,
-        reg.REASON_FIXTURE_SMOOTHNESS_FAILURES,
-        reg.REASON_FIXTURE_TRACE_PATH_UNRESOLVED,
-        reg.REASON_FIXTURE_BOUNDS_TOO_LOOSE,
-        reg.REASON_FIXTURE_RIGHTS_NOT_REDISTRIBUTABLE,
-        reg.REASON_PROMOTION_PACKET_MISSING,
-        reg.REASON_FIXTURE_SHA256_MISMATCH,
-        reg.REASON_FIXTURE_NOT_PROMOTED,
-        reg.REASON_PROMOTION_PACKET_REVIEW_INCOMPLETE,
-        reg.REASON_FIT_RECORD_DOES_NOT_CITE_FIXTURE,
-        reg.REASON_FIT_HULL_CLASS_FIXTURE_MISMATCH,
-        reg.REASON_VALID_HEEL_RANGE_DISJOINT,
-        reg.REASON_EVALUATOR_VERSION_MISMATCH,
-        reg.REASON_STRICT_CHECK_SKIPPED,
-        reg.REASON_FIT_METRICS_OUT_OF_THRESHOLDS,
+        value
+        for name, value in vars(reg).items()
+        if name.startswith("REASON_") and name != "REASON_NEXT_ACTION"
     }
-    for code in emitted:
-        assert code in reg.REASON_NEXT_ACTION
+    # Sanity: derivation actually found the gate constants (16 today);
+    # a refactor that moved them out of the module must not let this
+    # test silently assert over an empty set.
+    assert len(emitted) >= 16
+    missing = emitted - set(reg.REASON_NEXT_ACTION)
+    assert not missing, (
+        f"REASON_* constants without REASON_NEXT_ACTION remediation copy: {sorted(missing)}"
+    )
 
 
 # ---------------------------------------------------------------------------
