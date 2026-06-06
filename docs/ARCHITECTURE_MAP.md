@@ -78,6 +78,10 @@ kayakgen/
 │   ├── sweep_artifacts.py       sweep-side STL + high_angle_gz artifact writers
 │   └── volume_mesh.py           VolumeMeshDiagnostic + watertight handoff
 ├── io/                       # STL writer; nothing else
+├── metadata/                 # Cross-surface presentation registries; no services/ui/cli imports
+│   └── hydrostatics_rows.py     HydrostaticsRowMetadata registry (RFC 0062; moved
+│                                 from ui/ by workflow 0062 so services can import it;
+│                                 ui/hydrostatics_metadata.py re-export shim retained)
 ├── model/                    # Hull, geometry, presets — no eval/ui/cli imports
 │   ├── advisory.py
 │   ├── geometry.py              HullGeometry + section_for_closed_body

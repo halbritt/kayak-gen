@@ -30,7 +30,7 @@ from kayakgen.model.advisory import design_advisory
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import evaluate_design_validity
 from kayakgen.services.design import hull_from_web_state
-from kayakgen.ui.hydrostatics_metadata import HYDROSTATICS_ROW_METADATA as _HYDRO_META
+from kayakgen.metadata.hydrostatics_rows import HYDROSTATICS_ROW_METADATA as _HYDRO_META
 
 DISPLAY_CURVE_SPEEDS_KT: tuple[float, ...] = (2.0, 3.0, 4.0, 5.0, 6.0)
 MESH_PROFILE_LABEL_TO_ID: dict[str, str] = {
