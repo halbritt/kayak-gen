@@ -1,0 +1,156 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0066-test-protection-reaudit-gaps",
+  "workflow_version": "2026-06-06",
+  "name": "0066 - Test-protection re-audit gaps: skip-count pin + gate self-check, artifact-store read verification, contract/test top-ups (G1-G6, G8-G10)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0066-test-protection-reaudit-gaps",
+    "allow_dirty": false
+  },
+  "coordinator": {"role_id": "author", "lane_id": "author"},
+  "lanes": {
+    "author": {
+      "adapter": "process",
+      "display_model": "claude",
+      "command": ["claude", "--dangerously-skip-permissions"],
+      "adapter_capabilities": {"agent_loop": true},
+      "supervision": {"transport": "pty_helper", "compatible": true, "require_tmux": true},
+      "capabilities": ["write"],
+      "worktree_isolation": "per_job"
+    },
+    "reviewer": {
+      "adapter": "process",
+      "display_model": "codex",
+      "command": ["codex", "--yolo"],
+      "adapter_capabilities": {"agent_loop": true},
+      "supervision": {"transport": "pty_helper", "compatible": true, "require_tmux": true},
+      "capabilities": ["review"]
+    }
+  },
+  "roles": {
+    "author": {"definition_path": "roles/author.md"},
+    "reviewer": {"definition_path": "roles/reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/RELEASE_DISCIPLINE.md", "required": true},
+    {"path": "KAYAKGEN_TEST_COVERAGE_AUDIT_WHOLE_REPO_CLAUDE_OPUS_4_8_2026-06-06.md", "required": true},
+    {"path": "docs/workflows/0066-test-protection-reaudit-gaps/SOURCES.md", "required": true},
+    {"path": "scripts/fast-gate.sh", "required": true},
+    {"path": "kayakgen/services/artifact_store.py", "required": true},
+    {"path": "tests/test_artifact_store.py", "required": true},
+    {"path": "kayakgen/eval/calibration/campaigns.py", "required": true},
+    {"path": "tests/test_calibration_campaigns.py", "required": true}
+  ],
+  "parallelism": {"mode": "declared", "max_active_jobs": 1, "require_disjoint_write_scopes": true},
+  "jobs": [
+    {
+      "id": "draft",
+      "type": "draft",
+      "title": "Close re-audit gaps G1-G6 + G8-G10 in three slices (gate, store, tests)",
+      "role_id": "author",
+      "lane_id": "author",
+      "fresh_session_required": true,
+      "objective": "Close nine gaps from the 2026-06-06 post-remediation re-audit (G1-G6, G8-G10; the ledger with file:line and smallest-closing-test per row is in the audit doc — do not re-derive it), one commit per item, in this order, grouped as three slices. G7 (CLI NaN negatives) is explicitly DEFERRED — do not touch it; G11 stays deferred by documented decision. SLICE A — GATE. ITEM 1 (G1-SKIP-PIN, SERIOUS): implement the skip-count pin that commit fbfdf9e and docs/RELEASE_DISCIPLINE.md already claim exists. In scripts/fast-gate.sh: capture the pytest summary, parse the skipped count, and fail unless it equals an EXPECTED_SKIPS named variable (=4, the documented OpenFOAM opt-ins) with a comment pointing at docs/RELEASE_DISCIPLINE.md — beware set -euo pipefail + tee + PIPESTATUS when capturing output, and the summary must still stream to the operator. The fast subset DOES contain the 4 skips (test_cfd_run_stages.py and test_openfoam_v2512_smoke.py are not in the ignore list; measured 1052 passed / 4 skipped). Then wire the SAME pin into the striatum full-suite gate by creating scripts/full-gate.sh (ruff check kayakgen tests + full pytest -q + identical skip-pin parse), and update docs/RELEASE_DISCIPLINE.md so the pre-merge requirement and the striatum-slice-gate paragraph cite full-gate.sh as the mechanical form (the policy text 'any other skip count means the run does not count' is already correct — only enforcement was missing). Document in both script headers that the pin assumes the OpenFOAM env knobs are UNSET; a solver-equipped host running the smoke uses the explicit opt-in command, not these gates. ITEM 2 (G4-GATE-SELFCHECK): add tests/test_fast_gate_manifest.py asserting (a) every --ignore path named in scripts/fast-gate.sh exists in the repo, (b) every --deselect nodeid still collects (pytest --collect-only on the two nodeids), and (c) both gate scripts contain the EXPECTED_SKIPS pin; refresh the stale measured counts in the fast-gate.sh header (says 1309 full / 1052 fast; re-measure at the end of this draft since your own items add tests — record the refreshed numbers in the draft artifact). SLICE B — STORE. ITEM 3 (G2-READ-VERIFY, SERIOUS): close the read half of audit R5. _resolve_artifact (kayakgen/services/artifact_store.py:848-852) globs _store/<hash>.* and serves bytes without rehash. Implement SERVE-ONLY-VERIFIED: rehash bytes before serving on every read path (get_json and get_file resolve); on mismatch, repair from the canonical path when ref.relative_path exists and the canonical bytes rehash to ref.artifact_hash (atomic replace, mirror the write-side repair), otherwise raise a structured ArtifactIntegrityError naming the path and both hashes — fail closed, never serve unverified bytes. The existing re-derive branch (:863-869) currently WARNS on hash mismatch and serves the wrong bytes — escalate that mismatch from warn to the same structured raise; keep the missing-store re-derive warning for the intact case. Record the contract decision as a new docs/DECISION_LOG.md row (cite audit G2, RFC 0049 provenance substrate). Perf note for the commit message: artifacts are occasional-read JSON/CSV/STL; rehash-on-read is acceptable, and the decision row should say so. Closing tests (mirror the style of tests/test_artifact_store.py:212-268): corrupt stored bytes after put_json then get_json -> raises (no canonical) / repairs (canonical intact); corrupt BOTH store and canonical -> raises; equal-length bit-rot (same byte count, different bytes) -> caught by rehash, this is the sibling case the write-side length screen misses. ITEM 4 (G6-STORE-ERROR-BRANCHES): pin the remaining error branches — _verify_or_repair_store_file stat-failure (:719) and read-failure (:726-727) OSError fallbacks (prefer monkeypatch over chmod-000 so the tests are deterministic and root-safe), and the re-derive mismatch path as redefined by ITEM 3. ITEM 5 (G8-NEWER-STAMP): test the newer-stamp direction of SqliteIndex._ensure_schema (:216-218): stamp PRAGMA user_version = SCHEMA_VERSION + 1 on a DB with rows, reopen, assert leave-alone (rows survive, no rebuild warning, stamp not downgraded). ITEM 6 (G9-TOCTOU-PIN): prove (not just claim) the concurrent-writer benignity of the put path at the level a deterministic test can honestly pin: monkeypatch a competing intact write of the same content to land between the exists() check and the dedupe/replace, assert the content address ends intact with the correct hash and no torn temp files; document in the test what it does NOT prove (true parallel interleaving). SLICE C — TESTS (test-only; kayakgen/eval and kayakgen/cli are FORBIDDEN — if a test exposes a product bug, record it in the draft artifact as a successor finding). ITEM 7 (G3-CLI-EXPLORATORY): in tests/test_cli.py add the CliRunner pair for kayakgen compare (kayakgen/cli/main.py:752-782): gated objective (e.g. Rt_N_last) WITHOUT --explicit-exploratory -> exit code 1 and the RFC 0044 refusal token in output; WITH the flag -> exit 0 and exploratory_frontier present in the written report. Reuse the existing function-level compare fixtures for the sweep run dir. ITEM 8 (G5-FIT-THRESHOLD-PIN): pin the MAPE and R2 branches of evaluate_fit_against_threshold (kayakgen/eval/calibration/campaigns.py:366-382) by asserting the structured reason tokens fit_above_mape_threshold and fit_below_r2_threshold. DECISION (made, record it): the fail-closed default is INTENDED — an R2 record under the default threshold_pct=5.0 refuses every fit (R2 <= 1.0 < 5.0); claims discipline holds. Pin exactly that quirk in a test with a comment citing audit G5, and record the open question (per-metric default as a future operator decision) in the draft artifact — do NOT change campaigns.py. ITEM 9 (G10-CSV-REFUSALS): in tests/test_calibration_campaigns.py add refusal-path tests for CSV ingest — missing required column, unrecognised extra column, _coerce_bool garbage value — and the IncliningTestCampaign rows-share-source_id mismatch validator (:128-134; the tank-side twin is already tested, mirror it). GATE after item 9: .venv/bin/python -m pytest -q -> 0 failed, exactly the 4 documented OpenFOAM skips (your new scripts/full-gate.sh should pass too — run it as the gate to eat your own dogfood); .venv/bin/python -m ruff check kayakgen tests -> clean. Heartbeat around the ~9-minute run. The user-level ~/.local/share/kayakgen/index.sqlite must be byte-identical before/after the suite (md5 it). Publish striatum/0066-test-protection-reaudit-gaps/DRAFT.md: per-item shas + diffstat, the G2 contract decision + DECISION_LOG row id, the G5 pin rationale + open question, refreshed gate-header numbers, successor findings if any, and the full-gate tail.",
+      "task_prompt": {"path": "prompts/draft.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "scripts/fast-gate.sh",
+          "scripts/full-gate.sh",
+          "docs/RELEASE_DISCIPLINE.md",
+          "docs/DECISION_LOG.md",
+          "kayakgen/services/artifact_store.py",
+          "tests/test_artifact_store.py",
+          "tests/test_fast_gate_manifest.py",
+          "tests/test_cli.py",
+          "tests/test_calibration_campaigns.py",
+          "CHANGELOG.md",
+          "striatum/0066-test-protection-reaudit-gaps/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "kayakgen/eval/",
+          "kayakgen/cli/",
+          "tests/test_services_boundaries.py",
+          "tests/test_import_boundaries.py",
+          "KAYAKGEN_TEST_COVERAGE_AUDIT_WHOLE_REPO_CLAUDE_OPUS_4_8_2026-06-06.md",
+          "KAYAKGEN_TEST_COVERAGE_AUDIT_CLAUDE_OPUS_4_8_2026-06-06.md",
+          "KAYAKGEN_TEST_PROTECTION_REMEDIATION_PLAN_CLAUDE_OPUS_4_8_2026-06-06.md"
+        ]
+      },
+      "expected_artifacts": [
+        {"kind": "handoff", "logical_name": "draft", "path": "striatum/0066-test-protection-reaudit-gaps/DRAFT.md", "required": true}
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Review gap closures for enforcement honesty and fail-closed reads",
+      "role_id": "reviewer",
+      "lane_id": "reviewer",
+      "fresh_session_required": true,
+      "objective": "Review the nine gap closures. This wave exists because the LAST wave shipped a gate property that was claimed but not implemented (audit G1, coverage theater) — your primary lens is enforcement honesty: for every claimed protection, verify the mechanism actually fires. Verify: (1) Scope: git diff main...HEAD touches ONLY the allowed paths (two gate scripts, RELEASE_DISCIPLINE, DECISION_LOG, artifact_store.py, the four test files, CHANGELOG, the workflow artifact dir) — anything else is needs_revision. (2) G1: BREAK the pin to prove it — in a scratch copy of the worktree (never committed), force a wrong skip count (e.g. add a transient pytest.mark.skip to a cheap test or alter EXPECTED_SKIPS) and confirm fast-gate.sh exits non-zero; confirm the parse survives set -euo pipefail and both '4 skipped' and '0 skipped/absent' shapes; confirm full-gate.sh carries the identical pin and RELEASE_DISCIPLINE cites it. (3) G4: the manifest test would actually fail on a renamed --ignore file (reason it through); header counts refreshed and consistent with the draft's measured tail. (4) G2: the read path NEVER returns unverified bytes — trace every return out of _resolve_artifact; the mismatch raise is structured; the repair branch only fires when canonical bytes rehash to the expected hash; the corrupt-both case raises; the equal-length bit-rot test exists and would fail without the rehash; DECISION_LOG row present. (5) G6: error-branch tests are deterministic (no chmod-000 root hazard). (6) G8: leave-alone proven with rows surviving and stamp not downgraded. (7) G9: the TOCTOU test pins a real interleaving and honestly documents what it does not prove. (8) G3: the CliRunner pair pins exit codes AND tokens, not just no-crash. (9) G5: both reason tokens pinned; the R2-default quirk test matches actual behavior; campaigns.py untouched. (10) G10: refusal messages asserted, inclining mismatch mirrors the tank twin. (11) Run the FULL gate yourself — use scripts/full-gate.sh so the new pin is exercised end-to-end (0 failed, exactly 4 documented skips, ruff clean); write your findings file BEFORE the long run; heartbeat around it. Verdicts: accept / accept_with_findings for apply-fixable issues; needs_revision for scope violations, a red gate, or an unverified-read escape; NEVER terminal reject.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0066-test-protection-reaudit-gaps/review/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"kind": "finding", "logical_name": "review", "path": "striatum/0066-test-protection-reaudit-gaps/review/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "apply",
+      "type": "synthesis",
+      "title": "Apply accepted review findings and close out the re-audit gap queue",
+      "role_id": "author",
+      "lane_id": "author",
+      "fresh_session_required": true,
+      "objective": "Apply every must-fix finding from the review, scoped to the nine items (write scope unchanged from draft plus the OPERATOR_REPORT path). Refresh the fast-gate.sh header counts against the final measured tail if earlier fixes changed test counts. Write docs/workflows/0066-test-protection-reaudit-gaps/OPERATOR_REPORT.md: items landed (shas), gap rows closed (G1-G6, G8-G10) with one-line closure evidence each, the G2 read-contract decision + DECISION_LOG row id, the G5 fail-closed pin + recorded open question, and the standing-deferral table (G7: deferred pending bug-hunt NaN-validator green-light, workflow 0065 SUMMARY; G11: deferred until externally-authored fixtures, morning audit R11). Re-run the FULL gate via scripts/full-gate.sh with heartbeats (0 failed / exactly 4 documented skips; ruff clean) and verify the user-level index.sqlite is byte-identical before/after. Commit the reviewer's REVIEW.md with the close-out. Publish SUMMARY.md. Leave the stack on the run branch; merging to main is the operator's step.",
+      "task_prompt": {"path": "prompts/apply.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "scripts/fast-gate.sh",
+          "scripts/full-gate.sh",
+          "docs/RELEASE_DISCIPLINE.md",
+          "docs/DECISION_LOG.md",
+          "kayakgen/services/artifact_store.py",
+          "tests/test_artifact_store.py",
+          "tests/test_fast_gate_manifest.py",
+          "tests/test_cli.py",
+          "tests/test_calibration_campaigns.py",
+          "CHANGELOG.md",
+          "docs/workflows/0066-test-protection-reaudit-gaps/OPERATOR_REPORT.md",
+          "striatum/0066-test-protection-reaudit-gaps/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "kayakgen/eval/",
+          "kayakgen/cli/",
+          "tests/test_services_boundaries.py",
+          "tests/test_import_boundaries.py",
+          "KAYAKGEN_TEST_COVERAGE_AUDIT_WHOLE_REPO_CLAUDE_OPUS_4_8_2026-06-06.md",
+          "KAYAKGEN_TEST_COVERAGE_AUDIT_CLAUDE_OPUS_4_8_2026-06-06.md",
+          "KAYAKGEN_TEST_PROTECTION_REMEDIATION_PLAN_CLAUDE_OPUS_4_8_2026-06-06.md"
+        ]
+      },
+      "expected_artifacts": [
+        {"kind": "synthesis", "logical_name": "summary", "path": "striatum/0066-test-protection-reaudit-gaps/SUMMARY.md", "required": true}
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "draft", "on": "completed", "to": "review"},
+    {"from": "review", "on": "completed", "to": "apply"}
+  ],
+  "cycles": [
+    {"from": "review", "on_verdict": "needs_revision", "to": "draft", "max_iterations": 1}
+  ]
+}
