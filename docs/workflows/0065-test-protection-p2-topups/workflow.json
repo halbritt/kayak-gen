@@ -1,0 +1,141 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0065-test-protection-p2-topups",
+  "workflow_version": "2026-06-06",
+  "name": "0065 - Test-protection P2: protection top-ups (analytic anchor, deterministic cancel, registry micro-gaps, reason-enum, mypy decide)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0065-test-protection-p2-topups",
+    "allow_dirty": false
+  },
+  "coordinator": {"role_id": "author", "lane_id": "author"},
+  "lanes": {
+    "author": {
+      "adapter": "process",
+      "display_model": "claude",
+      "command": ["claude", "--dangerously-skip-permissions"],
+      "adapter_capabilities": {"agent_loop": true},
+      "supervision": {"transport": "pty_helper", "compatible": true, "require_tmux": true},
+      "capabilities": ["write"],
+      "worktree_isolation": "per_job"
+    },
+    "reviewer": {
+      "adapter": "process",
+      "display_model": "codex",
+      "command": ["codex", "--yolo"],
+      "adapter_capabilities": {"agent_loop": true},
+      "supervision": {"transport": "pty_helper", "compatible": true, "require_tmux": true},
+      "capabilities": ["review"]
+    }
+  },
+  "roles": {
+    "author": {"definition_path": "roles/author.md"},
+    "reviewer": {"definition_path": "roles/reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/RELEASE_DISCIPLINE.md", "required": true},
+    {"path": "KAYAKGEN_TEST_COVERAGE_AUDIT_CLAUDE_OPUS_4_8_2026-06-06.md", "required": true},
+    {"path": "KAYAKGEN_TEST_PROTECTION_REMEDIATION_PLAN_CLAUDE_OPUS_4_8_2026-06-06.md", "required": true},
+    {"path": "docs/workflows/0065-test-protection-p2-topups/SOURCES.md", "required": true},
+    {"path": "tests/test_hydrostatics.py", "required": true},
+    {"path": "tests/test_generative_jobs_subprocess.py", "required": true},
+    {"path": "tests/test_stability_fit_registry.py", "required": true},
+    {"path": "kayakgen/eval/hydrostatics.py", "required": true},
+    {"path": "kayakgen/eval/stability/registry.py", "required": true}
+  ],
+  "parallelism": {"mode": "declared", "max_active_jobs": 1, "require_disjoint_write_scopes": true},
+  "jobs": [
+    {
+      "id": "draft",
+      "type": "draft",
+      "title": "Implement P2 protection top-ups (test-only + pyproject mypy removal)",
+      "role_id": "author",
+      "lane_id": "author",
+      "fresh_session_required": true,
+      "objective": "Land the five P2 items from the 2026-06-06 remediation plan, one commit per item, in this order. This batch is TEST-ONLY plus one pyproject edit: the entire kayakgen/ package tree, scripts/, and all non-listed docs are FORBIDDEN — if a test you write exposes a product bug, record it in the draft artifact as a successor finding (cite the audit/bug-hunt convention) instead of fixing product code here. ITEM 1 (P2-HYDRO-ANCHOR, audit R7): in tests/test_hydrostatics.py add one analytic cross-check — configure a Hull as close to a wall-sided prismatic form as the parametrization allows and assert displaced volume and LCB against the closed-form value at coarse tolerance (rtol on the order of 1e-2), documenting the geometric idealization and the chosen tolerance in the test comment; the goal is an EXTERNAL anchor, not a tighter self-pin — if the parametrization cannot get within honest reach of the analytic body, document why and pin the scaling-law property family tighter instead (state which path you took and why in the draft artifact). ITEM 2 (P2-CANCEL-DETERMINISTIC, audit R8): in tests/test_generative_jobs_subprocess.py add a manager-level cancel test that exercises the cancel path DETERMINISTICALLY using the existing _controlled_cancel_runner monkeypatch pattern, so cancel assertions run unconditionally in the default suite; then demote the racy variant: replace its mid-race pytest.skip outs with a clear comment that the deterministic test owns the contract and the racy one is integration smoke (keep it, but its disjunctive final assertion may remain — document that it is smoke, not the gate). ITEM 3 (P2-REGISTRY-MICROGAPS, audit R10): in tests/test_stability_fit_registry.py add exactly three tests: (a) a fit citing TWO fixtures where only the second clears the full chain — pins the ANY-pass semantics of _evaluate_fit_gates; (b) a hysteresis bound_fraction=0.031 rejection — pins the second branch of gate 3a (REASON_FIXTURE_BOUNDS_TOO_LOOSE via hysteresis, not drift); (c) a touching heel-range load (fit (30,60) vs fixture (0,30)) — pins the <= overlap boundary of gate 9 as intended-pass. The existing test_fixture_canonical_sha256_digest pin test (0063) must remain byte-identical. ITEM 4 (P2-REASON-ENUM, audit §5 note): rewrite test_every_reason_has_a_next_action to derive the expected reason-code set from the registry module namespace (vars(reg), keys starting REASON_ excluding REASON_NEXT_ACTION) so a future gate constant cannot ship without operator remediation copy. ITEM 5 (P2-MYPY-DECIDE, audit §3 note): remove mypy from the [dev] optional-dependency extras in pyproject.toml (the plan's recommendation: never configured, never gated, ruff is established) and add a CHANGELOG entry noting the removal rationale; do NOT add mypy config. GATE: .venv/bin/python -m pytest -q -> 0 failed, exactly the 4 documented OpenFOAM skips; .venv/bin/python -m ruff check kayakgen tests -> clean. Heartbeat around the ~9-minute run. Publish DRAFT.md: per-item shas + diffstat, which P2-HYDRO-ANCHOR path was taken and the analytic derivation, the deterministic-cancel evidence, the three micro-gap test names, the reason-enum derivation, and the full-gate tail.",
+      "task_prompt": {"path": "prompts/draft.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "tests/test_hydrostatics.py",
+          "tests/test_generative_jobs_subprocess.py",
+          "tests/test_stability_fit_registry.py",
+          "pyproject.toml",
+          "CHANGELOG.md",
+          "striatum/0065-test-protection-p2-topups/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "kayakgen/",
+          "scripts/",
+          "tests/test_services_boundaries.py",
+          "tests/test_import_boundaries.py"
+        ]
+      },
+      "expected_artifacts": [
+        {"kind": "handoff", "logical_name": "draft", "path": "striatum/0065-test-protection-p2-topups/DRAFT.md", "required": true}
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Review P2 top-ups for assertion honesty and gate integrity",
+      "role_id": "reviewer",
+      "lane_id": "reviewer",
+      "fresh_session_required": true,
+      "objective": "Review the five P2 items. Verify: (1) git diff main...HEAD touches ONLY the allowed test files + pyproject.toml + CHANGELOG.md + the workflow artifact dir — any kayakgen/ or scripts/ edit is needs_revision. (2) The hydrostatics anchor is an honest external check: the analytic derivation in the comment is correct (recompute it yourself), the tolerance is justified, and the test would actually fail if volume integration drifted by more than the tolerance; if the author took the documented fallback path (tighter property pins), check the justification holds. (3) The deterministic cancel test exercises the real cancel contract via the controlled runner without wall-clock races; the racy variant is clearly demoted to smoke. (4) The three registry micro-gap tests pin what they claim (ANY-pass via second fixture, hysteresis-branch rejection code, touching-range pass) and the 0063 digest pin is byte-identical. (5) The reason-enum test now derives from the module namespace — verify by mentally adding a REASON_X constant: would it fail? (6) mypy removed from [dev] extras only; no config added; CHANGELOG notes it. (7) Run the FULL gate yourself (0 failed / exactly 4 documented skips; ruff clean); findings file BEFORE the long run; heartbeat around it. Verdicts: accept / accept_with_findings for apply-fixable issues; needs_revision for scope violations or a red gate; NEVER terminal reject.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0065-test-protection-p2-topups/review/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"kind": "finding", "logical_name": "review", "path": "striatum/0065-test-protection-p2-topups/review/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "apply",
+      "type": "synthesis",
+      "title": "Apply accepted review findings and close out the remediation plan",
+      "role_id": "author",
+      "lane_id": "author",
+      "fresh_session_required": true,
+      "objective": "Apply every must-fix finding from the review, scoped to the five P2 items. Update CHANGELOG.md if needed; write docs/workflows/0065-test-protection-p2-topups/OPERATOR_REPORT.md: items landed (shas), audit rows closed (R7, R8, R10, plus the two §3/§5 notes), and the REMEDIATION PLAN CLOSE-OUT summary — every plan item's final disposition (P0 trio: workflow 0062; P1 durable trio: 0063; P1 contracts: 0064; P2: this run; P2-CLI-NEGATIVES: deferred pending the bug-hunt NaN-family green-light; §7 deferred-indefinitely items unchanged). Re-run the FULL gate with heartbeats (0 failed / 4 documented skips; ruff clean). Commit the reviewer's REVIEW.md with the close-out. Publish SUMMARY.md. Leave the stack on the run branch; merging to main is the operator's step.",
+      "task_prompt": {"path": "prompts/apply.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "tests/test_hydrostatics.py",
+          "tests/test_generative_jobs_subprocess.py",
+          "tests/test_stability_fit_registry.py",
+          "pyproject.toml",
+          "CHANGELOG.md",
+          "docs/workflows/0065-test-protection-p2-topups/OPERATOR_REPORT.md",
+          "striatum/0065-test-protection-p2-topups/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "kayakgen/",
+          "scripts/",
+          "tests/test_services_boundaries.py",
+          "tests/test_import_boundaries.py"
+        ]
+      },
+      "expected_artifacts": [
+        {"kind": "synthesis", "logical_name": "summary", "path": "striatum/0065-test-protection-p2-topups/SUMMARY.md", "required": true}
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "draft", "on": "completed", "to": "review"},
+    {"from": "review", "on": "completed", "to": "apply"}
+  ],
+  "cycles": [
+    {"from": "review", "on_verdict": "needs_revision", "to": "draft", "max_iterations": 1}
+  ]
+}
