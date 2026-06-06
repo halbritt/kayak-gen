@@ -418,3 +418,31 @@ def test_every_reason_has_a_next_action():
     }
     for code in emitted:
         assert code in reg.REASON_NEXT_ACTION
+
+
+# ---------------------------------------------------------------------------
+# Workflow 0063 / audit §6: canonical-hash stability pin (P1-SHA-PIN)
+# ---------------------------------------------------------------------------
+
+
+def test_fixture_canonical_sha256_pinned_to_literal_digest():
+    """``fixture_canonical_sha256`` IS the tamper-evidence boundary of the
+    claims chain: every signed ``StabilityFixturePromotionPacket`` hash-binds
+    to the fixture's canonical ``model_dump_json`` bytes through this helper.
+
+    IF THIS TEST FAILS: a pydantic (or model-field) serialization change has
+    just altered the canonical bytes, which silently invalidates EVERY signed
+    promotion packet on disk — their ``fixture_sha256`` no longer matches any
+    manifest, and the registry will drop all accepted fits. Handle it as an
+    evaluator-version event: bump the relevant version, re-review and re-sign
+    the packets against the new canonical form, and record the decision.
+    NEVER fix this test by just updating the pinned digest — that would paper
+    over the stranding of all previously signed packets.
+    """
+
+    from tests.conftest import make_stability_acceptance_triple
+
+    digest = reg.fixture_canonical_sha256(make_stability_acceptance_triple().fixture)
+    assert digest == (
+        "fca3840a7fa539ad849df5fb897b5d0bf45ecdee024899059959d685b04700e3"
+    )

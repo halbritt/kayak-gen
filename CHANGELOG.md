@@ -8,6 +8,24 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Workflow 0063 (test-protection P1 durable-state hardening) landed the
+  remediation plan's three P1 durable-state slices. P1-STORE-ATOMIC:
+  `FilesystemArtifactStore._put_bytes` writes store bytes via a temp
+  sibling + `os.replace`, and the `exists()` dedupe branch now verifies
+  byte length (rehash on mismatch) and atomically repairs a corrupt store
+  file instead of hard-linking truncated bytes into canonical run layouts
+  (audit R5 / BUG-041); `kayakgen/io/json.py` `save_hull`/`save_evaluation`
+  use the same atomic pattern with explicit utf-8 while the emitted JSON
+  bytes stay byte-identical (audit R9). P1-SQLITE-VERSION: `SqliteIndex`
+  stamps `PRAGMA user_version` and rebuilds (drop + recreate + UserWarning)
+  any DB stamped lower — rebuild-not-migrate, it is a rebuildable
+  read-model — while current-version DBs are never dropped (audit R6).
+  P1-SHA-PIN: a regression test pins
+  `fixture_canonical_sha256(make_stability_acceptance_triple().fixture)`
+  to its literal digest so a pydantic serialization change that would
+  strand every signed promotion packet fails loudly as an
+  evaluator-version event (audit §6); the registry itself is untouched.
+
 - Workflow 0062 (test-protection P0 gate recovery) landed the remediation
   plan's three P0 slices. P0-BOUNDARY-FIX: the hydrostatics row registry
   moved from `kayakgen/ui/hydrostatics_metadata.py` to the new
