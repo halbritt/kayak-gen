@@ -70,11 +70,17 @@ change.
 Every commit must pass, in this order:
 
 1. **`.venv/bin/python -m pytest -q`** — the full test suite must
-   stay green or skipped. The env-gated OpenFOAM smoke
-   (`tests/test_openfoam_v2512_smoke.py`) is permitted to skip
-   unless `KAYAKGEN_OPENFOAM_SMOKE=1` and
-   `KAYAKGEN_OPENFOAM_LOCAL_RUN=1` are set, in which case it must
-   pass.
+   be green, with only the documented OpenFOAM opt-in skips
+   (expected: 4). The four are env-gated behind
+   `KAYAKGEN_OPENFOAM_SMOKE=1` + `KAYAKGEN_OPENFOAM_LOCAL_RUN=1`:
+   two in `tests/test_openfoam_v2512_smoke.py` and two
+   real-solver-path stage tests in `tests/test_cfd_run_stages.py`.
+   When the env knobs are set, the gated tests must pass instead
+   of skipping. Any other skip count means the environment is
+   missing extras and the run does **not** count as a gate
+   (audit R4, 2026-06-06: the previous "green or skipped" wording
+   let a `[dev]`-only env silently skip the desktop
+   forbidden-copy regressions).
 2. **`.venv/bin/python -m ruff check kayakgen tests`** — ruff must
    pass. Phase 0 of the architecture plan installed ruff to
    `[dev]`; new code must clear it.
@@ -92,6 +98,39 @@ provenance probe. Run it locally with:
 KAYAKGEN_OPENFOAM_SMOKE=1 KAYAKGEN_OPENFOAM_LOCAL_RUN=1 \
   .venv/bin/python -m pytest tests/test_openfoam_v2512_smoke.py -q
 ```
+
+## Local enforcement (pre-push hook)
+
+Audit R0 (2026-06-06) found the documented gate red on `main` for 12
+days with nothing making the red visible. Enforcement is two-layered:
+
+1. **Pre-push hook (fast subset).** Install once per clone:
+
+   ```bash
+   scripts/install-hooks.sh
+   ```
+
+   This installs `scripts/fast-gate.sh` as `.git/hooks/pre-push`. The
+   fast gate runs `ruff check kayakgen tests` plus the fast pytest
+   subset and refuses the push on failure. The canonical deselect
+   list and the measured runtime live in the script header (measured
+   2026-06-06: 2m57s — 1052 passed / 4 skipped / 2 deselected — vs.
+   8:36 for the full suite; deselected: the browser/visual suite, the
+   subprocess-lifecycle suite, the CFD fixture-command integration
+   tests, and the measured runtime-dominant integration files).
+   `git push --no-verify` bypasses the hook in emergencies; the
+   bypass does not waive the full-suite pre-merge gate above.
+
+2. **Striatum slice gates (full suite).** Striatum workflow
+   review/apply jobs for this repo run the FULL suite
+   (`.venv/bin/python -m pytest -q` → 0 failed, exactly the 4
+   documented OpenFOAM opt-in skips) plus
+   `.venv/bin/python -m ruff check kayakgen tests` as their
+   slice-completion gate. A lane agent cannot complete a slice on a
+   red suite.
+
+The fast gate is a convenience net between full-suite gates, not the
+release gate; pre-merge requirement 1 above is unchanged by it.
 
 ## No-claim invariants (load-bearing)
 

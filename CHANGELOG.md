@@ -8,6 +8,27 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Workflow 0062 (test-protection P0 gate recovery) landed the remediation
+  plan's three P0 slices. P0-BOUNDARY-FIX: the hydrostatics row registry
+  moved from `kayakgen/ui/hydrostatics_metadata.py` to the new
+  `kayakgen/metadata/` package (`hydrostatics_rows.py`); the old module is
+  now a re-export shim and `kayakgen/services/evaluation.py` imports the
+  new home, turning `test_services_does_not_import_ui_or_cli[path2]` (red
+  on `main` since 2026-05-25) green with the boundary and byte-stability
+  tests untouched. P0-INDEX-ISOLATION: a two-layer autouse conftest
+  fixture (per-test tmp path + session-scoped floor) pins
+  `KAYAKGEN_INDEX_DB` inside pytest's tmp tree so no test — including job
+  threads that outlive their test — can write the operator's
+  `~/.local/share/kayakgen/index.sqlite`; a regression test in
+  `tests/test_artifact_store.py` pins the property. P0-GATE-ENFORCE:
+  `scripts/fast-gate.sh` (ruff + measured fast pytest subset, 2m57s vs.
+  8:36 full; canonical deselect list in the script header) with
+  `scripts/install-hooks.sh` installing it as `.git/hooks/pre-push`;
+  `docs/RELEASE_DISCIPLINE.md` pre-merge gate 1 now requires "green, with
+  only the documented OpenFOAM opt-in skips (expected: 4)" and records
+  that striatum workflow review/apply jobs run the full suite as their
+  slice-completion gate.
+
 - Test-coverage audit (2026-06-06, verdict MIXED) and derived
   test-protection remediation plan at repo root. Decisions D048 (compare
   objective admissibility takes the refusal branch — `kayakgen compare`
