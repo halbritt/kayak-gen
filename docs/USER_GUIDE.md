@@ -274,7 +274,11 @@ Acceptance produces three on-disk artifacts:
    "measured_stability_fixture"`.**
 3. `data/stability/fits/<fit_id>.json` — the `StabilityFitRecord`
    whose `fixtures[].fixture_sha256` re-binds to the same manifest
-   bytes.
+   bytes. Per D049 the record carries a `kind` discriminator
+   (`"analytical"` — the default — or `"cfd_in_loop"`); existing fit
+   JSONs without the field parse unchanged. CFD-in-loop graduates from
+   `opt_in_only` to `first_class` only when accepted fits of *both*
+   kinds cover the hull's family scope.
 
 The stage-4 CLI signature for `accept-fit` requires `--fit-record`,
 `--fixture-id`, and `--out` (the prior `--packet` flag is REMOVED;

@@ -69,7 +69,10 @@ def cfd_in_loop_evaluator_status(
     RFC 0058 stage 2 intentionally uses a structural registry: records are
     considered only when they expose ``kind`` as either ``"analytical"`` or
     ``"cfd_in_loop"`` and carry an accepted ``hull_family_scope`` covering
-    the requested scope. The real fit-kind discriminator is deferred.
+    the requested scope. Per D049,
+    :class:`~kayakgen.eval.stability.accepted_fit.StabilityFitRecord` carries
+    that ``kind`` discriminator (default ``"analytical"``), so graduation is
+    reachable with real records.
     """
 
     if persistent_opt_in is False:

@@ -7,6 +7,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -104,6 +105,7 @@ def make_stability_acceptance_triple(
     fixture_heel_range: tuple[float, float] = (0.0, 30.0),
     fit_heel_range: tuple[float, float] = (0.0, 30.0),
     fit_id: str = "fit-001",
+    kind: Literal["analytical", "cfd_in_loop"] = "analytical",
 ) -> StabilityAcceptanceTriple:
     """Deterministic in-test ``(fixture, packet, fit)`` triple (DESIGN_SYNTHESIS §D).
 
@@ -207,6 +209,7 @@ def make_stability_acceptance_triple(
 
     fit = StabilityFitRecord(
         fit_id=fit_id,
+        kind=kind,
         analytical_evaluator_version=evaluator,
         hull_family_scope=HullFamilyScope(
             hull_class=hull_class,

@@ -109,6 +109,12 @@ class StabilityFitRecord(BaseModel):
 
     schema_version: Literal["1"] = "1"
     fit_id: str = Field(min_length=1)
+    # D049: fit-kind discriminator so cfd_in_loop_evaluator_status graduation
+    # is reachable with real records. Additive with default — existing staged
+    # fit JSONs parse unchanged, and the workflow-0063 fixture digest pin is
+    # unaffected (it hashes the fixture manifest, not the fit record). A
+    # richer taxonomy is deferred to the RFC 0058 successor.
+    kind: Literal["analytical", "cfd_in_loop"] = "analytical"
     analytical_evaluator_version: str = Field(min_length=1)
     hull_family_scope: HullFamilyScope
     valid_heel_range_deg: tuple[float, float]

@@ -33,7 +33,7 @@ follow_up: existing TODO/RFC/decision | new striatum workflow |
 
 severity: critical
 category: claim_gate
-status: open
+status: fixed (2026-06-06, D049 / workflow 0064-test-protection-p1-contract-decisions — `StabilityFitRecord` gained `kind: Literal["analytical", "cfd_in_loop"] = "analytical"` (additive; existing fit JSONs parse unchanged) and `tests/test_cfd_in_loop_evaluator_status.py` now exercises graduation with real records via the conftest factory; `first_class` is reachable in production)
 surface: kayakgen/eval/stability/
 discovered: 2026-05-29 tick-1
 claim: RFC 0058 defers the `kind` discriminator field to a successor RFC, but `cfd_in_loop_evaluator_status` requires records to carry `kind` to determine graduation eligibility, causing all fits without the field to be silently rejected.

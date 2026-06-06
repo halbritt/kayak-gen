@@ -6,6 +6,29 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
+### Changed
+
+- Workflow 0064 (test-protection P1 contract decisions) landed the two
+  operator-decided contract fixes from `docs/DECISION_LOG.md`. **D048
+  (P1-COMPARE-GATE, BUG-026):** `kayakgen compare` /
+  `build_comparison_report` now call
+  `ensure_objectives_claim_admissible_for_search`, so claim-inadmissible
+  objectives (`raw_unvalidated` / `uncalibrated_comparative`, e.g.
+  `Rt_N_last:min` or `design_fitness:max`) are refused with the
+  `RFC_0044_SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY` token unless the new
+  `--explicit-exploratory` CLI flag (or `explicit_exploratory=True`) is
+  passed; the labeled `exploratory_frontier` report with accepted-use
+  provenance warnings survives behind the opt-in, and default
+  conservative objectives are unchanged. **D049 (P1-FIT-KIND,
+  BUG-001):** `StabilityFitRecord` gained the `kind:
+  Literal["analytical", "cfd_in_loop"]` discriminator with default
+  `"analytical"` — additive, so existing fit JSONs parse unchanged and
+  the workflow-0063 fixture-digest pin is unaffected — making
+  `cfd_in_loop_evaluator_status` graduation to `first_class` reachable
+  with real records; the graduation tests now build real
+  `StabilityFitRecord` instances via the shared conftest factory (one
+  labeled SimpleNamespace shape-tolerance test remains).
+
 ### Added
 
 - Workflow 0063 (test-protection P1 durable-state hardening) landed the
