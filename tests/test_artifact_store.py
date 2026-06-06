@@ -269,6 +269,76 @@ def test_intact_store_file_left_alone_on_dedupe(
 
 
 # ---------------------------------------------------------------------------
+# Workflow 0063 / audit R6: SqliteIndex schema versioning (rebuild-not-migrate)
+
+
+def test_stale_schema_version_db_rebuilt_not_crashed(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    """Audit R6: a pre-versioning DB (user_version 0) missing a column must
+    trigger a rebuild on the next upsert — the index is a rebuildable
+    read-model — instead of ``OperationalError`` mid-sweep. ``kayakgen runs
+    list`` works against the rebuilt DB."""
+
+    # Stage a stale schema at the env-resolved index path: runs table
+    # missing the out_dir column, as the schema looked before RFC 0049 grew.
+    conn = sqlite3.connect(isolated_index)
+    conn.execute(
+        "CREATE TABLE runs (run_id TEXT PRIMARY KEY, kind TEXT, "
+        "spec_hash TEXT, run_hash TEXT, created_at INTEGER)"
+    )
+    conn.execute("INSERT INTO runs VALUES ('stale', 'sweep', 's', 'r', 1)")
+    conn.commit()
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 0
+    conn.close()
+
+    db = SqliteIndex()  # resolves KAYAKGEN_INDEX_DB -> the stale DB
+    with pytest.warns(UserWarning, match="rebuilding"):
+        db.upsert_run(
+            run_id="new",
+            kind="sweep",
+            spec_hash="sh",
+            run_hash="rh",
+            out_dir=str(tmp_path),
+        )
+
+    # Rebuilt: stale phantom dropped, new row present, stamp current.
+    assert [r["run_id"] for r in db.list_runs()] == ["new"]
+    conn = sqlite3.connect(isolated_index)
+    assert (
+        conn.execute("PRAGMA user_version").fetchone()[0]
+        == SqliteIndex.SCHEMA_VERSION
+    )
+    conn.close()
+
+    result = CliRunner().invoke(app, ["runs", "list"])
+    assert result.exit_code == 0
+
+
+def test_current_schema_version_db_preserved_on_reopen(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    """Normal reuse must NOT rebuild: reopening a current-version DB keeps
+    its rows and emits no rebuild warning (no data loss outside a genuine
+    schema bump)."""
+
+    first = SqliteIndex(isolated_index)
+    first.upsert_run(
+        run_id="keep",
+        kind="sweep",
+        spec_hash="sh",
+        run_hash="rh",
+        out_dir=str(tmp_path),
+    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        reopened = SqliteIndex(isolated_index)
+        rows = reopened.list_runs()
+    assert [r["run_id"] for r in rows] == ["keep"]
+
+
+# ---------------------------------------------------------------------------
 # SQLite index after one run_sweep
 
 

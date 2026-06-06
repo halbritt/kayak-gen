@@ -150,7 +150,17 @@ class SqliteIndex:
 
     Schema matches RFC 0049 § "SQLite index v1". Tables are created
     lazily on first use; existing rows are upserted by their primary key.
+
+    The schema is stamped with ``PRAGMA user_version = SCHEMA_VERSION``
+    (audit R6). On open, a DB stamped lower than the current version is
+    dropped and recreated with a ``UserWarning`` — the index is a
+    rebuildable read-model over the run directories, so rebuild-not-migrate
+    is the deliberate policy (full migration machinery is out of scope).
+    Bump ``SCHEMA_VERSION`` whenever a table or column is added or changed.
     """
+
+    #: bump on any schema change; older on-disk stamps trigger a rebuild.
+    SCHEMA_VERSION = 1
 
     def __init__(self, path: Path | str | None = None) -> None:
         self.path = Path(path).expanduser() if path is not None else _default_index_path()
@@ -163,12 +173,49 @@ class SqliteIndex:
         conn.row_factory = sqlite3.Row
         try:
             if not self._initialised:
-                self._create_schema(conn)
+                self._ensure_schema(conn)
                 self._initialised = True
             yield conn
             conn.commit()
         finally:
             conn.close()
+
+    def _ensure_schema(self, conn: sqlite3.Connection) -> None:
+        """Create the schema, rebuilding first if the stamp is stale.
+
+        Audit R6: ``CREATE TABLE IF NOT EXISTS`` alone meant any column
+        addition made every existing operator DB raise ``OperationalError``
+        at upsert time, mid-sweep. A fresh (empty) DB is stamped silently;
+        a DB at the current version is left untouched apart from the
+        idempotent CREATE statements, so normal reuse never drops rows.
+        """
+
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        if version < self.SCHEMA_VERSION:
+            tables = [
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master "
+                    "WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+                )
+            ]
+            if tables:
+                warnings.warn(
+                    f"kayakgen index at {self.path} has schema version "
+                    f"{version} < {self.SCHEMA_VERSION}; rebuilding the "
+                    f"read-model (dropping: {', '.join(sorted(tables))}). "
+                    "The index is rebuildable from run directories "
+                    "(index_run_directory).",
+                    stacklevel=4,
+                )
+                cur = conn.cursor()
+                for name in tables:
+                    cur.execute(f'DROP TABLE IF EXISTS "{name}"')
+            self._create_schema(conn)
+            conn.execute(f"PRAGMA user_version = {int(self.SCHEMA_VERSION)}")
+        else:
+            # Current (or future) stamp: never drop, never downgrade.
+            self._create_schema(conn)
 
     @staticmethod
     def _create_schema(conn: sqlite3.Connection) -> None:
