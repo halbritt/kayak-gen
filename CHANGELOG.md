@@ -8,6 +8,29 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Changed
 
+- Workflow 0066 (re-audit gap remediation) closed nine standing gaps
+  from the 2026-06-06 post-remediation re-audit (G1-G6, G8-G10), one
+  commit per item. **G1 (SERIOUS):** the skip-count pin that commit
+  `fbfdf9e` and `docs/RELEASE_DISCIPLINE.md` claimed is now actually
+  enforced — `scripts/fast-gate.sh` parses the pytest summary and fails
+  unless exactly 4 documented OpenFOAM opt-in skips are reported, and
+  the new `scripts/full-gate.sh` (ruff + full suite + the identical
+  pin) is the mechanical form of the pre-merge / striatum slice gate.
+  **G2 (SERIOUS, D050):** `ArtifactStore` reads are SERVE-ONLY-VERIFIED
+  — `get_json`/`get_file` rehash bytes before serving, repair from an
+  intact canonical copy when possible, and otherwise raise the new
+  structured `ArtifactIntegrityError` instead of silently serving
+  corrupt provenance bytes (the re-derive branch's warn-and-serve on
+  mismatch is escalated to the same raise). The rest are test-only
+  pins: gate-manifest self-checks (G4), store error-branch fallbacks
+  (G6), the SqliteIndex newer-stamp leave-alone direction (G8), the
+  BUG-041 TOCTOU window (G9), the compare CLI's RFC 0044
+  refusal/opt-in wiring (G3), the MAPE/R2 fit-threshold reason tokens
+  with the fail-closed R2-default quirk pinned as intended (G5), and
+  the calibration CSV-ingest refusal paths (G10). G7 (CLI NaN
+  negatives) and G11 stay deferred by documented decision. Full suite
+  after: 1347 passed + exactly 4 documented skips.
+
 - Workflow 0065 (test-protection P2 top-ups) closed out the 2026-06-06
   remediation plan's deferrable tier. Test-only additions: an external
   closed-form hydrostatics anchor (parabolic `distribution_v2` body;

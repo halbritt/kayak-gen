@@ -10,8 +10,9 @@
 #
 # Install as .git/hooks/pre-push via scripts/install-hooks.sh.
 #
-# Deselect list (measured on the operator workstation 2026-06-06;
-# full suite: 1309 passed + 4 skipped in 8:36):
+# Deselect list (re-measured 2026-06-06 after workflow 0066, in a
+# striatum per-job worktree with KAYAKGEN_PY -> the primary venv;
+# full suite: 1347 passed + 4 skipped in 10:49):
 #
 #  Named sets (workflow 0062 / remediation plan Q3):
 #   tests/test_web_browser.py                      34.3s  browser/visual (Playwright)
@@ -38,9 +39,11 @@
 #  test_desktop_layout.py), claims promotion chain, artifact-store +
 #  index-isolation regression, registry/metadata pins.
 #
-# Measured fast-subset runtime (2026-06-06): 2m57s wall — pytest 175.4s
-# (1052 passed / 4 skipped / 2 deselected) + ruff + interpreter startup.
-# Budget: <= ~3 minutes. The 4 skips are the documented OpenFOAM opt-ins.
+# Measured fast-subset runtime (2026-06-06, post-workflow-0066): 3m42s
+# wall — pytest 220.6s (1087 passed / 4 skipped / 2 deselected) + ruff +
+# interpreter startup. Budget: <= ~3 minutes — this measurement runs
+# slightly over; revisit the deselect list if the subset keeps growing.
+# The 4 skips are the documented OpenFOAM opt-ins.
 #
 # Skip-count pin (audit G1, 2026-06-06): the run fails unless the pytest
 # summary reports exactly EXPECTED_SKIPS skips. The pin assumes the

@@ -123,8 +123,9 @@ days with nothing making the red visible. Enforcement is two-layered:
    subset and refuses the push on failure — including on a green run
    whose skip count differs from the pinned 4 (audit G1). The
    canonical deselect list and the measured runtime live in the
-   script header (measured 2026-06-06: 2m57s — 1052 passed /
-   4 skipped / 2 deselected — vs. 8:36 for the full suite;
+   script header (re-measured 2026-06-06 post-workflow-0066: 3m42s —
+   1087 passed / 4 skipped / 2 deselected — vs. 10:49 for the full
+   suite;
    deselected: the browser/visual suite, the subprocess-lifecycle
    suite, the CFD fixture-command integration tests, and the
    measured runtime-dominant integration files).
