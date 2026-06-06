@@ -122,8 +122,61 @@ def test_subprocess_manager_runs_search_to_succeeded(tmp_path: Path) -> None:
     assert (Path(final.output_dir) / "run.json").exists()
 
 
+def test_subprocess_manager_cancel_deterministic_with_controlled_runner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Manager-level cancel contract, executed deterministically (audit R8).
+
+    This test — not the racy real-subprocess smoke below — OWNS the manager
+    cancel contract, so the cancel path runs unconditionally in the default
+    suite on every machine: no poll loop, no sleep, no race-dependent
+    outcome. The sweep runner is replaced with ``_controlled_cancel_runner``
+    and the manager's subprocess spawn is rerouted to invoke the real runner
+    entry-point in-process (the monkeypatch cannot cross a real process
+    boundary). ``manager.cancel`` touches the flag BEFORE the runner body
+    executes, so the runner provably observes the cancel mid-flight.
+    """
+
+    monkeypatch.setattr(
+        "kayakgen.search.sweep.run_sweep",
+        _controlled_cancel_runner,
+    )
+    manager = SubprocessGenerativeJobManager(jobs_root=tmp_path)
+
+    def _inline_spawn(job_id: str, *, resume: bool) -> None:
+        # Deterministic ordering: the flag exists before the runner runs,
+        # so _controlled_cancel_runner's should_cancel() assertion holds.
+        cancelled = manager.cancel(job_id)
+        assert cancelled.cancellation_requested_at is not None
+        assert (tmp_path / job_id / CANCEL_FLAG_FILENAME).exists()
+        assert run_subprocess_entry(tmp_path, job_id, resume=resume) == 0
+
+    monkeypatch.setattr(manager, "_spawn", _inline_spawn)
+
+    job = manager.start(spec_payload=_sweep_payload(), job_kind="sweep")
+
+    final = manager.get(job.job_id)
+    assert final.state == "resumable"
+    assert final.cancellation_requested_at is not None
+    assert final.error is not None
+    assert final.error.kind == "cancelled_by_operator"
+    assert final.resumable_from_checkpoint is True
+    assert final.progress.realized_evaluations == 1
+    # Runner cleans the flag on terminal write so a subsequent resume
+    # doesn't immediately re-cancel.
+    assert not (tmp_path / job.job_id / CANCEL_FLAG_FILENAME).exists()
+
+
 def test_subprocess_manager_cancel_via_flag(tmp_path: Path) -> None:
-    """Cancel writes a flag file the subprocess polls; job ends ``resumable``."""
+    """Integration SMOKE for cancel against a real subprocess — not the gate.
+
+    The cancel contract is owned by
+    ``test_subprocess_manager_cancel_deterministic_with_controlled_runner``
+    above. This variant races a real child process, so its final assertion
+    is deliberately disjunctive: on a fast machine the sweep may finish
+    before the child polls the flag, and that outcome is acceptable for
+    smoke. Do NOT tighten it; deterministic assertions belong above.
+    """
 
     manager = SubprocessGenerativeJobManager(jobs_root=tmp_path)
     # Big-enough sweep so the cancel arrives mid-flight.
@@ -193,6 +246,16 @@ def test_subprocess_runner_cancel_flag_requires_resumable_and_cleans_flag(
 
 
 def test_subprocess_manager_resume_after_cancel(tmp_path: Path) -> None:
+    """Integration SMOKE for the cancel→resume path — not the gate.
+
+    The deterministic cancel contract is owned by
+    ``test_subprocess_manager_cancel_deterministic_with_controlled_runner``;
+    this variant races a real child process, so BOTH race outcomes are
+    asserted as acceptable instead of skipping out mid-race: if the cancel
+    flag landed, resume must complete; if the sweep finished first, the job
+    must have succeeded. Either way the test runs to a real assertion.
+    """
+
     manager = SubprocessGenerativeJobManager(jobs_root=tmp_path)
     values = [0.46 + 0.005 * i for i in range(30)]
     job = manager.start(
@@ -202,14 +265,16 @@ def test_subprocess_manager_resume_after_cancel(tmp_path: Path) -> None:
     manager.join(job.job_id, timeout=180.0)
 
     intermediate = manager.get(job.job_id)
-    if intermediate.state != "resumable":
-        pytest.skip("job completed before cancel landed; nothing to resume")
-
-    manager.resume(job.job_id)
-    manager.join(job.job_id, timeout=180.0)
-
-    final = manager.get(job.job_id)
-    assert final.state in ("succeeded", "resumable")
+    if intermediate.state == "resumable":
+        # Cancel won the race: exercise resume-from-checkpoint for real.
+        manager.resume(job.job_id)
+        manager.join(job.job_id, timeout=180.0)
+        final = manager.get(job.job_id)
+        assert final.state in ("succeeded", "resumable")
+    else:
+        # Sweep finished before the child polled the flag — acceptable for
+        # smoke; the deterministic test above pins the cancel contract.
+        assert intermediate.state == "succeeded"
 
 
 def test_subprocess_manager_crash_survival(tmp_path: Path) -> None:
