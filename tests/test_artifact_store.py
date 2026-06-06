@@ -17,6 +17,7 @@ from kayakgen.services.artifact_store import (
     ArtifactRef,
     FilesystemArtifactStore,
     SqliteIndex,
+    _default_index_path,
 )
 from kayakgen.services.identity import (
     design_hash_for_hull,
@@ -108,6 +109,53 @@ def isolated_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     db = tmp_path / "index.sqlite"
     monkeypatch.setenv("KAYAKGEN_INDEX_DB", str(db))
     return db
+
+
+# ---------------------------------------------------------------------------
+# Workflow 0062 / audit R3: index-DB isolation regression
+
+
+USER_LEVEL_INDEX_DB = Path.home() / ".local" / "share" / "kayakgen" / "index.sqlite"
+
+
+def test_index_db_isolated_from_user_level_path(
+    tmp_path_factory: pytest.TempPathFactory,
+    _isolate_kayakgen_index_db_session: Path,
+) -> None:
+    """Audit R3: no test may write ``~/.local/share/kayakgen/index.sqlite``.
+
+    This test requests no per-test isolation fixture of its own, so the env
+    var being set here proves the autouse ``_isolate_kayakgen_index_db``
+    fixture in ``tests/conftest.py`` is active for every test. Before
+    remediation, sweep/search/CFD runner tests constructed ``SqliteIndex()``
+    with the default path and filled the operator's production
+    ``kayakgen runs`` read-model with pytest tmp-path phantoms (129/129 rows
+    at audit time).
+    """
+
+    env = os.environ.get("KAYAKGEN_INDEX_DB")
+    assert env, "autouse KAYAKGEN_INDEX_DB isolation fixture is not active"
+
+    resolved = _default_index_path()
+    assert resolved == Path(env).expanduser()
+    assert resolved != USER_LEVEL_INDEX_DB
+
+    # The isolated path lives inside pytest's tmp tree for this session.
+    basetemp = tmp_path_factory.getbasetemp().resolve()
+    assert basetemp in resolved.resolve().parents
+
+    # A default-constructed index lands on the isolated path, never the
+    # user-level location.
+    assert SqliteIndex().path == resolved
+
+    # Session floor (workflow 0062 leak fix): job code that resolves the env
+    # var after a test's monkeypatch undo — e.g. an unjoined forked search
+    # job finishing on a background thread — must still land in pytest's tmp
+    # tree, because the session-scoped fixture pins the restored value.
+    session_db = _isolate_kayakgen_index_db_session
+    assert session_db != USER_LEVEL_INDEX_DB
+    assert basetemp in session_db.resolve().parents
+    assert session_db != Path(env).expanduser()
 
 
 def test_filesystem_store_round_trip(tmp_path: Path, isolated_index: Path) -> None:

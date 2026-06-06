@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -298,3 +299,58 @@ def clear_stability_registry_cache():
     clear_registry_cache()
     yield
     clear_registry_cache()
+
+
+# ---------------------------------------------------------------------------
+# Workflow 0062 (P0-INDEX-ISOLATION): keep tests out of the user-level index DB
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _isolate_kayakgen_index_db_session(
+    tmp_path_factory: pytest.TempPathFactory,
+):
+    """Session-wide floor: ``KAYAKGEN_INDEX_DB`` never resolves user-level.
+
+    The per-test fixture below is undone at each test's teardown. Job code
+    that outlives a test on a background thread (e.g. a forked
+    ``InProcessGenerativeJobManager`` search job that the test never joins)
+    can construct ``SqliteIndex()`` *after* that undo; without this floor the
+    env var reverts to unset and the write lands in the operator's real
+    ``~/.local/share/kayakgen/index.sqlite`` (observed: one phantom ``runs``
+    row from ``test_fork_route_returns_201_with_new_job`` during workflow
+    0062 verification). Setting the session-level value here means any undo
+    restores a tmp path, never the user-level default.
+    """
+
+    db = tmp_path_factory.mktemp("index-session") / "index.sqlite"
+    original = os.environ.get("KAYAKGEN_INDEX_DB")
+    os.environ["KAYAKGEN_INDEX_DB"] = str(db)
+    yield db
+    if original is None:
+        os.environ.pop("KAYAKGEN_INDEX_DB", None)
+    else:
+        os.environ["KAYAKGEN_INDEX_DB"] = original
+
+
+@pytest.fixture(autouse=True)
+def _isolate_kayakgen_index_db(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Path:
+    """Point ``KAYAKGEN_INDEX_DB`` at a per-test tmp path for every test.
+
+    Audit finding R3 (2026-06-06): sweep/search/CFD runner tests construct
+    ``FilesystemArtifactStore`` with the default ``SqliteIndex()``, which
+    resolves to the operator's real ``~/.local/share/kayakgen/index.sqlite``
+    when ``KAYAKGEN_INDEX_DB`` is unset — at audit time 129/129 ``runs`` rows
+    in that production read-model were pytest tmp-path phantoms. This autouse
+    fixture (per-test freshness) plus the session floor above make it
+    impossible for any test to write the user-level DB;
+    ``tests/test_artifact_store.py::test_index_db_isolated_from_user_level_path``
+    pins the property.
+    """
+
+    db = tmp_path_factory.mktemp("index") / "index.sqlite"
+    monkeypatch.setenv("KAYAKGEN_INDEX_DB", str(db))
+    return db
