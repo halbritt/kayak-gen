@@ -90,6 +90,14 @@ Every commit must pass, in this order:
 4. **Co-author attribution** on any commit an agent participated
    in: `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>`.
 
+Requirements 1 and 2 have a mechanical form: `scripts/full-gate.sh`
+runs ruff plus the full suite and **enforces** the skip count — it
+parses the pytest summary and fails unless `skipped == 4` (audit G1,
+2026-06-06: the pin was previously claimed but unimplemented). The
+pin assumes the OpenFOAM env knobs are unset; a solver-equipped host
+running the smoke uses the explicit opt-in command below, not the
+gate scripts.
+
 The opt-in OpenFOAM smoke is the recommended pre-push gate when a
 change touches CFD, the OpenFOAM adapter, the case templates, or the
 provenance probe. Run it locally with:
@@ -112,22 +120,26 @@ days with nothing making the red visible. Enforcement is two-layered:
 
    This installs `scripts/fast-gate.sh` as `.git/hooks/pre-push`. The
    fast gate runs `ruff check kayakgen tests` plus the fast pytest
-   subset and refuses the push on failure. The canonical deselect
-   list and the measured runtime live in the script header (measured
-   2026-06-06: 2m57s — 1052 passed / 4 skipped / 2 deselected — vs.
-   8:36 for the full suite; deselected: the browser/visual suite, the
-   subprocess-lifecycle suite, the CFD fixture-command integration
-   tests, and the measured runtime-dominant integration files).
+   subset and refuses the push on failure — including on a green run
+   whose skip count differs from the pinned 4 (audit G1). The
+   canonical deselect list and the measured runtime live in the
+   script header (measured 2026-06-06: 2m57s — 1052 passed /
+   4 skipped / 2 deselected — vs. 8:36 for the full suite;
+   deselected: the browser/visual suite, the subprocess-lifecycle
+   suite, the CFD fixture-command integration tests, and the
+   measured runtime-dominant integration files).
    `git push --no-verify` bypasses the hook in emergencies; the
    bypass does not waive the full-suite pre-merge gate above.
 
 2. **Striatum slice gates (full suite).** Striatum workflow
-   review/apply jobs for this repo run the FULL suite
-   (`.venv/bin/python -m pytest -q` → 0 failed, exactly the 4
-   documented OpenFOAM opt-in skips) plus
-   `.venv/bin/python -m ruff check kayakgen tests` as their
-   slice-completion gate. A lane agent cannot complete a slice on a
-   red suite.
+   review/apply jobs for this repo run `scripts/full-gate.sh` as
+   their slice-completion gate — the mechanical form of the FULL
+   suite requirement (`.venv/bin/python -m pytest -q` → 0 failed,
+   exactly the 4 documented OpenFOAM opt-in skips, enforced by the
+   script's skip-count pin) plus
+   `.venv/bin/python -m ruff check kayakgen tests`. A lane agent
+   cannot complete a slice on a red suite — or on a green one with
+   the wrong skip count.
 
 The fast gate is a convenience net between full-suite gates, not the
 release gate; pre-merge requirement 1 above is unchanged by it.

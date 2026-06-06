@@ -41,6 +41,12 @@
 # Measured fast-subset runtime (2026-06-06): 2m57s wall — pytest 175.4s
 # (1052 passed / 4 skipped / 2 deselected) + ruff + interpreter startup.
 # Budget: <= ~3 minutes. The 4 skips are the documented OpenFOAM opt-ins.
+#
+# Skip-count pin (audit G1, 2026-06-06): the run fails unless the pytest
+# summary reports exactly EXPECTED_SKIPS skips. The pin assumes the
+# OpenFOAM env knobs (KAYAKGEN_OPENFOAM_SMOKE, KAYAKGEN_OPENFOAM_LOCAL_RUN)
+# are UNSET; a solver-equipped host running the smoke uses the explicit
+# opt-in command from docs/RELEASE_DISCIPLINE.md, not this gate.
 
 set -euo pipefail
 
@@ -57,6 +63,18 @@ fi
 echo "[fast-gate] ruff check kayakgen tests"
 "$PY" -m ruff check kayakgen tests
 
+# Expected skip count: the 4 documented OpenFOAM opt-ins
+# (docs/RELEASE_DISCIPLINE.md "Pre-merge requirements"). Any other count
+# means the environment is missing extras and the run does not count.
+EXPECTED_SKIPS=4
+
+# Stream pytest output to the operator while capturing it for the skip-pin
+# parse. Under `set -euo pipefail` a red pytest fails the `| tee` pipeline
+# and exits the script here, which is the desired gate behavior; the pin
+# below only ever sees green runs.
+summary_file="$(mktemp)"
+trap 'rm -f "$summary_file"' EXIT
+
 echo "[fast-gate] pytest fast subset (full suite remains the release gate)"
 "$PY" -m pytest -q \
   --ignore=tests/test_web_browser.py \
@@ -71,6 +89,19 @@ echo "[fast-gate] pytest fast subset (full suite remains the release gate)"
   --ignore=tests/test_generative_jobs_manager.py \
   --ignore=tests/test_compare.py \
   --deselect "tests/test_cli.py::test_cfd_fixture_run_and_status_keep_raw_warning_visible" \
-  --deselect "tests/test_web.py::test_cfd_routes_fixture_command_success_remains_raw_unvalidated"
+  --deselect "tests/test_web.py::test_cfd_routes_fixture_command_success_remains_raw_unvalidated" \
+  2>&1 | tee "$summary_file"
 
-echo "[fast-gate] OK"
+# Skip-count pin (audit G1): a green exit code with the wrong skip count
+# means env-gated tests silently skipped; refuse the gate.
+skipped="$(grep -Eo '[0-9]+ skipped' "$summary_file" | tail -n 1 | grep -Eo '[0-9]+' || true)"
+skipped="${skipped:-0}"
+if [ "$skipped" -ne "$EXPECTED_SKIPS" ]; then
+  echo "[fast-gate] FAIL: $skipped skipped, expected exactly $EXPECTED_SKIPS" \
+    "(documented OpenFOAM opt-ins — docs/RELEASE_DISCIPLINE.md)." >&2
+  echo "[fast-gate] A different count means this environment is missing" \
+    "extras (or has OpenFOAM knobs set); the run does not count as a gate." >&2
+  exit 1
+fi
+
+echo "[fast-gate] OK ($skipped skipped == expected $EXPECTED_SKIPS)"
