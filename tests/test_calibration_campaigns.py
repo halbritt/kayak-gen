@@ -193,6 +193,89 @@ def test_inclining_test_csv_ingest_emits_valid_campaign() -> None:
 
 
 # ---------------------------------------------------------------------------
+# CSV ingest refusal paths (audit G10, workflow 0066): the refusal code
+# existed with no tests — schema drift is supposed to be caught at
+# validation, so each refusal direction is pinned here.
+
+
+def test_tank_test_csv_missing_required_column_is_refused(tmp_path: Path) -> None:
+    csv_path = tmp_path / "missing.csv"
+    # header drops sink_mm
+    csv_path.write_text(
+        "speed_ms,total_drag_n,drag_uncertainty_n,trim_deg,water_temperature_c,notes\n"
+        "0.5,2.1,0.05,0.10,15.0,calm\n"
+    )
+    with pytest.raises(ValueError, match=r"missing required columns.*sink_mm"):
+        tank_test_campaign_from_csv(
+            csv_path,
+            source_id="synthetic-tank-001",
+            hull_design_hash="synthetic-hull-hash",
+            rights_checklist=_rights(),
+            geometry_reference=_geometry(),
+            uncertainty_method="Type_A_repeatability",
+        )
+
+
+def test_tank_test_csv_unrecognised_extra_column_is_refused(tmp_path: Path) -> None:
+    csv_path = tmp_path / "extra.csv"
+    csv_path.write_text(
+        "speed_ms,total_drag_n,drag_uncertainty_n,trim_deg,sink_mm,"
+        "water_temperature_c,notes,wave_height_m\n"
+        "0.5,2.1,0.05,0.10,0.50,15.0,calm,0.0\n"
+    )
+    with pytest.raises(ValueError, match=r"unrecognised columns.*wave_height_m"):
+        tank_test_campaign_from_csv(
+            csv_path,
+            source_id="synthetic-tank-001",
+            hull_design_hash="synthetic-hull-hash",
+            rights_checklist=_rights(),
+            geometry_reference=_geometry(),
+            uncertainty_method="Type_A_repeatability",
+        )
+
+
+def test_inclining_csv_bool_garbage_is_refused(tmp_path: Path) -> None:
+    csv_path = tmp_path / "garbage-bool.csv"
+    # sealed_body carries a value _coerce_bool cannot interpret
+    csv_path.write_text(
+        "heel_deg,applied_moment_nm,applied_moment_uncertainty_nm,"
+        "sealed_body,cockpit_flooded,paddler_state,notes\n"
+        "2.0,12.5,0.3,maybe,false,absent,\n"
+    )
+    with pytest.raises(ValueError, match=r"cannot coerce 'maybe' to bool"):
+        inclining_test_campaign_from_csv(
+            csv_path,
+            source_id="synthetic-inclining-001",
+            hull_design_hash="synthetic-hull-hash",
+            rights_checklist=_rights(),
+            geometry_reference=_geometry(),
+        )
+
+
+def test_inclining_campaign_row_source_id_must_match_campaign() -> None:
+    # Audit G10: the tank-side twin of this validator is tested above
+    # (test_campaign_row_source_id_must_match_campaign); this mirrors it
+    # for IncliningTestCampaign._rows_share_source_id.
+    with pytest.raises(ValidationError, match="must all carry the campaign source_id"):
+        IncliningTestCampaign(
+            source_id="synthetic-inclining-001",
+            rights_checklist=_rights(),
+            geometry_reference=_geometry(),
+            rows=[
+                IncliningTestRun(
+                    source_id="wrong-id",
+                    hull_design_hash="x",
+                    heel_deg=2.0,
+                    applied_moment_nm=12.5,
+                    sealed_body=True,
+                    cockpit_flooded=False,
+                    paddler_state="absent",
+                )
+            ],
+        )
+
+
+# ---------------------------------------------------------------------------
 # Threshold evaluation
 
 
