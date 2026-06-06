@@ -377,6 +377,97 @@ def test_equal_length_bit_rot_caught_by_read_rehash(
 
 
 # ---------------------------------------------------------------------------
+# Workflow 0066 / audit G6: _verify_or_repair_store_file error-branch pins
+
+
+def test_store_verify_stat_failure_falls_back_to_rehash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Audit G6 (:719): a stat failure must not trigger a spurious repair.
+
+    The OSError fallback sets ``existing_size = -1``, which fails the
+    length screen and forces the rehash-to-confirm read; an intact
+    occupant is then left alone. Monkeypatched ``Path.stat`` (not
+    chmod 000) so the test is deterministic and root-safe."""
+
+    data = b'{"k": "stat-denied"}'
+    artifact_hash = hashlib.sha256(data).hexdigest()
+    store_path = tmp_path / f"{artifact_hash}.json"
+    store_path.write_bytes(data)
+
+    real_stat = Path.stat
+
+    def deny_stat(self: Path, *args: object, **kwargs: object):
+        if self == store_path:
+            raise OSError("simulated stat failure")
+        return real_stat(self, *args, **kwargs)  # type: ignore[arg-type]
+
+    with monkeypatch.context() as m:
+        m.setattr(Path, "stat", deny_stat)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # any repair warning -> failure
+            FilesystemArtifactStore._verify_or_repair_store_file(
+                store_path, artifact_hash, data
+            )
+    # intact occupant untouched, no temp sibling left behind
+    assert store_path.read_bytes() == data
+    assert list(tmp_path.glob(".*")) == []
+
+
+def test_store_verify_read_failure_repairs_with_intact_payload(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Audit G6 (:726-727): an unreadable occupant cannot be confirmed
+    intact, so the defined behavior is warn + atomic repair with the
+    intact payload in hand."""
+
+    data = b'{"k": "read-denied", "pad": "xxxxxxxx"}'
+    artifact_hash = hashlib.sha256(data).hexdigest()
+    store_path = tmp_path / f"{artifact_hash}.json"
+    store_path.write_bytes(data[: len(data) // 2])  # length screen fails
+
+    real_read = Path.read_bytes
+
+    def deny_read(self: Path):
+        if self == store_path:
+            raise OSError("simulated read failure")
+        return real_read(self)
+
+    with monkeypatch.context() as m:
+        m.setattr(Path, "read_bytes", deny_read)
+        with pytest.warns(UserWarning, match="repairing"):
+            FilesystemArtifactStore._verify_or_repair_store_file(
+                store_path, artifact_hash, data
+            )
+    assert store_path.read_bytes() == data
+    assert list(tmp_path.glob(".*")) == []
+
+
+def test_missing_store_with_drifted_canonical_raises(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    """Audit G6, redefined by G2/D050: the re-derive branch used to warn
+    on hash mismatch and serve the wrong bytes (re-creating the mirror
+    under the drifted hash); it must now fail closed with no mirror
+    write."""
+
+    run_dir = tmp_path / "run-rederive-drift"
+    store = FilesystemArtifactStore(run_dir, run_id="rederive-drift")
+    canonical = run_dir / "run.json"
+    ref = store.put_json("sweep_run_record", {"k": 4}, canonical_path=canonical)
+    (run_dir / "_store" / f"{ref.artifact_hash}.json").unlink()
+    canonical.unlink()
+    canonical.write_bytes(b'{"k": "drifted"}')
+
+    with pytest.raises(ArtifactIntegrityError) as excinfo:
+        store.get_json(ref)
+    assert excinfo.value.path == canonical
+    assert excinfo.value.expected_hash == ref.artifact_hash
+    # fail closed: nothing was re-mirrored under either hash
+    assert [p.name for p in store.store_dir.iterdir()] == []
+
+
+# ---------------------------------------------------------------------------
 # Workflow 0063 / audit R6: SqliteIndex schema versioning (rebuild-not-migrate)
 
 
