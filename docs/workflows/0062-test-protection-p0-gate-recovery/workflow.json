@@ -1,0 +1,155 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0062-test-protection-p0-gate-recovery",
+  "workflow_version": "2026-06-06",
+  "name": "0062 - Test-protection P0: gate recovery (boundary fix, index isolation, gate enforcement)",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0062-test-protection-p0-gate-recovery",
+    "allow_dirty": false
+  },
+  "coordinator": {
+    "role_id": "author",
+    "lane_id": "author"
+  },
+  "lanes": {
+    "author": {
+      "adapter": "process",
+      "display_model": "claude",
+      "command": ["claude", "--dangerously-skip-permissions"],
+      "adapter_capabilities": {"agent_loop": true},
+      "supervision": {"transport": "pty_helper", "compatible": true, "require_tmux": true},
+      "capabilities": ["write"],
+      "worktree_isolation": "per_job"
+    },
+    "reviewer": {
+      "adapter": "process",
+      "display_model": "codex",
+      "command": ["codex", "--yolo"],
+      "adapter_capabilities": {"agent_loop": true},
+      "supervision": {"transport": "pty_helper", "compatible": true, "require_tmux": true},
+      "capabilities": ["review"]
+    }
+  },
+  "roles": {
+    "author": {"definition_path": "roles/author.md"},
+    "reviewer": {"definition_path": "roles/reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/RELEASE_DISCIPLINE.md", "required": true},
+    {"path": "KAYAKGEN_TEST_COVERAGE_AUDIT_CLAUDE_OPUS_4_8_2026-06-06.md", "required": true},
+    {"path": "KAYAKGEN_TEST_PROTECTION_REMEDIATION_PLAN_CLAUDE_OPUS_4_8_2026-06-06.md", "required": true},
+    {"path": "docs/workflows/0062-test-protection-p0-gate-recovery/SOURCES.md", "required": true},
+    {"path": "tests/test_services_boundaries.py", "required": true},
+    {"path": "kayakgen/services/evaluation.py", "required": true},
+    {"path": "kayakgen/ui/hydrostatics_metadata.py", "required": true},
+    {"path": "kayakgen/services/artifact_store.py", "required": true},
+    {"path": "tests/conftest.py", "required": true},
+    {"path": "docs/ARCHITECTURE_MAP.md", "required": true}
+  ],
+  "parallelism": {
+    "mode": "declared",
+    "max_active_jobs": 1,
+    "require_disjoint_write_scopes": true
+  },
+  "jobs": [
+    {
+      "id": "draft",
+      "type": "draft",
+      "title": "Implement P0 slices: boundary fix, index isolation, fast gate + hooks",
+      "role_id": "author",
+      "lane_id": "author",
+      "objective": "Land the three P0 slices from the 2026-06-06 test-protection remediation plan, in order, one commit per slice. SLICE 1 (P0-BOUNDARY-FIX): create kayakgen/metadata/ (new package) hosting the hydrostatics row registry currently at kayakgen/ui/hydrostatics_metadata.py; reduce kayakgen/ui/hydrostatics_metadata.py to a re-export shim (repo shim pattern, see generator.py); point kayakgen/services/evaluation.py at the new location; update the docs/ARCHITECTURE_MAP.md package-layout row. tests/test_services_boundaries.py and tests/test_hydrostatics_row_metadata.py are OUTSIDE your write scope on purpose: the boundary test must go green by fixing the import direction, and the row-metadata byte-stability tests must pass unchanged through the shim. SLICE 2 (P0-INDEX-ISOLATION): add an autouse fixture in tests/conftest.py that points KAYAKGEN_INDEX_DB at a per-test tmp path so no test can write the user-level ~/.local/share/kayakgen/index.sqlite; add a regression test (tests/test_artifact_store.py) that pins the isolation property (the autouse fixture is active and the resolved default index path is never the user-level location during tests); document the fixture's why in a comment citing audit finding R3. SLICE 3 (P0-GATE-ENFORCE): add scripts/fast-gate.sh (ruff check kayakgen tests, then the FAST pytest subset: deselect the browser/visual suite, the subprocess-lifecycle suite, and the CFD fixture-command integration tests; measure and record the runtime in the script header; budget <= ~3 minutes) and scripts/install-hooks.sh (installs fast-gate.sh as .git/hooks/pre-push); update docs/RELEASE_DISCIPLINE.md: replace the 'green or skipped' wording with 'green, with only the documented OpenFOAM opt-in skips (expected: 4)', document the hook install, and record that striatum workflow review/apply jobs run the FULL suite as their gate; add a CHANGELOG.md entry. GATE: after slice 3, run .venv/bin/python -m pytest -q (full suite) and .venv/bin/python -m ruff check kayakgen tests — required outcome: 0 failed, exactly the 4 documented OpenFOAM skips, ruff clean. Heartbeat before and after the ~9-minute full run; do not let the lease expire. Publish the draft artifact enumerating: per-slice diffstat + commit shas, the boundary-test pass evidence, the isolation regression evidence (user DB untouched across the run: capture mtime before/after), the measured fast-gate runtime and its deselect list, and the full-gate output tail.",
+      "task_prompt": {"path": "prompts/draft.md"},
+      "fresh_session_required": true,
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/metadata/",
+          "kayakgen/ui/hydrostatics_metadata.py",
+          "kayakgen/services/evaluation.py",
+          "tests/conftest.py",
+          "tests/test_artifact_store.py",
+          "scripts/",
+          "docs/RELEASE_DISCIPLINE.md",
+          "docs/ARCHITECTURE_MAP.md",
+          "CHANGELOG.md",
+          "striatum/0062-test-protection-p0-gate-recovery/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "tests/test_services_boundaries.py",
+          "tests/test_import_boundaries.py",
+          "tests/test_hydrostatics_row_metadata.py"
+        ]
+      },
+      "expected_artifacts": [
+        {"kind": "handoff", "logical_name": "draft", "path": "striatum/0062-test-protection-p0-gate-recovery/DRAFT.md", "required": true}
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Review the P0 slices for correctness, scope, and gate integrity",
+      "role_id": "reviewer",
+      "lane_id": "reviewer",
+      "fresh_session_required": true,
+      "objective": "Review the three P0 slices against the remediation plan items P0-BOUNDARY-FIX, P0-INDEX-ISOLATION, and P0-GATE-ENFORCE. Verify: (1) the services->ui boundary violation is fixed by relocating the registry (new kayakgen/metadata/ package + shim), NOT by editing or weakening tests/test_services_boundaries.py / tests/test_import_boundaries.py (those files must be untouched — check git diff); the hydro-rows wire payload stays byte-stable (tests/test_hydrostatics_row_metadata.py untouched and green). (2) The conftest autouse fixture makes it impossible for any test to write the user-level index DB; the regression test pins the property rather than asserting trivia. (3) scripts/fast-gate.sh runs ruff + the documented fast subset within its stated budget and scripts/install-hooks.sh installs it as pre-push; docs/RELEASE_DISCIPLINE.md drops the 'green or skipped' loophole and pins the expected skip count (4, OpenFOAM opt-in). (4) The FULL suite is green: 0 failed, exactly 4 documented skips, ruff clean — run it yourself; heartbeat before and after the ~9-minute run so the lease survives (run a short targeted check first and write findings-in-progress before starting the long run). Verdict semantics: use accept or accept_with_findings for anything the apply job can fix; use needs_revision only for scope violations or a red gate; do NOT use a terminal reject (operator hazard: terminal reject wedges the run).",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0062-test-protection-p0-gate-recovery/review/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"kind": "finding", "logical_name": "review", "path": "striatum/0062-test-protection-p0-gate-recovery/review/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "apply",
+      "type": "synthesis",
+      "title": "Apply accepted review findings and finalize the P0 landing",
+      "role_id": "author",
+      "lane_id": "author",
+      "fresh_session_required": true,
+      "objective": "Apply every must-fix finding from the review (keep fixes scoped to the P0 slices; no new design scope), update CHANGELOG.md and docs/workflows/0062-test-protection-p0-gate-recovery/OPERATOR_REPORT.md (what landed, slice shas, measured fast-gate runtime, final gate output), re-run the FULL gate (.venv/bin/python -m pytest -q: 0 failed / 4 documented skips; .venv/bin/python -m ruff check kayakgen tests clean) with heartbeats around the long run, and publish the summary artifact. Leave the slice stack committed on the run branch; merging to main is the operator's step after the run completes.",
+      "task_prompt": {"path": "prompts/apply.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "kayakgen/metadata/",
+          "kayakgen/ui/hydrostatics_metadata.py",
+          "kayakgen/services/evaluation.py",
+          "tests/conftest.py",
+          "tests/test_artifact_store.py",
+          "scripts/",
+          "docs/RELEASE_DISCIPLINE.md",
+          "docs/ARCHITECTURE_MAP.md",
+          "CHANGELOG.md",
+          "docs/workflows/0062-test-protection-p0-gate-recovery/OPERATOR_REPORT.md",
+          "striatum/0062-test-protection-p0-gate-recovery/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "tests/test_services_boundaries.py",
+          "tests/test_import_boundaries.py",
+          "tests/test_hydrostatics_row_metadata.py"
+        ]
+      },
+      "expected_artifacts": [
+        {"kind": "synthesis", "logical_name": "summary", "path": "striatum/0062-test-protection-p0-gate-recovery/SUMMARY.md", "required": true}
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "draft", "on": "completed", "to": "review"},
+    {"from": "review", "on": "completed", "to": "apply"}
+  ],
+  "cycles": [
+    {"from": "review", "on_verdict": "needs_revision", "to": "draft", "max_iterations": 1}
+  ]
+}
