@@ -4,9 +4,14 @@ artifact_kind: "support_ledger"
 audited_artifact: "striatum/refactoring/kayakgen-smoke-1/01-plan/COMMITTED_PLAN.md"
 ---
 
-author: refactoring-author-claude-001
+author: operator-self-declared-execute-slices-attempt-2-revision
 
 # Step Ledger — kayakgen-smoke-1 execution (stage 2, execute_slices)
+
+(Attempt-1 entries below were authored as `refactoring-author-claude-001`;
+the byline above is the attempt-2 re-registered session's required line —
+same lane agent, same conversation, re-registered after the daemon closed
+the original session mid-revision-dispatch.)
 
 Date: 2026-06-05
 Run: `run_f2fbd2ab9adefda44b5e72b6bfefafdf`, stage 2 (execute_slices), attempt 1
