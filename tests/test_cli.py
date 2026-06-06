@@ -12,6 +12,8 @@ from kayakgen.eval.contract import LoadCase, LongitudinalLoadComponent
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import CODE_L_BWL_LOW
+from kayakgen.search.pareto import SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY_TOKEN
+from kayakgen.search.sweep import SweepSpec, run_sweep
 
 FIXTURE_PROFILE_NAME = "fixture-local-command"
 FIXTURE_WARNING_FRAGMENT = "not calibrated, validated, or final design fitness"
@@ -105,6 +107,79 @@ def test_compare_fails_for_directory_without_run_record(tmp_path) -> None:
 
     assert result.exit_code == 1
     assert "missing sweep run record" in result.stderr
+
+
+def _stage_gated_compare_run(run_dir) -> None:
+    """Stage a sweep run whose candidates carry the gated Rt_N_last metric.
+
+    Mirrors the function-level fixture in tests/test_compare.py
+    (test_raw_resistance_objective_without_opt_in_is_refused): the
+    raw_unvalidated resistance metric is planted in candidate summaries so
+    an explicit ``-o Rt_N_last:min`` objective trips the RFC 0044 gate.
+    """
+    spec = SweepSpec(
+        name="cli-compare-gated",
+        base_hull={"beam_oa_m": 0.60},
+        variables={"beam_wl_m": {"kind": "values", "values": [0.50, 0.55]}},
+    )
+    run = run_sweep(spec, run_dir)
+    for index, record in enumerate(run.candidates):
+        record.summary["Rt_N_last"] = float(10 + index)
+        record.summary["resistance_use"] = "comparative_filter"
+    (run_dir / "run.json").write_text(run.model_dump_json(indent=2))
+
+
+def test_compare_gated_objective_without_opt_in_refuses_at_cli(tmp_path) -> None:
+    """Audit G3 / D048: the CLI wiring of the RFC 0044 refusal.
+
+    All prior refusal coverage was function-level (build_comparison_report);
+    the CLI's broad ``try/except -> exit 1`` wrapper meant a wiring
+    regression (flag dropped, token swallowed) would never be caught. This
+    pins: gated objective without --explicit-exploratory -> exit code 1
+    with the RFC 0044 token surfaced in the CLI error output."""
+
+    run_dir = tmp_path / "run"
+    _stage_gated_compare_run(run_dir)
+    report = tmp_path / "comparison.json"
+
+    result = CliRunner().invoke(
+        app,
+        ["compare", str(run_dir), "--out", str(report), "-o", "Rt_N_last:min"],
+    )
+
+    assert result.exit_code == 1, result.output
+    assert SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY_TOKEN in result.stderr
+    # refusal happens before the report is written
+    assert not report.exists()
+
+
+def test_compare_gated_objective_with_opt_in_writes_exploratory_report(
+    tmp_path,
+) -> None:
+    """Audit G3 / D048: the opt-in half of the CLI pair — same gated
+    objective WITH --explicit-exploratory -> exit 0 and the written report
+    is labeled exploratory_frontier."""
+
+    run_dir = tmp_path / "run"
+    _stage_gated_compare_run(run_dir)
+    report = tmp_path / "comparison.json"
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "compare",
+            str(run_dir),
+            "--out",
+            str(report),
+            "-o",
+            "Rt_N_last:min",
+            "--explicit-exploratory",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(report.read_text())
+    assert payload["report_kind"] == "exploratory_frontier"
 
 
 def test_mesh_check_writes_diagnostics(tmp_path) -> None:
