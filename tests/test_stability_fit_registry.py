@@ -365,6 +365,85 @@ def test_post_sign_review_tamper_drops_fit(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# Workflow 0065 / audit R10: registry micro-gaps
+# ---------------------------------------------------------------------------
+
+
+def test_multi_fixture_fit_loads_when_only_second_fixture_clears_chain(tmp_path):
+    """Pins the ANY-pass semantics of ``_evaluate_fit_gates`` (audit R10).
+
+    A fit may cite several fixtures; it passes if ANY cited fixture clears
+    the full chain. Here the FIRST cited fixture fails gate 4 (manifest
+    staged, promotion packet missing) and the SECOND clears everything —
+    the fit must load. Until this test, no test staged a 2-fixture fit, so
+    the ANY-pass loop was documented only by a source comment.
+    """
+
+    fx_broken = _fixture(fixture_id="fxt-broken")
+    fx_good = _fixture(fixture_id="fxt-good")
+    # Stage the broken fixture WITHOUT its promotion packet (fails gate 4).
+    _stage(tmp_path, fx_broken, None, None)
+    fit = _fit(
+        fx_good,
+        fixtures=[
+            FixtureRef(
+                fixture_id=fx_broken.fixture_id,
+                fixture_path=f"data/stability/fixtures/{fx_broken.fixture_id}/manifest.json",
+                fixture_sha256=reg.fixture_canonical_sha256(fx_broken),
+            ),
+            FixtureRef(
+                fixture_id=fx_good.fixture_id,
+                fixture_path=f"data/stability/fixtures/{fx_good.fixture_id}/manifest.json",
+                fixture_sha256=reg.fixture_canonical_sha256(fx_good),
+            ),
+        ],
+    )
+    root = _stage(tmp_path, fx_good, _packet(fx_good), fit)
+    fits, diags = reg.load_stability_fit_registry(root, with_diagnostics=True)
+    assert [f.fit_id for f in fits] == ["fit-001"]
+    assert diags == ()
+
+
+def test_gate_loose_hysteresis_bound(tmp_path):
+    """Gate 3a SECOND branch (audit R10): rejection driven by the hysteresis
+    bound, not calibration drift. ``bound_fraction=0.031`` is schema-valid
+    (the observed maximum stays below it) but exceeds
+    ``OPERATOR_MAX_HYSTERESIS_BOUND_FRACTION`` (0.03), so the loader drops
+    the fit. Only the drift branch of gate 3a was previously tested.
+    """
+
+    fx = _fixture(
+        hysteresis_bound=HysteresisBound(
+            bound_fraction=0.031,
+            observed_max_fraction=0.018,
+            observed_at_theta_deg=22.0,
+        )
+    )
+    root = _stage(tmp_path, fx, _packet(fx), _fit(fx))
+    fits, diags = reg.load_stability_fit_registry(root, with_diagnostics=True)
+    assert fits == ()
+    assert len(diags) == 1
+    assert diags[0].reason_code == reg.REASON_FIXTURE_BOUNDS_TOO_LOOSE
+    # Pin WHICH branch fired: the detail names the hysteresis bound.
+    assert "hysteresis" in diags[0].detail
+
+
+def test_gate_touching_heel_range_is_intended_pass(tmp_path):
+    """Gate 9 boundary (audit R10): fit ``(30, 60)`` vs fixture ``(0, 30)``
+    touch at exactly 30°. ``_heel_ranges_overlap`` uses ``<=``, so a single
+    shared endpoint COUNTS as overlap and the fit loads. Pinned as intended
+    behavior; tightening to strict ``<`` is a contract change that must
+    fail this test and go through review.
+    """
+
+    fx = _fixture()  # fixture valid_heel_range_deg=(0.0, 30.0)
+    fit = _fit(fx, valid_heel_range_deg=(30.0, 60.0))
+    root = _stage(tmp_path, fx, _packet(fx), fit)
+    fits = reg.load_stability_fit_registry(root)
+    assert [f.fit_id for f in fits] == ["fit-001"]
+
+
+# ---------------------------------------------------------------------------
 # Memoization + diagnostics
 # ---------------------------------------------------------------------------
 
