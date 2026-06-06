@@ -404,14 +404,25 @@ kayakgen compare runs/demo --out runs/demo/compare.json \
   -o GM0_m:max -o displacement_error_kg:min -o mesh_problem_count:min
 ```
 
-Resistance metrics can be named as objectives, but reports that include them
-remain exploratory because resistance is a raw comparative filter.
+Claim-inadmissible objectives — metrics whose claim state is
+`raw_unvalidated` or `uncalibrated_comparative`, e.g. `Rt_N_last` or
+`design_fitness` — are **refused** with the
+`RFC_0044_SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY` token unless you pass
+`--explicit-exploratory` (D048; same contract as `kayakgen search`).
+With the flag, the report is built as a labeled `exploratory_frontier`
+with the accepted-use provenance warnings attached to every row:
+
+```bash
+kayakgen compare runs/demo --out runs/demo/compare.json \
+  --explicit-exploratory -o Rt_N_last:min
+```
+
 The default objective set is built only from conservative metrics that are
 present in the current records: `GM0_m`, `displacement_error_kg`, and
-`mesh_problem_count`. Comparison reports are for candidate review; pending
-candidates remain visible in the report but are not eligible for the Pareto
-frontier. Objective metadata for optimizer/search workflows remains roadmap
-work.
+`mesh_problem_count`; defaults need no flag and are unchanged. Comparison
+reports are for candidate review; pending candidates remain visible in the
+report but are not eligible for the Pareto frontier. Objective metadata for
+optimizer/search workflows remains roadmap work.
 
 When per-candidate `high_angle_gz.json` artifacts are present (see the sweep
 `high_angle_gz` evaluator above), the comparison report adds a top-level

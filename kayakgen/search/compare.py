@@ -27,6 +27,7 @@ from kayakgen.search.pareto import (
     CandidatePoint,
     Direction,
     Objective,
+    ensure_objectives_claim_admissible_for_search,
     ensure_objectives_not_high_angle_gz,
     pareto_front,
 )
@@ -176,8 +177,18 @@ def load_sweep_run(run_dir: str | Path) -> SweepRunRecord:
 def build_comparison_report(
     run_dir: str | Path,
     objectives: list[Objective] | None = None,
+    *,
+    explicit_exploratory: bool = False,
 ) -> ComparisonReport:
-    """Build a comparison report from a sweep run directory."""
+    """Build a comparison report from a sweep run directory.
+
+    Per D048 / RFC 0044, objectives whose claim state is ``raw_unvalidated``
+    or ``uncalibrated_comparative`` are refused with
+    :data:`~kayakgen.search.pareto.SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY_TOKEN`
+    unless ``explicit_exploratory=True``. The labeled ``exploratory_frontier``
+    report (warnings + provenance annotations) survives behind that opt-in;
+    default conservative objectives need no flag and are unchanged.
+    """
     root = Path(run_dir)
     run = load_sweep_run(root)
     summaries = [_candidate_summary(root, record) for record in run.candidates]
@@ -192,8 +203,13 @@ def build_comparison_report(
         if objectives is not None
         else _default_objectives(summaries)
     )
-    # Defense-in-depth: defaults must never include a display-only key.
-    ensure_objectives_not_high_angle_gz(selected_objectives)
+    # Defense-in-depth: defaults must never include a display-only key, and
+    # per D048 claim-inadmissible objectives REFUSE without the exploratory
+    # opt-in. The admissibility gate re-runs the display-only refusal first,
+    # so the RFC 0043 token still wins for high-angle keys in both modes.
+    ensure_objectives_claim_admissible_for_search(
+        selected_objectives, explicit_exploratory=explicit_exploratory
+    )
     report_kind: ReportKind = (
         "exploratory_frontier"
         if any(_is_claim_gated_metric(objective.metric) for objective in selected_objectives)
@@ -364,9 +380,13 @@ def write_comparison_report(
     run_dir: str | Path,
     out_path: str | Path,
     objectives: list[Objective] | None = None,
+    *,
+    explicit_exploratory: bool = False,
 ) -> ComparisonReport:
     """Build and write a comparison report."""
-    report = build_comparison_report(run_dir, objectives=objectives)
+    report = build_comparison_report(
+        run_dir, objectives=objectives, explicit_exploratory=explicit_exploratory
+    )
     Path(out_path).write_text(report.model_dump_json(indent=2))
     return report
 

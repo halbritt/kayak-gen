@@ -98,6 +98,7 @@ kayakgen/
 │   │   ├── constraints.py       SearchConstraint enforcement
 │   │   └── runner.py            algorithm dispatch + run-record writer
 │   ├── compare.py               ComparisonReport + high_angle_gz_display
+│   │                            (claim-admissibility gate per D048/RFC 0044)
 │   ├── objectives.py            OBJECTIVE_METADATA registry
 │   ├── pareto.py                Objective gates + RFC 0043/0044 refusal tokens
 │   └── sweep.py                 SweepSpec, CandidateRecord, pending lifecycle
@@ -151,6 +152,7 @@ The `cli/` directory carries seven sibling modules used by `main.py`:
 | `kayakgen sweep <spec>` | deterministic JSON grid sweep | run dir |
 | `kayakgen search <spec>` | NSGA-II / EHVI active search | run dir |
 | `kayakgen compare <run>` | Pareto comparison report | `compare.json` |
+| `kayakgen compare ... --explicit-exploratory` | opt-in for claim-inadmissible objectives (D048; refused otherwise per RFC 0044) | labeled `exploratory_frontier` report |
 | `kayakgen cfd profiles` | list dispatch profiles | stdout |
 | `kayakgen cfd prepare ...` | prepare local job | job dir |
 | `kayakgen cfd prepare ... --allow-real-solver-execution` | per-job real-solver opt-in flag | job dir with `allow_real_solver_execution=true` |

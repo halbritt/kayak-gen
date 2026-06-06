@@ -20,8 +20,10 @@ from kayakgen.search.compare import (
 )
 from kayakgen.search.pareto import (
     HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN,
+    SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY_TOKEN,
     HighAngleGzObjectiveRefusedError,
     Objective,
+    SearchObjectiveRefusedError,
 )
 from kayakgen.search.sweep import CandidateRecord, SweepRunRecord, SweepSpec, run_sweep
 
@@ -346,11 +348,15 @@ def test_no_usable_default_objectives_is_report_warning(tmp_path: Path) -> None:
 
 
 def test_unsupported_explicit_objective_is_report_and_candidate_warning(tmp_path: Path) -> None:
+    # D048: unknown metrics are admissible only under the exploratory opt-in
+    # (the RFC 0044 gate refuses unregistered objectives by default), so the
+    # unsupported-objective warning behavior is pinned behind the flag.
     run_sweep(_spec(), tmp_path)
 
     report = build_comparison_report(
         tmp_path,
         objectives=[Objective(metric="not_a_metric", direction="min")],
+        explicit_exploratory=True,
     )
 
     assert "unsupported objective: not_a_metric" in report.warnings
@@ -358,6 +364,51 @@ def test_unsupported_explicit_objective_is_report_and_candidate_warning(tmp_path
         "missing metric: not_a_metric" in summary.warnings
         for summary in report.candidate_summaries
     )
+
+
+def test_raw_resistance_objective_without_opt_in_is_refused(tmp_path: Path) -> None:
+    """D048 / RFC 0044: raw_unvalidated objectives REFUSE without the opt-in.
+
+    The previous auto-downgrade to a labeled ``exploratory_frontier`` was a
+    contract violation of the RELEASE_DISCIPLINE no-claim invariant; the
+    labeled behavior survives only behind ``explicit_exploratory=True``.
+    """
+    run = run_sweep(_spec(), tmp_path)
+    for index, record in enumerate(run.candidates):
+        record.summary["Rt_N_last"] = float(10 + index)
+        record.summary["resistance_use"] = "comparative_filter"
+    (tmp_path / "run.json").write_text(run.model_dump_json(indent=2))
+
+    with pytest.raises(SearchObjectiveRefusedError) as exc:
+        build_comparison_report(
+            tmp_path,
+            objectives=[Objective(metric="Rt_N_last", direction="min")],
+        )
+
+    assert exc.value.metric == "Rt_N_last"
+    assert exc.value.reason["code"] == "search_objective_claim_not_admissible"
+    assert exc.value.reason["token"] == SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY_TOKEN
+    assert exc.value.reason["claim_state"] == "raw_unvalidated"
+    assert SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY_TOKEN in str(exc.value)
+
+
+def test_design_fitness_objective_without_opt_in_is_refused(tmp_path: Path) -> None:
+    """D048: uncalibrated_comparative (claim_gated_reserved) refuses too."""
+    _write_run_with_resistance_metadata(
+        tmp_path,
+        _complete_calibrated_resistance_metadata(),
+        summary_extra={"design_fitness": 0.75},
+    )
+
+    with pytest.raises(SearchObjectiveRefusedError) as exc:
+        build_comparison_report(
+            tmp_path,
+            objectives=[Objective(metric="design_fitness", direction="max")],
+        )
+
+    assert exc.value.metric == "design_fitness"
+    assert exc.value.reason["token"] == SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY_TOKEN
+    assert exc.value.reason["claim_state"] == "uncalibrated_comparative"
 
 
 def test_raw_resistance_objective_is_exploratory_and_requires_provenance(tmp_path: Path) -> None:
@@ -370,6 +421,7 @@ def test_raw_resistance_objective_is_exploratory_and_requires_provenance(tmp_pat
     report = build_comparison_report(
         tmp_path,
         objectives=[Objective(metric="Rt_N_last", direction="min")],
+        explicit_exploratory=True,
     )
 
     assert report.report_kind == "exploratory_frontier"
@@ -400,6 +452,7 @@ def test_forged_legacy_final_prediction_metadata_is_not_accepted(tmp_path: Path)
     report = build_comparison_report(
         tmp_path,
         objectives=[Objective(metric="Rt_N_last", direction="min")],
+        explicit_exploratory=True,
     )
     summary = report.candidate_summaries[0]
 
@@ -419,6 +472,7 @@ def test_complete_accepted_fit_contract_allows_resistance_objective(
     report = build_comparison_report(
         tmp_path,
         objectives=[Objective(metric="Rt_N_last", direction="min")],
+        explicit_exploratory=True,
     )
     summary = report.candidate_summaries[0]
 
@@ -441,6 +495,7 @@ def test_comparison_rejects_candidate_or_rejected_fit_with_metrics(
     report = build_comparison_report(
         tmp_path,
         objectives=[Objective(metric="Rt_N_last", direction="min")],
+        explicit_exploratory=True,
     )
     summary = report.candidate_summaries[0]
 
@@ -464,6 +519,7 @@ def test_comparison_rejects_validation_only_resistance_metadata(
     report = build_comparison_report(
         tmp_path,
         objectives=[Objective(metric="Rt_N_last", direction="min")],
+        explicit_exploratory=True,
     )
     summary = report.candidate_summaries[0]
 
@@ -513,6 +569,7 @@ def test_calibrated_prediction_requires_full_claim_contract(
     report = build_comparison_report(
         tmp_path,
         objectives=[Objective(metric="Rt_N_last", direction="min")],
+        explicit_exploratory=True,
     )
     summary = report.candidate_summaries[0]
 
@@ -531,6 +588,7 @@ def test_calibrated_resistance_is_not_final_design_fitness(tmp_path: Path) -> No
     report = build_comparison_report(
         tmp_path,
         objectives=[Objective(metric="design_fitness", direction="max")],
+        explicit_exploratory=True,
     )
     summary = report.candidate_summaries[0]
 
@@ -547,11 +605,13 @@ def test_calibrated_resistance_is_not_final_design_fitness(tmp_path: Path) -> No
 
 
 def test_unsupported_objective_metadata_is_explicit(tmp_path: Path) -> None:
+    # D048: unknown metrics need the exploratory opt-in (see comment above).
     run_sweep(_spec(), tmp_path)
 
     report = build_comparison_report(
         tmp_path,
         objectives=[Objective(metric="not_a_metric", direction="min")],
+        explicit_exploratory=True,
     )
 
     metadata = report.objective_metadata["not_a_metric"]

@@ -759,11 +759,23 @@ def compare(
         "-o",
         help="Objective as metric:min or metric:max. May be repeated.",
     ),
+    explicit_exploratory: bool = typer.Option(
+        False,
+        "--explicit-exploratory",
+        help=(
+            "Opt in to a labeled exploratory comparison. Without this flag, "
+            "claim-inadmissible objectives (raw_unvalidated / "
+            "uncalibrated_comparative, e.g. Rt_N_last) are refused per "
+            "RFC 0044 / D048."
+        ),
+    ),
 ) -> None:
     """Compare a sweep run and write a Pareto frontier report."""
     try:
         objectives = [parse_objective(item) for item in objective] if objective else None
-        report = write_comparison_report(run_dir, out, objectives=objectives)
+        report = write_comparison_report(
+            run_dir, out, objectives=objectives, explicit_exploratory=explicit_exploratory
+        )
     except Exception as exc:
         typer.echo(f"compare failed: {exc}", err=True)
         raise typer.Exit(code=1)

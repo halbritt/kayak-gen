@@ -455,7 +455,7 @@ follow_up: wontfix (low priority) or new striatum workflow
 
 severity: high
 category: claim_gate
-status: open
+status: fixed (2026-06-06, D048 / workflow 0064-test-protection-p1-contract-decisions — `build_comparison_report` now calls `ensure_objectives_claim_admissible_for_search`; inadmissible objectives refuse with `RFC_0044_SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY` unless `--explicit-exploratory` is passed; refusal pinned by `tests/test_compare.py::test_raw_resistance_objective_without_opt_in_is_refused`)
 surface: kayakgen/search/
 discovered: 2026-05-29 tick-11
 claim: RFC 0044 requires `ensure_objectives_claim_admissible_for_search` to be called from "every entry point (sweep planner, active search, comparison runner)" to refuse `raw_unvalidated` and `uncalibrated_comparative` objectives unless opt-in is set. The comparison report in `kayakgen/search/compare.py:build_comparison_report()` calls `ensure_objectives_not_high_angle_gz()` but never calls the claim-state admissibility gate.
