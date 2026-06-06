@@ -211,6 +211,62 @@ def test_evaluate_fit_rejects_when_rmse_above_threshold() -> None:
     assert excinfo.value.reason == "fit_above_rmse_threshold"
 
 
+# Audit G5 (workflow 0066): the MAPE and R2 branches are reachable from the
+# D006 promotion gate — `_validate_accepted_fit_ref_on_disk` forwards
+# whatever `fit_metric` the on-disk record carries — but neither branch's
+# direction was pinned by any test.
+
+
+def test_evaluate_fit_rejects_when_mape_above_threshold() -> None:
+    # MAPE treats threshold_pct as the MAXIMUM admissible percent.
+    record = _accepted_fit(fit_metric="MAPE", fit_value=7.5)
+    with pytest.raises(AcceptedFitRejection) as excinfo:
+        evaluate_fit_against_threshold(
+            record, measured_baseline=20.0, threshold_pct=5.0
+        )
+    assert excinfo.value.reason == "fit_above_mape_threshold"
+
+
+def test_evaluate_fit_passes_when_mape_within_threshold() -> None:
+    record = _accepted_fit(fit_metric="MAPE", fit_value=4.0)
+    evaluate_fit_against_threshold(record, measured_baseline=20.0, threshold_pct=5.0)
+
+
+def test_evaluate_fit_rejects_when_r2_below_minimum() -> None:
+    # R2 treats threshold_pct as a MINIMUM admissible value (higher passes).
+    record = _accepted_fit(fit_metric="R2", fit_value=0.85)
+    with pytest.raises(AcceptedFitRejection) as excinfo:
+        evaluate_fit_against_threshold(
+            record, measured_baseline=20.0, threshold_pct=0.9
+        )
+    assert excinfo.value.reason == "fit_below_r2_threshold"
+
+
+def test_evaluate_fit_passes_when_r2_above_minimum() -> None:
+    record = _accepted_fit(fit_metric="R2", fit_value=0.95)
+    evaluate_fit_against_threshold(record, measured_baseline=20.0, threshold_pct=0.9)
+
+
+def test_r2_record_under_default_threshold_refuses_every_fit() -> None:
+    """Audit G5 semantic quirk, pinned as INTENDED (workflow 0066 decision).
+
+    The D006 promotion gate defaults ``acceptance_threshold_pct`` to 5.0
+    and forwards it as ``threshold_pct`` regardless of fit_metric. For an
+    R2 record that minimum is unsatisfiable — R2 <= 1.0 < 5.0 — so EVERY
+    R2 fit refuses under the default, even a perfect one. Fail-closed:
+    claims discipline holds, and promoting an R2 fit requires an explicit
+    per-fixture ``acceptance_threshold_pct`` in the validity envelope.
+    Whether R2 deserves its own default is a recorded open question
+    (workflow 0066 draft artifact), not something this test decides."""
+
+    perfect = _accepted_fit(fit_metric="R2", fit_value=1.0)
+    with pytest.raises(AcceptedFitRejection) as excinfo:
+        evaluate_fit_against_threshold(
+            perfect, measured_baseline=20.0, threshold_pct=5.0
+        )
+    assert excinfo.value.reason == "fit_below_r2_threshold"
+
+
 # ---------------------------------------------------------------------------
 # CLI: accept-fit threshold
 
