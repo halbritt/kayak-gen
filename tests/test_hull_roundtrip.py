@@ -26,6 +26,30 @@ def test_named_round_trip(tmp_path) -> None:
     assert loaded == hull
 
 
+def test_save_hull_round_trips_non_ascii_utf8(tmp_path) -> None:
+    """Workflow 0063 / audit R9: ``save_hull``/``load_hull`` carry explicit
+    utf-8, so non-ASCII metadata survives independent of the process locale
+    (a bare ``write_text``/``read_text`` uses the locale's preferred
+    encoding and corrupts these bytes under e.g. ``LC_ALL=C``). The emitted
+    JSON text stays byte-identical to ``model_dump_json(indent=2)``."""
+
+    from kayakgen.io.json import load_hull, save_hull
+
+    name = "fjørd-kajakk-θ-蘭"
+    hull = Hull(name=name, length_m=5.2)
+    out = tmp_path / "hull.json"
+    save_hull(hull, out)
+
+    # bytes on disk are utf-8, byte-identical to the pydantic dump
+    assert out.read_bytes() == hull.model_dump_json(indent=2).encode("utf-8")
+    # no atomic-write temp sibling left behind
+    assert list(tmp_path.glob(".*")) == []
+
+    loaded = load_hull(out)
+    assert loaded == hull
+    assert loaded.name == name
+
+
 def test_hash_stable_across_dumps() -> None:
     h1 = Hull(name="a", length_m=4.5)
     h2 = Hull(name="a", length_m=4.5)

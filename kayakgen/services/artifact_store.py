@@ -552,6 +552,25 @@ def _hash_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _atomic_write_bytes(path: Path, data: bytes) -> None:
+    """Write ``data`` to ``path`` via a temp sibling + ``os.replace``.
+
+    Audit R5 / BUG-041 (2026-06-06): a bare ``write_bytes`` interrupted
+    mid-write leaves truncated bytes at the content address. The temp
+    sibling is dot-prefixed so a crash between write and rename can never
+    leave a file matching the ``_store/<hash>.*`` glob that
+    ``_resolve_artifact`` serves reads from.
+    """
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.tmp-{os.getpid()}")
+    try:
+        tmp.write_bytes(data)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
 def _link_or_copy(src: Path, dst: Path) -> None:
     """Hard-link ``src`` to ``dst``; fall back to copy with a warning."""
 
@@ -633,6 +652,42 @@ class FilesystemArtifactStore:
     def _store_path(self, artifact_hash: str, extension: str) -> Path:
         return self.store_dir / f"{artifact_hash}{extension}"
 
+    @staticmethod
+    def _verify_or_repair_store_file(
+        store_path: Path, artifact_hash: str, data: bytes
+    ) -> None:
+        """Repair corrupt bytes occupying a content address (audit R5).
+
+        The dedupe branch used to trust ``exists()`` blindly: a crash
+        mid-write left truncated bytes at ``_store/<hash>`` and every
+        later put of the same content silently hard-linked the corrupt
+        bytes into canonical run layouts. Byte length is the cheap
+        screen; on mismatch the occupant is rehashed to confirm
+        corruption before being atomically replaced with the intact
+        payload. An intact occupant is left untouched (normal dedupe).
+        """
+
+        try:
+            existing_size = store_path.stat().st_size
+        except OSError:
+            existing_size = -1
+        if existing_size == len(data):
+            return
+        existing_hash: str | None
+        try:
+            existing_hash = _hash_bytes(store_path.read_bytes())
+        except OSError:
+            existing_hash = None
+        if existing_hash == artifact_hash:
+            return
+        warnings.warn(
+            "kayakgen artifact store found corrupt bytes at "
+            f"{store_path} (size {existing_size} != {len(data)}, "
+            f"hash {existing_hash!r}); repairing with intact payload",
+            stacklevel=2,
+        )
+        _atomic_write_bytes(store_path, data)
+
     def _put_bytes(
         self,
         kind: ArtifactKind,
@@ -645,9 +700,10 @@ class FilesystemArtifactStore:
         artifact_hash = _hash_bytes(data)
         extension = self._extension_for(kind, canonical_path)
         store_path = self._store_path(artifact_hash, extension)
-        if not store_path.exists():
-            store_path.parent.mkdir(parents=True, exist_ok=True)
-            store_path.write_bytes(data)
+        if store_path.exists():
+            self._verify_or_repair_store_file(store_path, artifact_hash, data)
+        else:
+            _atomic_write_bytes(store_path, data)
         relative_path: str | None = None
         if canonical_path is not None:
             canonical_path.parent.mkdir(parents=True, exist_ok=True)
@@ -767,7 +823,7 @@ class FilesystemArtifactStore:
                 extension = canonical.suffix or ".bin"
                 store_path = self._store_path(derived, extension)
                 if not store_path.exists():
-                    store_path.write_bytes(data)
+                    _atomic_write_bytes(store_path, data)
                 return store_path
         raise FileNotFoundError(
             f"artifact {ref.artifact_hash} not found under {self.store_dir}"

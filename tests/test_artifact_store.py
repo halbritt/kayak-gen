@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
+import warnings
 from pathlib import Path
 
 import pytest
@@ -201,6 +203,69 @@ def test_filesystem_store_redrives_when_store_missing(
             )
         )
     assert recovered == {"k": 1}
+
+
+# ---------------------------------------------------------------------------
+# Workflow 0063 / audit R5 (BUG-041): corrupt content addresses are repaired
+
+
+def test_corrupt_store_file_repaired_on_next_put(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    """A crash mid-write must not permanently poison a content address.
+
+    Pre-stage truncated bytes at the exact hash path (simulated torn
+    write), then put the full payload: the store must detect the
+    corruption (length screen, rehash to confirm) and atomically repair
+    the store file instead of hard-linking the truncated bytes into the
+    canonical layout. Before remediation the ``exists()`` dedupe branch
+    linked the corrupt bytes forever.
+    """
+
+    payload = {"hello": "world", "rows": list(range(32))}
+    full_bytes = json.dumps(payload, indent=2).encode("utf-8")
+    artifact_hash = hashlib.sha256(full_bytes).hexdigest()
+
+    run_dir = tmp_path / "run-corrupt"
+    store = FilesystemArtifactStore(run_dir, run_id="repair")
+    store_path = run_dir / "_store" / f"{artifact_hash}.json"
+    store_path.write_bytes(full_bytes[: len(full_bytes) // 2])
+
+    canonical = run_dir / "run.json"
+    with pytest.warns(UserWarning, match="repairing"):
+        ref = store.put_json("sweep_run_record", payload, canonical_path=canonical)
+
+    assert ref.artifact_hash == artifact_hash
+    # the content address holds intact bytes again
+    assert store_path.read_bytes() == full_bytes
+    # ... and the canonical path received them (not the truncated ones)
+    assert canonical.read_bytes() == full_bytes
+    if os.name != "nt":
+        assert canonical.stat().st_ino == store_path.stat().st_ino
+    # no temp sibling left behind, and nothing torn matches the hash glob
+    assert list(store_path.parent.glob(".*")) == []
+
+
+def test_intact_store_file_left_alone_on_dedupe(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    """The dedupe branch must not rewrite (or warn about) an intact file."""
+
+    run_dir = tmp_path / "run-dedupe"
+    store = FilesystemArtifactStore(run_dir, run_id="dedupe")
+    ref = store.put_json(
+        "sweep_run_record", {"k": 1}, canonical_path=run_dir / "a.json"
+    )
+    store_path = run_dir / "_store" / f"{ref.artifact_hash}.json"
+    ino_before = store_path.stat().st_ino
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        again = store.put_json(
+            "sweep_run_record", {"k": 1}, canonical_path=run_dir / "b.json"
+        )
+    assert again.artifact_hash == ref.artifact_hash
+    # same inode: the intact occupant was reused, not replaced
+    assert store_path.stat().st_ino == ino_before
 
 
 # ---------------------------------------------------------------------------
