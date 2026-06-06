@@ -8,6 +8,24 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Changed
 
+- Workflow 0065 (test-protection P2 top-ups) closed out the 2026-06-06
+  remediation plan's deferrable tier. Test-only additions: an external
+  closed-form hydrostatics anchor (parabolic `distribution_v2` body;
+  displaced volume and LCB vs. analytic values at rtol 1e-2 — audit R7),
+  a deterministic manager-level cancel test with the racy subprocess
+  variants demoted to labeled integration smoke (audit R8), the three
+  registry micro-gap pins (multi-fixture ANY-pass, hysteresis branch of
+  gate 3a, touching heel-range boundary of gate 9 — audit R10), and the
+  reason-code/remediation-copy test now derives its expected set from
+  the module namespace (audit §5 note). **P2-MYPY-DECIDE (audit §3
+  note):** `mypy` is removed from the `[dev]` extras — it was never
+  configured (no `[tool.mypy]`), never part of the documented gate stack
+  (`pytest -q` + `ruff check`), and never run in any recorded gate, so
+  listing it implied a type gate that does not exist; adopting mypy
+  later is a deliberate decision (config + gate wiring), not an extras
+  line. P2-CLI-NEGATIVES remains deferred until the bug-hunt
+  NaN-validator family is green-lit (plan §5/§6).
+
 - Workflow 0064 (test-protection P1 contract decisions) landed the two
   operator-decided contract fixes from `docs/DECISION_LOG.md`. **D048
   (P1-COMPARE-GATE, BUG-026):** `kayakgen compare` /
