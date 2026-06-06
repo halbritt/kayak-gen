@@ -537,6 +537,41 @@ def test_current_schema_version_db_preserved_on_reopen(
     assert [r["run_id"] for r in rows] == ["keep"]
 
 
+def test_newer_schema_stamp_left_alone_not_downgraded(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    """Audit G8: the newer-stamp direction of ``_ensure_schema`` (a DB
+    written by future code, opened by this code) is leave-alone: rows
+    survive, no rebuild warning, and the stamp is not downgraded. Benign
+    until SCHEMA_VERSION ever bumps — pinned now so the first bump cannot
+    silently turn this branch into a rebuild."""
+
+    first = SqliteIndex(isolated_index)
+    first.upsert_run(
+        run_id="from-the-future",
+        kind="sweep",
+        spec_hash="sh",
+        run_hash="rh",
+        out_dir=str(tmp_path),
+    )
+    future_version = SqliteIndex.SCHEMA_VERSION + 1
+    conn = sqlite3.connect(isolated_index)
+    conn.execute(f"PRAGMA user_version = {future_version}")
+    conn.commit()
+    conn.close()
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # any rebuild warning -> failure
+        reopened = SqliteIndex(isolated_index)
+        rows = reopened.list_runs()
+    # rows survive the reopen
+    assert [r["run_id"] for r in rows] == ["from-the-future"]
+    # stamp not downgraded by the reopen
+    conn = sqlite3.connect(isolated_index)
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == future_version
+    conn.close()
+
+
 # ---------------------------------------------------------------------------
 # SQLite index after one run_sweep
 
