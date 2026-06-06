@@ -297,3 +297,37 @@ invariant 7 held; no sibling imports `app.py`), and `app.py` is a
 355-line integrator. Frozen surfaces untouched: `tests/test_web_browser.py`,
 `tests/test_import_boundaries.py`, `tests/test_services_boundaries.py`,
 `pyproject.toml` (verified: no commit in the stack touches them).
+
+## Attempt-2 revision (response to PRESERVATION_REVIEW.md `needs_revision`)
+
+Reviewer findings 1–3 (no slice commits in the reviewed tree; refactor
+absent; ledger unauditable) share one root cause, now fixed:
+
+- **Root cause (harness, not execution):** `striatum worktree create` gave
+  this job a **detached-HEAD** worktree based at `a31773e`. All six slice
+  commits plus ledger commits landed on that detached HEAD (through
+  `9967a70`) and never advanced the run's confirmed branch
+  `striatum/refactoring-campaign-kayakgen-smoke-1`, which still pointed at
+  `a31773e` — so the reviewer's own worktree, cut from the branch, contained
+  none of the executed work. (Striatum harness finding, worth upstreaming:
+  a per-job worktree for a `repo_write` job should attach to the run
+  branch, or job completion should advance it.)
+- **Fix (no replay, per plan §12 discipline 2):** verified
+  `a31773e` is an ancestor of `9967a70`, then fast-forwarded
+  `striatum/refactoring-campaign-kayakgen-smoke-1` to `9967a70` and
+  re-attached the execution worktree to the branch. The slice stack is
+  unchanged — same commits, same hashes as recorded above; nothing was
+  re-executed or rewritten.
+- **Reviewer replay note (extras-less import check):** `noweb-venv` is not
+  a PATH binary; it is the plan §1.3 shorthand for a fresh venv with only
+  core deps. Recipe used here:
+  `python3 -m venv ~/.cache/kayakgen-noweb-venv && ~/.cache/kayakgen-noweb-venv/bin/pip
+  install numpy numpy-stl pydantic typer click pytest pytest-benchmark`,
+  then from the worktree:
+  `PYTHONPATH=$PWD ~/.cache/kayakgen-noweb-venv/bin/python -c "import kayakgen, kayakgen.cli.main"`
+  (per-slice check) and
+  `PYTHONPATH=$PWD ~/.cache/kayakgen-noweb-venv/bin/python -m pytest -q -p
+  no:cacheprovider --continue-on-collection-errors` (post-S5 full run).
+- The reviewer's own replay on unmodified `a31773e` (full suite F3
+  singleton, ruff pass, strict browser 4 passed/2 deselected) independently
+  re-confirms the recorded baseline of §1.2.
