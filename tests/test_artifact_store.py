@@ -16,6 +16,7 @@ from kayakgen.cli.main import app
 from kayakgen.model.hull import Hull
 from kayakgen.search.sweep import SweepSpec, run_sweep
 from kayakgen.services.artifact_store import (
+    ArtifactIntegrityError,
     ArtifactRef,
     FilesystemArtifactStore,
     SqliteIndex,
@@ -266,6 +267,113 @@ def test_intact_store_file_left_alone_on_dedupe(
     assert again.artifact_hash == ref.artifact_hash
     # same inode: the intact occupant was reused, not replaced
     assert store_path.stat().st_ino == ino_before
+
+
+# ---------------------------------------------------------------------------
+# Workflow 0066 / audit G2: reads are SERVE-ONLY-VERIFIED (D050)
+
+
+def _replace_store_bytes(store_path: Path, data: bytes) -> None:
+    """Corrupt a content address without touching its hard-linked canonical.
+
+    ``unlink`` + fresh write breaks the link first, so the canonical path
+    keeps the original (intact) inode — the realistic "store mirror rots,
+    canonical survives" scenario. In-place writes would corrupt both ends
+    through the shared inode and could never exercise the repair rescue.
+    """
+
+    store_path.unlink()
+    store_path.write_bytes(data)
+
+
+def test_corrupt_store_read_raises_without_canonical(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    """Audit G2: a corrupted content address must refuse, not serve.
+
+    Before SERVE-ONLY-VERIFIED, ``_resolve_artifact`` globbed
+    ``_store/<hash>.*`` and returned the bytes unverified — corruption
+    after write was served silently, forever."""
+
+    run_dir = tmp_path / "run-read-corrupt"
+    store = FilesystemArtifactStore(run_dir, run_id="read-corrupt")
+    ref = store.put_json("sweep_run_record", {"k": 1})
+    store_path = run_dir / "_store" / f"{ref.artifact_hash}.json"
+    _replace_store_bytes(store_path, b'{"k": "tampered"}')
+
+    with pytest.raises(ArtifactIntegrityError) as excinfo:
+        store.get_json(ref)
+    # structured: the error names the path and both hashes
+    assert excinfo.value.path == store_path
+    assert excinfo.value.expected_hash == ref.artifact_hash
+    assert excinfo.value.actual_hash != ref.artifact_hash
+
+
+def test_corrupt_store_read_repaired_from_intact_canonical(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    """Audit G2: corrupt store bytes + intact independent canonical -> repair."""
+
+    payload = {"hello": "world"}
+    run_dir = tmp_path / "run-read-repair"
+    store = FilesystemArtifactStore(run_dir, run_id="read-repair")
+    canonical = run_dir / "run.json"
+    ref = store.put_json("sweep_run_record", payload, canonical_path=canonical)
+    store_path = run_dir / "_store" / f"{ref.artifact_hash}.json"
+    intact = canonical.read_bytes()
+    _replace_store_bytes(store_path, intact[: len(intact) // 2])
+
+    with pytest.warns(UserWarning, match="repairing from canonical"):
+        recovered = store.get_json(ref)
+    assert recovered == payload
+    # the content address holds verified bytes again, atomically replaced
+    assert store_path.read_bytes() == intact
+    # no temp sibling left behind
+    assert list(store_path.parent.glob(".*")) == []
+
+
+def test_corrupt_store_and_canonical_read_raises(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    """Audit G2: when both copies are corrupt there is no verified source."""
+
+    run_dir = tmp_path / "run-read-both"
+    store = FilesystemArtifactStore(run_dir, run_id="read-both")
+    canonical = run_dir / "run.json"
+    ref = store.put_json("sweep_run_record", {"k": 2}, canonical_path=canonical)
+    store_path = run_dir / "_store" / f"{ref.artifact_hash}.json"
+    _replace_store_bytes(store_path, b"store-rot")
+    canonical.unlink()
+    canonical.write_bytes(b"canonical-rot")
+
+    with pytest.raises(ArtifactIntegrityError) as excinfo:
+        store.get_json(ref)
+    assert excinfo.value.expected_hash == ref.artifact_hash
+
+
+def test_equal_length_bit_rot_caught_by_read_rehash(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    """Audit §6 sibling: same byte count, different bytes.
+
+    The write-side repair's cheap screen is byte length, so equal-length
+    rot sails past it on the put path; the read-side rehash is the layer
+    that must catch it. ``get_file`` is exercised here so both public
+    read paths (`get_json` above) are pinned."""
+
+    run_dir = tmp_path / "run-bit-rot"
+    store = FilesystemArtifactStore(run_dir, run_id="bit-rot")
+    ref = store.put_json("sweep_run_record", {"k": 3})
+    store_path = run_dir / "_store" / f"{ref.artifact_hash}.json"
+    intact = store_path.read_bytes()
+    rotted = bytearray(intact)
+    rotted[len(rotted) // 2] ^= 0xFF  # flip one bit mid-payload
+    assert len(rotted) == len(intact)
+    _replace_store_bytes(store_path, bytes(rotted))
+
+    with pytest.raises(ArtifactIntegrityError) as excinfo:
+        store.get_file(ref)
+    assert excinfo.value.actual_hash != ref.artifact_hash
 
 
 # ---------------------------------------------------------------------------

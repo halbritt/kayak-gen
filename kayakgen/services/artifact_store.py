@@ -96,6 +96,30 @@ class CandidateSummary(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Errors
+
+
+class ArtifactIntegrityError(RuntimeError):
+    """Bytes at a content address fail rehash verification (audit G2, D050).
+
+    The read contract is SERVE-ONLY-VERIFIED: every read path rehashes
+    bytes before serving them. A mismatch is repaired from the canonical
+    path only when the canonical bytes rehash to the expected address;
+    otherwise this error is raised — unverified bytes are never served.
+    """
+
+    def __init__(self, *, path: Path, expected_hash: str, actual_hash: str) -> None:
+        self.path = path
+        self.expected_hash = expected_hash
+        self.actual_hash = actual_hash
+        super().__init__(
+            f"artifact integrity failure at {path}: expected hash "
+            f"{expected_hash}, got {actual_hash}; refusing to serve "
+            "unverified bytes (SERVE-ONLY-VERIFIED, D050)"
+        )
+
+
+# ---------------------------------------------------------------------------
 # Protocol
 
 
@@ -659,6 +683,12 @@ class FilesystemArtifactStore:
     If ``_store/`` is missing on read (manual removal), the store
     re-derives the hash from the canonical path and re-creates the mirror,
     emitting a ``UserWarning``.
+
+    Reads are SERVE-ONLY-VERIFIED (audit G2, D050): every read path
+    rehashes bytes before serving. Corrupt store bytes are repaired from
+    the canonical path when its bytes rehash to the expected address;
+    otherwise the read raises :class:`ArtifactIntegrityError` — unverified
+    bytes are never served.
     """
 
     def __init__(
@@ -845,28 +875,75 @@ class FilesystemArtifactStore:
 
     # -- reads -------------------------------------------------------------
 
+    def _repair_store_from_canonical(
+        self, ref: ArtifactRef, store_path: Path
+    ) -> Path | None:
+        """Repair corrupt store bytes from an intact canonical copy (audit G2).
+
+        Mirrors the write-side repair (``_verify_or_repair_store_file``):
+        only canonical bytes that rehash to the expected content address
+        may overwrite the corrupt occupant, via the same atomic replace.
+        Returns ``None`` when no canonical path exists, it cannot be read,
+        or its bytes do not rehash to ``ref.artifact_hash`` — the caller
+        must then refuse to serve. Note a hard-linked canonical shares the
+        corrupt inode, so this rescue only fires when the canonical is an
+        independent copy (copy fallback, or rewritten out-of-band).
+        """
+
+        if ref.relative_path is None:
+            return None
+        canonical = self.run_dir / ref.relative_path
+        try:
+            data = canonical.read_bytes()
+        except OSError:
+            return None
+        if _hash_bytes(data) != ref.artifact_hash:
+            return None
+        warnings.warn(
+            "kayakgen artifact store found corrupt bytes at "
+            f"{store_path} on read; repairing from canonical {canonical} "
+            "(SERVE-ONLY-VERIFIED, D050)",
+            stacklevel=3,
+        )
+        _atomic_write_bytes(store_path, data)
+        return store_path
+
     def _resolve_artifact(self, ref: ArtifactRef) -> Path:
-        # Try store first.
+        # Try store first. SERVE-ONLY-VERIFIED (audit G2, D050): rehash
+        # before serving on every read path. Before this, a content
+        # address corrupted after write was served silently, forever;
+        # repair only fired on the next put of identical content.
         for path in self.store_dir.glob(f"{ref.artifact_hash}.*"):
-            if path.is_file():
+            if not path.is_file():
+                continue
+            actual = _hash_bytes(path.read_bytes())
+            if actual == ref.artifact_hash:
                 return path
+            repaired = self._repair_store_from_canonical(ref, path)
+            if repaired is not None:
+                return repaired
+            raise ArtifactIntegrityError(
+                path=path, expected_hash=ref.artifact_hash, actual_hash=actual
+            )
         # Re-derive from canonical path if available.
         if ref.relative_path is not None:
             canonical = self.run_dir / ref.relative_path
             if canonical.exists():
+                data = canonical.read_bytes()
+                derived = _hash_bytes(data)
+                if derived != ref.artifact_hash:
+                    # Audit G2/G6: this branch used to warn and serve the
+                    # mismatched bytes anyway; fail closed instead.
+                    raise ArtifactIntegrityError(
+                        path=canonical,
+                        expected_hash=ref.artifact_hash,
+                        actual_hash=derived,
+                    )
                 warnings.warn(
                     "kayakgen artifact store missing _store/ entry for "
                     f"{ref.artifact_hash}; re-deriving from {canonical}",
                     stacklevel=2,
                 )
-                data = canonical.read_bytes()
-                derived = _hash_bytes(data)
-                if derived != ref.artifact_hash:
-                    warnings.warn(
-                        "kayakgen artifact store re-derived hash mismatch: "
-                        f"expected {ref.artifact_hash}, got {derived}",
-                        stacklevel=2,
-                    )
                 extension = canonical.suffix or ".bin"
                 store_path = self._store_path(derived, extension)
                 if not store_path.exists():
