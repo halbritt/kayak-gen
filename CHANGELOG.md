@@ -8,6 +8,19 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- Test-coverage audit (2026-06-06, verdict MIXED) and derived
+  test-protection remediation plan at repo root. Decisions D048 (compare
+  objective admissibility takes the refusal branch — `kayakgen compare`
+  must refuse `raw_unvalidated` / `uncalibrated_comparative` objectives
+  without an explicit `--explicit-exploratory` opt-in; closes the BUG-026
+  divergence when landed) and D049 (`StabilityFitRecord` gains a `kind`
+  discriminator with `"analytical"` default so CFD-in-loop graduation is
+  reachable with real records; closes BUG-001 when landed). Operator
+  action completed same day: the user-level
+  `~/.local/share/kayakgen/index.sqlite` read-model was purged of
+  test-run pollution (129 phantom runs plus dependent candidate/metric/
+  artifact rows; every row was a phantom).
+
 - RFC 0065 Slice 4 remediation added no-browser regression coverage for the
   visual PNG comparator. Synthetic PNG tests now prove that an over-tolerance
   masked screenshot diff fails and writes actual/diff evidence, while a

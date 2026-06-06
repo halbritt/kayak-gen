@@ -120,8 +120,9 @@ do first*. Differences, with reasoning:
   violation.
 - **touches**: `scripts/` (new hook installer), striatum workflow template
   for kayak-gen, `docs/RELEASE_DISCIPLINE.md` (document the hook).
-- **effort**: 2–4 hours (the 9-minute suite runtime is the real cost; see
-  Open question Q3 on a fast-lane subset).
+- **effort**: 2–4 hours. Per Q3 ("fast", 2026-06-06): the hook runs the
+  fast subset (deselect browser/subprocess/CFD-fixture tests, ~2 min);
+  the full 9-minute suite is the striatum slice-completion gate.
 - **depends on**: P0-BOUNDARY-FIX (a hook installed against a red trunk
   blocks all pushes immediately).
 - **acceptance**: a push with an intentionally broken test is refused
@@ -129,15 +130,14 @@ do first*. Differences, with reasoning:
 
 ## 4. P1 — serious
 
-### P1-FIT-KIND-DECISION
-- **source**: audit R1; BUG-001 (critical, open)
-- **what**: decide among the three options already enumerated in the bug
-  ledger — (1) add `kind: Literal["analytical","cfd_in_loop"]` to
-  `StabilityFitRecord` now (with `"analytical"` default for existing
-  records), (2) defer `cfd_in_loop_evaluator_status` to the RFC 0058
-  successor that introduces `kind`, or (3) drop the `kind` requirement and
-  test structurally. Record the decision as a DECISION_LOG row; then
-  implement.
+### P1-FIT-KIND-DECISION — decision made (D049); implementation only
+- **source**: audit R1; BUG-001 (critical, open); D049
+- **what**: per D049 (operator decision 2026-06-06): add
+  `kind: Literal["analytical","cfd_in_loop"]` to `StabilityFitRecord`
+  with `"analytical"` default (option 1 of the three the bug ledger
+  enumerated). Additive-with-default: existing staged fit JSONs parse
+  unchanged; `fixture_canonical_sha256` unaffected (hashes the fixture
+  manifest, not the fit record).
 - **why**: graduation is dead-on-arrival with real records while eight
   green tests assert otherwise; the first real fit promotion will silently
   fail to graduate.
@@ -153,17 +153,14 @@ do first*. Differences, with reasoning:
   `SimpleNamespace` fakes are removed or demoted to shape-only tests;
   BUG-001 closed in the ledger.
 
-### P1-COMPARE-GATE
-- **source**: audit R2; BUG-026 (high, open)
-- **what**: decide whether `kayakgen compare` refuses inadmissible
-  objectives (RFC 0044 reading) or auto-downgrades to
-  `exploratory_frontier` (current pinned behavior). If refusal: call
+### P1-COMPARE-GATE — decision made (D048); refusal branch only
+- **source**: audit R2; BUG-026 (high, open); D048
+- **what**: per D048 (operator decision 2026-06-06): call
   `ensure_objectives_claim_admissible_for_search` in
-  `build_comparison_report`, add an `--explicit-exploratory` CLI flag, and
-  pin the refusal token in a test. If downgrade-is-intended: amend the
-  RELEASE_DISCIPLINE no-claim invariant wording to name the compare-path
-  exception explicitly (docs-only, exempt) and add a comment in
-  `test_compare.py` marking the downgrade as the deliberate contract.
+  `build_comparison_report`, add an `--explicit-exploratory` CLI flag to
+  the compare command, and pin the refusal token in a test. The
+  downgrade-pinning tests in `test_compare.py` move to the opt-in path
+  (same assertions, explicit flag set).
 - **why**: the canonical invariant says "refused unless explicit opt-in";
   one entry point silently opts in on the operator's behalf, and the suite
   pins the weaker behavior — spec and tests currently certify different
@@ -381,26 +378,26 @@ GATE-ENFORCE → SKIP-PIN; STORE-ATOMIC → SQLITE-VERSION.
   percentage worship to a project whose failure modes are contract drift,
   not unexercised lines. Not worth it at this maturity.
 
-## 8. Open questions
+## 8. Open questions — ANSWERED 2026-06-06
 
-- **Q1 (decides P1-COMPARE-GATE branch)**: is compare's auto-exploratory
-  downgrade intended RFC 0044 behavior? One paragraph from the maintainer
-  resolves whether this is a code fix or a docs fix.
-- **Q2 (decides P1-FIT-KIND-DECISION branch)**: should `first_class`
-  graduation be reachable before the RFC 0058 successor lands? If the
-  answer is "no, by design", the implementation is a single
-  unreachability-pinning test and BUG-001 reclassifies from critical to
-  documented-deferral.
-- **Q3 (shapes P0-GATE-ENFORCE)**: is a 9-minute pre-push hook acceptable,
-  or should the hook run a fast subset (everything except browser/
-  subprocess/CFD-fixture tests, ~2 min by inspection) with the full suite
-  reserved for striatum slice completion? My recommendation: fast subset
-  in the hook, full suite in the workflow gate — red can hide for at most
-  one slice, not twelve days.
-- **Q4**: does the operator want the phantom-row cleanup as `DELETE FROM
-  runs WHERE out_dir LIKE '/tmp/%'` (preserves any future real rows) or a
-  plain DB delete (simpler, read-model rebuilds lazily)? Either is fine;
-  the plan defaults to the targeted delete.
+All four answered by the operator on 2026-06-06; branches resolved:
+
+- **Q1 → "no"** (downgrade not intended). P1-COMPARE-GATE takes the
+  **refusal branch**: gate call in `build_comparison_report`,
+  `--explicit-exploratory` CLI flag, refusal-token test. Recorded as
+  **D048** in `docs/DECISION_LOG.md`.
+- **Q2 → "yes"** (graduation reachable now). P1-FIT-KIND lands
+  `kind: Literal["analytical","cfd_in_loop"]` with `"analytical"` default
+  on `StabilityFitRecord`. Recorded as **D049**.
+- **Q3 → "fast"**. P0-GATE-ENFORCE installs the fast-subset pre-push hook
+  (excludes browser/subprocess/CFD-fixture tests); the full 9-minute suite
+  runs at striatum slice completion.
+- **Q4 → targeted delete, executed 2026-06-06**: removed 129 phantom runs
+  plus dependent rows (1,115 candidates / 5,388 metrics / 12,922
+  artifacts) and vacuumed; `~/.local/share/kayakgen/index.sqlite` went
+  6.5 MB → 80 KB with zero remaining rows (every row was a phantom). The
+  P0-INDEX-ISOLATION operator action is done; the conftest fixture and
+  regression test remain to land.
 
 ---
 
