@@ -26,6 +26,7 @@ from kayakgen.search.pareto import (
     SearchObjectiveRefusedError,
 )
 from kayakgen.search.sweep import CandidateRecord, SweepRunRecord, SweepSpec, run_sweep
+from kayakgen.services.artifact_store import ArtifactIntegrityError, FilesystemArtifactStore
 
 
 def _spec() -> SweepSpec:
@@ -34,6 +35,14 @@ def _spec() -> SweepSpec:
         base_hull={"beam_oa_m": 0.60},
         variables={"beam_wl_m": {"kind": "values", "values": [0.50, 0.55]}},
     )
+
+
+def _store_backed_write_run(root: Path, run: SweepRunRecord) -> None:
+    store = FilesystemArtifactStore(
+        root,
+        run_id=f"sweep-{run.spec_hash[:16]}-{root.name}",
+    )
+    store.put_json("sweep_run_record", run, canonical_path=root / "run.json")
 
 
 def _write_run_with_resistance_metadata(
@@ -207,7 +216,7 @@ def test_default_comparison_excludes_raw_resistance_metric(tmp_path: Path) -> No
     for record in run.candidates:
         record.summary["Rt_N_last"] = 12.0
         record.summary["resistance_use"] = "comparative_filter"
-    (tmp_path / "run.json").write_text(run.model_dump_json(indent=2))
+    _store_backed_write_run(tmp_path, run)
 
     report = build_comparison_report(tmp_path)
 
@@ -377,7 +386,7 @@ def test_raw_resistance_objective_without_opt_in_is_refused(tmp_path: Path) -> N
     for index, record in enumerate(run.candidates):
         record.summary["Rt_N_last"] = float(10 + index)
         record.summary["resistance_use"] = "comparative_filter"
-    (tmp_path / "run.json").write_text(run.model_dump_json(indent=2))
+    _store_backed_write_run(tmp_path, run)
 
     with pytest.raises(SearchObjectiveRefusedError) as exc:
         build_comparison_report(
@@ -416,7 +425,7 @@ def test_raw_resistance_objective_is_exploratory_and_requires_provenance(tmp_pat
     for index, record in enumerate(run.candidates):
         record.summary["Rt_N_last"] = float(10 + index)
         record.summary["resistance_use"] = "comparative_filter"
-    (tmp_path / "run.json").write_text(run.model_dump_json(indent=2))
+    _store_backed_write_run(tmp_path, run)
 
     report = build_comparison_report(
         tmp_path,
@@ -793,6 +802,41 @@ def test_compare_attaches_high_angle_display_when_artifacts_present(
 
     # Frontier ranking is unchanged by display surfacing.
     assert set(report.pareto_front_keys).issubset({"candidate-a", "candidate-b"})
+
+
+def test_compare_refuses_corrupt_indexed_run_record(tmp_path: Path) -> None:
+    """Workflow 0067: store/index-backed run.json reads are rehash-verified."""
+
+    run_sweep(_spec(), tmp_path)
+    forged = SweepRunRecord(
+        name="forged",
+        spec_hash="forged",
+        candidate_count=0,
+        pending_count=0,
+        completed_count=0,
+        failed_count=0,
+        skipped_count=0,
+        candidates=[],
+    )
+    (tmp_path / "run.json").write_text(forged.model_dump_json(indent=2))
+
+    with pytest.raises(ArtifactIntegrityError):
+        build_comparison_report(tmp_path)
+
+
+def test_compare_refuses_corrupt_hash_recorded_high_angle_artifact(
+    tmp_path: Path,
+) -> None:
+    """Workflow 0067: record-carried high-angle hashes are enforced."""
+
+    _build_two_candidate_run(tmp_path, attach_high_angle_to={"candidate-a"})
+    artifact_path = tmp_path / "candidates" / "candidate-a" / "high_angle_gz.json"
+    block = json.loads(artifact_path.read_text())
+    block["body_profile"] = "tampered-profile"
+    artifact_path.write_text(json.dumps(block, indent=2))
+
+    with pytest.raises(ArtifactIntegrityError):
+        build_comparison_report(tmp_path)
 
 
 def test_compare_high_angle_display_carries_warnings_and_assumptions(

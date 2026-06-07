@@ -15,6 +15,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+import conftest as test_conftest
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FAST_GATE = REPO_ROOT / "scripts" / "fast-gate.sh"
 FULL_GATE = REPO_ROOT / "scripts" / "full-gate.sh"
@@ -78,7 +81,49 @@ def test_both_gate_scripts_contain_the_skip_count_pin() -> None:
             f"{script.name} lost the EXPECTED_SKIPS=4 pin "
             "(docs/RELEASE_DISCIPLINE.md documents exactly 4 OpenFOAM opt-ins)"
         )
+        assert "export KAYAKGEN_ENFORCE_SKIP_PIN=1" in text, (
+            f"{script.name} no longer opts pytest into the in-suite skip pin"
+        )
+        assert "KAYAKGEN_OPENFOAM_SMOKE" in text
+        assert "KAYAKGEN_OPENFOAM_LOCAL_RUN" in text
+        assert "summary_line=" in text, (
+            f"{script.name} should parse from pytest's final summary line"
+        )
         assert re.search(r"-ne\s+\"\$EXPECTED_SKIPS\"", text), (
             f"{script.name} no longer compares the parsed skip count "
             "against EXPECTED_SKIPS; the pin is claimed but unenforced (audit G1)"
         )
+
+
+def test_in_suite_skip_pin_is_explicit_env_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("KAYAKGEN_ENFORCE_SKIP_PIN", raising=False)
+    assert test_conftest._kayakgen_skip_pin_enabled() is False
+    monkeypatch.setenv("KAYAKGEN_ENFORCE_SKIP_PIN", "1")
+    assert test_conftest._kayakgen_skip_pin_enabled() is True
+
+
+def test_expected_skip_count_derives_from_openfoam_knobs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("KAYAKGEN_EXPECTED_SKIPS", raising=False)
+    monkeypatch.delenv("KAYAKGEN_OPENFOAM_SMOKE", raising=False)
+    monkeypatch.delenv("KAYAKGEN_OPENFOAM_LOCAL_RUN", raising=False)
+    assert test_conftest._kayakgen_expected_skip_count() == 4
+
+    monkeypatch.setenv("KAYAKGEN_OPENFOAM_SMOKE", "1")
+    assert test_conftest._kayakgen_expected_skip_count() == 4
+
+    monkeypatch.setenv("KAYAKGEN_OPENFOAM_LOCAL_RUN", "1")
+    assert test_conftest._kayakgen_expected_skip_count() == 0
+
+
+def test_expected_skip_count_override_is_validated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("KAYAKGEN_EXPECTED_SKIPS", "2")
+    assert test_conftest._kayakgen_expected_skip_count() == 2
+    monkeypatch.setenv("KAYAKGEN_EXPECTED_SKIPS", "not-a-number")
+    with pytest.raises(RuntimeError, match="non-negative integer"):
+        test_conftest._kayakgen_expected_skip_count()

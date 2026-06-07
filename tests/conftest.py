@@ -62,6 +62,80 @@ from kayakgen.eval.stability.registry import (  # noqa: E402
 )
 
 
+# ---------------------------------------------------------------------------
+# Workflow 0067: in-suite gate skip-count pin
+# ---------------------------------------------------------------------------
+
+
+OPENFOAM_DEFAULT_SKIP_COUNT = 4
+
+
+def _kayakgen_truthy_env(name: str) -> bool:
+    return os.environ.get(name) == "1"
+
+
+def _kayakgen_expected_skip_count() -> int:
+    """Expected full-gate skips under the current OpenFOAM opt-in knobs."""
+
+    override = os.environ.get("KAYAKGEN_EXPECTED_SKIPS")
+    if override is not None:
+        try:
+            expected = int(override)
+        except ValueError as exc:
+            raise RuntimeError(
+                "KAYAKGEN_EXPECTED_SKIPS must be a non-negative integer"
+            ) from exc
+        if expected < 0:
+            raise RuntimeError(
+                "KAYAKGEN_EXPECTED_SKIPS must be a non-negative integer"
+            )
+        return expected
+    if _kayakgen_truthy_env("KAYAKGEN_OPENFOAM_SMOKE") and _kayakgen_truthy_env(
+        "KAYAKGEN_OPENFOAM_LOCAL_RUN"
+    ):
+        return 0
+    return OPENFOAM_DEFAULT_SKIP_COUNT
+
+
+def _kayakgen_skip_pin_enabled() -> bool:
+    return _kayakgen_truthy_env("KAYAKGEN_ENFORCE_SKIP_PIN")
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """Fail gate-marked pytest sessions whose skip count drifts.
+
+    The enforcement altitude is explicit env, not collection inference:
+    partial invocations such as ``pytest tests/test_x.py`` remain valid by
+    default, while ``scripts/full-gate.sh`` and ``scripts/fast-gate.sh`` opt
+    into this hook with ``KAYAKGEN_ENFORCE_SKIP_PIN=1``.
+    """
+
+    if not _kayakgen_skip_pin_enabled():
+        return
+    if getattr(session.config.option, "collectonly", False):
+        return
+    if exitstatus != pytest.ExitCode.OK:
+        return
+    terminal = session.config.pluginmanager.get_plugin("terminalreporter")
+    skipped = 0
+    if terminal is not None:
+        skipped = len(getattr(terminal, "stats", {}).get("skipped", []))
+    expected = _kayakgen_expected_skip_count()
+    if skipped != expected:
+        if terminal is not None:
+            terminal.write_line(
+                "[kayakgen skip-pin] FAIL: "
+                f"{skipped} skipped, expected exactly {expected}",
+                red=True,
+            )
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
+        return
+    if terminal is not None:
+        terminal.write_line(
+            f"[kayakgen skip-pin] OK ({skipped} skipped == expected {expected})"
+        )
+
+
 @dataclass(frozen=True)
 class StabilityAcceptanceTriple:
     """Three byte-stable records that share fixture id + design hash + version."""

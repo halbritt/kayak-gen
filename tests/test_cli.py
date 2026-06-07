@@ -14,6 +14,7 @@ from kayakgen.model.hull import Hull
 from kayakgen.model.validity import CODE_L_BWL_LOW
 from kayakgen.search.pareto import SEARCH_OBJECTIVE_CLAIM_ADMISSIBILITY_TOKEN
 from kayakgen.search.sweep import SweepSpec, run_sweep
+from kayakgen.services.artifact_store import FilesystemArtifactStore
 
 FIXTURE_PROFILE_NAME = "fixture-local-command"
 FIXTURE_WARNING_FRAGMENT = "not calibrated, validated, or final design fitness"
@@ -126,7 +127,10 @@ def _stage_gated_compare_run(run_dir) -> None:
     for index, record in enumerate(run.candidates):
         record.summary["Rt_N_last"] = float(10 + index)
         record.summary["resistance_use"] = "comparative_filter"
-    (run_dir / "run.json").write_text(run.model_dump_json(indent=2))
+    FilesystemArtifactStore(
+        run_dir,
+        run_id=f"sweep-{run.spec_hash[:16]}-{run_dir.name}",
+    ).put_json("sweep_run_record", run, canonical_path=run_dir / "run.json")
 
 
 def test_compare_gated_objective_without_opt_in_refuses_at_cli(tmp_path) -> None:

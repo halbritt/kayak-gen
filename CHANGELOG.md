@@ -8,6 +8,20 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Fixed
 
+- Workflow 0067 follow-up to the 0066 pre-merge review: the skip-count
+  pin now also lives inside pytest behind the explicit
+  `KAYAKGEN_ENFORCE_SKIP_PIN=1` gate env, exported by both gate scripts,
+  so the full-suite release command cannot bypass the pin while ordinary
+  partial pytest runs remain legitimate. Gate scripts now guard the git-root
+  `cd`, derive expected skips from OpenFOAM opt-in env, and parse the final
+  pytest summary line. Production artifact readers in comparison reports,
+  `kayakgen runs reindex`, and CFD job-record loading use store/index
+  hashes when available; hash-bearing high-angle GZ artifacts construct
+  direct verified refs. Store reads now skip corrupt same-hash siblings,
+  fall through on transient store-read `OSError`, rehash equal-length
+  write-side occupants before dedupe, refuse absolute/outside
+  `relative_path` refs, and export `ArtifactIntegrityError`.
+
 - Workflow 0066 review MF-1: `ArtifactStore.get_json` decoded a second,
   post-verification disk read (`read_text`) instead of the exact bytes
   the SERVE-ONLY-VERIFIED resolve had hashed — bytes swapped between

@@ -71,7 +71,7 @@ Every commit must pass, in this order:
 
 1. **`.venv/bin/python -m pytest -q`** — the full test suite must
    be green, with only the documented OpenFOAM opt-in skips
-   (expected: 4). The four are env-gated behind
+   (expected: 4 when OpenFOAM opt-ins are unset). The four are env-gated behind
    `KAYAKGEN_OPENFOAM_SMOKE=1` + `KAYAKGEN_OPENFOAM_LOCAL_RUN=1`:
    two in `tests/test_openfoam_v2512_smoke.py` and two
    real-solver-path stage tests in `tests/test_cfd_run_stages.py`.
@@ -92,11 +92,14 @@ Every commit must pass, in this order:
 
 Requirements 1 and 2 have a mechanical form: `scripts/full-gate.sh`
 runs ruff plus the full suite and **enforces** the skip count — it
-parses the pytest summary and fails unless `skipped == 4` (audit G1,
-2026-06-06: the pin was previously claimed but unimplemented). The
-pin assumes the OpenFOAM env knobs are unset; a solver-equipped host
-running the smoke uses the explicit opt-in command below, not the
-gate scripts.
+exports `KAYAKGEN_ENFORCE_SKIP_PIN=1` so `tests/conftest.py` also
+enforces the count inside pytest, then parses the final pytest summary
+line as a redundant script-level check. The expected count is derived
+from the OpenFOAM env knobs: default gates expect 4 skips; a full
+OpenFOAM smoke+local-run opt-in expects those tests to pass instead of
+skip (audit G1, 2026-06-06; workflow 0067 gate-altitude follow-up).
+The env knob is intentionally explicit so partial invocations such as
+`pytest tests/test_x.py` are not punished for having zero skips.
 
 The opt-in OpenFOAM smoke is the recommended pre-push gate when a
 change touches CFD, the OpenFOAM adapter, the case templates, or the

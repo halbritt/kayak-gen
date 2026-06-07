@@ -20,6 +20,7 @@ from typing import Any
 import typer
 
 from kayakgen.services.artifact_store import (
+    ArtifactKind,
     FilesystemArtifactStore,
     SqliteIndex,
     index_candidates,
@@ -220,7 +221,11 @@ def runs_reindex_command(
         typer.echo(f"reindex failed: {run_json} not found", err=True)
         raise typer.Exit(code=1)
 
-    payload = json.loads(run_json.read_text())
+    payload = _load_json_artifact(
+        run_dir,
+        "run.json",
+        kind="sweep_run_record",
+    )
     name = payload.get("name") or run_dir.name
     spec_hash = payload.get("spec_hash") or record_hash(payload)
     resolved_run_id = run_id or f"reindex-{spec_hash[:16]}-{name}"
@@ -243,7 +248,13 @@ def runs_reindex_command(
 
         for path in sorted(candidates_dir.glob("*.record.json")):
             try:
-                rec = CandidateRecord.model_validate_json(path.read_text())
+                rel = path.relative_to(run_dir).as_posix()
+                payload = _load_json_artifact(
+                    run_dir,
+                    rel,
+                    kind="candidate_record",
+                )
+                rec = CandidateRecord.model_validate(payload)
             except (ValidationError, ValueError):
                 typer.echo(f"warning: could not parse {path}", err=True)
                 continue
@@ -261,3 +272,19 @@ __all__ = [
     "runs_query_command",
     "runs_reindex_command",
 ]
+
+
+def _load_json_artifact(
+    run_dir: Path,
+    relative_path: str,
+    *,
+    kind: ArtifactKind,
+) -> dict[str, Any]:
+    if (run_dir / "_store").is_dir():
+        verified = FilesystemArtifactStore(run_dir).get_json_by_relative_path(
+            relative_path,
+            kind=kind,
+        )
+        if verified is not None:
+            return verified
+    return json.loads((run_dir / relative_path).read_text())

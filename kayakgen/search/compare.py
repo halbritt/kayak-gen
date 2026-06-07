@@ -16,6 +16,11 @@ from kayakgen.eval.claims import (
 )
 from kayakgen.eval.contract import EvaluationResult
 from kayakgen.model.validity import DesignValidityReport
+from kayakgen.services.artifact_store import (
+    ArtifactKind,
+    ArtifactRef,
+    FilesystemArtifactStore,
+)
 from kayakgen.search.objectives import (
     OBJECTIVE_METADATA,
     ObjectiveMetadata,
@@ -168,10 +173,16 @@ def parse_objective(value: str) -> Objective:
 
 def load_sweep_run(run_dir: str | Path) -> SweepRunRecord:
     """Load a sweep run from ``run.json``."""
-    run_path = Path(run_dir) / "run.json"
+    root = Path(run_dir)
+    run_path = root / "run.json"
     if not run_path.exists():
         raise ValueError(f"missing sweep run record: {run_path}")
-    return SweepRunRecord.model_validate_json(run_path.read_text())
+    payload = _load_json_artifact(
+        root,
+        "run.json",
+        kind="sweep_run_record",
+    )
+    return SweepRunRecord.model_validate(payload)
 
 
 def build_comparison_report(
@@ -446,9 +457,15 @@ def _candidate_summary(root: Path, record: CandidateRecord) -> CandidateSummary:
         }
 
     if "mesh_diagnostics" in record.artifacts:
-        mesh_path = root / record.artifacts["mesh_diagnostics"]
+        mesh_rel = record.artifacts["mesh_diagnostics"]
+        mesh_path = root / mesh_rel
         if mesh_path.exists():
-            mesh = json.loads(mesh_path.read_text())
+            mesh = _load_json_artifact(
+                root,
+                mesh_rel,
+                kind="mesh_quality_json",
+                candidate_key=record.candidate_key,
+            )
             metrics["mesh_problem_count"] = float(
                 sum(
                     int(mesh.get(key, 0))
@@ -510,8 +527,23 @@ def _load_high_angle_gz_display(
         return None
 
     try:
-        block = json.loads(artifact_path.read_text())
-    except (OSError, ValueError):
+        if record.high_angle_gz_artifact is not None:
+            ref = ArtifactRef(
+                kind="high_angle_gz_artifact",
+                artifact_hash=record.high_angle_gz_artifact.sha256,
+                run_id=None,
+                candidate_key=record.candidate_key,
+                relative_path=artifact_ref,
+            )
+            block = FilesystemArtifactStore(root).get_json(ref)
+        else:
+            block = _load_json_artifact(
+                root,
+                artifact_ref,
+                kind="high_angle_gz_artifact",
+                candidate_key=record.candidate_key,
+            )
+    except (OSError, ValueError, FileNotFoundError):
         return None
     if not isinstance(block, dict):
         return None
@@ -570,7 +602,33 @@ def _load_evaluation(root: Path, record: CandidateRecord) -> EvaluationResult | 
     eval_path = root / eval_rel
     if not eval_path.exists():
         return None
-    return EvaluationResult.model_validate_json(eval_path.read_text())
+    payload = _load_json_artifact(
+        root,
+        eval_rel,
+        kind="eval_result_json",
+        candidate_key=record.candidate_key,
+    )
+    return EvaluationResult.model_validate(payload)
+
+
+def _load_json_artifact(
+    root: Path,
+    relative_path: str,
+    *,
+    kind: ArtifactKind,
+    candidate_key: str | None = None,
+) -> dict[str, Any]:
+    """Load JSON through the artifact store when index provenance exists."""
+
+    if (root / "_store").is_dir():
+        verified = FilesystemArtifactStore(root).get_json_by_relative_path(
+            relative_path,
+            kind=kind,
+            candidate_key=candidate_key,
+        )
+        if verified is not None:
+            return verified
+    return json.loads((root / relative_path).read_text())
 
 
 def _default_objectives(summaries: list[CandidateSummary]) -> list[Objective]:

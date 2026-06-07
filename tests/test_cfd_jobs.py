@@ -53,6 +53,7 @@ from kayakgen.eval.mesh_package import (
 )
 from kayakgen.eval.volume_mesh import VolumeMeshDiagnostic, sha256_file
 from kayakgen.model.hull import Hull
+from kayakgen.services.artifact_store import FilesystemArtifactStore
 
 FIXTURE_PROFILE_NAME = "fixture-local-command"
 FIXTURE_RAW_RESULT = "raw-result.json"
@@ -874,6 +875,32 @@ def test_unavailable_adapter_writes_unavailable_run_record(tmp_path: Path) -> No
     assert "raw and unvalidated" in (record.error_message or "")
     assert record.result_semantics == "raw_unvalidated"
     assert load_run_record(job.job_dir / "run.json") == record
+
+
+def test_load_run_record_reanchors_valid_out_of_band_record(tmp_path: Path) -> None:
+    """Workflow 0067: valid mutable CFD run records are re-stored."""
+
+    mesh_dir = tmp_path / "mesh"
+    jobs_dir = tmp_path / "jobs"
+    write_mesh_package(Hull(), mesh_dir, stations=8)
+    job = prepare_local_job(
+        mesh_dir,
+        jobs_dir,
+        unavailable_open_surface_profile(),
+        speed_mps=2.4,
+    )
+    forged = job.run_record.model_copy(
+        update={"status": "failed", "error_kind": "tampered"}
+    )
+    (job.job_dir / "run.json").write_text(forged.model_dump_json(indent=2))
+
+    assert load_run_record(job.job_dir / "run.json") == forged
+    stored = FilesystemArtifactStore(job.job_dir).get_json_by_relative_path(
+        "run.json",
+        kind="cfd_run_record",
+    )
+    assert stored is not None
+    assert stored["error_kind"] == "tampered"
 
 
 def test_mock_local_command_adapter_writes_failed_record_and_logs(tmp_path: Path) -> None:

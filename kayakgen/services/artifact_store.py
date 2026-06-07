@@ -550,6 +550,54 @@ class SqliteIndex:
             rows = conn.execute(sql, params).fetchall()
         return [dict(row) for row in rows]
 
+    def artifact_ref_for_relative_path(
+        self,
+        *,
+        run_dir: Path | str,
+        relative_path: str,
+        kind: ArtifactKind | None = None,
+        candidate_key: str | None = None,
+    ) -> ArtifactRef | None:
+        """Return the indexed artifact ref for a run-local canonical path.
+
+        The artifacts table stores content hashes, but production readers
+        often hold only canonical paths. Joining through ``runs.out_dir`` keeps
+        the lookup scoped to the selected run directory instead of trusting a
+        bare relative path such as ``run.json`` globally.
+        """
+
+        rel = Path(relative_path)
+        if rel.is_absolute():
+            raise ValueError("artifact relative_path must be relative")
+        rel_posix = rel.as_posix()
+        run_path = Path(run_dir)
+        run_dir_candidates = [str(run_path), str(run_path.resolve())]
+        sql = (
+            "SELECT a.artifact_hash, a.kind, a.run_id, a.candidate_key, "
+            "a.relative_path FROM artifacts a "
+            "JOIN runs r ON r.run_id = a.run_id "
+            "WHERE a.relative_path = ? AND r.out_dir IN (?, ?)"
+        )
+        params: list[Any] = [rel_posix, *run_dir_candidates]
+        if kind is not None:
+            sql += " AND a.kind = ?"
+            params.append(kind)
+        if candidate_key is not None:
+            sql += " AND a.candidate_key = ?"
+            params.append(candidate_key)
+        sql += " ORDER BY a.created_at DESC, a.rowid DESC LIMIT 1"
+        with self._conn() as conn:
+            row = conn.execute(sql, params).fetchone()
+        if row is None:
+            return None
+        return ArtifactRef(
+            kind=row["kind"],
+            artifact_hash=row["artifact_hash"],
+            run_id=row["run_id"],
+            candidate_key=row["candidate_key"],
+            relative_path=row["relative_path"],
+        )
+
     def candidates_for_run(
         self,
         run_id: str,
@@ -741,18 +789,16 @@ class FilesystemArtifactStore:
         The dedupe branch used to trust ``exists()`` blindly: a crash
         mid-write left truncated bytes at ``_store/<hash>`` and every
         later put of the same content silently hard-linked the corrupt
-        bytes into canonical run layouts. Byte length is the cheap
-        screen; on mismatch the occupant is rehashed to confirm
-        corruption before being atomically replaced with the intact
-        payload. An intact occupant is left untouched (normal dedupe).
+        bytes into canonical run layouts. Every occupant is rehashed before
+        it is trusted: byte length is diagnostic context only, because
+        equal-length bit rot is still corruption and must not be hard-linked
+        into canonical paths.
         """
 
         try:
             existing_size = store_path.stat().st_size
         except OSError:
             existing_size = -1
-        if existing_size == len(data):
-            return
         existing_hash: str | None
         try:
             existing_hash = _hash_bytes(store_path.read_bytes())
@@ -762,7 +808,7 @@ class FilesystemArtifactStore:
             return
         warnings.warn(
             "kayakgen artifact store found corrupt bytes at "
-            f"{store_path} (size {existing_size} != {len(data)}, "
+            f"{store_path} (size {existing_size} vs expected {len(data)}, "
             f"hash {existing_hash!r}); repairing with intact payload",
             stacklevel=2,
         )
@@ -878,6 +924,22 @@ class FilesystemArtifactStore:
 
     # -- reads -------------------------------------------------------------
 
+    def _canonical_path_for_ref(self, ref: ArtifactRef) -> Path | None:
+        if ref.relative_path is None:
+            return None
+        rel = Path(ref.relative_path)
+        if rel.is_absolute():
+            raise ValueError("artifact relative_path must be relative")
+        root = self.run_dir.resolve()
+        candidate = (self.run_dir / rel).resolve()
+        try:
+            candidate.relative_to(root)
+        except ValueError as exc:
+            raise ValueError(
+                "artifact relative_path resolves outside the run directory"
+            ) from exc
+        return candidate
+
     def _repair_store_from_canonical(
         self, ref: ArtifactRef, store_path: Path
     ) -> bytes | None:
@@ -895,9 +957,9 @@ class FilesystemArtifactStore:
         fallback, or rewritten out-of-band).
         """
 
-        if ref.relative_path is None:
+        canonical = self._canonical_path_for_ref(ref)
+        if canonical is None:
             return None
-        canonical = self.run_dir / ref.relative_path
         try:
             data = canonical.read_bytes()
         except OSError:
@@ -921,22 +983,32 @@ class FilesystemArtifactStore:
         # between verification and serving). Before this, a content
         # address corrupted after write was served silently, forever;
         # repair only fired on the next put of identical content.
-        for path in self.store_dir.glob(f"{ref.artifact_hash}.*"):
+        first_mismatch: tuple[Path, str] | None = None
+        for path in sorted(self.store_dir.glob(f"{ref.artifact_hash}.*")):
             if not path.is_file():
                 continue
-            data = path.read_bytes()
+            try:
+                data = path.read_bytes()
+            except OSError:
+                continue
             actual = _hash_bytes(data)
             if actual == ref.artifact_hash:
                 return path, data
             repaired = self._repair_store_from_canonical(ref, path)
             if repaired is not None:
                 return path, repaired
+            if first_mismatch is None:
+                first_mismatch = (path, actual)
+        if first_mismatch is not None:
+            path, actual = first_mismatch
             raise ArtifactIntegrityError(
-                path=path, expected_hash=ref.artifact_hash, actual_hash=actual
+                path=path,
+                expected_hash=ref.artifact_hash,
+                actual_hash=actual,
             )
         # Re-derive from canonical path if available.
-        if ref.relative_path is not None:
-            canonical = self.run_dir / ref.relative_path
+        canonical = self._canonical_path_for_ref(ref)
+        if canonical is not None:
             if canonical.exists():
                 data = canonical.read_bytes()
                 derived = _hash_bytes(data)
@@ -971,6 +1043,40 @@ class FilesystemArtifactStore:
 
         _, data = self._resolve_artifact(ref)
         return json.loads(data.decode("utf-8"))
+
+    def ref_for_relative_path(
+        self,
+        relative_path: str,
+        *,
+        kind: ArtifactKind | None = None,
+        candidate_key: str | None = None,
+    ) -> ArtifactRef | None:
+        """Look up a hash-bearing ref for a canonical run-local path."""
+
+        return self.index.artifact_ref_for_relative_path(
+            run_dir=self.run_dir,
+            relative_path=relative_path,
+            kind=kind,
+            candidate_key=candidate_key,
+        )
+
+    def get_json_by_relative_path(
+        self,
+        relative_path: str,
+        *,
+        kind: ArtifactKind | None = None,
+        candidate_key: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Return verified JSON for an indexed canonical path, or ``None``."""
+
+        ref = self.ref_for_relative_path(
+            relative_path,
+            kind=kind,
+            candidate_key=candidate_key,
+        )
+        if ref is None:
+            return None
+        return self.get_json(ref)
 
     def get_file(self, ref: ArtifactRef) -> Path:
         """Return a path whose bytes were rehash-verified at resolve time.
@@ -1090,6 +1196,7 @@ def index_candidates(
 
 __all__ = [
     "ArtifactKind",
+    "ArtifactIntegrityError",
     "ArtifactRef",
     "ArtifactStore",
     "CandidateSummary",

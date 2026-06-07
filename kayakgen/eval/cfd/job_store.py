@@ -39,6 +39,7 @@ from kayakgen.eval.cfd.records import (
     SolverRawResult,
 )
 from kayakgen.eval.mesh_package import MeshPackageManifest
+from kayakgen.services.artifact_store import ArtifactIntegrityError, FilesystemArtifactStore
 
 
 def prepare_cfd_job(
@@ -212,24 +213,25 @@ def read_local_status(job_dir: str | Path) -> CfdRunRecord:
 
 def load_run_record(path: str | Path) -> CfdRunRecord:
     """Load and parse a CFD run record."""
+    path = Path(path)
     try:
-        return CfdRunRecord.model_validate_json(Path(path).read_text())
+        return CfdRunRecord.model_validate(_load_job_json_artifact(path))
     except FileNotFoundError as exc:
-        raise CfdDispatchError(f"run record not found: {Path(path)}") from exc
-    except ValidationError as exc:
-        raise CfdDispatchError(f"malformed run record: {Path(path)}") from exc
+        raise CfdDispatchError(f"run record not found: {path}") from exc
+    except (ValidationError, ValueError) as exc:
+        raise CfdDispatchError(f"malformed run record: {path}") from exc
 
 
 def load_profile(job_dir: Path) -> SolverProfile:
     """Load and parse the prepared profile.json for a local CFD job."""
     profile_path = Path(job_dir) / "profile.json"
     try:
-        return SolverProfile.model_validate_json(profile_path.read_text())
+        return SolverProfile.model_validate(_load_job_json_artifact(profile_path))
     except FileNotFoundError as exc:
         raise CfdDispatchError(
             f"prepared solver profile not found: {profile_path}"
         ) from exc
-    except ValidationError as exc:
+    except (ValidationError, ValueError) as exc:
         raise CfdDispatchError(
             f"malformed solver profile: {profile_path}"
         ) from exc
@@ -239,11 +241,11 @@ def _load_prepared_case(job_dir: Path) -> PreparedSolverCase:
     job_path = job_dir / "job.json"
     profile_path = job_dir / "profile.json"
     try:
-        job_spec = CfdJobSpec.model_validate_json(job_path.read_text())
-        solver_profile = SolverProfile.model_validate_json(profile_path.read_text())
+        job_spec = CfdJobSpec.model_validate(_load_job_json_artifact(job_path))
+        solver_profile = SolverProfile.model_validate(_load_job_json_artifact(profile_path))
     except FileNotFoundError as exc:
         raise CfdDispatchError(f"prepared CFD job record not found in {job_dir}") from exc
-    except ValidationError as exc:
+    except (ValidationError, ValueError) as exc:
         raise CfdDispatchError(f"malformed CFD job record in {job_dir}") from exc
 
     manifest_path = (job_dir / job_spec.input_manifest).resolve()
@@ -260,6 +262,31 @@ def _load_prepared_case(job_dir: Path) -> PreparedSolverCase:
         solver_profile=solver_profile,
         mesh_manifest=manifest,
     )
+
+
+def _load_job_json_artifact(path: Path) -> dict:
+    job_dir = path.parent
+    if path.name == "run.json" and path.is_file() and (job_dir / "_store").is_dir():
+        store = FilesystemArtifactStore(job_dir)
+        try:
+            verified = store.get_json_by_relative_path(
+                path.name,
+                kind="cfd_run_record",
+            )
+            if verified is not None:
+                return verified
+        except ArtifactIntegrityError:
+            # Local CFD run records are mutable operational state. If an
+            # operator edited the canonical run.json out of band, re-anchor
+            # those bytes in the store before serving them.
+            payload = json.loads(path.read_text())
+            ref = store.put_json(
+                "cfd_run_record",
+                payload,
+                canonical_path=path,
+            )
+            return store.get_json(ref)
+    return json.loads(path.read_text())
 
 
 def _adapter_for(solver_profile: SolverProfile) -> SolverAdapter:

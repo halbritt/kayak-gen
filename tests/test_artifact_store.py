@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+import kayakgen.services.artifact_store as artifact_store_module
 from kayakgen.cli.main import app
 from kayakgen.model.hull import Hull
 from kayakgen.search.sweep import SweepSpec, run_sweep
@@ -356,10 +357,9 @@ def test_equal_length_bit_rot_caught_by_read_rehash(
 ) -> None:
     """Audit §6 sibling: same byte count, different bytes.
 
-    The write-side repair's cheap screen is byte length, so equal-length
-    rot sails past it on the put path; the read-side rehash is the layer
-    that must catch it. ``get_file`` is exercised here so both public
-    read paths (`get_json` above) are pinned."""
+    Read-time rehash remains the final guard for corruption introduced
+    after write. ``get_file`` is exercised here so both public read paths
+    (`get_json` above) are pinned."""
 
     run_dir = tmp_path / "run-bit-rot"
     store = FilesystemArtifactStore(run_dir, run_id="bit-rot")
@@ -374,6 +374,105 @@ def test_equal_length_bit_rot_caught_by_read_rehash(
     with pytest.raises(ArtifactIntegrityError) as excinfo:
         store.get_file(ref)
     assert excinfo.value.actual_hash != ref.artifact_hash
+
+
+def test_equal_length_store_occupant_repaired_on_put(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    """Workflow 0067: equal-length occupants are rehashed before dedupe.
+
+    The old write path returned as soon as the occupant byte count matched
+    the intended payload, letting same-length bit rot propagate to the
+    canonical hard link on the next put of identical content.
+    """
+
+    payload = {"k": "same-length"}
+    data = json.dumps(payload, indent=2).encode("utf-8")
+    artifact_hash = hashlib.sha256(data).hexdigest()
+    run_dir = tmp_path / "run-equal-put"
+    store = FilesystemArtifactStore(run_dir, run_id="equal-put")
+    store_path = run_dir / "_store" / f"{artifact_hash}.json"
+    rotted = bytearray(data)
+    rotted[len(rotted) // 2] ^= 0x01
+    assert len(rotted) == len(data)
+    store_path.write_bytes(bytes(rotted))
+
+    with pytest.warns(UserWarning, match="repairing with intact payload"):
+        ref = store.put_json(
+            "sweep_run_record",
+            payload,
+            canonical_path=run_dir / "run.json",
+        )
+
+    assert ref.artifact_hash == artifact_hash
+    assert store_path.read_bytes() == data
+    assert (run_dir / "run.json").read_bytes() == data
+
+
+def test_corrupt_same_hash_sibling_does_not_mask_intact_sibling(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    """Workflow 0067: try remaining same-hash siblings before raising."""
+
+    run_dir = tmp_path / "run-sibling"
+    store = FilesystemArtifactStore(run_dir, run_id="sibling")
+    payload = {"k": "siblings"}
+    ref = store.put_json("sweep_run_record", payload)
+    corrupt_first = run_dir / "_store" / f"{ref.artifact_hash}.aaa"
+    corrupt_first.write_bytes(b'{"k": "wrong"}')
+
+    assert store.get_json(ref) == payload
+
+
+def test_store_read_oserror_falls_through_to_canonical(
+    tmp_path: Path,
+    isolated_index: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Workflow 0067: transient store read errors do not escape raw."""
+
+    run_dir = tmp_path / "run-read-oserror"
+    store = FilesystemArtifactStore(run_dir, run_id="read-oserror")
+    payload = {"k": "canonical"}
+    ref = store.put_json(
+        "sweep_run_record",
+        payload,
+        canonical_path=run_dir / "run.json",
+    )
+    store_path = run_dir / "_store" / f"{ref.artifact_hash}.json"
+    real_read = Path.read_bytes
+
+    def read_with_store_error(self: Path):
+        if self == store_path:
+            raise OSError("simulated transient store read")
+        return real_read(self)
+
+    with monkeypatch.context() as m:
+        m.setattr(Path, "read_bytes", read_with_store_error)
+        with pytest.warns(UserWarning, match="re-deriving from"):
+            assert store.get_json(ref) == payload
+
+
+def test_absolute_artifact_relative_path_refused(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    """Workflow 0067: absolute relative_path values cannot escape run_dir."""
+
+    run_dir = tmp_path / "run-absolute-ref"
+    store = FilesystemArtifactStore(run_dir, run_id="absolute-ref")
+    data = b'{"k": "v"}'
+    ref = ArtifactRef(
+        kind="sweep_run_record",
+        artifact_hash=hashlib.sha256(data).hexdigest(),
+        relative_path=str(tmp_path / "outside.json"),
+    )
+
+    with pytest.raises(ValueError, match="must be relative"):
+        store.get_json(ref)
+
+
+def test_artifact_integrity_error_is_exported() -> None:
+    assert "ArtifactIntegrityError" in artifact_store_module.__all__
 
 
 def test_get_json_serves_the_exact_verified_bytes_no_second_read(
