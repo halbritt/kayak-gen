@@ -1,0 +1,167 @@
+{
+  "schema_version": "striatum.workflow.v1",
+  "workflow_id": "0067-gate-altitude-verified-reads",
+  "workflow_version": "2026-06-07",
+  "name": "0067 - Gate-altitude skip pin + verified production artifact reads",
+  "branch": {
+    "mode": "confirm",
+    "suggested_name": "striatum/0067-gate-altitude-verified-reads",
+    "allow_dirty": false
+  },
+  "coordinator": {"role_id": "author", "lane_id": "author"},
+  "lanes": {
+    "author": {
+      "adapter": "process",
+      "display_model": "claude",
+      "command": ["claude", "--dangerously-skip-permissions"],
+      "adapter_capabilities": {"agent_loop": true},
+      "supervision": {"transport": "pty_helper", "compatible": true, "require_tmux": true},
+      "capabilities": ["write"],
+      "worktree_isolation": "per_job"
+    },
+    "reviewer": {
+      "adapter": "process",
+      "display_model": "codex",
+      "command": ["codex", "--yolo"],
+      "adapter_capabilities": {"agent_loop": true},
+      "supervision": {"transport": "pty_helper", "compatible": true, "require_tmux": true},
+      "capabilities": ["review"]
+    }
+  },
+  "roles": {
+    "author": {"definition_path": "roles/author.md"},
+    "reviewer": {"definition_path": "roles/reviewer.md"}
+  },
+  "context_docs": [
+    {"path": "AGENTS.md", "required": true},
+    {"path": "docs/RELEASE_DISCIPLINE.md", "required": true},
+    {"path": "docs/DECISION_LOG.md", "required": true},
+    {"path": "docs/workflows/0066-test-protection-reaudit-gaps/OPERATOR_REPORT.md", "required": true},
+    {"path": "striatum/0066-test-protection-reaudit-gaps/review/REVIEW.md", "required": true},
+    {"path": "docs/workflows/0067-gate-altitude-verified-reads/SOURCES.md", "required": true},
+    {"path": "scripts/fast-gate.sh", "required": true},
+    {"path": "scripts/full-gate.sh", "required": true},
+    {"path": "tests/conftest.py", "required": true},
+    {"path": "kayakgen/services/artifact_store.py", "required": true},
+    {"path": "kayakgen/search/compare.py", "required": true},
+    {"path": "kayakgen/cli/runs_cli.py", "required": true},
+    {"path": "kayakgen/eval/cfd/job_store.py", "required": true},
+    {"path": "tests/test_artifact_store.py", "required": true},
+    {"path": "tests/test_fast_gate_manifest.py", "required": true},
+    {"path": "tests/test_compare.py", "required": true},
+    {"path": "tests/test_cfd_jobs.py", "required": true}
+  ],
+  "parallelism": {"mode": "declared", "max_active_jobs": 1, "require_disjoint_write_scopes": true},
+  "jobs": [
+    {
+      "id": "draft",
+      "type": "draft",
+      "title": "Implement in-suite skip-pin enforcement and verified production artifact reads",
+      "role_id": "author",
+      "lane_id": "author",
+      "fresh_session_required": true,
+      "objective": "Implement the top two successor findings from workflow 0066's pre-merge review without re-deriving the ranked table. SLICE A - GATE ALTITUDE. Add an in-suite pytest hook in tests/conftest.py that enforces the skip-count pin only when KAYAKGEN_ENFORCE_SKIP_PIN=1 is set. Both gate scripts must export that env var. Derive the expected skip count from the OpenFOAM opt-in knobs: default gates with KAYAKGEN_OPENFOAM_SMOKE unset expect the documented OpenFOAM opt-in tests to skip; an explicit KAYAKGEN_OPENFOAM_SMOKE=1 run expects those tests to pass rather than skip. Do not trip partial pytest invocations. Update RELEASE_DISCIPLINE.md so requirement 1 records the env-knob design decision, and keep scripts/full-gate.sh as the mechanical pre-merge form. While touching the scripts, guard cd to the git root, anchor skip-summary parsing to pytest's final summary line, and harden non-numeric parse failures. Either keep the duplicated script pin or redesign tests/test_fast_gate_manifest.py if consolidating. SLICE B - VERIFIED READ ADOPTION. Route reachable production readers through verified ArtifactStore APIs when an ArtifactRef or hash-bearing record is available: kayakgen/search/compare.py, kayakgen/cli/runs_cli.py, and kayakgen/eval/cfd/job_store.py are the named call sites. Settle and document the design: prefer record-carried ArtifactRef fields where present; for legacy path-only records, build refs only when the record/index carries the expected SHA-256, otherwise record the remaining direct-read surface honestly in DRAFT.md. Harden FilesystemArtifactStore: wrap glob-branch read_bytes OSError and fall through to re-derive, try intact same-hash siblings before raising on a corrupt one, rehash equal-length write-side occupants before trusting them, reject absolute/outside relative_path joins, and export ArtifactIntegrityError in __all__. Add focused tests for every behavior changed. Optional cleanup only if it stays small: shared gated-compare staging helper and repair-tail extraction. Update CHANGELOG.md and DECISION_LOG.md if the verified-read adoption or gate-design decision needs a recorded row. Gate with focused tests, ruff, then scripts/full-gate.sh; verify the user-level ~/.local/share/kayakgen/index.sqlite remains empty/unchanged. Publish striatum/0067-gate-altitude-verified-reads/DRAFT.md with design decisions, shas/diffstat, tests run, remaining direct-read surfaces if any, and gate tail.",
+      "task_prompt": {"path": "prompts/draft.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "scripts/fast-gate.sh",
+          "scripts/full-gate.sh",
+          "docs/RELEASE_DISCIPLINE.md",
+          "docs/DECISION_LOG.md",
+          "CHANGELOG.md",
+          "kayakgen/services/artifact_store.py",
+          "kayakgen/search/compare.py",
+          "kayakgen/cli/runs_cli.py",
+          "kayakgen/eval/cfd/job_store.py",
+          "tests/conftest.py",
+          "tests/test_artifact_store.py",
+          "tests/test_fast_gate_manifest.py",
+          "tests/test_compare.py",
+          "tests/test_cli.py",
+          "tests/test_cfd_jobs.py",
+          "docs/workflows/0067-gate-altitude-verified-reads/OPERATOR_REPORT.md",
+          "striatum/0067-gate-altitude-verified-reads/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "KAYAKGEN_TEST_COVERAGE_AUDIT_WHOLE_REPO_CLAUDE_OPUS_4_8_2026-06-06.md",
+          "KAYAKGEN_TEST_COVERAGE_AUDIT_CLAUDE_OPUS_4_8_2026-06-06.md",
+          "KAYAKGEN_TEST_PROTECTION_REMEDIATION_PLAN_CLAUDE_OPUS_4_8_2026-06-06.md"
+        ]
+      },
+      "expected_artifacts": [
+        {"kind": "handoff", "logical_name": "draft", "path": "striatum/0067-gate-altitude-verified-reads/DRAFT.md", "required": true}
+      ]
+    },
+    {
+      "id": "review",
+      "type": "review",
+      "title": "Review gate enforcement honesty and serve-only-verified adoption",
+      "role_id": "reviewer",
+      "lane_id": "reviewer",
+      "fresh_session_required": true,
+      "objective": "Review the 0067 draft with two primary lenses. First, gate enforcement honesty: bare full-suite pytest must fail on a wrong skip count when KAYAKGEN_ENFORCE_SKIP_PIN=1 is exported, but partial pytest invocations must not be punished. Confirm both gate scripts export the knob, derive expected skip count correctly from OpenFOAM opts, guard git-root cd, and parse only the final pytest summary line. Prove the hook fires by sabotaging the expected count in scratch. Second, serve-only-verified adoption: trace the named production readers and every FilesystemArtifactStore read return. Verify record-carried hashes are used where available, path-only legacy surfaces are either moved or explicitly recorded, corrupt same-hash siblings are skipped in favor of intact siblings, read OSErrors fall through, equal-length write-side occupants are rehashed, absolute relative_path refs are refused, and ArtifactIntegrityError is exported. Check scope first; any write outside the allowed paths is needs_revision. Run focused tests and scripts/full-gate.sh. Publish REVIEW.md before or alongside the long gate with verdict accept / accept_with_findings / needs_revision; never terminal reject.",
+      "task_prompt": {"path": "prompts/review.md"},
+      "write_scope": {
+        "mode": "review_only_artifact",
+        "repo_write": false,
+        "allowed_paths": ["striatum/0067-gate-altitude-verified-reads/review/"],
+        "forbidden_paths": [".striatum/"]
+      },
+      "expected_artifacts": [
+        {"kind": "finding", "logical_name": "review", "path": "striatum/0067-gate-altitude-verified-reads/review/REVIEW.md", "required": true}
+      ]
+    },
+    {
+      "id": "apply",
+      "type": "synthesis",
+      "title": "Apply review findings and close workflow 0067",
+      "role_id": "author",
+      "lane_id": "author",
+      "fresh_session_required": true,
+      "objective": "Apply every must-fix finding from review within the original write scope. Do not broaden 0067 into deferred G7/G11 work. Refresh docs or counts if review/apply changes affected them. Write docs/workflows/0067-gate-altitude-verified-reads/OPERATOR_REPORT.md with landed items, design decisions, production read adoption coverage, remaining legacy path-only surfaces if any, tests/gates, and user-level index DB verification. Re-run scripts/full-gate.sh with heartbeats and publish striatum/0067-gate-altitude-verified-reads/SUMMARY.md. Leave the stack on the run branch for operator merge.",
+      "task_prompt": {"path": "prompts/apply.md"},
+      "write_scope": {
+        "mode": "repo_write",
+        "repo_write": true,
+        "allowed_paths": [
+          "scripts/fast-gate.sh",
+          "scripts/full-gate.sh",
+          "docs/RELEASE_DISCIPLINE.md",
+          "docs/DECISION_LOG.md",
+          "CHANGELOG.md",
+          "kayakgen/services/artifact_store.py",
+          "kayakgen/search/compare.py",
+          "kayakgen/cli/runs_cli.py",
+          "kayakgen/eval/cfd/job_store.py",
+          "tests/conftest.py",
+          "tests/test_artifact_store.py",
+          "tests/test_fast_gate_manifest.py",
+          "tests/test_compare.py",
+          "tests/test_cli.py",
+          "tests/test_cfd_jobs.py",
+          "docs/workflows/0067-gate-altitude-verified-reads/OPERATOR_REPORT.md",
+          "striatum/0067-gate-altitude-verified-reads/"
+        ],
+        "forbidden_paths": [
+          ".striatum/",
+          "KAYAKGEN_TEST_COVERAGE_AUDIT_WHOLE_REPO_CLAUDE_OPUS_4_8_2026-06-06.md",
+          "KAYAKGEN_TEST_COVERAGE_AUDIT_CLAUDE_OPUS_4_8_2026-06-06.md",
+          "KAYAKGEN_TEST_PROTECTION_REMEDIATION_PLAN_CLAUDE_OPUS_4_8_2026-06-06.md"
+        ]
+      },
+      "expected_artifacts": [
+        {"kind": "synthesis", "logical_name": "summary", "path": "striatum/0067-gate-altitude-verified-reads/SUMMARY.md", "required": true}
+      ]
+    }
+  ],
+  "edges": [
+    {"from": "draft", "on": "completed", "to": "review"},
+    {"from": "review", "on": "completed", "to": "apply"}
+  ],
+  "cycles": [
+    {"from": "review", "on_verdict": "needs_revision", "to": "draft", "max_iterations": 1}
+  ]
+}
