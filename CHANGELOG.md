@@ -40,7 +40,8 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   with the fail-closed R2-default quirk pinned as intended (G5), and
   the calibration CSV-ingest refusal paths (G10). G7 (CLI NaN
   negatives) and G11 stay deferred by documented decision. Full suite
-  after: 1347 passed + exactly 4 documented skips.
+  after: 1348 passed + exactly 4 documented skips (1347 at the draft's
+  close, +1 for the review MF-1 regression test).
 
 - Workflow 0065 (test-protection P2 top-ups) closed out the 2026-06-06
   remediation plan's deferrable tier. Test-only additions: an external

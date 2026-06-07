@@ -20,7 +20,7 @@ Work order: `KAYAKGEN_TEST_COVERAGE_AUDIT_WHOLE_REPO_CLAUDE_OPUS_4_8_2026-06-06.
 | G5-FIT-THRESHOLD-PIN | c9e1a2c | tests |
 | G10-CSV-REFUSALS | 8922a4e | tests |
 | measured-numbers refresh + CHANGELOG | b0cc086 | gate follow-up |
-| review MF-1 fix (apply job) | (this commit) | store |
+| review MF-1 fix (apply job) | e9e5e27 | store |
 
 ## Gap rows closed — one-line evidence each
 
@@ -99,6 +99,32 @@ Work order: `KAYAKGEN_TEST_COVERAGE_AUDIT_WHOLE_REPO_CLAUDE_OPUS_4_8_2026-06-06.
 - Codex's MF-1 repro ran outside pytest and upserted one row into the
   user-level `index.sqlite`; detected, deleted, all tables re-verified
   0 rows (see REVIEW.md).
+
+## Pre-merge /code-review findings (2026-06-07, multi-agent, post-apply)
+
+Nine finder angles + clustered verification + gap sweep over
+`main...HEAD`. No regression vs main; all code findings are successor
+work, ranked:
+
+| # | verdict | finding | disposition |
+|---|---|---|---|
+| 1 | confirmed | Bare `pytest -q` (RELEASE_DISCIPLINE req. 1, and what lane agents run) bypasses the skip pin — only the two wrapper scripts enforce it. Real closure is an in-suite `pytest_sessionfinish` hook in conftest.py (which would also subsume the duplicated bash parse). | **successor: 0067 candidate, highest value** |
+| 2 | confirmed | The SERVE-ONLY-VERIFIED read API has zero production callers — production readers (compare.py, runs_cli.py, job_store.py) read canonical paths directly, so the G2 protection is inert until reads route through the store. | **successor: route readers through verified API** |
+| 3 | confirmed | Write-side dedupe trusts equal-length occupants without rehash and hard-links corruption onto canonical (pre-existing; manufactures the both-corrupt state the read path refuses). | successor: rehash-on-equal-length in `_verify_or_repair_store_file` |
+| 4 | confirmed | `_resolve_artifact` raises on the first corrupt same-hash sibling without trying an intact sibling (multi-extension entries are constructible; glob order is fs-dependent). | successor: try remaining siblings before raising |
+| 5 | confirmed | Glob-branch `read_bytes()` lacks the try/except OSError its sibling helper has — transient read errors escape raw instead of falling through to re-derive. | successor: wrap + fall through |
+| 6 | confirmed | `cd "$(git rev-parse --show-toplevel)"` is a silent no-op (`cd ""`) outside a git tree (inherited from 0062's fast-gate; copied into full-gate). | successor: guard the substitution |
+| 7 | confirmed | `ArtifactIntegrityError` missing from `__all__`. | successor: one-line add |
+| 8 | plausible | Skip-parse `tail -n 1` takes the last `N skipped` match anywhere; nothing in this repo prints after pytest's final line today (`-ra` puts warnings before it), so no live trigger — anchor the grep to the summary line when next touching the gates. | successor: fold into #1 |
+| 9 | plausible | Absolute `relative_path` discards `run_dir` on join (pathlib); no production caller constructs one, but a hand-built/index-loaded ref would be trusted outside the sandbox. | successor: containment check |
+| 10 | cleanup | Pin block byte-identical in two scripts AND the manifest test textually mandates the duplication; `_stage_gated_compare_run` is a third copy of test_compare.py staging; read/write repair tails hand-mirrored. | successor: consolidate with #1 |
+| 11 | latent | Non-numeric `[ -ne ]` would silently take the OK path (unreachable today — grep guarantees digits); empty tee capture fails closed but with a misleading message; `get_file` eager-reads+hashes to return a path (no callers); G9 test's global `Path.exists` patch is refactor-fragile. | recorded |
+
+Refuted by verification: the G6 monkeypatch-signature concern; the
+"dead guard" claim in the re-derive branch (a directory occupant at the
+content address makes it reachable). Provenance fixes applied pre-merge:
+gate header and CHANGELOG counts 1347→1348 (post-MF-1), the MF-1 sha in
+the items table.
 
 ## Gates
 

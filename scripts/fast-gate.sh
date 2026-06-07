@@ -12,7 +12,8 @@
 #
 # Deselect list (re-measured 2026-06-06 after workflow 0066, in a
 # striatum per-job worktree with KAYAKGEN_PY -> the primary venv;
-# full suite: 1347 passed + 4 skipped in 10:49):
+# full suite: 1348 passed + 4 skipped — 1347 measured at b0cc086 plus
+# the review MF-1 regression test added in the apply job, e9e5e27):
 #
 #  Named sets (workflow 0062 / remediation plan Q3):
 #   tests/test_web_browser.py                      34.3s  browser/visual (Playwright)
