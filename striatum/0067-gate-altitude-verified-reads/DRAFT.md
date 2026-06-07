@@ -8,9 +8,15 @@ branch: striatum/0067-gate-altitude-verified-reads
 
 Implemented the two successor findings from workflow 0066: the skip-count
 pin now has an in-suite enforcement point, and reachable production
-artifact readers use stored/indexed hashes where provenance exists. The
-worktree remains uncommitted for Striatum review; evidence below is from
-the live diff against `base`.
+artifact readers use stored/indexed hashes where provenance exists.
+
+Branch commits:
+
+- `ad4e8b2` - implementation + DRAFT (cherry-picked from detached
+  worktree commit `818f777`)
+- `7c8fbed` - workflow 0067 scaffold
+
+Evidence below is from the implementation diff against `base`.
 
 ## Diffstat
 
