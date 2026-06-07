@@ -6,6 +6,17 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
+### Fixed
+
+- Workflow 0066 review MF-1: `ArtifactStore.get_json` decoded a second,
+  post-verification disk read (`read_text`) instead of the exact bytes
+  the SERVE-ONLY-VERIFIED resolve had hashed — bytes swapped between
+  verification and decode would have been served unverified.
+  `_resolve_artifact` now returns the verified bytes; `get_json` decodes
+  them with no second read (pinned by a deny-`read_text` regression
+  test), and `get_file` documents that its returned path is verified at
+  resolve time only.
+
 ### Changed
 
 - Workflow 0066 (re-audit gap remediation) closed nine standing gaps

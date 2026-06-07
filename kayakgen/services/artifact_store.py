@@ -688,7 +688,10 @@ class FilesystemArtifactStore:
     rehashes bytes before serving. Corrupt store bytes are repaired from
     the canonical path when its bytes rehash to the expected address;
     otherwise the read raises :class:`ArtifactIntegrityError` — unverified
-    bytes are never served.
+    bytes are never served. ``get_json`` decodes the exact bytes that were
+    hashed (no second disk read; MF-1, workflow 0066 review); ``get_file``
+    verifies at resolve time and returns the path — later reads through
+    that path are outside the verification boundary.
     """
 
     def __init__(
@@ -877,17 +880,19 @@ class FilesystemArtifactStore:
 
     def _repair_store_from_canonical(
         self, ref: ArtifactRef, store_path: Path
-    ) -> Path | None:
+    ) -> bytes | None:
         """Repair corrupt store bytes from an intact canonical copy (audit G2).
 
         Mirrors the write-side repair (``_verify_or_repair_store_file``):
         only canonical bytes that rehash to the expected content address
         may overwrite the corrupt occupant, via the same atomic replace.
-        Returns ``None`` when no canonical path exists, it cannot be read,
-        or its bytes do not rehash to ``ref.artifact_hash`` — the caller
-        must then refuse to serve. Note a hard-linked canonical shares the
-        corrupt inode, so this rescue only fires when the canonical is an
-        independent copy (copy fallback, or rewritten out-of-band).
+        Returns the verified bytes so the caller serves exactly what was
+        hashed (MF-1, workflow 0066 review), or ``None`` when no canonical
+        path exists, it cannot be read, or its bytes do not rehash to
+        ``ref.artifact_hash`` — the caller must then refuse to serve. Note
+        a hard-linked canonical shares the corrupt inode, so this rescue
+        only fires when the canonical is an independent copy (copy
+        fallback, or rewritten out-of-band).
         """
 
         if ref.relative_path is None:
@@ -906,22 +911,26 @@ class FilesystemArtifactStore:
             stacklevel=3,
         )
         _atomic_write_bytes(store_path, data)
-        return store_path
+        return data
 
-    def _resolve_artifact(self, ref: ArtifactRef) -> Path:
+    def _resolve_artifact(self, ref: ArtifactRef) -> tuple[Path, bytes]:
         # Try store first. SERVE-ONLY-VERIFIED (audit G2, D050): rehash
-        # before serving on every read path. Before this, a content
+        # before serving on every read path, and return the exact bytes
+        # that were hashed so callers never re-read the path (MF-1,
+        # workflow 0066 review — a second read would reopen the window
+        # between verification and serving). Before this, a content
         # address corrupted after write was served silently, forever;
         # repair only fired on the next put of identical content.
         for path in self.store_dir.glob(f"{ref.artifact_hash}.*"):
             if not path.is_file():
                 continue
-            actual = _hash_bytes(path.read_bytes())
+            data = path.read_bytes()
+            actual = _hash_bytes(data)
             if actual == ref.artifact_hash:
-                return path
+                return path, data
             repaired = self._repair_store_from_canonical(ref, path)
             if repaired is not None:
-                return repaired
+                return path, repaired
             raise ArtifactIntegrityError(
                 path=path, expected_hash=ref.artifact_hash, actual_hash=actual
             )
@@ -948,17 +957,31 @@ class FilesystemArtifactStore:
                 store_path = self._store_path(derived, extension)
                 if not store_path.exists():
                     _atomic_write_bytes(store_path, data)
-                return store_path
+                return store_path, data
         raise FileNotFoundError(
             f"artifact {ref.artifact_hash} not found under {self.store_dir}"
         )
 
     def get_json(self, ref: ArtifactRef) -> dict[str, Any]:
-        path = self._resolve_artifact(ref)
-        return json.loads(path.read_text())
+        """Decode the exact rehash-verified bytes (D050; MF-1).
+
+        No second disk read happens after verification — the bytes
+        returned by ``_resolve_artifact`` are the bytes that were hashed.
+        """
+
+        _, data = self._resolve_artifact(ref)
+        return json.loads(data.decode("utf-8"))
 
     def get_file(self, ref: ArtifactRef) -> Path:
-        return self._resolve_artifact(ref)
+        """Return a path whose bytes were rehash-verified at resolve time.
+
+        Verification covers the resolve; reads a caller performs through
+        the returned path later are outside the D050 boundary (inherent
+        to a path-returning API).
+        """
+
+        path, _ = self._resolve_artifact(ref)
+        return path
 
     # -- events ------------------------------------------------------------
 

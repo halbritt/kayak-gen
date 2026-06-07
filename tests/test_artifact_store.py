@@ -376,6 +376,32 @@ def test_equal_length_bit_rot_caught_by_read_rehash(
     assert excinfo.value.actual_hash != ref.artifact_hash
 
 
+def test_get_json_serves_the_exact_verified_bytes_no_second_read(
+    tmp_path: Path, isolated_index: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MF-1 (workflow 0066 review): decode the bytes that were hashed.
+
+    ``get_json`` used to re-read the resolved path with ``read_text``
+    AFTER ``_resolve_artifact`` had verified a first read — bytes swapped
+    in that window would be served unverified, violating the D050 letter.
+    Denying ``read_text`` outright proves no second disk read remains on
+    the json read path."""
+
+    run_dir = tmp_path / "run-mf1"
+    store = FilesystemArtifactStore(run_dir, run_id="mf1")
+    payload = {"k": "v", "n": 7}
+    ref = store.put_json(
+        "sweep_run_record", payload, canonical_path=run_dir / "a.json"
+    )
+
+    def deny_read_text(self: Path, *args: object, **kwargs: object) -> str:
+        raise AssertionError(f"unverified second read via read_text: {self}")
+
+    with monkeypatch.context() as m:
+        m.setattr(Path, "read_text", deny_read_text)
+        assert store.get_json(ref) == payload
+
+
 # ---------------------------------------------------------------------------
 # Workflow 0066 / audit G6: _verify_or_repair_store_file error-branch pins
 
