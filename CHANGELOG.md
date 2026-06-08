@@ -8,6 +8,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Fixed
 
+- 2026-06-08 docs-drift audit remediation: current-state docs now match the
+  implemented stability fixture CLI signatures, `ComparisonReport` import
+  wording, opt-in raw-unvalidated OpenFOAM succeeded path, high-angle GZ
+  display-only surfaces, `Hull`/`CfdRunRecord` glossary literals, the
+  `model/classes.py` package map, and the D046 opaque accepted-fit-ref risk.
+
 - Workflow 0067 follow-up to the 0066 pre-merge review: the skip-count
   pin now also lives inside pytest behind the explicit
   `KAYAKGEN_ENFORCE_SKIP_PIN=1` gate env, exported by both gate scripts,

@@ -34,8 +34,9 @@ CFD_OPENFOAM_RESULTS_WARNING = (
     "OpenFOAM adapter skeleton output is not calibrated, validated, or final design fitness."
 )
 OPENFOAM_SUCCESS_BLOCKED_WARNING = (
-    "OpenFOAM command output is parser-readable but this skeleton does not enable "
-    "a real succeeded path; raw output remains unvalidated."
+    "OpenFOAM command output is parser-readable, but this run did not satisfy "
+    "the opt-in/evidence gate for a real succeeded path; raw output remains "
+    "unvalidated."
 )
 OPENFOAM_LOCAL_RUN_ENV_VAR = "KAYAKGEN_OPENFOAM_LOCAL_RUN"
 OPENFOAM_SUCCEEDED_RAW_UNVALIDATED_WARNING = (
@@ -131,8 +132,8 @@ def openfoam_v2512_interfoam_local_profile() -> SolverProfile:
             "fake commands and parser fixtures instead of an installed solver."
         ),
         known_limitations=[
-            "No production OpenFOAM-readable volume mesh evidence is accepted yet.",
-            "No real OpenFOAM succeeded run record is enabled in this skeleton.",
+            "Ordinary generated packages still require matching OpenFOAM-readable volume mesh evidence.",
+            "Real OpenFOAM succeeded run records require explicit RFC 0046 opt-in and remain raw_unvalidated.",
             "Any parsed force.dat value is raw_unvalidated and not calibrated CFD.",
         ],
         timeout_seconds=OPENFOAM_COMMAND_TIMEOUT_SECONDS,

@@ -87,7 +87,7 @@ def test_comparison_source_toggle_subtitle_present() -> None:
 
     # Subtitle copy constants — defined in presentation.py.
     assert "Live frontier: candidates from this session" in presentation_source
-    assert "Imported report: a saved design-report JSON" in presentation_source
+    assert "Imported report: a saved ComparisonReport JSON" in presentation_source
 
     # Subtitle data-testid lands in the rendered HTML helper block.
     assert "comparison-source-help" in app_source

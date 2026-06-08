@@ -39,8 +39,10 @@ accepted RFC and implementation artifact provide evidence:
   not a calibrated model, final prediction, design-fitness score, or default
   optimization objective.
 - CFD output is local dispatch state, `raw_unvalidated` output, `fixture_only`
-  records, or explicit unavailable/failed state. There is no accepted
-  OpenFOAM, SU2, Docker, hosted-worker, or other real solver success path.
+  records, or explicit unavailable/failed state. A real local
+  OpenFOAM-v2512 `interFoam` succeeded path exists behind opt-in env/profile/
+  persistent settings, but it admits only raw artifact parsing; there is no
+  accepted validated CFD, Docker, hosted-worker, or production success claim.
 - Open hull/deck STLs and ordinary generated mesh packages are inspection or
   open-surface candidate artifacts. Only the narrow fixture-backed handoff path
   can report `cfd_ready`; production volume meshing and ordinary watertight
@@ -48,9 +50,11 @@ accepted RFC and implementation artifact provide evidence:
 - Generated closed bodies are evaluation evidence, not production solver input,
   unless matching body diagnostics, self-intersection evidence, volume-mesh
   evidence, hashes, artifacts, and solver profile gates all pass.
-- High-angle `GZ`, `GZ_max`, range-of-positive-stability, capsize-range, and
-  secondary-stability metrics are unavailable for real generated kayaks until
-  a generated-body evidence gate and accepted heeled integration model land.
+- High-angle `GZ`, `GZ_max`, and range-of-positive-stability are available
+  only on staged opt-in/display-only surfaces as
+  `unvalidated_hydrostatic_comparison`. They are not safety, seaworthiness,
+  capsize-range, validated-stability, or Pareto/search-objective claims until
+  measured rig data and accepted fits land.
 - Class validity, advisory badges, and design warnings are not proof of
   seaworthiness, safety, calibrated performance, final design fitness, or
   solver readiness.
@@ -70,18 +74,19 @@ runtime capability:
   narrow fixture-backed path only.
 - The first external CFD solver target is OpenFOAM.com OpenFOAM-v2512
   `interFoam`, profile `openfoam-v2512-interfoam-local`, behind
-  `watertight_solid_resistance_v1` / `cfd_ready` evidence. A real
-  `succeeded` path remains blocked until matching volume-mesh evidence exists.
+  `watertight_solid_resistance_v1` / `cfd_ready` evidence. The real
+  `succeeded` path has landed behind explicit opt-in and matching evidence,
+  but records remain `raw_unvalidated`.
 - Resistance source work starts with source-review packets and source-use
   mapping tests. No current source is promoted to validation or calibration
   fixture by the decision.
-- Calibrated resistance remains blocked behind RFC 0042 source acceptance and
-  a later accepted-fit workflow with immutable model version, fit metrics,
+- Calibrated resistance remains blocked behind in-envelope source acceptance
+  and an operator-run accepted fit with immutable model version, fit metrics,
   residuals, and validity envelope checks.
 - High-angle stability v1 is a fixed-upright-trim hydrostatic comparator over
-  `generated_hull_plus_deck_closed_body_v1`; real generated-kayak values stay
-  unavailable until the model, per-heel diagnostics, and user-surface gates
-  land.
+  `generated_hull_plus_deck_closed_body_v1`. The opt-in/display-only model,
+  per-heel diagnostics, and user-surface gates have landed; measured
+  validation and accepted-fit promotion remain open.
 - Browser hosting may proceed only as a narrow server-backed exploratory demo
   using `kayakgen serve` or the repo Docker path, with an operator owner,
   budget/cap, hosted smoke, bounded persistence, and no production or hosted
@@ -106,11 +111,12 @@ runtime capability:
   deterministic evidence harness over
   `generated_hull_plus_deck_closed_body_v1`. It must record `checkMesh`,
   patch, artifact-hash, and dispatch evidence; it does not promote ordinary
-  packages or enable real solver success.
-- `openfoam-v2512-interfoam-local` remains unable to return `succeeded` until
-  one run record binds accepted OpenFOAM-readable volume-mesh evidence,
-  OpenFOAM.com v2512 provenance, deterministic case smoke, a v2512-correct
-  `force.dat` parser, and raw-unvalidated no-claims payloads.
+  packages or validate solver output.
+- `openfoam-v2512-interfoam-local` can return `succeeded` only after a run
+  binds OpenFOAM-readable volume-mesh evidence, OpenFOAM.com v2512 provenance,
+  deterministic case smoke, a v2512-correct `force.dat` parser, and
+  raw-unvalidated no-claims payloads. Without the opt-in/evidence chain, it
+  remains `solver_success_blocked`.
 - The first full resistance source-review packet is the University of
   Edinburgh DataShare Pacific-canoe hydrodynamics dataset, capped at
   `validation_fixture`; it is explicitly not a calibration fixture.
@@ -371,9 +377,9 @@ is explicit exploratory comparison only.
 | 0006, 0029, 0031 | Canonical constraints, presets, validity metadata, and surfacing slices landed. RFC 0029 is background superseded by RFC 0031. Future shape parameters and any remaining desktop/manual surfacing stay open only as focused follow-ups. | `partial` / `background` |
 | 0008, 0030, 0032, 0033 | Local Trame shell, compact analysis, comparison loading, local browser acceptance, hosted-demo docs, and workspace safe slices landed. Workflow 0052 keeps public operation deferred until owner/budget/smoke/cleanup evidence exists, then allows only a fixed-container serve/Docker path. | `partial` / `blocked` |
 | 0009, 0013 | RFC 0009 is now a partial landed sweep-run-record slice with `pending` candidate status, `pending_count`, and resume preservation; RFC 0013 comparison reports keep pending rows visible but frontier-ineligible. Workflow 0051 added objective metadata, and workflow 0052 selected `pending` lifecycle as the next delta before STLs or optimizer/search. | `partial` |
-| 0011, 0014, 0020, 0024, 0043 | Load cases and upright trim landed; high-angle `GZ` is structured unavailable or fixture-only on default product surfaces. Cowboy 2026-05-15 landed RFC 0043 stage 1 opt-in CLI JSON surfacing (`kayakgen stability --high-angle-gz`); defaults, sweep summaries, web read models, and desktop surfaces are unchanged. | `partial` / `evidence-gated` |
-| 0015, 0017, 0018, 0026, 0041 | Local dispatch, local web routes, unavailable/mock states, fixture-local-command, and the OpenFOAM skeleton landed. Cowboy 2026-05-15 landed RFC 0041 partial: case-template lock (`openfoam-v2512-interfoam-dtchull-v1`), `OpenFoamProvenanceProbe` with injectable runner that refuses env-only evidence, and a v2512-strict force.dat parser. `succeeded` is still blocked until matching mesh evidence binds. | `partial` / `evidence-gated` |
-| 0010, 0016, 0021, 0022, 0023, 0040 | Mesh packages, synthetic diagnostics, self-intersection checks, generated body construction, and fixture handoff landed. Cowboy 2026-05-15 landed RFC 0040 generated-body parameter-matrix hardening (55-case test surface) without widening solver readiness. The `snappyHexMesh` evidence harness remains the next step. | `partial` / `evidence-gated` |
+| 0011, 0014, 0020, 0024, 0043 | Load cases and upright trim landed; high-angle `GZ` remains opt-in and display-only. RFC 0043 surfaces now include CLI JSON (`kayakgen stability --high-angle-gz`), sweep-side `high_angle_gz` artifacts, comparison/web display-only read models, and minimal desktop pointer copy. Defaults and Pareto/search objectives are unchanged. | `partial` / `evidence-gated` |
+| 0015, 0017, 0018, 0026, 0041 | Local dispatch, local web routes, unavailable/mock states, fixture-local-command, and OpenFOAM-v2512 plumbing landed. RFC 0041 / D027 now includes the opt-in `openfoam-v2512-interfoam-local` `succeeded` path with case-template lock (`openfoam-v2512-interfoam-dtchull-v1`), OpenFOAM provenance, evidence binding, v2512 force.dat parsing, and `raw_unvalidated` payloads. Defaults remain blocked or unavailable without opt-in/evidence. | `partial` / `evidence-gated` |
+| 0010, 0016, 0021, 0022, 0023, 0040 | Mesh packages, synthetic diagnostics, self-intersection checks, generated body construction, fixture handoff, generated-body parameter-matrix hardening, and the `snappyHexMesh` evidence harness/executor landed. Ordinary generated packages still need matching evidence before any watertight handoff or `cfd_ready` promotion. | `partial` / `evidence-gated` |
 | 0034, 0035 | Workspace follow-up and UI cleanup safe slices landed. Residual workflow 0047 final-review findings became RFCs 0036-0039, and workflow 0053 added browser initial-query regression coverage without changing UI backend capability. | `completed-history` |
 | 0036, 0037, 0038, 0039 | Landed as small UI-maintenance safe slices: RFC 0036 retained `_state_matches_preset_seed` with a Trame-state listener proof, RFC 0037's `EXPORT_MENU_ROWS` schema is subtitle-only, RFC 0038 polished the disabled mesh-package label, and RFC 0039 collapsed snapshot/CFD aliases onto `WebStateSchema`. No backend or capability changes. | `completed-history` |
 
@@ -391,8 +397,8 @@ Use this table instead of claiming the stale queue prompts directly.
 | 0022 generalized trim and GZ stability | `partial` / `still-open` | Load components and upright trim landed. Real high-angle stability maps to RFC 0043. |
 | 0023 resistance calibration dataset vetting | `background` | Pacific-canoe metadata remains validation-only source context. Fixture promotion maps to RFC 0042. |
 | 0024 watertight solid mesh profile | `partial` / `still-open` | Blocked profile and fixture-backed handoff exist. Production volume meshing and real solver-readiness promotion map to RFC 0040. |
-| 0025 CFD solver dispatch and jobs | `partial` / `still-open` | Local job/profile/run plumbing landed. Real solver execution, Docker/container execution, hosted workers, and validated outputs map to RFC 0041 and later validation/calibration work. |
-| 0029 web CFD job routes history entry | `partial` / `still-open` | Local `/api/cfd/*` routes and panel landed. Hosted queues, auth, cancellation guarantees, web-side mesh-package creation, and real solver success remain future scope. |
+| 0025 CFD solver dispatch and jobs | `partial` / `still-open` | Local job/profile/run plumbing and the opt-in raw-unvalidated OpenFOAM-v2512 succeeded path landed. Docker/container execution, hosted workers, and validated outputs remain future validation/calibration work. |
+| 0029 web CFD job routes history entry | `partial` / `still-open` | Local `/api/cfd/*` routes and panel landed. Hosted queues, auth, cancellation guarantees, web-side mesh-package creation, and hosted/validated solver operation remain future scope. |
 | 0026 docs roadmap and user guide | `completed-history` | User-facing docs reconciliation landed. Workflow 0049 replaces the stale queue with this roadmap. |
 | 0027 closed-volume geometry contract | `superseded` as a queue prompt, with residual `still-open` work | Safe slices landed across RFCs 0021-0023 and 0028. Future production solver-readiness evidence maps to RFC 0040. |
 | 0028 real CFD solver adapter | `superseded` / `still-open` | The fixture adapter landed under RFC 0026. External solver work now maps to RFC 0041 and remains blocked on solver/profile decisions. |
@@ -407,9 +413,10 @@ Use this table instead of claiming the stale queue prompts directly.
 - Do not parallelize two batches that write the same UI schema/copy surface
   unless one workflow explicitly owns integration; RFC 0037 and RFC 0038 are
   the known dependency pair.
-- Do not start real solver success work before OpenFOAM-readable mesh evidence,
-  v2512 provenance, deterministic smoke, corrected parser semantics, and
-  raw-unvalidated payload gates are written down and implemented together.
+- Do not widen real solver success beyond the existing opt-in
+  `raw_unvalidated` OpenFOAM-v2512 path without OpenFOAM-readable mesh
+  evidence, v2512 provenance, deterministic smoke, corrected parser
+  semantics, and payload gates written down and implemented together.
 - Do not start public-demo operation before owner, budget/cap, deployment,
   hosted-smoke, bounded-persistence, cleanup, and no-claims evidence exists.
 - Do not surface high-angle `GZ` outside the staged opt-in path. Fixture-only

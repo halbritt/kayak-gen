@@ -203,51 +203,50 @@ Defaults, sweep ranking, and frontier behavior remain unchanged.
 #### Stability fixtures (RFC 0058)
 
 The `kayakgen stability` group exposes four RFC 0058 stage-3 subcommands
-that write schema-only artifacts for a future measured-stability
-acceptance workflow. None of them ingest physical sensor data, run a real
-fit, or promote a fixture today; they pin the on-disk data contract so the
-first measured rig run can land cleanly. Stage 4 first promotion remains
-gated on D007 / D014 physical rig data.
+that validate and persist measured-stability fixture/fit artifacts. The
+repo still ships no physical rig data or promoted measured fixture, so
+defaults remain empty; Stage 4 first real promotion remains gated on
+D007 / D014 physical rig data.
 
 ```bash
-# 1. Schema-only ingest of a candidate measured-stability rig run.
+# 1. Ingest a candidate MeasuredStabilityFixture manifest.
 kayakgen stability ingest-rig-run \
-  --fixture-id alpha-2026-05 \
-  --rig-run path/to/rig_run.json \
-  --out data/stability/fixtures/alpha-2026-05/manifest.json
+  path/to/measured_fixture.json \
+  --out data/stability/fixtures/alpha-2026-05
 
-# 2. Schema-only StabilityFixturePromotionPacket writer. The five review
+# 2. Persist a StabilityFixturePromotionPacket. The five review
 #    verdicts (rights, hull-identity, calibration-drift, hysteresis,
 #    free-equilibrium) plus rig_design_match are required for the
 #    measured_stability_fixture promotion target.
 kayakgen stability promote-fixture \
-  --fixture-id alpha-2026-05 \
-  --packet path/to/promotion_packet.json \
-  --out data/stability/fixtures/alpha-2026-05/promotion.json
+  alpha-2026-05 \
+  --packet path/to/promotion_packet.json
 
-# 3. Schema-only StabilityFitRecord acceptance. Default strict thresholds
+# 3. Accept a StabilityFitRecord against the promoted fixture. Default strict thresholds
 #    (rmse_m <= 0.005, mape_fraction <= 0.05, max_error_m <= 0.01,
 #    coverage_fraction >= 0.9) refuse out-of-band fits unless
 #    `strict=false` is set (which adds the `strict_check_skipped`
 #    warning).
 kayakgen stability accept-fit \
   --fit-record path/to/fit_record.json \
+  --fixture-id alpha-2026-05 \
   --out data/stability/fits/<fit_id>.json
 
 # 4. Placeholder SVG residual plot for an accepted fit; the renderer is a
 #    stub today and is replaced when stage 4 lands.
 kayakgen stability residual-plot \
-  --fit-record data/stability/fits/<fit_id>.json \
+  data/stability/fits/<fit_id>.json \
   --out data/stability/fits/<fit_id>.svg
 ```
 
 The four subcommands write canonical fixture/fit manifests; the validators
 refuse missing review verdicts, ill-ordered heel ranges, non-hex SHA-256
-strings, and empty design-hash envelopes. A fit accepted today does not
-upgrade RFC 0043's `unvalidated_hydrostatic_comparison` label — the
-upgrade contract (`resolve_analytical_claim_label`) wires through but
-defaults to an empty fit registry until stage 4 promotes the first
-fixture.
+strings, empty design-hash envelopes, missing fixture manifests, and
+tampered fixture hashes. A fit upgrades RFC 0043's
+`unvalidated_hydrostatic_comparison` label only when it is a strict
+accepted record bound to an accepted measured fixture and the hull is
+inside the fit's `hull_family_scope`; the repo default registry is empty,
+so no bundled hull flips the label.
 
 #### Stage 4 — accepted-fit registry and label flip
 
@@ -802,12 +801,14 @@ List built-in local dispatch profiles:
 kayakgen cfd profiles
 ```
 
-Current profiles are placeholders for deterministic job-state behavior:
-`unavailable-open-wetted-surface`, `unavailable-watertight-solid`, and
-`mock-failing-local-command`. The `fixture-local-command` profile is also
-available as a checked-in deterministic test adapter; it writes a
-`raw-result.json` fixture artifact for route and CLI plumbing tests, but it is
-not a real CFD solver and does not produce validated or calibrated output.
+Built-in profiles are `unavailable-open-wetted-surface`,
+`unavailable-watertight-solid`, `mock-failing-local-command`,
+`fixture-local-command`, and `openfoam-v2512-interfoam-local`. The
+unavailable/mock/fixture profiles provide deterministic job-state behavior;
+`fixture-local-command` writes a `raw-result.json` fixture artifact for route
+and CLI plumbing tests, but it is not a real CFD solver and does not produce
+validated or calibrated output. The OpenFOAM profile is the opt-in real local
+solver path described under `cfd run`.
 
 ### `cfd prepare`
 
@@ -1062,8 +1063,9 @@ lives here, not on the Generate tab. A `live_frontier / imported_report`
 toggle at the top of the tab chooses the source: **Live frontier** shows
 candidates from the in-session jobs index (with `claim_state` colouring
 and `ConvergenceFlag` marker shape per RFC 0057 D-6 / D-7);
-**Imported report** reveals a JSON textarea that accepts a design-report
-payload (the output of `kayakgen report export`) so a saved frontier
+**Imported report** reveals a JSON textarea that accepts a
+`ComparisonReport` JSON payload, typically written by
+`kayakgen compare <run-dir> --out comparison.json`, so a saved frontier
 from another run can be inspected alongside the current session. Both
 sources render with the same scatter/table widget; selecting a row
 loads the candidate into the single-hull view with a one-click undo
@@ -1152,8 +1154,10 @@ state, not proof that a solver can produce meaningful drag numbers.
 
 The current local CFD layer is job plumbing: deterministic profile selection,
 mesh-package gating, local job directories, status records, and adapter error
-capture. It does not run a real solver unless a future adapter is added, and it
-does not normalize, validate, or calibrate external solver output.
+capture. The `openfoam-v2512-interfoam-local` profile can run a real local
+OpenFOAM-v2512 `interFoam` path only when an operator opts in and provides the
+toolchain; all such output remains `raw_unvalidated`. The layer does not
+normalize, validate, or calibrate external solver output.
 
 ## Troubleshooting
 

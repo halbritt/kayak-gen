@@ -20,7 +20,7 @@ claim/readiness/source-use literal exposed in code is documented here.
 
 | Term | Definition |
 | --- | --- |
-| **Hull** | A `kayakgen.model.hull.Hull` Pydantic record. Owns dimensions (`length_m`, `beam_oa_m`, `beam_wl_m`, `draft_m`, `deck_height_m`), form coefficients (`Cp`, `Cm`, `deck_flatness`, `center_box_ratio`), end shape (`bow_rake`, `stern_rake`, `rocker_bow_m`, `rocker_stern_m`), reserved future controls (`LCB_frac`), an optional `class_preset`, and an optional `name`. The single durable input for everything downstream; serializable; hashable via `Hull.hash()`. |
+| **Hull** | A `kayakgen.model.hull.Hull` Pydantic record. Owns dimensions (`length_m`, `beam_oa_m`, `beam_wl_m`, `draft_m`, `deck_height_m`), form coefficients (`Cp`, `Cm`, `deck_flatness`, `center_box_ratio`), end shape (`bow_rake`, `stern_rake`, `rocker_bow_m`, `rocker_stern_m`), reserved future controls (`LCB_frac`), geometry selection (`geometry_kind`, optional `distribution_v2`), optional `hull_class`, and optional `name`. The single durable input for everything downstream; serializable; hashable via `Hull.hash()`. |
 | **HullGeometry** | The lofted surface that a `Hull` produces via `Hull.to_geometry()`. Owns longitudinal stations, half-breadths, deck profile, and the open hull/deck triangulations. Not durable on its own; recomputed on demand. |
 | **Generated Closed Body** | `kayakgen/eval/generated_closed_body.py:generated_hull_plus_deck_closed_body(hull)` returns a `ClosedVolumeBody` of `body_type="generated_hull_plus_deck_closed_body"` with parts joined at the waterline, exact plumb-stem closure when `bow_rake==0` or `stern_rake==0`, and a `source_hull_hash` binding it back to the input hull. Profile literal `generated_hull_plus_deck_closed_body_v1`. The only closed body usable for evidence-bound CFD readiness or high-angle GZ. |
 | **geometry_kind** | The `Hull.geometry_kind` literal selecting the geometry strategy: `"lofted"` (today's parametric loft, the default) or `"distribution_v2"` (RFC 0048 explicit-distribution model). `Hull.to_geometry()` dispatches on this literal. When `geometry_kind == "distribution_v2"` the hull must carry a `DistributionV2Spec` and `bow_rake` / `stern_rake` must be at their default values; non-default rake is refused with a structured `ValueError` on construction. |
@@ -46,7 +46,7 @@ claim/readiness/source-use literal exposed in code is documented here.
 | --- | --- |
 | **Solver Profile** | A `kayakgen.eval.cfd.jobs.SolverProfile` declaring the solver name, version, case-template version (Literal-locked), required mesh profile, required readiness, and adapter kind. Public profile names today: `unavailable-open-wetted-surface`, `unavailable-watertight-solid`, `mock-failing-local-command`, `fixture-local-command`, `openfoam-v2512-interfoam-local`. |
 | **CFD Job** | A prepared, on-disk directory containing `profile.json`, `job.json`, `run.json`. Written by `kayakgen cfd prepare`. |
-| **CfdRunRecord** | The terminal record for a CFD job. Carries status (`pending` / `running` / `succeeded` / `failed` / `solver_unavailable`), error_kind (e.g. `solver_success_blocked`), claim_state, accepted_uses, optional raw output reference, and (RFC 0046) optional `real_solver_execution_opt_in` + `SolverExecutionAudit`. |
+| **CfdRunRecord** | The terminal record for a CFD job. Carries status (`queued` / `running` / `succeeded` / `failed` / `unavailable`), error_kind (e.g. `solver_success_blocked` or `solver_unavailable`), claim_state, accepted_uses, optional raw output reference, and (RFC 0046) optional `real_solver_execution_opt_in` + `SolverExecutionAudit`. |
 | **CfdOpenFoamRawResult** | Output of a successful real OpenFOAM run. Pydantic Literal pins `case_template_version="openfoam-v2512-interfoam-dtchull-v1"`, `claim_state="raw_unvalidated"`, empty `accepted_uses`. |
 | **OpenFoamProvenanceProbe** | Records `interFoam -help` / `foamVersion -build|-api|<bare>` outputs plus `$WM_PROJECT_VERSION`. `matches_required("v2512")` accepts evidence from application/build/API channels; explicitly refuses env-only evidence. |
 | **SolverExecutionAudit** | Audit record on a `succeeded` `CfdRunRecord`: bashrc path, provenance summary, locked case-template version, meshing seconds, solve seconds. |
@@ -91,18 +91,20 @@ claim/readiness/source-use literal exposed in code is documented here.
 | **GenerativeJob** | RFC 0057 aggregate root at `kayakgen.services.generative_jobs.GenerativeJob` representing one generative-search run originating from the Trame Generate panel or `kayakgen runs jobs`. Carries `job_id`, `job_kind` (`sweep` / `search`), a `state` literal (`queued` / `running` / `succeeded` / `failed` / `cancelled` / `resumable`), optional `forked_from` lineage (RFC 0057 fork-with-seed surface), `error.kind` token on failure, `resumable_from_checkpoint: bool`, and a `redacted_logs` reference. Surfaced by `/api/generative-jobs/*` and `kayakgen runs jobs --state ...`. |
 | **HullParameterMetadata** | RFC 0060 presentation-layer value object at `kayakgen.ui.parameter_metadata.HullParameterMetadata` (frozen, `extra="forbid"`) carrying `parameter`, `label`, optional `unit`, and `description` for one hull parameter exposed by the web Generate-panel form. The companion `HULL_PARAMETER_METADATA` registry feeds friendly field labels and hover-for-description tooltips to `kayakgen/ui/web/generate_spec_form.py`; the helpers `label_with_unit(parameter)` and `description(parameter)` are the consumer API. The form's submitted JSON payload continues to use the raw parameter name (the registry key), so the registry is purely additive on the wire. Closes audit finding `AUD-O-003`. |
 
-## Readiness states
+## Readiness, status, and dispatch-blocker tokens
 
 `Readiness` governs the next operation an artifact may consume. Independent of
 claim state. The literal set lives across `MeshPackageManifest.readiness_level`,
-`ClosedVolumeReadiness.level`, and `CfdRunRecord.status`.
+`ClosedVolumeReadiness.level`, `CfdRunRecord.status`, and CFD
+`error_kind` values; not every token below is a status literal.
 
 | Token | Meaning |
 | --- | --- |
 | `cfd_surface_candidate` | open-surface inspection mesh; not solver input. The default `mesh-package` profile outcome. |
 | `closed_volume` | passes RFC 0021 self-intersection + RFC 0016 topology; carries `ClosedVolumeBody` with positive signed volume. Not yet `cfd_ready`. |
 | `cfd_ready` | watertight package whose `MeshPackageManifest` is matched by a bound `VolumeMeshDiagnostic`. Only the RFC 0023 fixture path and the RFC 0045 evidence-bound path can produce it. |
-| `solver_unavailable` | the `SolverProfile` is permanently unavailable (e.g. `unavailable-watertight-solid`). |
+| `unavailable` | `CfdRunRecord.status` for a solver profile that is permanently unavailable. |
+| `solver_unavailable` | an `error_kind` for unavailable solver profiles (e.g. `unavailable-watertight-solid`). |
 | `solver_success_blocked` | the adapter ran but no opt-in mechanism admitted the real path. Default outcome of `openfoam-v2512-interfoam-local` without RFC 0046 opt-in. |
 | `succeeded` | the real-solver path returned; the parsed payload preserves `claim_state="raw_unvalidated"` and the locked case-template version. |
 

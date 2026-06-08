@@ -130,8 +130,8 @@ class CfdOpenFoamCommandSpec(BaseModel):
 class CfdOpenFoamRawResult(RawUnvalidatedClaimFields):
     """Normalized raw OpenFOAM skeleton output.
 
-    This model is available for parser fixtures and blocked local runs only.
-    The adapter intentionally does not return a succeeded run record yet.
+    This model is used by parser fixtures, blocked local runs, and the
+    opt-in real-succeeded path. The claim state remains raw/unvalidated.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -420,7 +420,7 @@ def _openfoam_readme() -> str:
         f"case_template_version: {OPENFOAM_CASE_TEMPLATE_VERSION}\n"
         "This is deterministic adapter scaffolding, not a validated CFD setup.\n"
         "Required CI uses fake commands and parser fixtures; OpenFOAM is not required.\n"
-        "A real succeeded OpenFOAM run record is intentionally blocked in this slice.\n"
+        "Real succeeded OpenFOAM run records require explicit opt-in and remain raw_unvalidated.\n"
     )
 
 
@@ -592,8 +592,9 @@ class OpenFoamLocalAdapter:
     """OpenFOAM.com v2512 interFoam skeleton adapter.
 
     The adapter prepares deterministic case files and records dependency,
-    command, timeout, and parser failures. It intentionally does not report a
-    real ``succeeded`` state in this slice.
+    command, timeout, and parser failures. It reports ``succeeded`` only on
+    the explicit opt-in real-solver path; all such records stay
+    ``raw_unvalidated``.
     """
 
     def __init__(self) -> None:
@@ -999,9 +1000,9 @@ class OpenFoamLocalAdapter:
             output_manifest=OPENFOAM_RAW_RESULT,
             error_kind="solver_success_blocked",
             error_message=(
-                "OpenFOAM command completed and force.dat parsed, but this skeleton "
-                "does not enable real succeeded records until OpenFOAM-readable "
-                "volume-mesh evidence is accepted"
+                "OpenFOAM command completed and force.dat parsed, but this run "
+                "did not satisfy the opt-in/evidence gate for a real succeeded "
+                "record"
             ),
             logs=logs,
             raw_records=normalized.model_dump(mode="python"),

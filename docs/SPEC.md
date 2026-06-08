@@ -64,7 +64,7 @@ The project considers durable:
 | `<target-out>.json` | `StabilityResult` from `kayakgen target-draft` / `target-trim`, or `TargetDraftMismatchReport` from `target-draft --report-only` (RFC 0050 / D031). |
 | `<build-export-dir>/` | `offsets.csv`, `sections.dxf`, `sheer.svg`, `keel.svg`, `waterline.svg`, `deck_centreline.svg`, `station_molds.dxf`, plus a `manifest.json` (RFC 0051 / D032). |
 | `<sensitivity-out>.json` | `SensitivityResult` from `kayakgen sensitivity` (RFC 0052 / D033). |
-| `<calibration-out>/` | `TankTestCampaign` / `IncliningTestCampaign` / `AcceptedFitRecord` JSON + optional residual-plot SVG (RFC 0054 / D035). Promotion to `calibration_fixture` requires an `AcceptedFitRecord` on disk. |
+| `<calibration-out>/` | `TankTestCampaign` / `IncliningTestCampaign` / `AcceptedFitRecord` JSON + optional residual-plot SVG (RFC 0054 / D035). The validator enforces an on-disk `AcceptedFitRecord` only when `accepted_fit_ref` is a `.json` path; opaque refs remain D046 residual risk and are not evidence of a fit artifact. |
 | `<report.html>` (+ optional `report.pdf`) | Self-contained design report (RFC 0055 / D036; jinja2-rendered with embedded base64 PNG preview; weasyprint-rendered PDF when `kayakgen[report]` extras are installed). |
 | `~/.config/kayakgen/cfd.json` | `KayakgenCfdConfig` persistent opt-in settings (D027). |
 | `KAYAKGEN_WEB_CFD_JOBS_ROOT` or default `.kayakgen-web-cfd-jobs/` | Web-served CFD job directories. |
@@ -80,8 +80,9 @@ Anything not listed here is not part of the project's bounded context.
 
 - **Validated CFD output.** All CFD records are `raw_unvalidated` or
   `solver_success_blocked` or `solver_unavailable`.
-- **Calibrated resistance.** Until an accepted-fit workflow lands (D006),
-  resistance stays `uncalibrated_comparative`.
+- **Calibrated resistance.** Until an in-envelope measured kayak/surfski
+  source and accepted fit are bound (D006), resistance stays
+  `uncalibrated_comparative`.
 - **Measured high-angle GZ.** No measured kayak GZ-vs-heel data exists
   publicly (research finding 2026-05-16); RFC 0043 output stays
   `unvalidated_hydrostatic_comparison`.
@@ -188,8 +189,10 @@ Enforced by Pydantic model validators and regression tests.
   (`accepted_fit_unresolved`), unparseable (`accepted_fit_unparseable`),
   or below the recorded threshold (`fit_above_rmse_threshold`,
   `fit_above_mape_threshold`, `fit_below_r2_threshold`). Opaque
-  (non-`.json`) refs continue to satisfy the D006 token only — they
-  do not bypass the validator chain.
+  (non-`.json`) refs are admitted unchanged for pre-RFC-0054
+  compatibility and bypass only this on-disk `AcceptedFitRecord`
+  check. Per D046, reviewers must not treat an opaque token as proof
+  that the D006 accepted-fit artifact exists.
 - **Display-only objective refusal (RFC 0053 / D034).** All four
   `turning.*` metrics + the three `high_angle_gz.*` summary metrics
   are registered with `role="display_only"` and refused as

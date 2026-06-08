@@ -82,11 +82,11 @@ kayakgen/
 │   └── hydrostatics_rows.py     HydrostaticsRowMetadata registry (RFC 0062; moved
 │                                 from ui/ by workflow 0062 so services can import it;
 │                                 ui/hydrostatics_metadata.py re-export shim retained)
-├── model/                    # Hull, geometry, presets — no eval/ui/cli imports
+├── model/                    # Hull, geometry, class definitions — no eval/ui/cli imports
 │   ├── advisory.py
+│   ├── classes.py               KayakClass, CLASSES, class lookup helpers
 │   ├── geometry.py              HullGeometry + section_for_closed_body
 │   ├── hull.py
-│   ├── presets.py
 │   └── distribution_v2.py       RFC 0048 LongitudinalDistribution +
 │                                 DistributionV2Spec (6 cross-section families)
 ├── search/                   # Sweep + compare + Pareto + active search
@@ -292,14 +292,15 @@ without going through the corresponding gate.
 | `validation_fixture` | accepted validation source; not calibration | (Edinburgh, D025) |
 | `calibration_fixture` | accepted-fit-bound calibration source | (none today; D006 gate) |
 
-## Readiness states
+## Readiness, status, and dispatch-blocker tokens
 
 | Token | Meaning |
 |---|---|
 | `cfd_surface_candidate` | open-surface inspection mesh; not solver input |
 | `closed_volume` | passes RFC 0021 self-intersection + RFC 0016 topology |
 | `cfd_ready` | watertight + matching `VolumeMeshDiagnostic` + solver profile evidence |
-| `solver_unavailable` | profile is permanently unavailable |
+| `unavailable` | `CfdRunRecord.status` for an unavailable solver profile |
+| `solver_unavailable` | `error_kind` for an unavailable solver profile |
 | `solver_success_blocked` | adapter ran but no opt-in or no evidence to admit `succeeded` |
 | `succeeded` | real-solver path returned; payload is `raw_unvalidated` |
 

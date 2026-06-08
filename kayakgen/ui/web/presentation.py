@@ -607,7 +607,7 @@ COMPARISON_TOGGLE_LIVE_FRONTIER_HELP = (
     "Live frontier: candidates from this session's jobs index."
 )
 COMPARISON_TOGGLE_IMPORTED_REPORT_HELP = (
-    "Imported report: a saved design-report JSON loaded into the workspace "
+    "Imported report: a saved ComparisonReport JSON loaded into the workspace "
     "for comparison."
 )
 
