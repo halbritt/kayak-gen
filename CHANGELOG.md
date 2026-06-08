@@ -6,6 +6,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
+_No unreleased changes._
+
+## 0.1.0 - 2026-06-08
+
 ### Fixed
 
 - 2026-06-08 docs-drift audit remediation: current-state docs now match the
