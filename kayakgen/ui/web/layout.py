@@ -143,6 +143,15 @@ class LayoutMixin:
                         html=True,
                         **{"data-testid": "invalid-hull-state"},
                     )
+                    v3.VAlert(
+                        "{{ unsupported_hull_editing_warning }}",
+                        type="warning",
+                        variant="tonal",
+                        density="compact",
+                        classes="kg-unsupported-hull-editing-warning mt-2",
+                        v_show=("unsupported_hull_editing_visible",),
+                        **{"data-testid": "unsupported-hull-editing-warning"},
+                    )
                     for group_label, keys in PARAMETER_GROUPS:
                         v3.VDivider(classes="mt-3")
                         v3.VCardSubtitle(group_label, classes="kg-rail-group-label")
@@ -172,7 +181,7 @@ class LayoutMixin:
                     **{"data-testid": "workspace-shell"},
                 ):
                     with v3.VRow(classes="ma-0 fill-height kg-workspace-main"):
-                        with v3.VCol(cols=12, md=7, classes="pa-2"):
+                        with v3.VCol(cols=12, lg=7, classes="pa-2 kg-workspace-col"):
                             with v3.VContainer(fluid=True, **self._region_attrs("geometry")):
                                 v3.VCardTitle("Geometry", classes="kg-region-title")
                                 with v3.VSheet(
@@ -201,7 +210,7 @@ class LayoutMixin:
                                         classes="font-mono text-caption",
                                         html=True,
                                     )
-                        with v3.VCol(cols=12, md=5, classes="pa-2"):
+                        with v3.VCol(cols=12, lg=5, classes="pa-2 kg-workspace-col"):
                             with v3.VContainer(fluid=True, **self._region_attrs("review")):
                                 with v3.VTabs(
                                     v_model=("analysis_tab",),

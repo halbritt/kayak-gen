@@ -990,10 +990,10 @@ the previous monolithic layout into these four tabs; the wire payload of
 specs and shared URLs from before the rework continue to load correctly.
 The RFC 0065 polish pass applies the shared theme tokens across the same
 workspace: denser section rhythm, token-sourced focus rings, consistent
-control states, explicit empty/loading/error states, and the same
-first-viewport / under-960px collapse behavior. This is presentation-only;
-it does not add routes, evaluators, solver capability, or new claim/readiness
-states.
+control states, explicit empty/loading/error states, and a desktop-narrow
+stacking layout that keeps the active review tab usable at 1024x768 and
+960x720. This is presentation-only; it does not add routes, evaluators,
+solver capability, or new claim/readiness states.
 
 **Param rail.** Sliders for the canonical hull-shape inputs. The class
 selector reseeds `length_m`, `beam_oa_m`, `beam_wl_m`, `draft_m`, and `Cp`
@@ -1094,11 +1094,12 @@ hand off to the single-hull view, expose a "Fork with new seed" button
 on succeeded rows, and render bounded log tails with home-dir /
 `<jobs_root>` redaction (RFC 0057).
 
-**Responsive behavior.** On wide screens the param rail and the active
-tab sit side-by-side and the Generate form uses its two-column layout.
-On narrow viewports (under ~960px) Vuetify's grid stacks the columns
-vertically; the validity badge remains pinned at the top of the rail
-section.
+**Responsive behavior.** On wide screens the param rail, geometry pane,
+and active tab sit side-by-side and the Generate form uses its two-column
+layout. At desktop-narrow widths (including 1024x768 and 960x720),
+the geometry and review panes stack vertically within the content area;
+review tables use the pane width, review tabs remain reachable, and the
+validity badge remains pinned at the top of the rail section.
 
 **Browser verification.** The required browser-acceptance profile now includes
 hard masked visual-regression screenshots at `1440x900`, `1024x768`, and
@@ -1116,7 +1117,14 @@ high-angle `GZ` exports, or watertight `cfd_ready` packages.
 
 Browser share or reload links seed the current hull state from the
 query string, so a saved URL restores the same design inputs that
-were open when the link was copied. The web shell's `data-testid`
+were open when the link was copied. The web session preserves the full
+decoded `Hull` payload, including `geometry_kind="distribution_v2"` and
+other fields that the slider rail cannot edit. When such a hull is
+loaded, the rail shows an unsupported-editing warning: share, view, and
+export preserve the full payload until a hull-shaping slider changes.
+After a slider edit, the working browser hull is converted to the
+supported lofted slider model and the warning changes to make that
+conversion explicit. The web shell's `data-testid`
 attributes (`validity-badge`, `generative-submit`,
 `comparison-source-toggle`, `mesh-no-package-chip`, etc.) are an
 internal test contract documented in `docs/WEB_VERIFICATION.md`; they

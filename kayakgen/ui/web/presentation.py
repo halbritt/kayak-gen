@@ -180,9 +180,12 @@ WORKSPACE_SHELL_CSS = """
   background: var(--surface-bg);
   color: var(--text-primary);
   font: var(--type-body);
+  max-width: 100%%;
+  overflow-x: hidden;
 }
 .kg-workspace-main {
   gap: var(--space-0);
+  max-width: 100%%;
 }
 .kg-region {
   background: var(--surface-panel);
@@ -190,6 +193,11 @@ WORKSPACE_SHELL_CSS = """
   border-radius: var(--radius-md);
   box-shadow: var(--elevation-panel);
   padding: var(--space-4);
+  max-width: 100%%;
+  min-width: 0;
+}
+.kg-workspace-col {
+  min-width: 0;
 }
 .kg-region-params {
   background: var(--surface-rail);
@@ -275,6 +283,14 @@ WORKSPACE_SHELL_CSS = """
 .kg-review-tabs {
   border-block-end: var(--border-width-thin) var(--border-style-solid) var(--surface-border);
   margin-block-end: var(--space-3);
+  max-width: 100%%;
+  overflow-x: auto;
+}
+.kg-review-tabs .v-slide-group__container {
+  overflow-x: auto;
+}
+.kg-review-tabs .v-slide-group__content {
+  flex-wrap: wrap;
 }
 .kg-review-card,
 .kg-frontier-section {
@@ -294,8 +310,15 @@ WORKSPACE_SHELL_CSS = """
 .kg-mesh-diag-table,
 .kg-resistance-table {
   border-collapse: collapse;
-  width: var(--frontier-max-width);
-  max-width: var(--frontier-max-width);
+  max-width: 100%%;
+  min-width: 0;
+  width: 100%%;
+}
+.kg-hydro-kv-wrap,
+.kg-mesh-diag-kv-wrap,
+.kg-resistance-table-wrap {
+  max-width: 100%%;
+  overflow-x: auto;
 }
 .kg-hydro-table th,
 .kg-mesh-diag-table th,
@@ -393,6 +416,8 @@ WORKSPACE_SHELL_CSS = """
 .kg-generate-objectives-list-wrap,
 .kg-resistance-table-wrap,
 .kg-readiness-chip-wrap {
+  max-width: 100%%;
+  overflow-x: auto;
   padding-block: var(--space-2);
 }
 .kg-generate-build,
@@ -408,8 +433,9 @@ WORKSPACE_SHELL_CSS = """
   border-collapse: separate;
   border-spacing: var(--space-0);
   overflow: hidden;
-  width: var(--frontier-max-width);
-  max-width: var(--frontier-max-width);
+  max-width: 100%%;
+  min-width: 0;
+  width: 100%%;
 }
 .kg-generate-variable-table th,
 .kg-generate-variable-table td {
@@ -424,6 +450,9 @@ WORKSPACE_SHELL_CSS = """
   color: var(--text-primary);
   font: var(--type-body);
   min-height: var(--control-height-compact);
+  max-width: 100%%;
+  min-width: 0;
+  width: 100%%;
 }
 .kg-variable-remove-btn {
   background: var(--state-hover-surface);
@@ -438,7 +467,10 @@ WORKSPACE_SHELL_CSS = """
   background: var(--surface-panel);
   border-block-start: var(--border-width-thin) var(--border-style-solid) var(--surface-border);
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
+  max-width: 100%%;
+  overflow-x: auto;
   padding: var(--space-2) var(--space-3);
 }
 .kg-status-segment {
@@ -472,6 +504,12 @@ WORKSPACE_SHELL_CSS = """
   color: var(--text-primary);
 }
 @media (max-width: %s) {
+  .kg-status-wrap-under-960 {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: %s) {
   .kg-collapse-under-960,
   .kg-geometry-accordion-under-960,
   .kg-review-body-under-960 {
@@ -483,7 +521,10 @@ WORKSPACE_SHELL_CSS = """
     flex-wrap: wrap;
   }
 }
-""" % theme.DENSITY["collapse-breakpoint"]
+""" % (
+    theme.DENSITY["status-wrap-breakpoint"],
+    theme.DENSITY["collapse-breakpoint"],
+)
 
 PARAMETER_RAIL_CSS = WORKSPACE_SHELL_CSS
 

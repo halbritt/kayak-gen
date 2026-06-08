@@ -189,6 +189,7 @@ DENSITY: Final[dict[str, str]] = {
     "viewport-min-height": "480px",
     "frontier-max-width": "480px",
     "frontier-scatter-height": "220px",
+    "status-wrap-breakpoint": "1279px",
     "collapse-breakpoint": "960px",
     "screen-reader-size": "1px",
 }

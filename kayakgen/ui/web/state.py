@@ -14,6 +14,11 @@ from typing import Any
 from urllib.parse import parse_qs
 
 from kayakgen.model.hull import Hull
+from kayakgen.services.design import (
+    FULL_HULL_STATE_KEY,
+    loaded_hull_from_web_state,
+    state_matches_loaded_hull,
+)
 
 
 # Fields the UI exposes as sliders / inputs. Order matters for layout.
@@ -29,6 +34,18 @@ HULL_STATE_FIELDS: tuple[str, ...] = (
     "center_box_ratio",
     "bow_rake",
     "stern_rake",
+)
+
+UNSUPPORTED_HULL_EDITING_WARNING_KEY = "unsupported_hull_editing_warning"
+UNSUPPORTED_HULL_EDITING_VISIBLE_KEY = "unsupported_hull_editing_visible"
+
+_NON_SLIDER_PRESERVED_FIELDS: tuple[str, ...] = (
+    "LCB_frac",
+    "rocker_bow_m",
+    "rocker_stern_m",
+    "geometry_kind",
+    "distribution_v2",
+    "hull_class",
 )
 
 
@@ -55,6 +72,9 @@ CFD_STATUS_LINE_ALIASES: tuple[str, ...] = ("cfd_status_lines",)
 WEB_STATE_SCHEMA = WebStateSchema(
     snapshot_keys=(
         *HULL_STATE_FIELDS,
+        FULL_HULL_STATE_KEY,
+        UNSUPPORTED_HULL_EDITING_WARNING_KEY,
+        UNSUPPORTED_HULL_EDITING_VISIBLE_KEY,
         "name",
         "target_speed_kt",
         "class_preset",
@@ -76,6 +96,10 @@ def state_dict_from_hull(hull: Hull) -> dict[str, Any]:
     """Project a :class:`Hull` onto the flat state dict the Vue app reads."""
     out: dict[str, Any] = {field: getattr(hull, field) for field in HULL_STATE_FIELDS}
     out["name"] = hull.name
+    out[FULL_HULL_STATE_KEY] = hull.model_dump(mode="json")
+    warning = unsupported_hull_editing_warning_from_state(out)
+    out[UNSUPPORTED_HULL_EDITING_WARNING_KEY] = warning
+    out[UNSUPPORTED_HULL_EDITING_VISIBLE_KEY] = bool(warning)
     return out
 
 
@@ -85,8 +109,41 @@ def hull_from_state_dict(state: dict[str, Any]) -> Hull:
     Unknown keys are dropped (Pydantic would otherwise reject them with
     ``extra="forbid"``).
     """
+    loaded_hull = loaded_hull_from_web_state(state)
+    if loaded_hull is not None and state_matches_loaded_hull(state, loaded_hull):
+        return loaded_hull
     payload = {k: v for k, v in state.items() if k in HULL_STATE_FIELDS or k == "name"}
     return Hull(**payload)
+
+
+def unsupported_hull_editing_warning_from_state(state: dict[str, Any]) -> str:
+    """Return visible warning copy for full Hulls the slider rail cannot edit."""
+    loaded_hull = loaded_hull_from_web_state(state)
+    if loaded_hull is None:
+        return ""
+    unsupported_fields = _unsupported_slider_edit_fields(loaded_hull)
+    if not unsupported_fields:
+        return ""
+    field_list = ", ".join(unsupported_fields)
+    if state_matches_loaded_hull(state, loaded_hull):
+        return (
+            f"Loaded hull includes fields the web sliders do not edit ({field_list}). "
+            "The full hull is preserved for view, share, and export until a hull "
+            "slider changes."
+        )
+    return (
+        f"Slider edit converted the loaded hull to lofted geometry; preserved-only "
+        f"fields are no longer active in this session ({field_list})."
+    )
+
+
+def _unsupported_slider_edit_fields(hull: Hull) -> tuple[str, ...]:
+    default_hull = Hull()
+    fields: list[str] = []
+    for field in _NON_SLIDER_PRESERVED_FIELDS:
+        if getattr(hull, field) != getattr(default_hull, field):
+            fields.append(field)
+    return tuple(fields)
 
 
 def encode_hull_query(hull: Hull) -> str:

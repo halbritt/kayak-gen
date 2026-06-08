@@ -19,6 +19,11 @@ from kayakgen.eval.mesh_package import watertight_solid_profile, write_mesh_pack
 from kayakgen.model.advisory import design_advisory
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import CODE_L_BWL_LOW
+from kayakgen.model.distribution_v2 import (
+    DistributionV2Spec,
+    KeyPointsDistribution,
+    PolynomialDistribution,
+)
 
 
 pytest.importorskip("trame", reason="kayakgen[web] not installed")
@@ -57,12 +62,62 @@ from kayakgen.ui.web.state import (  # noqa: E402
 )
 
 
+def _distribution_v2_hull() -> Hull:
+    spec = DistributionV2Spec(
+        waterline_half_breadth=KeyPointsDistribution(
+            knots=[(-1.0, 0.0), (-0.5, 0.20), (0.0, 0.275), (0.5, 0.20), (1.0, 0.0)]
+        ),
+        draft_profile=KeyPointsDistribution(
+            knots=[(-1.0, 0.0), (-0.5, 0.10), (0.0, 0.12), (0.5, 0.10), (1.0, 0.0)]
+        ),
+        section_area_curve=PolynomialDistribution(coefficients=[0.04, 0.0, -0.04]),
+        deck_freeboard=KeyPointsDistribution(
+            knots=[(-1.0, 0.04), (0.0, 0.11), (1.0, 0.04)]
+        ),
+        rocker=KeyPointsDistribution(
+            knots=[(-1.0, 0.0), (-0.5, 0.0), (0.0, 0.0), (0.5, 0.0), (1.0, 0.0)]
+        ),
+        cross_section_family="round",
+        deadrise_deg=0.0,
+    )
+    return Hull(
+        name="v2-web",
+        geometry_kind="distribution_v2",
+        distribution_v2=spec,
+    )
+
+
 def test_state_dict_round_trip_via_hull() -> None:
     hull = Hull(name="touring", length_m=5.0, beam_oa_m=0.58, beam_wl_m=0.53)
     state = state_dict_from_hull(hull)
     back = hull_from_state_dict(state)
     assert "stern_rake" in state
     assert back == hull
+
+
+def test_state_dict_round_trip_preserves_distribution_v2_payload() -> None:
+    hull = _distribution_v2_hull()
+
+    state = state_dict_from_hull(hull)
+    back = hull_from_state_dict(state)
+
+    assert back == hull
+    assert state["loaded_hull_payload"]["geometry_kind"] == "distribution_v2"
+    assert state["loaded_hull_payload"]["distribution_v2"]["cross_section_family"] == "round"
+
+
+def test_hull_from_web_state_converts_unsupported_hull_after_slider_edit() -> None:
+    hull = _distribution_v2_hull()
+    state = state_dict_from_hull(hull)
+
+    assert hull_from_web_state(state) == hull
+
+    state["length_m"] = hull.length_m + 0.1
+    converted = hull_from_web_state(state)
+
+    assert converted.geometry_kind == "lofted"
+    assert converted.distribution_v2 is None
+    assert converted.length_m == pytest.approx(hull.length_m + 0.1)
 
 
 def test_url_query_round_trip_bit_equal() -> None:
@@ -377,6 +432,35 @@ def test_load_from_query_seeds_state() -> None:
     assert web.state.length_m == 5.0
     assert abs(web.state.beam_wl_m - 0.53) < 1e-9
     assert any("Hydrostatics" in line for line in web.state.analysis_lines)
+
+
+def test_load_and_share_preserve_distribution_v2_until_slider_edit() -> None:
+    from kayakgen.ui.web.app import create_app
+
+    hull = _distribution_v2_hull()
+    web = create_app(initial_hull=hull)
+
+    assert web._current_hull() == hull
+    assert web.state.unsupported_hull_editing_visible is True
+    assert "preserved" in web.state.unsupported_hull_editing_warning.lower()
+
+    web._share_url()
+    shared_before_edit = hull_from_query_string(web.state.share_url)
+    assert shared_before_edit == hull
+
+    web.state.length_m = hull.length_m + 0.1
+    web._on_hull_param_change()
+
+    converted = web._current_hull()
+    assert converted.geometry_kind == "lofted"
+    assert converted.distribution_v2 is None
+    assert converted.length_m == pytest.approx(hull.length_m + 0.1)
+    assert "converted" in web.state.unsupported_hull_editing_warning.lower()
+
+    web._share_url()
+    shared_after_edit = hull_from_query_string(web.state.share_url)
+    assert shared_after_edit is not None
+    assert shared_after_edit.geometry_kind == "lofted"
 
 
 def test_create_app_accepts_initial_query() -> None:

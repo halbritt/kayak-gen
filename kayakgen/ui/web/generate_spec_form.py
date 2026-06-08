@@ -926,6 +926,9 @@ def compute_submit_blocking_reason(state: Any) -> str:
     the most common blockers before clicking.
     """
 
+    if str(_state_get(state, "generative_spec_json", "") or "").strip():
+        return ""
+
     # 1. Variables: at least one row required.
     raw_variables = _state_get(state, "generative_variables", [])
     if not isinstance(raw_variables, list) or not raw_variables:
@@ -1124,8 +1127,11 @@ def render_spec_form_section(app: Any) -> None:
             " class='kg-generate-variable-row'>"
             "  <td>"
             "    <select v-model='row.name'"
+            "            :aria-label=\"'Variable ' + (idx + 1) + ' name'\""
+            "            @change='generative_variables = [...generative_variables]'"
             "            data-testid='generative-variable-name'"
             "            class='kg-variable-name-select'>"
+            "      <option value=''>Select variable</option>"
             "      <option v-for='opt in generative_variable_picklist_items'"
             "              :key='opt.value' :value='opt.value'>"
             "        {{ opt.title }}"
@@ -1134,6 +1140,8 @@ def render_spec_form_section(app: Any) -> None:
             "  </td>"
             "  <td>"
             "    <select v-model='row.kind'"
+            "            :aria-label=\"'Variable ' + (idx + 1) + ' kind'\""
+            "            @change='generative_variables = [...generative_variables]'"
             "            data-testid='generative-variable-kind'"
             "            class='kg-variable-kind-select'>"
             "      <option value='uniform'>uniform</option>"
@@ -1143,26 +1151,37 @@ def render_spec_form_section(app: Any) -> None:
             "  <td>"
             "    <input v-if=\"row.kind === 'uniform'\" type='number'"
             "           v-model.number='row.min' placeholder='min'"
+            "           :aria-label=\"'Variable ' + (idx + 1) + ' min'\""
+            "           @input='generative_variables = [...generative_variables]'"
             "           class='kg-variable-min-input'/>"
             "  </td>"
             "  <td>"
             "    <input v-if=\"row.kind === 'uniform'\" type='number'"
             "           v-model.number='row.max' placeholder='max'"
+            "           :aria-label=\"'Variable ' + (idx + 1) + ' max'\""
+            "           @input='generative_variables = [...generative_variables]'"
             "           class='kg-variable-max-input'/>"
             "  </td>"
             "  <td>"
             "    <input v-if=\"row.kind === 'uniform'\" type='number'"
             "           v-model.number='row.count' placeholder='count'"
+            "           :aria-label=\"'Variable ' + (idx + 1) + ' count'\""
+            "           @input='generative_variables = [...generative_variables]'"
             "           class='kg-variable-count-input'/>"
             "  </td>"
             "  <td>"
             "    <input v-if=\"row.kind === 'choice'\""
             "           v-model='row.values'"
             "           placeholder='comma-separated values'"
+            "           :aria-label=\"'Variable ' + (idx + 1) + ' values'\""
+            "           @input='generative_variables = [...generative_variables]'"
             "           class='kg-variable-values-input'/>"
             "  </td>"
             "  <td>"
-            "    <button @click='generative_variables.splice(idx, 1)'"
+            "    <button type='button'"
+            "            @click='generative_variables.splice(idx, 1);"
+            " generative_variables = [...generative_variables]'"
+            "            :aria-label=\"'Remove variable ' + (idx + 1)\""
             "            class='kg-variable-remove-btn'"
             "            data-testid='generative-variable-remove-row'>"
             "      ✕"
@@ -1180,7 +1199,7 @@ def render_spec_form_section(app: Any) -> None:
         click="generative_variables.push({"
         "name: '', kind: 'uniform', min: 0, max: 1,"
         f" count: {DEFAULT_SWEEP_LINSPACE_COUNT}, values: ''"
-        "})",
+        "}); generative_variables = [...generative_variables]",
         density="compact",
         classes="mr-2",
         **{"data-testid": "generative-add-variable"},
@@ -1189,7 +1208,7 @@ def render_spec_form_section(app: Any) -> None:
         "Remove last",
         click=(
             "if (generative_variables.length > 0) "
-            "{ generative_variables.pop(); }"
+            "{ generative_variables.pop(); generative_variables = [...generative_variables]; }"
         ),
         density="compact",
         **{"data-testid": "generative-remove-variable"},
@@ -1273,20 +1292,30 @@ def render_spec_form_section(app: Any) -> None:
             "<div v-for='(metric, idx) in generative_selected_objective_metrics'"
             " :key='metric'"
             " class='kg-generate-objective-row d-flex align-center gap-2 mb-1'>"
-            "  <span class='kg-generate-objective-metric flex-grow-1'>"
+            "  <span class='kg-generate-objective-metric flex-grow-1'"
+            "        role='text'"
+            "        :aria-label=\"'Objective ' + (idx + 1) + ' metric '"
+            " + (generative_objective_metric_titles[metric] || metric)\">"
             "    {{ generative_objective_metric_titles[metric] || metric }}"
             "  </span>"
             "  <div class='v-btn-toggle kg-objective-direction-toggle'"
+            "       role='radiogroup'"
+            "       :aria-label=\"'Objective ' + (idx + 1) + ' direction for '"
+            " + (generative_objective_metric_titles[metric] || metric)\""
             "       data-testid='generative-objective-direction'>"
-            "    <button"
+            "    <button type='button'"
             "      :class=\"{'v-btn--active': generative_objective_directions[metric] === 'min'}\""
-            "      @click=\"generative_objective_directions[metric] = 'min'\""
+            "      :aria-pressed=\"generative_objective_directions[metric] === 'min'\""
+            "      :aria-label=\"'Set ' + (generative_objective_metric_titles[metric] || metric) + ' minimum objective'\""
+            "      @click=\"generative_objective_directions = {...generative_objective_directions, [metric]: 'min'}\""
             "      class='v-btn v-btn--density-compact'>"
             "      min"
             "    </button>"
-            "    <button"
+            "    <button type='button'"
             "      :class=\"{'v-btn--active': generative_objective_directions[metric] === 'max'}\""
-            "      @click=\"generative_objective_directions[metric] = 'max'\""
+            "      :aria-pressed=\"generative_objective_directions[metric] === 'max'\""
+            "      :aria-label=\"'Set ' + (generative_objective_metric_titles[metric] || metric) + ' maximum objective'\""
+            "      @click=\"generative_objective_directions = {...generative_objective_directions, [metric]: 'max'}\""
             "      class='v-btn v-btn--density-compact'>"
             "      max"
             "    </button>"

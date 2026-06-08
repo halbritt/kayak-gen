@@ -53,12 +53,16 @@ from kayakgen.ui.web.read_models import (
     web_high_angle_gz_section_html,
     web_high_angle_gz_view_model_from_json,
 )
+from kayakgen.ui.web.generate_spec_form import refresh_submit_blocking_reason
 from kayakgen.ui.web.state import (
     HULL_STATE_FIELDS,
     MESH_PACKAGE_REF_ALIASES,
     STATE_SNAPSHOT_KEYS,
     encode_hull_query,
     state_dict_from_hull,
+    unsupported_hull_editing_warning_from_state,
+    UNSUPPORTED_HULL_EDITING_VISIBLE_KEY,
+    UNSUPPORTED_HULL_EDITING_WARNING_KEY,
 )
 
 
@@ -79,10 +83,12 @@ class HandlersMixin:
         try:
             hull = self._current_hull()
         except Exception:
+            self._refresh_unsupported_hull_warning()
             self._refresh_metrics()
             self._refresh_analysis()
             self._refresh_mesh()
             return
+        self._refresh_unsupported_hull_warning()
         self._rebuild_scene(hull)
         self._refresh_metrics()
         self._refresh_analysis()
@@ -256,6 +262,11 @@ class HandlersMixin:
                 f"{label}: {value}; opens {segment['target_tab']} tab",
             )
 
+    def _refresh_unsupported_hull_warning(self) -> None:
+        warning = unsupported_hull_editing_warning_from_state(self._state_snapshot())
+        setattr(self.state, UNSUPPORTED_HULL_EDITING_WARNING_KEY, warning)
+        setattr(self.state, UNSUPPORTED_HULL_EDITING_VISIBLE_KEY, bool(warning))
+
     def _set_cfd_status_segment(self, payload: dict[str, Any] | None = None) -> None:
         status = "unavailable"
         if payload:
@@ -295,10 +306,24 @@ class HandlersMixin:
     def _on_class_preset_change(self, **_kwargs: Any) -> None:
         self._apply_class_preset(str(self.state.class_preset or "custom"))
 
+    def _on_generate_form_state_change(self, **_kwargs: Any) -> None:
+        refresh_submit_blocking_reason(self)
+
     def _wire_state_listeners(self) -> None:
         self.state.change(*HULL_STATE_FIELDS)(self._on_hull_param_change)
         self.state.change("target_speed_kt")(self._on_view_param_change)
         self.state.change("class_preset")(self._on_class_preset_change)
+        self.state.change(
+            "generative_variables",
+            "generative_selected_objective_metrics",
+            "generative_objective_directions",
+            "generative_evaluators",
+            "generative_cfd_in_loop_acknowledged",
+            "generative_cfd_in_loop_status",
+            "generative_job_kind",
+            "generative_spec_json",
+            "generative_algorithm_kind",
+        )(self._on_generate_form_state_change)
 
     def _on_server_bind(self, ws_server: Any) -> None:
         register_rest_routes(

@@ -6,7 +6,14 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
-_No unreleased changes._
+### Fixed
+
+- Remediated the 2026-06-08 primary web workspace UX findings: the review
+  pane now stays usable at 1024x768 and 960x720, share/reload preserves full
+  loaded `Hull` payloads until a slider edit explicitly converts unsupported
+  fields to lofted geometry, Generate row controls have row-scoped accessible
+  names, and the Generate submit blocker updates reactively as form state
+  changes.
 
 ## 0.1.0 - 2026-06-08
 

@@ -12,9 +12,16 @@ from kayakgen.ui.web.state import (
     CFD_PAYLOAD_ALIASES,
     CFD_STATUS_ALIASES,
     CFD_STATUS_LINE_ALIASES,
+    FULL_HULL_STATE_KEY,
     HULL_STATE_FIELDS,
     MESH_PACKAGE_REF_ALIASES,
+    UNSUPPORTED_HULL_EDITING_VISIBLE_KEY,
+    UNSUPPORTED_HULL_EDITING_WARNING_KEY,
     WEB_STATE_SCHEMA,
+)
+from kayakgen.ui.web.generate_spec_form import (
+    SUBMIT_BLOCKING_REASON_CFD_ACK_REQUIRED,
+    SUBMIT_BLOCKING_REASON_NO_OBJECTIVE,
 )
 
 
@@ -145,7 +152,6 @@ def test_parameter_slider_label_css_uses_existing_tokens() -> None:
         "--table-row-padding-y",
         "--table-row-padding-x",
         "--control-height-compact",
-        "--frontier-max-width",
     } <= set(re.findall(r"var\((--[^)]+)\)", css))
     assert web_app.ROOT_THEME_CSS.count(":root") == 1
     assert "--type-label:" in web_app.ROOT_THEME_CSS
@@ -185,6 +191,7 @@ def test_shell_and_generate_sections_share_typography_and_token_density() -> Non
     assert "border-radius: var(--radius-md);" in css
     assert "box-shadow: var(--elevation-panel);" in css
     assert "gap: var(--space-3);" in css
+    assert "@media (max-width: 1279px)" in css
     assert "@media (max-width: 960px)" in css
     assert 'with html_widgets.Div(classes="kg-generate-build")' in app_source
     assert 'with html_widgets.Div(classes="kg-generate-watch")' in app_source
@@ -351,6 +358,9 @@ def test_export_menu_rows_are_single_honest_menu_contract() -> None:
 def test_state_snapshot_schema_preserves_current_and_legacy_alias_keys() -> None:
     expected_keys = (
         *HULL_STATE_FIELDS,
+        FULL_HULL_STATE_KEY,
+        UNSUPPORTED_HULL_EDITING_WARNING_KEY,
+        UNSUPPORTED_HULL_EDITING_VISIBLE_KEY,
         "name",
         "target_speed_kt",
         "class_preset",
@@ -384,6 +394,9 @@ def test_state_snapshot_schema_preserves_current_and_legacy_alias_keys() -> None
     assert snapshot["cfd_job_payload"] is None
     assert snapshot["cfd_last_payload"] is None
     assert snapshot["cfd_mesh_package_ref"] == ""
+    assert snapshot[FULL_HULL_STATE_KEY]["geometry_kind"] == "lofted"
+    assert snapshot[UNSUPPORTED_HULL_EDITING_WARNING_KEY] == ""
+    assert snapshot[UNSUPPORTED_HULL_EDITING_VISIBLE_KEY] is False
     web.state.mesh_package_ref = "build/mesh-package"
     web.state.cfd_status = "queued"
     web.state.cfd_payload = {"run": {"status": "running"}}
@@ -396,6 +409,64 @@ def test_state_snapshot_schema_preserves_current_and_legacy_alias_keys() -> None
     web.state.mesh_package_ref = None
     web.state.cfd_status = None
     web.state.cfd_payload = None
+
+
+def test_generate_submit_blocking_reason_listener_updates_on_form_state_change() -> None:
+    web = web_app.create_app(initial_hull=Hull())
+
+    assert web.state.generative_submit_disabled is False
+
+    web.state.generative_selected_objective_metrics = []
+    web._on_generate_form_state_change()
+
+    assert web.state.generative_submit_disabled is True
+    assert web.state.generative_submit_blocking_reason == SUBMIT_BLOCKING_REASON_NO_OBJECTIVE
+
+    web.state.generative_selected_objective_metrics = ["GM0_m"]
+    web._on_generate_form_state_change()
+
+    assert web.state.generative_submit_disabled is False
+
+    evaluators = dict(web.state.generative_evaluators)
+    evaluators["cfd_in_loop"] = True
+    web.state.generative_evaluators = evaluators
+    web.state.generative_cfd_in_loop_acknowledged = False
+    web._on_generate_form_state_change()
+
+    assert web.state.generative_submit_disabled is True
+    assert (
+        web.state.generative_submit_blocking_reason
+        == SUBMIT_BLOCKING_REASON_CFD_ACK_REQUIRED
+    )
+
+    web.state.generative_cfd_in_loop_acknowledged = True
+    web._on_generate_form_state_change()
+
+    assert web.state.generative_submit_disabled is False
+
+
+def test_generate_form_raw_row_controls_have_accessible_names() -> None:
+    source = (
+        Path(web_app.__file__)
+        .with_name("generate_spec_form.py")
+        .read_text()
+        .replace('\\"', '"')
+    )
+
+    for expected in (
+        ":aria-label=\"'Variable ' + (idx + 1) + ' name'\"",
+        ":aria-label=\"'Variable ' + (idx + 1) + ' kind'\"",
+        ":aria-label=\"'Variable ' + (idx + 1) + ' min'\"",
+        ":aria-label=\"'Variable ' + (idx + 1) + ' max'\"",
+        ":aria-label=\"'Remove variable ' + (idx + 1)\"",
+        ":aria-label=\"'Objective ' + (idx + 1) + ' metric '",
+        "role='radiogroup'",
+        ":aria-pressed=\"generative_objective_directions[metric] === 'min'\"",
+        ":aria-label=\"'Set ' + (generative_objective_metric_titles[metric] || metric) + ' minimum objective'\"",
+        ":aria-pressed=\"generative_objective_directions[metric] === 'max'\"",
+        ":aria-label=\"'Set ' + (generative_objective_metric_titles[metric] || metric) + ' maximum objective'\"",
+    ):
+        assert expected in source
 
 
 def test_forbidden_claim_copy_has_only_documented_negations_in_render_surfaces() -> None:

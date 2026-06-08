@@ -172,6 +172,7 @@ def test_new_visual_token_maps_are_additive_and_resolved() -> None:
     assert theme.SPACING["space-3"] == "0.75rem"
     assert theme.DENSITY["viewport-height"] == "520px"
     assert theme.DENSITY["frontier-max-width"] == "480px"
+    assert theme.DENSITY["status-wrap-breakpoint"] == "1279px"
     assert theme.DENSITY["collapse-breakpoint"] == "960px"
     assert theme.RADII["radius-sm"] == "4px"
     assert theme.BORDERS["border-width-thin"] == "1px"

@@ -15,6 +15,7 @@ Chromium is missing:
 from __future__ import annotations
 
 import os
+import re
 import socket
 import struct
 import subprocess
@@ -878,6 +879,127 @@ def _assert_workspace_hit_targets(page) -> None:
     )
 
 
+def _assert_workspace_review_fits_viewport(page) -> None:
+    failures = page.evaluate(
+        """
+        async () => {
+          const failures = [];
+          const viewportWidth = window.innerWidth;
+          const scrollElement = document.scrollingElement || document.documentElement;
+          const horizontalOverflow = Math.ceil(scrollElement.scrollWidth - viewportWidth);
+          if (horizontalOverflow > 1) {
+            failures.push(`page horizontal overflow ${horizontalOverflow}px`);
+          }
+
+          const visibleRect = (el) => {
+            if (!el) return null;
+            const style = getComputedStyle(el);
+            if (style.display === "none" || style.visibility === "hidden") return null;
+            const rect = el.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) return null;
+            return rect;
+          };
+          const assertInsideViewport = (label, el) => {
+            const rect = visibleRect(el);
+            if (!rect) {
+              failures.push(`${label}: no visible box`);
+              return;
+            }
+            if (rect.left < -1 || rect.right > viewportWidth + 1) {
+              failures.push(
+                `${label}: x ${rect.left.toFixed(1)}..${rect.right.toFixed(1)} outside ${viewportWidth}`
+              );
+            }
+          };
+
+          const hydroRows = Array.from(document.querySelectorAll(
+            "[data-testid='hydro-kv-table'] tbody tr"
+          ));
+          if (hydroRows.length === 0) {
+            failures.push("hydro table has no rows");
+          }
+          for (const [index, row] of hydroRows.entries()) {
+            assertInsideViewport(`hydro row ${index + 1} label`, row.querySelector("th"));
+            assertInsideViewport(`hydro row ${index + 1} value`, row.querySelector("td"));
+          }
+
+          for (const label of ["Hydro", "Mesh", "Comparison", "CFD", "Generate", "Advisories"]) {
+            const tab = Array.from(document.querySelectorAll("[role='tab']"))
+              .find((el) => (el.textContent || "").trim() === label);
+            if (tab) {
+              tab.scrollIntoView({block: "nearest", inline: "nearest"});
+              await new Promise((resolve) => requestAnimationFrame(resolve));
+            }
+            assertInsideViewport(`tab ${label}`, tab);
+          }
+
+          for (const className of [
+            "kg-status-package", "kg-status-readiness",
+            "kg-status-resistance", "kg-status-cfd"
+          ]) {
+            assertInsideViewport(className, document.querySelector(`.${className}`));
+          }
+          return failures;
+        }
+        """,
+    )
+    assert failures == [], "workspace viewport fit failures:\n" + "\n".join(failures)
+
+
+def _assert_generate_form_accessibility(page) -> None:
+    page.get_by_role("tab", name="Generate").click()
+    page.get_by_label("Variable 1 name").wait_for(timeout=10_000)
+    page.get_by_label("Variable 1 kind").wait_for(timeout=10_000)
+    page.get_by_label("Variable 1 min").wait_for(timeout=10_000)
+    page.get_by_label("Variable 1 max").wait_for(timeout=10_000)
+    assert page.get_by_role("button", name="Remove variable 1").count() == 1
+    objective_row = page.locator(".kg-generate-objective-row").first
+    min_button = objective_row.get_by_role(
+        "button",
+        name=re.compile(r"Set .* minimum objective"),
+    )
+    max_button = objective_row.get_by_role(
+        "button",
+        name=re.compile(r"Set .* maximum objective"),
+    )
+    assert min_button.first.get_attribute("aria-pressed") == "false"
+    assert max_button.first.get_attribute("aria-pressed") == "true"
+
+
+def _assert_generate_submit_state_reacts_to_edits(page) -> None:
+    page.get_by_role("tab", name="Generate").click()
+    submit = page.get_by_role("button", name="Submit Search")
+    submit.wait_for(timeout=10_000)
+    assert submit.first.is_enabled()
+
+    page.evaluate(
+        """
+        () => window.trame?.state?.set?.("generative_selected_objective_metrics", [])
+        """
+    )
+    page.wait_for_function(
+        """
+        () => window.trame?.state?.get?.("generative_submit_disabled") === true
+          && String(
+            window.trame?.state?.get?.("generative_submit_blocking_reason") || ""
+          ).includes("Select at least one objective")
+        """,
+        timeout=10_000,
+    )
+    assert submit.first.is_disabled()
+
+    page.get_by_label("Variable 1 name").select_option("")
+    page.wait_for_function(
+        """
+        () => window.trame?.state?.get?.("generative_submit_disabled") === true
+          && String(
+            window.trame?.state?.get?.("generative_submit_blocking_reason") || ""
+          ).includes("Every variable row needs a name")
+        """,
+        timeout=10_000,
+    )
+
+
 @pytest.mark.browser_acceptance
 @pytest.mark.parametrize("viewport", VISUAL_VIEWPORTS, ids=lambda viewport: viewport.name)
 def test_web_workspace_visual_baseline(
@@ -900,6 +1022,7 @@ def test_web_workspace_visual_baseline(
                 )
                 failures = _collect_browser_failures(page)
                 page.goto(url, wait_until="networkidle", timeout=30_000)
+                _assert_workspace_review_fits_viewport(page)
                 actual_png = _capture_masked_workspace_png(page, viewport)
                 _assert_no_browser_failures(failures)
             finally:
@@ -970,6 +1093,8 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 _assert_workspace_focus_order_and_ring(page)
                 _assert_workspace_hit_targets(page)
                 _assert_nonblank_3d(page)
+                _assert_generate_form_accessibility(page)
+                _assert_generate_submit_state_reacts_to_edits(page)
 
                 _select_class_preset(page, "Elite surfski")
                 page.wait_for_function(

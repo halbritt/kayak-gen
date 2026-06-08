@@ -30,6 +30,7 @@ _HULL_STATE_FIELDS: tuple[str, ...] = (
     "bow_rake",
     "stern_rake",
 )
+FULL_HULL_STATE_KEY = "loaded_hull_payload"
 
 CLASS_PRESET_HULL_FIELDS: tuple[str, ...] = (
     "length_m",
@@ -42,8 +43,45 @@ CLASS_PRESET_HULL_FIELDS: tuple[str, ...] = (
 
 def _hull_from_state_dict(state: dict[str, Any]) -> Hull:
     """Build a :class:`Hull` from a flat state dict. Drops unknown keys."""
+    loaded_hull = loaded_hull_from_web_state(state)
+    if loaded_hull is not None and state_matches_loaded_hull(state, loaded_hull):
+        return loaded_hull
     payload = {k: v for k, v in state.items() if k in _HULL_STATE_FIELDS or k == "name"}
     return Hull(**payload)
+
+
+def loaded_hull_from_web_state(state: dict[str, Any]) -> Hull | None:
+    """Return the opaque loaded Hull payload carried by web state, if valid."""
+    raw = state.get(FULL_HULL_STATE_KEY)
+    if raw is None:
+        return None
+    try:
+        if isinstance(raw, str):
+            return Hull.model_validate_json(raw)
+        return Hull.model_validate(raw)
+    except (TypeError, ValueError, ValidationError):
+        return None
+
+
+def state_matches_loaded_hull(state: dict[str, Any], hull: Hull) -> bool:
+    """Return True when visible hull fields still match the opaque payload."""
+    for field in (*_HULL_STATE_FIELDS, "name"):
+        if field not in state:
+            continue
+        if not _state_value_equals_model_value(state[field], getattr(hull, field)):
+            return False
+    return True
+
+
+def _state_value_equals_model_value(state_value: Any, model_value: Any) -> bool:
+    if state_value is None or model_value is None:
+        return state_value is model_value
+    if isinstance(state_value, (int, float)) or isinstance(model_value, (int, float)):
+        try:
+            return abs(float(state_value) - float(model_value)) <= 1e-9
+        except (TypeError, ValueError):
+            return False
+    return state_value == model_value
 
 
 def clamp_beam_wl_state(state: dict[str, Any]) -> dict[str, Any]:
