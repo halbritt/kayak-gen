@@ -1,0 +1,20 @@
+{
+  "schema_version": "1",
+  "name": "untitled",
+  "length_m": 4.5,
+  "beam_oa_m": 0.55,
+  "beam_wl_m": null,
+  "draft_m": 0.12,
+  "deck_height_m": 0.23,
+  "Cp": 0.55,
+  "Cm": 0.85,
+  "deck_flatness": 8.0,
+  "center_box_ratio": 0.33,
+  "bow_rake": 1.0,
+  "stern_rake": 1.0,
+  "LCB_frac": 0.5,
+  "rocker_bow_m": 0.0,
+  "rocker_stern_m": 0.0,
+  "geometry_kind": "lofted",
+  "distribution_v2": null
+}
