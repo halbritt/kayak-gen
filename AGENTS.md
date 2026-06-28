@@ -145,3 +145,16 @@ resistance source (D006 author outreach — see
 `docs/research/CALIBRATION_DATA_FINDINGS_2026-05-16.md`), measured
 kayak GZ-vs-heel data (D007/D014 commissioned campaign; RFC 0056 rig
 design is ready), and any reopening of the public hosted demo.
+
+<!-- BEGIN PROXIMAL PLANE TRACKING -->
+## Plane Tracking
+
+This repository is represented in the local/private Plane workspace `Proximal`.
+
+- Plane project: `Kayak Gen` (`KAYGEN`)
+- Plane URL: `https://proximal.tail0ecc2e.ts.net:10000/`
+- GitHub repo: `https://github.com/halbritt/kayak-gen`
+- Use Plane work items for multi-agent planning, claims, submitted artifacts, reviews, and acceptance decisions.
+- When updating Plane, include the repo, branch/worktree, `run_id`, `base_sha`, artifact links, verification evidence, and authority scope in the work item description or comments.
+- Do not commit Plane API tokens. Local tokens and MCP env files live outside git under `~/.config/plane/`.
+<!-- END PROXIMAL PLANE TRACKING -->
