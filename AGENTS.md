@@ -160,3 +160,6 @@ This repository is represented in the local/private Plane workspace `Proximal`.
 - When updating Plane, include the repo, branch/worktree, `run_id`, `base_sha`, artifact links, verification evidence, and authority scope in the work item description or comments.
 - Do not commit Plane API tokens. Local tokens and MCP env files live outside git under `~/.config/plane/`.
 <!-- END PROXIMAL PLANE TRACKING -->
+## Branch hygiene
+
+Do not leave unmerged code lying around. If a task uses a branch, merge its authorized work into the intended target branch before reporting completion. If merge authority is absent, report that as a blocker instead of treating the branch as finished. Clean up branches and associated worktrees after merge.
