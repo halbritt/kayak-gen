@@ -1034,7 +1034,10 @@ warn-soft) but the textual claim is the authoritative signal.
 
 **Hydro tab.** Renders the current hydrostatics as a key/value table
 (displacement, wetted surface, waterplane area, GM0, Cp/Cm actuals,
-L/B at WL) sourced from `evaluate_hydrostatics(hull)`. Row labels and
+L/B at WL) sourced from `evaluate_hydrostatics(hull)`. Hydrostatics remains
+available if resistance evaluation fails. The resistance table includes a
+highlighted target-speed row; targets within 0.05 kt of a fixed sweep speed
+highlight that existing row instead of adding a duplicate. Row labels and
 units come from the RFC 0062 `HYDROSTATICS_ROW_METADATA` registry in
 `kayakgen.ui.hydrostatics_metadata`, which also carries one-sentence
 operator-facing `description` fields per row. The current Hydro tab

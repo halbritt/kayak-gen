@@ -104,7 +104,7 @@ kayakgen/
 │   └── sweep.py                 SweepSpec, CandidateRecord, pending lifecycle
 ├── services/                 # Application services (no UI/CLI deps)
 │   ├── design.py                hull-state assembly, presets, validity badges
-│   ├── evaluation.py            metrics + analysis + resistance view models +
+│   ├── evaluation.py            metrics + independent hydro/resistance view models +
 │   │                            RFC 0050 target-draft/trim solvers
 │   ├── artifacts.py             STL / hydro / stability JSON / package export
 │   ├── cfd_jobs.py              CFD prepare/run/status/logs/raw-result orchestration

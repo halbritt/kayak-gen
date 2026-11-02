@@ -10,6 +10,12 @@ import json
 from typing import Any
 
 from kayakgen.model.hull import Hull
+from kayakgen.services.evaluation import (
+    hydro_lines_from_model,
+    hydro_rows_from_model,
+    hydrostatics_view_model,
+    resistance_table_for_hull,
+)
 from kayakgen.ui.web.controllers import (
     CfdWebError,
     candidate_state_from_report_json,
@@ -26,14 +32,11 @@ from kayakgen.ui.web.controllers import (
     evaluation_payload,
     evaluation_summary,
     hull_from_web_state,
-    hydro_lines_from_state,
-    hydro_rows_from_state,
     mesh_diagnostics_lines_from_state,
     mesh_diagnostics_rows_from_state,
     mesh_package_view_model,
     metrics_from_state,
     register_rest_routes,
-    resistance_table_view_model,
     run_cfd_job_payload,
     validation_error_payload,
     validity_badge_from_state,
@@ -140,8 +143,19 @@ class HandlersMixin:
     def _refresh_analysis(self) -> None:
         state = self._state_snapshot()
         try:
-            self.state.analysis_lines = hydro_lines_from_state(state)
-            self.state.hydro_table_rows = hydro_rows_from_state(state)
+            hull = hull_from_web_state(state)
+        except Exception as exc:
+            payload = validation_error_payload(exc)
+            messages = [f"{d['field']}: {d['message']}" for d in payload.get("details", [])]
+            self.state.analysis_lines = ["Analysis unavailable", *messages]
+            self.state.hydro_table_rows = [{"label": "Error", "value": m} for m in messages]
+            self.state.resistance_table_rows = []
+            self.state.resistance_table_html = _pre_html(["Resistance unavailable", *messages])
+            return
+        try:
+            hydro_model = hydrostatics_view_model(hull)
+            self.state.analysis_lines = hydro_lines_from_model(hydro_model)
+            self.state.hydro_table_rows = hydro_rows_from_model(hydro_model)
         except Exception as exc:
             payload = validation_error_payload(exc)
             details = payload.get("details", [])
@@ -149,7 +163,7 @@ class HandlersMixin:
             self.state.analysis_lines = ["Analysis unavailable", *messages]
             self.state.hydro_table_rows = [{"label": "Error", "value": m} for m in messages]
         try:
-            model = resistance_table_view_model(state)
+            model = resistance_table_for_hull(hull, float(state.get("target_speed_kt", 3.5)))
         except Exception as exc:
             payload = validation_error_payload(exc)
             details = payload.get("details", [])

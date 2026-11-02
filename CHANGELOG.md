@@ -19,6 +19,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   runs. SQLite v1 indexes are backed up and migrated transactionally without
   recomputing trusted hashes from canonical files.
 
+- The web Hydro card shares one hydrostatics result across its text and table
+  views and remains available when resistance evaluation fails. Each analysis
+  refresh computes only the target-aware resistance curve. The Resistance card
+  now renders that curve as a table instead of showing literal HTML markup.
+
 - Remediated the 2026-06-08 primary web workspace UX findings: the review
   pane now stays usable at 1024x768 and 960x720, share/reload preserves full
   loaded `Hull` payloads until a slider edit explicitly converts unsupported

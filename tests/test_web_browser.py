@@ -1252,3 +1252,35 @@ def test_kayakgen_serve_browser_acceptance(request: pytest.FixtureRequest) -> No
                 browser.close()
     finally:
         _stop_server(proc)
+
+
+@pytest.mark.browser_acceptance
+def test_resistance_table_renders_rows_and_updates_target(request: pytest.FixtureRequest) -> None:
+    """KAYGEN-4: dynamic table HTML must render as rows, never literal markup."""
+    playwright_api = _load_playwright(request)
+    url, proc = _start_server()
+    try:
+        with playwright_api.sync_playwright() as pw:
+            browser = _launch_chromium(playwright_api, pw, request)
+            try:
+                page = browser.new_page(viewport={"width": 1440, "height": 900})
+                page.goto(url, wait_until="networkidle", timeout=30_000)
+                table = page.locator('[data-testid="resistance-table"]')
+                table.wait_for(state="visible", timeout=5_000)
+                assert table.locator("tbody tr").count() == 6
+                assert table.locator(".kg-resistance-row-target td").nth(1).inner_text() == "3.5"
+                assert "<table" not in page.locator(".kg-resistance-card").inner_text()
+
+                page.locator(".kg-param-target_speed_kt [role='slider']").press("ArrowRight")
+                page.wait_for_function(
+                    """() => document.querySelector(
+                        '.kg-resistance-row-target td:nth-child(2)'
+                    )?.textContent === '3.6'""",
+                    timeout=10_000,
+                )
+                assert table.locator("tbody tr").count() == 6
+                assert "uncalibrated_comparative" in page.locator(".kg-resistance-card").inner_text()
+            finally:
+                browser.close()
+    finally:
+        _stop_server(proc)

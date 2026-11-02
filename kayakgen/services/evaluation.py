@@ -95,17 +95,9 @@ def metrics_from_state(state: dict[str, Any], stations: int = 60) -> dict[str, A
     }
 
 
-def analysis_view_model(state: dict[str, Any]) -> dict[str, Any]:
-    """Build unit-labeled analysis rows for the current web hull state."""
-    hull = hull_from_web_state(state)
+def hydrostatics_view_model(hull: Hull) -> dict[str, Any]:
+    """Compute hydrostatics and advisories independently of resistance."""
     hydro = evaluate_hydrostatics(hull, stations=60)
-    resistance = resistance_curve(
-        hull,
-        V_knots=np.array(DISPLAY_CURVE_SPEEDS_KT, dtype=float),
-        n_stations=400,
-        n_depths=20,
-        n_theta=30,
-    )
     advisory = design_advisory(
         hull,
         cp=hydro.Cp_actual,
@@ -124,6 +116,24 @@ def analysis_view_model(state: dict[str, Any]) -> dict[str, Any]:
         _row("cm_actual", f"{hydro.Cm_actual:.3f}"),
         _row("l_over_bwl", f"{advisory.l_over_bwl:.2f}"),
     ]
+    return {
+        "hydro_rows": hydro_rows,
+        "design_warnings": list(advisory.warnings),
+        "design_validity": advisory.design_validity.model_dump(mode="json"),
+    }
+
+
+def analysis_view_model(state: dict[str, Any]) -> dict[str, Any]:
+    """Build unit-labeled analysis rows with the fixed five-speed curve."""
+    hull = hull_from_web_state(state)
+    hydro_model = hydrostatics_view_model(hull)
+    resistance = resistance_curve(
+        hull,
+        V_knots=np.array(DISPLAY_CURVE_SPEEDS_KT, dtype=float),
+        n_stations=400,
+        n_depths=20,
+        n_theta=30,
+    )
     resistance_rows = [
         {
             "speed_kt": speed,
@@ -142,12 +152,12 @@ def analysis_view_model(state: dict[str, Any]) -> dict[str, Any]:
         )
     ]
     return {
-        "hydro_rows": hydro_rows,
+        "hydro_rows": hydro_model["hydro_rows"],
         "resistance_rows": resistance_rows,
-        "design_warnings": list(advisory.warnings),
-        "design_validity": advisory.design_validity.model_dump(mode="json"),
+        "design_warnings": hydro_model["design_warnings"],
+        "design_validity": hydro_model["design_validity"],
         "resistance_warnings": list(resistance.metadata.warnings),
-        "warnings": [*advisory.warnings, *resistance.metadata.warnings],
+        "warnings": [*hydro_model["design_warnings"], *resistance.metadata.warnings],
         "resistance_metadata": resistance.metadata.model_dump(mode="json"),
     }
 
@@ -157,14 +167,26 @@ def resistance_table_view_model(
     *,
     target_tolerance_kt: float = 0.05,
 ) -> dict[str, Any]:
+    """State-based compatibility entry point for the resistance table."""
+    return resistance_table_for_hull(
+        hull_from_web_state(state),
+        float(state.get("target_speed_kt", 3.5)),
+        target_tolerance_kt=target_tolerance_kt,
+    )
+
+
+def resistance_table_for_hull(
+    hull: Hull,
+    target_speed_kt: float,
+    *,
+    target_tolerance_kt: float = 0.05,
+) -> dict[str, Any]:
     """Resistance table rows with a focused target-speed row.
 
     The fixed sweep stays at ``DISPLAY_CURVE_SPEEDS_KT``. A continuous
     ``target_speed_kt`` is inserted as a sorted extra row only when it is
     outside the configured tolerance from every fixed sweep speed.
     """
-    hull = hull_from_web_state(state)
-    target_speed_kt = float(state.get("target_speed_kt", 3.5))
     nearest_fixed = min(DISPLAY_CURVE_SPEEDS_KT, key=lambda speed: abs(speed - target_speed_kt))
     matches_fixed = abs(nearest_fixed - target_speed_kt) <= target_tolerance_kt + 1e-9
     focus_speed = nearest_fixed if matches_fixed else target_speed_kt
@@ -424,7 +446,11 @@ def analysis_lines_from_state(state: dict[str, Any]) -> list[str]:
 
 def hydro_lines_from_state(state: dict[str, Any]) -> list[str]:
     """Hydrostatics-only text view for the web Hydrostatics card."""
-    model = analysis_view_model(state)
+    return hydro_lines_from_model(hydrostatics_view_model(hull_from_web_state(state)))
+
+
+def hydro_lines_from_model(model: dict[str, Any]) -> list[str]:
+    """Format a computed hydrostatics view without running an evaluator."""
     lines = ["Hydrostatics"]
     lines.extend(
         f"  {label:<16} {value:>10} {unit}".rstrip()
@@ -438,6 +464,11 @@ def hydro_lines_from_state(state: dict[str, Any]) -> list[str]:
 
 
 def hydro_rows_from_state(state: dict[str, Any]) -> list[dict[str, str]]:
+    """State-based compatibility entry point for the Hydrostatics table."""
+    return hydro_rows_from_model(hydrostatics_view_model(hull_from_web_state(state)))
+
+
+def hydro_rows_from_model(model: dict[str, Any]) -> list[dict[str, str]]:
     """Return hydrostatics as a list of ``{label, value, description}`` dicts.
 
     Each entry has ``label`` (e.g. "Displacement"), ``value`` (e.g.
@@ -451,7 +482,6 @@ def hydro_rows_from_state(state: dict[str, Any]) -> list[dict[str, str]]:
     (``:title='row.description'``); an empty string suppresses the
     browser tooltip naturally.
     """
-    model = analysis_view_model(state)
     rows: list[dict[str, str]] = []
     for label, value, unit, description in model["hydro_rows"]:
         display_value = f"{value} {unit}".strip() if unit else str(value)

@@ -309,9 +309,8 @@ class LayoutMixin:
                 v3.VCardText(RAW_COMPARATIVE_CAPTION)
                 v3.VCardText("{{ resistance_table_caption }}")
                 v3.VCardText(
-                    "{{ resistance_table_html }}",
+                    v_html=("resistance_table_html",),
                     classes="font-mono text-caption kg-resistance-table-wrap",
-                    html=True,
                 )
                 v3.VChip(
                     "uncalibrated_comparative",

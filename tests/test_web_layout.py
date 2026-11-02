@@ -1056,3 +1056,26 @@ def test_jobs_index_is_table() -> None:
     # The app must expose a table-rows state key.
     web = web_app.create_app(initial_hull=Hull())
     assert hasattr(web.state, "generative_jobs_table_rows")
+
+
+def test_analysis_refresh_keeps_updated_hydrostatics_when_resistance_fails(monkeypatch) -> None:
+    """KAYGEN-4: a resistance failure must not blank the independent Hydro card."""
+    from kayakgen.services import evaluation
+
+    web = web_app.create_app(initial_hull=Hull())
+    original_rows = list(web.state.hydro_table_rows)
+    web.state.length_m = 5.5
+
+    def unavailable_curve(*args, **kwargs):
+        raise RuntimeError("resistance evaluator unavailable")
+
+    # Inject a failure at the numerical evaluator boundary, leaving state,
+    # hydrostatics, presenters and the registered controller path real.
+    monkeypatch.setattr(evaluation, "resistance_curve", unavailable_curve)
+    web.ctrl.refresh_analysis()
+
+    assert web.state.analysis_lines[0] == "Hydrostatics"
+    assert web.state.hydro_table_rows[0]["label"] == "Displacement"
+    assert web.state.hydro_table_rows != original_rows
+    assert web.state.resistance_table_rows == []
+    assert "Resistance unavailable" in web.state.resistance_table_html
