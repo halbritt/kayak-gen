@@ -21,8 +21,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import posixpath
 import shutil
 import sqlite3
+import tempfile
 import time
 import warnings
 from contextlib import contextmanager
@@ -175,16 +177,15 @@ class SqliteIndex:
     Schema matches RFC 0049 § "SQLite index v1". Tables are created
     lazily on first use; existing rows are upserted by their primary key.
 
-    The schema is stamped with ``PRAGMA user_version = SCHEMA_VERSION``
-    (audit R6). On open, a DB stamped lower than the current version is
-    dropped and recreated with a ``UserWarning`` — the index is a
-    rebuildable read-model over the run directories, so rebuild-not-migrate
-    is the deliberate policy (full migration machinery is out of scope).
+    Schema v2 separates content from current run/path occurrences (RFC 0066).
+    Opening v1 backs it up and migrates its surviving expected hashes in a
+    transaction. Only pre-versioned indexes retain the audit R6 rebuild policy;
+    discarding v1 would destroy hashes that canonical files cannot recreate.
     Bump ``SCHEMA_VERSION`` whenever a table or column is added or changed.
     """
 
-    #: bump on any schema change; older on-disk stamps trigger a rebuild.
-    SCHEMA_VERSION = 1
+    #: Bump on schema changes and define how prior expected hashes survive.
+    SCHEMA_VERSION = 2
 
     def __init__(self, path: Path | str | None = None) -> None:
         self.path = Path(path).expanduser() if path is not None else _default_index_path()
@@ -198,23 +199,26 @@ class SqliteIndex:
         try:
             if not self._initialised:
                 self._ensure_schema(conn)
-                self._initialised = True
             yield conn
             conn.commit()
+            self._initialised = True
         finally:
             conn.close()
 
     def _ensure_schema(self, conn: sqlite3.Connection) -> None:
-        """Create the schema, rebuilding first if the stamp is stale.
+        """Create, preserve/migrate v1 bindings, or rebuild pre-versioned indexes.
 
         Audit R6: ``CREATE TABLE IF NOT EXISTS`` alone meant any column
         addition made every existing operator DB raise ``OperationalError``
-        at upsert time, mid-sweep. A fresh (empty) DB is stamped silently;
-        a DB at the current version is left untouched apart from the
-        idempotent CREATE statements, so normal reuse never drops rows.
+        at upsert time, mid-sweep. RFC 0066 preserves v1's expected hashes;
+        only the incomplete pre-versioned schema retains the rebuild policy.
+        Current/newer stamps never drop rows or downgrade the stamp.
         """
 
         version = conn.execute("PRAGMA user_version").fetchone()[0]
+        if version == 1:
+            self._migrate_occurrences(conn)
+            return
         if version < self.SCHEMA_VERSION:
             tables = [
                 row[0]
@@ -243,9 +247,9 @@ class SqliteIndex:
 
     @staticmethod
     def _create_schema(conn: sqlite3.Connection) -> None:
-        cur = conn.cursor()
-        cur.executescript(
-            """
+        # Individual statements preserve the caller's migration transaction;
+        # sqlite3.executescript would commit before running its SQL.
+        schema = """
             CREATE TABLE IF NOT EXISTS runs (
               run_id TEXT PRIMARY KEY,
               kind TEXT,
@@ -272,12 +276,17 @@ class SqliteIndex:
             );
             CREATE TABLE IF NOT EXISTS artifacts (
               artifact_hash TEXT PRIMARY KEY,
-              kind TEXT,
-              run_id TEXT,
-              candidate_key TEXT,
               byte_count INTEGER,
+              created_at INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS artifact_occurrences (
+              run_id TEXT NOT NULL,
+              relative_path TEXT NOT NULL,
+              artifact_hash TEXT NOT NULL,
+              kind TEXT NOT NULL,
+              candidate_key TEXT,
               created_at INTEGER,
-              relative_path TEXT
+              PRIMARY KEY (run_id, relative_path)
             );
             CREATE TABLE IF NOT EXISTS events (
               event_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -308,12 +317,81 @@ class SqliteIndex:
             CREATE INDEX IF NOT EXISTS idx_candidates_hull_design_hash
               ON candidates (hull_design_hash);
             CREATE INDEX IF NOT EXISTS idx_metrics_name ON metrics (metric_name);
-            CREATE INDEX IF NOT EXISTS idx_artifacts_kind ON artifacts (kind);
+            CREATE INDEX IF NOT EXISTS idx_artifact_occurrences_kind
+              ON artifact_occurrences (kind);
             CREATE INDEX IF NOT EXISTS idx_generative_jobs_state
               ON generative_jobs (state);
             CREATE INDEX IF NOT EXISTS idx_generative_jobs_kind
               ON generative_jobs (job_kind);
             """
+        for statement in schema.split(";"):
+            if statement.strip():
+                conn.execute(statement)
+
+    def _migrate_occurrences(self, conn: sqlite3.Connection) -> None:
+        """Preserve surviving v1 hash bindings without reading canonical bytes."""
+        conn.execute("BEGIN IMMEDIATE")
+        # A second opener may have completed the migration while we waited.
+        if conn.execute("PRAGMA user_version").fetchone()[0] != 1:
+            return
+        self._backup_v1_index()
+        conn.execute("ALTER TABLE artifacts RENAME TO legacy_artifacts")
+        conn.execute("DROP INDEX IF EXISTS idx_artifacts_kind")
+        self._create_schema(conn)
+        conn.execute(
+            "INSERT INTO artifacts (artifact_hash, byte_count, created_at) "
+            "SELECT artifact_hash, byte_count, created_at FROM legacy_artifacts"
+        )
+        # v1 kept historical hashes for path replacements. Match its latest
+        # binding ordering, while preserving all surviving content hashes.
+        rows = conn.execute(
+            "SELECT * FROM legacy_artifacts ORDER BY created_at ASC, rowid ASC"
+        ).fetchall()
+        for row in rows:
+            if row["run_id"] is not None and row["relative_path"] is not None:
+                self._upsert_occurrence(
+                    conn, artifact_hash=row["artifact_hash"], kind=row["kind"],
+                    run_id=row["run_id"], candidate_key=row["candidate_key"],
+                    relative_path=row["relative_path"], created_at=row["created_at"],
+                )
+        conn.execute("DROP TABLE legacy_artifacts")
+        conn.execute("PRAGMA user_version = 2")
+
+    def _backup_v1_index(self) -> None:
+        backup = self.path.with_name(self.path.name + ".v1.bak")
+        if backup.exists():
+            with sqlite3.connect(backup.resolve().as_uri() + "?mode=ro", uri=True) as existing:
+                if (existing.execute("PRAGMA user_version").fetchone()[0] != 1
+                        or existing.execute("PRAGMA quick_check").fetchall() != [("ok",)]):
+                    raise sqlite3.DatabaseError(f"invalid v1 index backup: {backup}")
+            return
+        # Publish only a complete backup. A separate reader avoids calling
+        # backup() on the connection holding the migration's write transaction.
+        with tempfile.NamedTemporaryFile(
+            dir=self.path.parent, suffix=".sqlite", delete=False
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+        try:
+            with sqlite3.connect(self.path) as source, sqlite3.connect(temporary_path) as target:
+                source.backup(target)
+            os.replace(temporary_path, backup)
+        finally:
+            temporary_path.unlink(missing_ok=True)
+
+    @staticmethod
+    def _upsert_occurrence(
+        conn: sqlite3.Connection, *, artifact_hash: str, kind: ArtifactKind,
+        run_id: str, candidate_key: str | None, relative_path: str, created_at: int,
+    ) -> None:
+        conn.execute(
+            """INSERT INTO artifact_occurrences
+               (run_id, relative_path, artifact_hash, kind, candidate_key, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(run_id, relative_path) DO UPDATE SET
+                 artifact_hash=excluded.artifact_hash, kind=excluded.kind,
+                 candidate_key=excluded.candidate_key, created_at=excluded.created_at""",
+            (run_id, posixpath.normpath(Path(relative_path).as_posix()), artifact_hash, kind,
+             candidate_key, created_at),
         )
 
     # -- writes ------------------------------------------------------------
@@ -410,19 +488,17 @@ class SqliteIndex:
         with self._conn() as conn:
             conn.execute(
                 """
-                INSERT INTO artifacts
-                  (artifact_hash, kind, run_id, candidate_key, byte_count, created_at, relative_path)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(artifact_hash) DO UPDATE SET
-                  kind=excluded.kind,
-                  run_id=excluded.run_id,
-                  candidate_key=excluded.candidate_key,
-                  byte_count=excluded.byte_count,
-                  created_at=excluded.created_at,
-                  relative_path=excluded.relative_path
+                INSERT INTO artifacts (artifact_hash, byte_count, created_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(artifact_hash) DO UPDATE SET byte_count=excluded.byte_count
                 """,
-                (artifact_hash, kind, run_id, candidate_key, byte_count, ts, relative_path),
+                (artifact_hash, byte_count, ts),
             )
+            if run_id is not None and relative_path is not None:
+                self._upsert_occurrence(
+                    conn, artifact_hash=artifact_hash, kind=kind, run_id=run_id,
+                    candidate_key=candidate_key, relative_path=relative_path, created_at=ts,
+                )
 
     def insert_event(self, *, run_id: str, event: RunEvent) -> None:
         with self._conn() as conn:
@@ -569,12 +645,12 @@ class SqliteIndex:
         rel = Path(relative_path)
         if rel.is_absolute():
             raise ValueError("artifact relative_path must be relative")
-        rel_posix = rel.as_posix()
+        rel_posix = posixpath.normpath(rel.as_posix())
         run_path = Path(run_dir)
         run_dir_candidates = [str(run_path), str(run_path.resolve())]
         sql = (
             "SELECT a.artifact_hash, a.kind, a.run_id, a.candidate_key, "
-            "a.relative_path FROM artifacts a "
+            "a.relative_path FROM artifact_occurrences a "
             "JOIN runs r ON r.run_id = a.run_id "
             "WHERE a.relative_path = ? AND r.out_dir IN (?, ?)"
         )

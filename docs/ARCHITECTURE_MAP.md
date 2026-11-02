@@ -208,7 +208,8 @@ The `cli/` directory carries seven sibling modules used by `main.py`:
 - **SQLite cross-run index (RFC 0049)**: default at
   `~/.local/share/kayakgen/index.sqlite`, overridable via
   `KAYAKGEN_INDEX_DB`. Tables: `runs`, `candidates`, `metrics`,
-  `artifacts`, `events`. Populated by `FilesystemArtifactStore` on
+  `artifacts`, `artifact_occurrences`, `events` (RFC 0066 separates content
+  from current run/path bindings and preserves known v1 hashes on upgrade). Populated by `FilesystemArtifactStore` on
   each sweep/search/CFD write; queryable via `kayakgen runs list/query`.
 - **Filesystem `_store/` mirror (RFC 0049)**: content-addressed
   hard-link mirror under each run directory; canonical paths and

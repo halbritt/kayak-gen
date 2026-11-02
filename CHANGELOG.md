@@ -14,6 +14,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   category before evaluating candidates. Existing GZ refusal tokens, conservative defaults, and
   exploratory controls are unchanged; turning values remain displayable.
 
+- RFC 0066 / KAYGEN-2: identical artifact bytes retain separate run/path
+  occurrences, so duplicate sweeps no longer disable verification of earlier
+  runs. SQLite v1 indexes are backed up and migrated transactionally without
+  recomputing trusted hashes from canonical files.
+
 - Remediated the 2026-06-08 primary web workspace UX findings: the review
   pane now stays usable at 1024x768 and 960x720, share/reload preserves full
   loaded `Hull` payloads until a slider edit explicitly converts unsupported

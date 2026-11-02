@@ -874,3 +874,114 @@ def test_sqlite_index_upsert_run_and_query(
     rows = db.candidates_for_run("r1", metrics=("GM0_m",))
     assert len(rows) == 1
     assert rows[0].metrics == {"GM0_m": 0.1}
+
+
+def test_equal_content_retains_each_path_and_replacement_changes_only_one(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    db = SqliteIndex(isolated_index)
+    db.upsert_run(run_id="run", kind="sweep", spec_hash="s", run_hash="r", out_dir=str(tmp_path))
+    store = FilesystemArtifactStore(tmp_path, run_id="run", index=db)
+    first = store.put_json("candidate_record", {"metric": 1}, candidate_key="a",
+                           canonical_path=tmp_path / "a.json")
+    second = store.put_json("eval_result_json", {"metric": 1}, candidate_key="b",
+                            canonical_path=tmp_path / "b.json")
+    assert first.artifact_hash == second.artifact_hash
+    assert store.ref_for_relative_path("unused/../a.json", candidate_key="a") == first
+    assert store.ref_for_relative_path("b.json", kind="eval_result_json") == second
+    replaced = store.put_json("candidate_record", {"metric": 2}, candidate_key="a",
+                              canonical_path=tmp_path / "a.json")
+    assert store.ref_for_relative_path("a.json") == replaced
+    assert store.ref_for_relative_path("b.json") == second
+    assert store.get_json(first) == {"metric": 1}
+
+
+def _write_v1_index(path: Path, run_dir: Path, *, prior_binding: bool = False) -> str:
+    """Independent historical schema, not today's schema disguised with a stamp."""
+    expected_hash = hashlib.sha256(b'{"original":true}').hexdigest()
+    with sqlite3.connect(path) as conn:
+        conn.executescript("""
+            CREATE TABLE runs (run_id TEXT PRIMARY KEY, kind TEXT, spec_hash TEXT,
+                               run_hash TEXT, created_at INTEGER, out_dir TEXT);
+            CREATE TABLE artifacts (artifact_hash TEXT PRIMARY KEY, kind TEXT, run_id TEXT,
+                candidate_key TEXT, byte_count INTEGER, created_at INTEGER, relative_path TEXT);
+            PRAGMA user_version = 1;
+        """)
+        conn.execute("INSERT INTO runs VALUES ('legacy', 'sweep', 'spec', 'versioned', 7, ?)",
+                     (str(run_dir),))
+        if prior_binding:
+            conn.execute(
+                "INSERT INTO artifacts VALUES (?, 'sweep_run_record', 'legacy', NULL, 17, 8, 'run.json')",
+                (hashlib.sha256(b'older content').hexdigest(),),
+            )
+        conn.execute("INSERT INTO artifacts VALUES (?, 'sweep_run_record', 'legacy', NULL, 17, 8, 'run.json')",
+                     (expected_hash,))
+    return expected_hash
+
+
+def test_v1_migration_preserves_expected_hash_even_when_canonical_changed(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    expected_hash = _write_v1_index(isolated_index, tmp_path, prior_binding=True)
+    (tmp_path / "run.json").write_text('{"forged":true}')
+    store = FilesystemArtifactStore(tmp_path, run_id="legacy", index=SqliteIndex(isolated_index))
+    ref = store.ref_for_relative_path("run.json")
+    assert ref is not None
+    assert ref.artifact_hash == expected_hash
+    with pytest.raises(ArtifactIntegrityError):
+        store.get_json(ref)
+    assert store.ref_for_relative_path("unknown.json") is None
+    assert store.index.list_runs()[0]["run_hash"] == "versioned"
+    with sqlite3.connect(isolated_index.with_name(isolated_index.name + ".v1.bak")) as backup:
+        assert backup.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert expected_hash in {row[0] for row in backup.execute("SELECT artifact_hash FROM artifacts")}
+    with sqlite3.connect(isolated_index) as migrated:
+        assert migrated.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0] == 2
+
+
+def test_occurrence_write_failure_rolls_back_content_and_binding(
+    tmp_path: Path, isolated_index: Path
+) -> None:
+    db = SqliteIndex(isolated_index)
+    db.upsert_run(run_id="run", kind="sweep", spec_hash="s", run_hash="r", out_dir=str(tmp_path))
+    with sqlite3.connect(isolated_index) as conn:
+        conn.execute("""CREATE TRIGGER reject_occurrence BEFORE INSERT ON artifact_occurrences
+                        BEGIN SELECT RAISE(ABORT, 'disk boundary failure'); END""")
+    with pytest.raises(sqlite3.IntegrityError, match="disk boundary failure"):
+        db.upsert_artifact(artifact_hash="expected", kind="candidate_record", run_id="run",
+                           candidate_key="a", byte_count=5, relative_path="a.json")
+    assert db.artifact_ref_for_relative_path(run_dir=tmp_path, relative_path="a.json") is None
+    with sqlite3.connect(isolated_index) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM artifacts").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("failure_stage", ["backup", "migration"])
+def test_failed_v1_migration_rolls_back_and_same_index_can_retry(
+    tmp_path: Path, isolated_index: Path, monkeypatch: pytest.MonkeyPatch, failure_stage: str
+) -> None:
+    expected_hash = _write_v1_index(isolated_index, tmp_path)
+    connect = sqlite3.connect
+
+    class FailingConnection(sqlite3.Connection):
+        def execute(self, sql, parameters=()):
+            if failure_stage == "migration" and sql == "DROP TABLE legacy_artifacts":
+                raise sqlite3.OperationalError("migration interrupted")
+            return super().execute(sql, parameters)
+
+        def backup(self, target, **kwargs):
+            if failure_stage == "backup":
+                target.execute("CREATE TABLE partial_backup (n INTEGER)")
+                raise sqlite3.OperationalError("migration interrupted")
+            return super().backup(target, **kwargs)
+
+    db = SqliteIndex(isolated_index)
+    with monkeypatch.context() as patch:
+        patch.setattr(sqlite3, "connect", lambda *a, **kw: connect(*a, factory=FailingConnection, **kw))
+        with pytest.raises(sqlite3.OperationalError, match="migration interrupted"):
+            db.list_runs()
+    if failure_stage == "backup":
+        assert not isolated_index.with_name(isolated_index.name + ".v1.bak").exists()
+    with connect(isolated_index) as conn:
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert conn.execute("SELECT artifact_hash FROM artifacts").fetchone()[0] == expected_hash
+    assert db.artifact_ref_for_relative_path(run_dir=tmp_path, relative_path="run.json").artifact_hash == expected_hash

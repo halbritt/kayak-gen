@@ -124,7 +124,7 @@ paths remain byte-stable.
 | **design_hash** | `kayakgen.services.identity.design_hash_for_hull` / `Hull.design_hash()`: SHA-256 over the physical inputs only (`length_m`, `beam_oa_m`, `beam_wl_m`, `draft_m`, `deck_height_m`, `Cp`, `Cm`, `deck_flatness`, `center_box_ratio`, `bow_rake`, `stern_rake`, `rocker_bow_m`, `rocker_stern_m`, `LCB_frac`, `geometry_kind`). Invariant under renaming the hull or reordering JSON keys. |
 | **record_hash** | `kayakgen.services.identity.record_hash` / `Hull.record_hash()`: SHA-256 over the canonical-form JSON of the full record. Differs whenever any field — including `name` — differs. `Hull.hash()` is a backwards-compat alias. |
 | **run_hash** | `kayakgen.services.identity.run_hash`: SHA-256 over a canonical `{spec, version}` blob — the sweep/search/CFD spec plus `kayakgen.__version__`. |
-| **SqliteIndex** | Machine-wide SQLite read model at `~/.local/share/kayakgen/index.sqlite` (override with `KAYAKGEN_INDEX_DB`). Tables: `runs`, `candidates`, `metrics`, `artifacts`, `events`. Materialised view of the canonical filesystem; rebuildable via `kayakgen runs reindex`. |
+| **SqliteIndex** | Machine-wide SQLite read model at `~/.local/share/kayakgen/index.sqlite` (override with `KAYAKGEN_INDEX_DB`). Tables: `runs`, `candidates`, `metrics`, `artifacts`, `artifact_occurrences`, `events`. Materialised view of the canonical filesystem; rebuildable via `kayakgen runs reindex`. |
 | **kayakgen runs** | Three subcommands exposed by `kayakgen/cli/runs_cli.py`: `runs list [--kind ...] [--limit ...]`, `runs query <run_id> [--filter ...] [--metric ...]`, `runs reindex <run_dir>`. Default sweep/search/cfd flows still work without invoking these. |
 
 ## Distinctions
@@ -161,3 +161,7 @@ row; the row is authoritative.
   `evidence_translation_failed` (D026)
 - `cfd_config_malformed_json`, `cfd_config_schema_mismatch` (D027)
 - `EhviDimensionError` (D028)
+
+**Artifact occurrence** (RFC 0066): the current `(run_id, relative_path)`
+binding to an expected `artifact_hash`, kind and candidate. Equal content
+can occur at several paths or in several runs without losing those bindings.

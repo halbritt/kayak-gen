@@ -804,10 +804,16 @@ def test_compare_attaches_high_angle_display_when_artifacts_present(
     assert set(report.pareto_front_keys).issubset({"candidate-a", "candidate-b"})
 
 
-def test_compare_refuses_corrupt_indexed_run_record(tmp_path: Path) -> None:
+@pytest.mark.parametrize("duplicate_run", [False, True])
+def test_compare_refuses_corrupt_indexed_run_record(
+    tmp_path: Path, duplicate_run: bool
+) -> None:
     """Workflow 0067: store/index-backed run.json reads are rehash-verified."""
 
     run_sweep(_spec(), tmp_path)
+    if duplicate_run:
+        # KAYGEN-2: equal content in another run must retain this run's hash binding.
+        run_sweep(_spec(), tmp_path / "duplicate")
     forged = SweepRunRecord(
         name="forged",
         spec_hash="forged",

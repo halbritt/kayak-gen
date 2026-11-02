@@ -429,3 +429,8 @@ Use this table instead of claiming the stale queue prompts directly.
   optimizer/search. Treat optimization/search as a later consumer of evidence,
   not as a shortcut around missing calibration, stability, or solver-readiness
   decisions.
+
+RFC 0066 / KAYGEN-2 landed artifact occurrence bindings and transactional
+SQLite v1 migration. Future-Striatum-Batches: durable run identity and manifest
+reconstruction remain the bounded RFC 0067 follow-up; no remote storage or
+scientific claim expansion is included.

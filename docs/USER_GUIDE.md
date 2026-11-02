@@ -653,7 +653,12 @@ The SQLite index lives at `~/.local/share/kayakgen/index.sqlite` by
 default; override via `KAYAKGEN_INDEX_DB`. Each sweep, search, and
 CFD run that writes through `FilesystemArtifactStore` registers
 itself in `runs`, `candidates`, `metrics`, `artifacts`, and `events`
-tables on completion. Legacy run directories produced before RFC
+tables on completion. RFC 0066 adds `artifact_occurrences` so equal bytes
+keep every run/path binding. Opening a v1 SQLite index creates an adjacent
+`.v1.bak` backup and migrates known expected hashes transactionally. Previously
+lost associations remain unverified; migration does not certify current files.
+Before rolling back to older code, preserve the current database and restore
+the v1 backup (which excludes later writes). Legacy run directories produced before RFC
 0049 still load; `kayakgen runs reindex <run_dir>` re-derives index
 rows from disk.
 
