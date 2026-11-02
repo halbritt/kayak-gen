@@ -242,6 +242,29 @@ def test_manager_rejects_invalid_search_spec(tmp_path: Path) -> None:
     assert final.error.kind == "spec_validation_failed"
 
 
+def test_manager_reports_turning_objective_refusal_without_candidate_outputs(
+    tmp_path: Path,
+) -> None:
+    """KAYGEN-1: an inadmissible objective is a user-facing job failure."""
+    mgr = InProcessGenerativeJobManager(jobs_root=tmp_path)
+    payload = _search_spec_payload()
+    metric = "turning.edged_waterline_length_m"
+    payload["objectives"] = [{"metric": metric, "direction": "min"}]
+    payload["objectives_explicit_exploratory"] = True
+    payload["evaluators"] = {"hydrostatics": True, "turning_metrics": True}
+    job = mgr.start(spec_payload=payload, job_kind="search")
+    mgr.join(job.job_id, timeout=30.0)
+
+    final = mgr.get(job.job_id)
+    assert final.state == "failed"
+    assert final.error is not None
+    assert final.error.kind == "objective_claim_state_inadmissible"
+    assert metric in final.error.message
+    assert "display-only" in final.error.message
+    assert final.progress.realized_evaluations == 0
+    assert not list((Path(final.output_dir) / "candidates").iterdir())
+
+
 def test_manager_persists_job_with_canonical_json(tmp_path: Path) -> None:
     mgr = InProcessGenerativeJobManager(jobs_root=tmp_path)
     job = mgr.start(spec_payload=_sweep_spec_payload(), job_kind="sweep")

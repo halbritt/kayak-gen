@@ -8,6 +8,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Fixed
 
+- Search and comparison now enforce the objective registry's `display_only`
+  refusal for all four turning metrics, including explicit exploratory mode
+  (KAYGEN-1). Generative jobs report the existing objective-admission error
+  category before evaluating candidates. Existing GZ refusal tokens, conservative defaults, and
+  exploratory controls are unchanged; turning values remain displayable.
+
 - Remediated the 2026-06-08 primary web workspace UX findings: the review
   pane now stays usable at 1024x768 and 960x720, share/reload preserves full
   loaded `Hull` payloads until a slider edit explicitly converts unsupported

@@ -13,11 +13,14 @@ from kayakgen.eval.contract import EvaluationResult
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.turning import TurningMetrics, evaluate_turning_metrics
 from kayakgen.model.hull import Hull
+from kayakgen.search.active import SearchSpec, run_search
+from kayakgen.search.compare import build_comparison_report
 from kayakgen.search.objectives import (
     OBJECTIVE_METADATA,
     OBJECTIVE_REJECTION_DISPLAY_ONLY,
     is_objective_metric_admissible,
 )
+from kayakgen.search.pareto import DisplayOnlyObjectiveRefusedError, Objective
 from kayakgen.search.sweep import SweepSpec, run_sweep
 
 TURNING_METRIC_KEYS = (
@@ -191,7 +194,7 @@ def test_sweep_default_excludes_turning_columns(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("metric", TURNING_METRIC_KEYS)
-def test_turning_metrics_refused_as_pareto_or_search_objectives(metric: str) -> None:
+def test_turning_metrics_refused_by_objective_registry(metric: str) -> None:
     assert metric in OBJECTIVE_METADATA
     assert OBJECTIVE_METADATA[metric].role == "display_only"
     admissible, reason = is_objective_metric_admissible(
@@ -207,3 +210,51 @@ def test_turning_metrics_refused_as_pareto_or_search_objectives(metric: str) -> 
     assert admissible_exploratory is False
     assert reason_exploratory is not None
     assert reason_exploratory["code"] == OBJECTIVE_REJECTION_DISPLAY_ONLY
+
+
+@pytest.mark.parametrize("metric", TURNING_METRIC_KEYS)
+@pytest.mark.parametrize("exploratory", [False, True])
+def test_comparison_refuses_turning_objective(
+    tmp_path: Path, metric: str, exploratory: bool,
+) -> None:
+    """KAYGEN-1: the public comparison gate must enforce registry refusal."""
+    run_dir = tmp_path / "sweep"
+    run_sweep(
+        SweepSpec(
+            variables={"beam_wl_m": {"kind": "values", "values": [0.50]}},
+            evaluators={"resistance": False, "turning_metrics": True},
+        ),
+        run_dir,
+    )
+    with pytest.raises(DisplayOnlyObjectiveRefusedError, match="display-only") as exc:
+        build_comparison_report(
+            run_dir,
+            objectives=[Objective(metric=metric, direction="min")],
+            explicit_exploratory=exploratory,
+        )
+    assert exc.value.reason["code"] == OBJECTIVE_REJECTION_DISPLAY_ONLY
+    assert exc.value.metric == metric
+
+
+@pytest.mark.parametrize("metric", TURNING_METRIC_KEYS)
+@pytest.mark.parametrize("exploratory", [False, True])
+def test_search_refuses_turning_objective_before_candidate_outputs(
+    tmp_path: Path, metric: str, exploratory: bool,
+) -> None:
+    """KAYGEN-1: opt-in cannot turn display-only values into search objectives."""
+    spec = SearchSpec(
+        search_space={"beam_wl_m": {"kind": "uniform", "min": 0.45, "max": 0.50}},
+        algorithm={"kind": "nsga2", "population_size": 4, "generations": 1, "seed": 7},
+        objectives=[{"metric": metric, "direction": "min"}],
+        objectives_explicit_exploratory=exploratory,
+        evaluators={"resistance": False, "turning_metrics": True},
+        budget={"max_evaluations": 4},
+    )
+    spec_path = tmp_path / "search.json"
+    spec_path.write_text(spec.model_dump_json())
+    run_dir = tmp_path / "search"
+    with pytest.raises(DisplayOnlyObjectiveRefusedError, match="display-only") as exc:
+        run_search(spec_path, run_dir)
+    assert exc.value.reason["code"] == OBJECTIVE_REJECTION_DISPLAY_ONLY
+    assert exc.value.metric == metric
+    assert not list((run_dir / "candidates").iterdir())

@@ -132,17 +132,24 @@ class UnknownSearchObjectiveError(ValueError):
         super().__init__(reason.get("detail", f"unknown objective metric: {metric!r}"))
 
 
+class DisplayOnlyObjectiveRefusedError(ValueError):
+    """A registered display-only metric cannot drive search or comparison."""
+
+    def __init__(self, metric: str, reason: dict[str, str]) -> None:
+        self.metric = metric
+        self.reason = reason
+        super().__init__(reason["detail"])
+
+
 def ensure_objectives_claim_admissible_for_search(
     objectives: list["Objective"],
     *,
     explicit_exploratory: bool,
 ) -> None:
-    """Refuse search-objective metrics whose claim states demand exploratory opt-in.
+    """Apply registry admission policy with compatible structured exceptions.
 
-    Reads each objective's recorded claim state from
-    :data:`kayakgen.search.objectives.OBJECTIVE_METADATA`. Metrics whose
-    claim state is ``raw_unvalidated`` or ``uncalibrated_comparative`` are
-    refused unless the caller passes ``explicit_exploratory=True``.
+    Display-only metrics are always refused. Other restricted metrics need
+    ``explicit_exploratory=True`` according to the objective registry.
 
     The existing :func:`ensure_objectives_not_high_angle_gz` gate is always
     invoked first; the RFC 0043 display-only refusal is unconditional and is
@@ -152,35 +159,28 @@ def ensure_objectives_claim_admissible_for_search(
     # The RFC 0043 display-only gate always wins, even in exploratory mode.
     ensure_objectives_not_high_angle_gz(objectives)
 
-    if explicit_exploratory:
-        return
-
     # Local import to avoid a module-level circular import between
     # ``kayakgen.search.objectives`` (which imports from this module) and this
     # module's runtime path.
     from kayakgen.search.objectives import (
-        OBJECTIVE_METADATA,
+        OBJECTIVE_REJECTION_CLAIM_GATED,
+        OBJECTIVE_REJECTION_DISPLAY_ONLY,
         is_objective_metric_admissible,
     )
 
     for objective in objectives:
-        metadata = OBJECTIVE_METADATA.get(objective.metric)
-        if metadata is None:
-            # Unknown metrics are admissible only under explicit exploratory.
-            admissible, reason = is_objective_metric_admissible(
-                objective.metric, explicit_exploratory=explicit_exploratory
-            )
-            if not admissible:
-                assert reason is not None
-                raise UnknownSearchObjectiveError(objective.metric, reason)
+        admissible, reason = is_objective_metric_admissible(
+            objective.metric, explicit_exploratory=explicit_exploratory
+        )
+        if admissible:
             continue
-        # ``display_only`` role is owned by the RFC 0043 gate above; we do not
-        # double-report here so the existing token wins.
-        if metadata.role == "display_only":
-            continue
-        claim_state = _SEARCH_ROLE_TO_CLAIM_STATE.get(metadata.role)
-        if claim_state in SEARCH_REFUSED_CLAIM_STATES:
+        assert reason is not None
+        if reason["code"] == OBJECTIVE_REJECTION_DISPLAY_ONLY:
+            raise DisplayOnlyObjectiveRefusedError(objective.metric, reason)
+        if reason["code"] == OBJECTIVE_REJECTION_CLAIM_GATED:
+            claim_state = _SEARCH_ROLE_TO_CLAIM_STATE[reason["role"]]
             raise SearchObjectiveRefusedError(objective.metric, claim_state)
+        raise UnknownSearchObjectiveError(objective.metric, reason)
 
 
 class Objective(BaseModel):

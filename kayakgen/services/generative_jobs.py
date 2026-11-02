@@ -455,6 +455,8 @@ def classify_runner_error(exc: Exception) -> GenerativeJobError:
         kind = "ehvi_dimension_unsupported"
     elif exc_name == "HighAngleGzObjectiveRefusedError":
         kind = "high_angle_gz_display_only"
+    elif exc_name == "DisplayOnlyObjectiveRefusedError":
+        kind = "objective_claim_state_inadmissible"
     elif "claim_state" in message and "admissible" in message:
         kind = "objective_claim_state_inadmissible"
     return GenerativeJobError(kind=kind, message=message)

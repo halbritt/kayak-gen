@@ -494,7 +494,13 @@ metric whose claim state is `raw_unvalidated` (raw OpenFOAM forces) or
 spec sets `"objectives_explicit_exploratory": true`. Even then the
 high-angle-GZ display-only token from RFC 0043 still refuses
 `max_gz_m`, `heel_at_max_gz_deg`, and `range_positive_stability_deg`
-as objectives. Exploratory runs tag the run record with
+as objectives. The registry's `display_only` role also refuses all four
+`turning.*` metrics in both search and comparison, including explicit
+exploratory mode. Runs that previously admitted these turning objectives
+must remove them from the objective list; their values remain available
+for display. Generative search jobs report this refusal as
+`objective_claim_state_inadmissible` without evaluating candidates.
+Exploratory runs tag the run record with
 `search_class: "exploratory"` and print a banner; the resulting
 frontier is still frontier-ineligible under the conservative
 comparison view.
