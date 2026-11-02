@@ -110,11 +110,10 @@ claim state. The literal set lives across `MeshPackageManifest.readiness_level`,
 
 ## Identity and persistence
 
-`kayakgen.services.artifact_store` (RFC 0049) introduces an
-opt-in content-addressed mirror plus a SQLite read model that sits
-beside the existing run-directory layout. None of these terms change
-default kayakgen behaviour from the operator's perspective; canonical
-paths remain byte-stable.
+`kayakgen.services.artifact_store` owns the content-addressed mirror,
+run manifests and SQLite read model beside the canonical run-directory
+layout (RFCs 0049, 0066 and 0067). Canonical domain records stay compatible;
+manifest-backed reads retain expected hashes even when the index is lost.
 
 | Term | Definition |
 | --- | --- |
@@ -123,9 +122,9 @@ paths remain byte-stable.
 | **ArtifactKind** | Closed Literal enum of artifact tags persisted by the store: `hull_json`, `eval_result_json`, `stability_result_json`, `mesh_package_manifest`, `mesh_quality_json`, `hull_stl`, `deck_stl`, `cfd_run_record`, `cfd_raw_result`, `openfoam_force_dat`, `openfoam_polymesh_file`, `snappy_hex_mesh_evidence`, `sweep_run_record`, `sweep_summary_csv`, `sweep_failures_jsonl`, `candidate_record`, `high_angle_gz_artifact`, `search_run_record`, `comparison_report`. |
 | **design_hash** | `kayakgen.services.identity.design_hash_for_hull` / `Hull.design_hash()`: SHA-256 over the physical inputs only (`length_m`, `beam_oa_m`, `beam_wl_m`, `draft_m`, `deck_height_m`, `Cp`, `Cm`, `deck_flatness`, `center_box_ratio`, `bow_rake`, `stern_rake`, `rocker_bow_m`, `rocker_stern_m`, `LCB_frac`, `geometry_kind`). Invariant under renaming the hull or reordering JSON keys. |
 | **record_hash** | `kayakgen.services.identity.record_hash` / `Hull.record_hash()`: SHA-256 over the canonical-form JSON of the full record. Differs whenever any field — including `name` — differs. `Hull.hash()` is a backwards-compat alias. |
-| **run_hash** | `kayakgen.services.identity.run_hash`: SHA-256 over a canonical `{spec, version}` blob — the sweep/search/CFD spec plus `kayakgen.__version__`. |
-| **SqliteIndex** | Machine-wide SQLite read model at `~/.local/share/kayakgen/index.sqlite` (override with `KAYAKGEN_INDEX_DB`). Tables: `runs`, `candidates`, `metrics`, `artifacts`, `artifact_occurrences`, `events`. Materialised view of the canonical filesystem; rebuildable via `kayakgen runs reindex`. |
-| **kayakgen runs** | Three subcommands exposed by `kayakgen/cli/runs_cli.py`: `runs list [--kind ...] [--limit ...]`, `runs query <run_id> [--filter ...] [--metric ...]`, `runs reindex <run_dir>`. Default sweep/search/cfd flows still work without invoking these. |
+| **run_hash** | Producer-defined semantic identity, separate from the run instance. Sweep/search use `kayakgen.services.identity.run_hash`: SHA-256 over canonical `{spec, version}` inputs; CFD preserves its deterministic `job_id` as run_hash. |
+| **SqliteIndex** | Machine-wide SQLite read model at `~/.local/share/kayakgen/index.sqlite` (override with `KAYAKGEN_INDEX_DB`). Tables: `runs`, `candidates`, `metrics`, `artifacts`, `artifact_occurrences`, `events`, `generative_jobs`. Run/candidate/metric/occurrence projection rebuilt by `kayakgen runs reindex` from RFC 0067 manifests; incomplete legacy provenance is explicit. Jobs/events are separate. |
+| **kayakgen runs** | Four subcommands exposed by `kayakgen/cli/runs_cli.py`: `runs list [--kind ...] [--limit ...]`, `runs query <run_id> [--filter ...] [--metric ...]`, `runs reindex <run_dir>`, `runs jobs [--state ...] [--kind ...] [--limit ...]`. Default sweep/search/cfd flows still work without invoking these. |
 
 ## Distinctions
 
@@ -165,3 +164,11 @@ row; the row is authoritative.
 **Artifact occurrence** (RFC 0066): the current `(run_id, relative_path)`
 binding to an expected `artifact_hash`, kind and candidate. Equal content
 can occur at several paths or in several runs without losing those bindings.
+
+**RunManifest** (RFC 0067): versioned `_store/manifest.json` containing a
+run instance ID, kind, semantic hashes, creation time, last location and current
+artifact occurrences. **Run instance** identifies one output history; unlike
+run_hash it differs between separate output histories with identical inputs. Reopening or resuming
+a history preserves its ID.
+**Provenance completeness** (`provenance_complete`) means recorded expected-hash
+coverage, not candidate/job completion or scientific validation.

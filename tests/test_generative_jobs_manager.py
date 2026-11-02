@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from kayakgen.services.artifact_store import SqliteIndex
+from kayakgen.services.artifact_store import SqliteIndex, load_run_manifest
 from kayakgen.services.generative_jobs import (
     GenerativeJob,
     InProcessGenerativeJobManager,
@@ -153,6 +153,10 @@ def test_manager_writes_to_index(tmp_path: Path) -> None:
     assert row["job_id"] == job.job_id
     assert row["job_kind"] == "sweep"
     assert row["state"] == "succeeded"
+    manifest = load_run_manifest(job.output_dir)
+    assert manifest is not None
+    assert row["run_id"] == manifest.run_id
+    assert row["run_hash"] == manifest.run_hash
 
 
 def test_manager_cancel_transitions_to_resumable(tmp_path: Path) -> None:

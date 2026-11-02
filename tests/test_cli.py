@@ -129,7 +129,6 @@ def _stage_gated_compare_run(run_dir) -> None:
         record.summary["resistance_use"] = "comparative_filter"
     FilesystemArtifactStore(
         run_dir,
-        run_id=f"sweep-{run.spec_hash[:16]}-{run_dir.name}",
     ).put_json("sweep_run_record", run, canonical_path=run_dir / "run.json")
 
 

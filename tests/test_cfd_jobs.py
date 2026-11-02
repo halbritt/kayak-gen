@@ -53,7 +53,7 @@ from kayakgen.eval.mesh_package import (
 )
 from kayakgen.eval.volume_mesh import VolumeMeshDiagnostic, sha256_file
 from kayakgen.model.hull import Hull
-from kayakgen.services.artifact_store import FilesystemArtifactStore
+from kayakgen.services.artifact_store import ArtifactIntegrityError, FilesystemArtifactStore
 
 FIXTURE_PROFILE_NAME = "fixture-local-command"
 FIXTURE_RAW_RESULT = "raw-result.json"
@@ -877,7 +877,10 @@ def test_unavailable_adapter_writes_unavailable_run_record(tmp_path: Path) -> No
     assert load_run_record(job.job_dir / "run.json") == record
 
 
-def test_load_run_record_reanchors_valid_out_of_band_record(tmp_path: Path) -> None:
+@pytest.mark.parametrize("manifest_backed", [False, True])
+def test_load_run_record_reanchors_only_legacy_out_of_band_record(
+    tmp_path: Path, manifest_backed: bool
+) -> None:
     """Workflow 0067: valid mutable CFD run records are re-stored."""
 
     mesh_dir = tmp_path / "mesh"
@@ -889,11 +892,17 @@ def test_load_run_record_reanchors_valid_out_of_band_record(tmp_path: Path) -> N
         unavailable_open_surface_profile(),
         speed_mps=2.4,
     )
+    if not manifest_backed:
+        (job.job_dir / "_store" / "manifest.json").unlink()
     forged = job.run_record.model_copy(
         update={"status": "failed", "error_kind": "tampered"}
     )
     (job.job_dir / "run.json").write_text(forged.model_dump_json(indent=2))
 
+    if manifest_backed:
+        with pytest.raises(ArtifactIntegrityError):
+            load_run_record(job.job_dir / "run.json")
+        return
     assert load_run_record(job.job_dir / "run.json") == forged
     stored = FilesystemArtifactStore(job.job_dir).get_json_by_relative_path(
         "run.json",

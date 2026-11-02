@@ -431,6 +431,6 @@ Use this table instead of claiming the stale queue prompts directly.
   decisions.
 
 RFC 0066 / KAYGEN-2 landed artifact occurrence bindings and transactional
-SQLite v1 migration. Future-Striatum-Batches: durable run identity and manifest
-reconstruction remain the bounded RFC 0067 follow-up; no remote storage or
+SQLite v1 migration. RFC 0067 / KAYGEN-3 also landed durable run identity and honest manifest
+reconstruction. Future-Striatum-Batches: no further storage feature is scheduled; no remote storage or
 scientific claim expansion is included.

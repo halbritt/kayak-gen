@@ -376,14 +376,17 @@ def persist_job_to_dir(
     _os.replace(tmp_path, path)
     if index is not None:
         try:
+            from kayakgen.services.artifact_store import load_run_manifest
+
+            manifest = load_run_manifest(job.output_dir)
             index.upsert_generative_job(
                 job_id=job.job_id,
                 job_kind=job.job_kind,
                 spec_hash=job.spec_hash,
                 state=job.state,
                 output_dir=job.output_dir,
-                run_id=None,
-                run_hash=None,
+                run_id=manifest.run_id if manifest is not None else None,
+                run_hash=manifest.run_hash if manifest is not None else None,
                 started_at=job.started_at,
                 completed_at=job.completed_at,
                 realized_evaluations=job.progress.realized_evaluations,

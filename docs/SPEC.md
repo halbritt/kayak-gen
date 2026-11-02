@@ -59,8 +59,9 @@ The project considers durable:
 | `<sweep-run>/` | `spec.json`, `run.json`, `summary.csv`, `failures.jsonl`, `candidates/<key>/...`. |
 | `<search-run>/` | Same shape as sweep, plus a `search_metadata` block. |
 | `<compare.json>` | `ComparisonReport` (with optional `pairwise_notes` advisory block per RFC 0052). |
+| `<run-dir>/_store/manifest.json` | RFC 0067 / D053 RunManifest: stable run instance identity, semantic hash metadata, expected artifact occurrences and provenance completeness; reconstruction never invents unknown legacy hashes. |
 | `<run-dir>/_store/` | Hard-link content-addressed mirror of every artifact written through `FilesystemArtifactStore` (RFC 0049 / D030). Mirror is additive; canonical paths and bytes stay byte-stable. |
-| `~/.local/share/kayakgen/index.sqlite` (override `KAYAKGEN_INDEX_DB`) | RFC 0049 / D030 cross-run index. Tables: `runs`, `candidates`, `metrics`, `artifacts`, `events`. Auto-created on first write. |
+| `~/.local/share/kayakgen/index.sqlite` (override `KAYAKGEN_INDEX_DB`) | RFC 0049 / D030 cross-run index. Tables: `runs`, `candidates`, `metrics`, `artifacts`, `artifact_occurrences`, `events`, `generative_jobs`. Auto-created on first use, including reads. |
 | `<target-out>.json` | `StabilityResult` from `kayakgen target-draft` / `target-trim`, or `TargetDraftMismatchReport` from `target-draft --report-only` (RFC 0050 / D031). |
 | `<build-export-dir>/` | `offsets.csv`, `sections.dxf`, `sheer.svg`, `keel.svg`, `waterline.svg`, `deck_centreline.svg`, `station_molds.dxf`, plus a `manifest.json` (RFC 0051 / D032). |
 | `<sensitivity-out>.json` | `SensitivityResult` from `kayakgen sensitivity` (RFC 0052 / D033). |

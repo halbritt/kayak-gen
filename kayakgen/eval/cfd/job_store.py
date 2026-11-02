@@ -39,6 +39,7 @@ from kayakgen.eval.cfd.records import (
     SolverRawResult,
 )
 from kayakgen.eval.mesh_package import MeshPackageManifest
+from kayakgen.io.json import write_text_atomic
 from kayakgen.services.artifact_store import ArtifactIntegrityError, FilesystemArtifactStore
 
 
@@ -145,6 +146,9 @@ def prepare_local_job(
     )
     run_record = _initial_run_record(job_spec)
 
+    FilesystemArtifactStore.open_run(
+        job_dir, kind="cfd", spec_hash=job_id, run_hash_value=job_id,
+    )
     _write_json(job_dir / "profile.json", solver_profile)
     _write_json(job_dir / "job.json", job_spec)
     _write_json(job_dir / "run.json", run_record)
@@ -269,13 +273,14 @@ def _load_job_json_artifact(path: Path) -> dict:
     if path.name == "run.json" and path.is_file() and (job_dir / "_store").is_dir():
         store = FilesystemArtifactStore(job_dir)
         try:
-            verified = store.get_json_by_relative_path(
-                path.name,
-                kind="cfd_run_record",
-            )
-            if verified is not None:
-                return verified
+            ref = store.ref_for_relative_path(path.name, kind="cfd_run_record")
+            if ref is not None:
+                return store.get_json(ref)
         except ArtifactIntegrityError:
+            if store.manifest is not None:
+                # A published manifest is the commit point. Canonical edits
+                # cannot distinguish an operator change from a failed write.
+                raise
             # Local CFD run records are mutable operational state. If an
             # operator edited the canonical run.json out of band, re-anchor
             # those bytes in the store before serving them.
@@ -283,6 +288,7 @@ def _load_job_json_artifact(path: Path) -> dict:
             ref = store.put_json(
                 "cfd_run_record",
                 payload,
+                run_id=ref.run_id,
                 canonical_path=path,
             )
             return store.get_json(ref)
@@ -427,7 +433,7 @@ def _write_command_logs(
 
 
 def _write_json(path: Path, model: BaseModel) -> None:
-    path.write_text(model.model_dump_json(indent=2) + "\n")
+    write_text_atomic(path, model.model_dump_json(indent=2) + "\n")
 
 
 def _route_cfd_writes_through_store(
@@ -436,38 +442,14 @@ def _route_cfd_writes_through_store(
     *,
     files: tuple[tuple[str, str], ...],
 ) -> None:
-    """Mirror canonical CFD job files into the artifact store (RFC 0049).
-
-    Best-effort: failures here must not break the legacy job preparation
-    path. The canonical files at ``job_dir`` are already on disk; this
-    function just hard-links them into ``_store/`` and records SQLite
-    index rows.
-    """
-
-    try:
-        from kayakgen.services.artifact_store import (
-            FilesystemArtifactStore,
-            index_run_directory,
-        )
-    except ImportError:  # pragma: no cover - defensive
-        return
-    try:
-        run_id = job_spec.job_id
-        store = FilesystemArtifactStore(job_dir, run_id=run_id)
-        index_run_directory(
-            job_dir,
-            run_id=run_id,
-            kind="cfd",
-            spec_hash=run_id,
-            run_hash_value=run_id,
-            index=store.index,
-        )
-        for kind, filename in files:
-            target = job_dir / filename
-            if target.exists():
-                store.put_file(kind, target)  # type: ignore[arg-type]
-    except OSError:  # pragma: no cover - never break legacy path
-        return
+    """Persist CFD occurrences; publication failures propagate to the caller."""
+    store = FilesystemArtifactStore.open_run(
+        job_dir, kind="cfd", spec_hash=job_spec.job_id, run_hash_value=job_spec.job_id,
+    )
+    for kind, filename in files:
+        target = job_dir / filename
+        if target.exists():
+            store.put_file(kind, target)  # type: ignore[arg-type]
 
 
 def _write_text(path: Path, text: str) -> None:

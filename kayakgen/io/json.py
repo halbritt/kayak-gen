@@ -9,7 +9,7 @@ from kayakgen.eval.contract import EvaluationResult
 from kayakgen.model.hull import Hull
 
 
-def _atomic_write_text(path: Path, text: str) -> None:
+def write_text_atomic(path: Path, text: str, *, newline: str | None = None) -> None:
     """Write ``text`` to ``path`` via a temp sibling + ``os.replace``.
 
     Audit R9 (2026-06-06): the previous bare ``write_text`` could leave a
@@ -22,7 +22,7 @@ def _atomic_write_text(path: Path, text: str) -> None:
 
     tmp = path.with_name(f".{path.name}.tmp-{os.getpid()}")
     try:
-        tmp.write_text(text, encoding="utf-8")
+        tmp.write_text(text, encoding="utf-8", newline=newline)
         os.replace(tmp, path)
     finally:
         tmp.unlink(missing_ok=True)
@@ -33,8 +33,8 @@ def load_hull(path: str | Path) -> Hull:
 
 
 def save_hull(hull: Hull, path: str | Path) -> None:
-    _atomic_write_text(Path(path), hull.model_dump_json(indent=2))
+    write_text_atomic(Path(path), hull.model_dump_json(indent=2))
 
 
 def save_evaluation(result: EvaluationResult, path: str | Path) -> None:
-    _atomic_write_text(Path(path), result.model_dump_json(indent=2))
+    write_text_atomic(Path(path), result.model_dump_json(indent=2))

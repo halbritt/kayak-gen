@@ -650,17 +650,39 @@ kayakgen runs jobs --header --state succeeded
 ```
 
 The SQLite index lives at `~/.local/share/kayakgen/index.sqlite` by
-default; override via `KAYAKGEN_INDEX_DB`. Each sweep, search, and
-CFD run that writes through `FilesystemArtifactStore` registers
-itself in `runs`, `candidates`, `metrics`, `artifacts`, and `events`
-tables on completion. RFC 0066 adds `artifact_occurrences` so equal bytes
-keep every run/path binding. Opening a v1 SQLite index creates an adjacent
-`.v1.bak` backup and migrates known expected hashes transactionally. Previously
-lost associations remain unverified; migration does not certify current files.
-Before rolling back to older code, preserve the current database and restore
-the v1 backup (which excludes later writes). Legacy run directories produced before RFC
-0049 still load; `kayakgen runs reindex <run_dir>` re-derives index
-rows from disk.
+default; override via `KAYAKGEN_INDEX_DB`. Modern sweep/search/CFD runs
+publish `_store/manifest.json` with an opaque run-instance ID, original
+semantic `run_hash`, creation metadata, and current expected artifact hashes.
+Canonical hull, candidate and run JSON remain compatible. Separate runs with
+the same directory basename have distinct IDs; reopening/resuming a run keeps
+its identity and checks the supplied kind/spec/hash against known metadata.
+
+`kayakgen runs reindex <run_dir>` verifies manifest-backed artifacts and restores
+that run's identity, candidate metrics and artifact occurrences after SQLite
+loss. It reports `provenance=complete` or `provenance=incomplete`; this describes
+hash coverage, not job completion. Legacy imports with lost metadata warn that
+historical hashes remain unknown, and leave unavailable run_hash as null. They
+are not silently certified by hashing today's files. `--run-id` may name an
+unindexed legacy import or match its established identity; conflicting overrides
+fail. Missing modern bindings, malformed manifests and corrupted expected bytes
+fail rather than downgrading to legacy reads. Reindex does not reconstruct the
+separate jobs or events tables.
+
+Move a run only after its old directory is absent, or after that path clearly
+belongs to a different manifest instance. Copying a run while its original
+location remains live is refused; an existing old directory without a manifest
+is ambiguous and also refused. Same resolved physical path aliases are allowed.
+Keep a backup of both the index and run directories before migration or rollback.
+Do not roll back to code that ignores manifests while expecting the new recovery
+guarantees; a restored old index also excludes later writes.
+
+RFC 0066's SQLite v1 upgrade creates an adjacent `.v1.bak` backup and preserves
+surviving hashes transactionally. RFC 0067 does not recreate previously lost
+associations. Store publication errors propagate: retry or reindex from the
+last published manifest. In manifest-backed CFD directories, external run.json
+edits do not replace the published record: reads serve the prior trusted bytes
+or refuse when those bytes are unavailable or corrupt. Legacy index-backed CFD
+records retain their prior mutable-record behavior.
 
 RFC 0057 generative jobs also register in the index. `kayakgen runs jobs`
 lists durable sweep/search job records created by the web Generate tab or the

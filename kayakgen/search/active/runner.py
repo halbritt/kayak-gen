@@ -411,7 +411,6 @@ def run_search(
     from kayakgen.services.artifact_store import (
         FilesystemArtifactStore,
         index_candidates,
-        index_run_directory,
     )
     from kayakgen.services.identity import run_hash as compute_run_hash
 
@@ -419,17 +418,11 @@ def run_search(
     out.mkdir(parents=True, exist_ok=True)
     (out / "candidates").mkdir(parents=True, exist_ok=True)
     spec_h_pre = spec_hash(spec)
-    run_id = f"search-{spec_h_pre[:16]}-{out.name}"
-    store = FilesystemArtifactStore(out, run_id=run_id)
     run_hash_value = compute_run_hash(spec.model_dump(mode="json"), kayakgen_version)
-    index_run_directory(
-        out,
-        run_id=run_id,
-        kind="search",
-        spec_hash=spec_h_pre,
-        run_hash_value=run_hash_value,
-        index=store.index,
+    store = FilesystemArtifactStore.open_run(
+        out, kind="search", spec_hash=spec_h_pre, run_hash_value=run_hash_value,
     )
+    run_id = store.run_id
     store.put_json("search_run_record", spec, canonical_path=out / "spec.json")
 
     objectives = resolve_objectives(spec)

@@ -40,7 +40,6 @@ def _spec() -> SweepSpec:
 def _store_backed_write_run(root: Path, run: SweepRunRecord) -> None:
     store = FilesystemArtifactStore(
         root,
-        run_id=f"sweep-{run.spec_hash[:16]}-{root.name}",
     )
     store.put_json("sweep_run_record", run, canonical_path=root / "run.json")
 

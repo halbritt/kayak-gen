@@ -9,8 +9,8 @@ shares), the store falls back to a copy and emits a warning.
 
 The store keeps a SQLite read-model at the path resolved by
 ``KAYAKGEN_INDEX_DB`` or ``~/.local/share/kayakgen/index.sqlite``. Schema
-matches RFC 0049 § "SQLite index v1". Tables are created on first use;
-existing rows are upserted.
+uses RFC 0066 content/occurrence bindings. RFC 0067 run manifests preserve
+identity and expected hashes independently of the SQLite projection.
 
 Module owns nothing it doesn't persist. The four identity hashes live in
 :mod:`kayakgen.services.identity`.
@@ -27,6 +27,7 @@ import sqlite3
 import tempfile
 import time
 import warnings
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Literal, Protocol, Sequence
@@ -72,6 +73,43 @@ class ArtifactRef(BaseModel):
     run_id: str | None = None
     candidate_key: str | None = None
     relative_path: str | None = None
+
+
+class RunManifest(BaseModel):
+    """Durable run identity and expected hashes; SQLite is its projection."""
+
+    model_config = ConfigDict(extra="forbid")
+    schema_version: Literal["1"] = "1"
+    run_id: str
+    kind: RunKind
+    spec_hash: str
+    run_hash: str | None
+    created_at: int
+    location: str
+    provenance_complete: bool = True
+    artifacts: dict[str, ArtifactRef] = Field(default_factory=dict)
+
+
+def load_run_manifest(run_dir: Path | str) -> RunManifest | None:
+    path = Path(run_dir) / "_store" / "manifest.json"
+    try:
+        manifest = RunManifest.model_validate_json(path.read_bytes())
+    except FileNotFoundError:
+        return None
+    for relative_path, ref in manifest.artifacts.items():
+        if (Path(relative_path).is_absolute() or ".." in Path(relative_path).parts
+                or ref.relative_path != relative_path or ref.run_id != manifest.run_id):
+            raise ValueError(f"invalid artifact occurrence in run manifest: {relative_path}")
+    return manifest
+
+
+def _check_run_location(run_id: str, previous: str, current: Path) -> None:
+    previous_path = Path(previous).resolve()
+    if previous_path == current.resolve() or not previous_path.exists():
+        return
+    occupant = load_run_manifest(previous_path)
+    if occupant is None or occupant.run_id == run_id:
+        raise ValueError(f"run identity already has a live or ambiguous location: {previous_path}")
 
 
 class RunEvent(BaseModel):
@@ -174,8 +212,8 @@ def _default_index_path() -> Path:
 class SqliteIndex:
     """SQLite read-model over runs / candidates / metrics / artifacts / events.
 
-    Schema matches RFC 0049 § "SQLite index v1". Tables are created
-    lazily on first use; existing rows are upserted by their primary key.
+    Tables are created lazily on first use; existing rows are upserted
+    by their primary key.
 
     Schema v2 separates content from current run/path occurrences (RFC 0066).
     Opening v1 backs it up and migrates its surviving expected hashes in a
@@ -232,8 +270,8 @@ class SqliteIndex:
                     f"kayakgen index at {self.path} has schema version "
                     f"{version} < {self.SCHEMA_VERSION}; rebuilding the "
                     f"read-model (dropping: {', '.join(sorted(tables))}). "
-                    "The index is rebuildable from run directories "
-                    "(index_run_directory).",
+                    "Run projections can be recovered with reindex_run; "
+                    "legacy provenance may be incomplete.",
                     stacklevel=4,
                 )
                 cur = conn.cursor()
@@ -402,25 +440,30 @@ class SqliteIndex:
         run_id: str,
         kind: RunKind,
         spec_hash: str,
-        run_hash: str,
+        run_hash: str | None,
         out_dir: str,
         created_at: int | None = None,
     ) -> None:
         ts = created_at if created_at is not None else int(time.time())
         with self._conn() as conn:
-            conn.execute(
-                """
-                INSERT INTO runs (run_id, kind, spec_hash, run_hash, created_at, out_dir)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(run_id) DO UPDATE SET
-                  kind=excluded.kind,
-                  spec_hash=excluded.spec_hash,
-                  run_hash=excluded.run_hash,
-                  created_at=excluded.created_at,
-                  out_dir=excluded.out_dir
-                """,
-                (run_id, kind, spec_hash, run_hash, ts, out_dir),
-            )
+            if not conn.in_transaction:
+                conn.execute("BEGIN IMMEDIATE")
+            previous = conn.execute("SELECT out_dir FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+            if previous is not None:
+                _check_run_location(run_id, previous["out_dir"], Path(out_dir))
+            self._write_run(conn, (run_id, kind, spec_hash, run_hash, ts, out_dir))
+
+    @staticmethod
+    def _write_run(conn: sqlite3.Connection, values: tuple) -> None:
+        conn.execute(
+            """INSERT INTO runs (run_id, kind, spec_hash, run_hash, created_at, out_dir)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(run_id) DO UPDATE SET
+                 kind=excluded.kind, spec_hash=excluded.spec_hash,
+                 run_hash=excluded.run_hash, created_at=excluded.created_at,
+                 out_dir=excluded.out_dir""",
+            values,
+        )
 
     def upsert_candidate(
         self,
@@ -626,6 +669,72 @@ class SqliteIndex:
             rows = conn.execute(sql, params).fetchall()
         return [dict(row) for row in rows]
 
+    def replace_run_projection(
+        self, manifest: RunManifest, candidates: list[dict[str, Any]],
+        artifact_sizes: dict[str, int],
+    ) -> None:
+        with self._conn() as conn:
+            if not conn.in_transaction:
+                conn.execute("BEGIN IMMEDIATE")
+            previous = conn.execute(
+                "SELECT out_dir FROM runs WHERE run_id = ?", (manifest.run_id,)
+            ).fetchone()
+            if previous is not None:
+                _check_run_location(manifest.run_id, previous["out_dir"], Path(manifest.location))
+            self._write_run(conn, (
+                manifest.run_id, manifest.kind, manifest.spec_hash, manifest.run_hash,
+                manifest.created_at, manifest.location,
+            ))
+            for table in ("candidates", "metrics", "artifact_occurrences"):
+                conn.execute(f"DELETE FROM {table} WHERE run_id = ?", (manifest.run_id,))
+            for row in candidates:
+                key = row["candidate_key"]
+                conn.execute(
+                    "INSERT INTO candidates VALUES (?, ?, ?, ?, ?, ?)",
+                    (key, manifest.run_id, row["status"], row["hull_design_hash"],
+                     row["hull_record_hash"], manifest.created_at),
+                )
+                conn.executemany(
+                    "INSERT INTO metrics VALUES (?, ?, ?, ?)",
+                    [(manifest.run_id, key, name, value) for name, value in row["metrics"].items()],
+                )
+            for path, ref in manifest.artifacts.items():
+                conn.execute(
+                    "INSERT INTO artifacts (artifact_hash, byte_count, created_at) VALUES (?, ?, ?) "
+                    "ON CONFLICT(artifact_hash) DO UPDATE SET byte_count=excluded.byte_count",
+                    (ref.artifact_hash, artifact_sizes[path], manifest.created_at),
+                )
+                self._upsert_occurrence(
+                    conn, artifact_hash=ref.artifact_hash, kind=ref.kind,
+                    run_id=manifest.run_id, candidate_key=ref.candidate_key,
+                    relative_path=path, created_at=manifest.created_at,
+                )
+
+    def assert_run_location(self, run_id: str, current: Path) -> None:
+        with self._conn() as conn:
+            previous = conn.execute("SELECT out_dir FROM runs WHERE run_id = ?", (run_id,)).fetchone()
+        if previous is not None:
+            _check_run_location(run_id, previous["out_dir"], current)
+
+    def run_for_directory(self, run_dir: Path | str) -> dict[str, Any] | None:
+        path = Path(run_dir)
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM runs WHERE out_dir IN (?, ?)",
+                (str(path), str(path.resolve())),
+            ).fetchall()
+        if len(rows) > 1:
+            raise ValueError(f"ambiguous indexed run identity for {path}")
+        return dict(rows[0]) if rows else None
+
+    def artifact_refs_for_run(self, run_id: str) -> list[ArtifactRef]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT artifact_hash, kind, run_id, candidate_key, relative_path "
+                "FROM artifact_occurrences WHERE run_id = ? ORDER BY relative_path", (run_id,),
+            ).fetchall()
+        return [ArtifactRef(**dict(row)) for row in rows]
+
     def artifact_ref_for_relative_path(
         self,
         *,
@@ -829,9 +938,74 @@ class FilesystemArtifactStore:
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self.store_dir = self.run_dir / "_store"
         self.store_dir.mkdir(parents=True, exist_ok=True)
-        self.run_id = run_id or self.run_dir.name
+        self.manifest = load_run_manifest(self.run_dir)
+        if self.manifest is not None:
+            if run_id is not None and run_id != self.manifest.run_id:
+                raise ValueError("run_id conflicts with durable run manifest")
+            self.run_id = self.manifest.run_id
+            _check_run_location(self.run_id, self.manifest.location, self.run_dir)
+        else:
+            self.run_id = run_id or self.run_dir.name
         self.index = index if index is not None else SqliteIndex()
         self._events_path = self.store_dir / "events.jsonl"
+
+    @classmethod
+    def open_run(
+        cls, run_dir: Path | str, *, kind: RunKind, spec_hash: str,
+        run_hash_value: str, index: SqliteIndex | None = None,
+    ) -> "FilesystemArtifactStore":
+        store = cls(run_dir, index=index)
+        if store.manifest is None:
+            legacy = (any(store.store_dir.iterdir())
+                      or (store.run_dir / "run.json").exists()
+                      or (store.run_dir / "spec.json").exists())
+            prior = store.index.run_for_directory(store.run_dir) if legacy else None
+            if prior is not None:
+                if (prior["kind"], prior["spec_hash"], prior["run_hash"]) != (
+                    kind, spec_hash, run_hash_value
+                ):
+                    raise ValueError("run descriptor conflicts with indexed legacy run")
+                refs = store.index.artifact_refs_for_run(prior["run_id"])
+                store.run_id = prior["run_id"]
+                manifest = RunManifest(
+                    run_id=store.run_id, kind=kind, spec_hash=spec_hash,
+                    run_hash=prior["run_hash"], created_at=prior["created_at"],
+                    location=str(store.run_dir.resolve()), provenance_complete=False,
+                    artifacts={ref.relative_path: ref for ref in refs},
+                )
+            else:
+                store.run_id = f"{kind}-{uuid.uuid4().hex}"
+                # An existing record or content store can contain historical
+                # bytes whose expected hashes were already lost.
+                manifest = RunManifest(
+                    run_id=store.run_id, kind=kind, spec_hash=spec_hash,
+                    run_hash=run_hash_value if not legacy else None,
+                    created_at=int(time.time()), location=str(store.run_dir.resolve()),
+                    provenance_complete=not legacy,
+                )
+            store._publish_manifest(manifest)
+        else:
+            manifest = store.manifest
+            if ((manifest.kind, manifest.spec_hash) != (kind, spec_hash)
+                    or (manifest.run_hash is not None and manifest.run_hash != run_hash_value)):
+                raise ValueError("run descriptor conflicts with durable run manifest")
+        manifest = store.manifest
+        location = str(store.run_dir.resolve())
+        if manifest.location != location:
+            manifest = manifest.model_copy(update={"location": location})
+            store._publish_manifest(manifest)
+        store.index.upsert_run(
+            run_id=manifest.run_id, kind=manifest.kind, spec_hash=manifest.spec_hash,
+            run_hash=manifest.run_hash, created_at=manifest.created_at, out_dir=manifest.location,
+        )
+        return store
+
+    def _publish_manifest(self, manifest: RunManifest) -> None:
+        self.index.assert_run_location(manifest.run_id, Path(manifest.location))
+        _atomic_write_bytes(
+            self.store_dir / "manifest.json", manifest.model_dump_json(indent=2).encode("utf-8")
+        )
+        self.manifest = manifest
 
     # -- writes ------------------------------------------------------------
 
@@ -899,6 +1073,11 @@ class FilesystemArtifactStore:
         candidate_key: str | None,
         canonical_path: Path | None,
     ) -> ArtifactRef:
+        if self.manifest is not None:
+            if run_id is not None and run_id != self.run_id:
+                raise ValueError("artifact run_id conflicts with durable run manifest")
+            if canonical_path is not None:
+                canonical_path.resolve().relative_to(self.run_dir.resolve())
         artifact_hash = _hash_bytes(data)
         extension = self._extension_for(kind, canonical_path)
         store_path = self._store_path(artifact_hash, extension)
@@ -913,24 +1092,30 @@ class FilesystemArtifactStore:
                 canonical_path.unlink()
             _link_or_copy(store_path, canonical_path)
             try:
-                relative_path = str(canonical_path.relative_to(self.run_dir))
+                relative_path = canonical_path.resolve().relative_to(self.run_dir.resolve()).as_posix()
             except ValueError:
                 relative_path = str(canonical_path)
+        ref = ArtifactRef(
+            kind=kind, artifact_hash=artifact_hash,
+            run_id=run_id if run_id is not None else self.run_id,
+            candidate_key=candidate_key, relative_path=relative_path,
+        )
+        if self.manifest is not None and relative_path is not None:
+            if ref.run_id != self.run_id:
+                raise ValueError("artifact run_id conflicts with durable run manifest")
+            normalized = posixpath.normpath(relative_path)
+            ref = ref.model_copy(update={"relative_path": normalized})
+            current_manifest = load_run_manifest(self.run_dir)
+            if current_manifest is None or current_manifest.run_id != self.run_id:
+                raise ValueError("durable run manifest disappeared or changed identity")
+            self._publish_manifest(current_manifest.model_copy(update={
+                "artifacts": {**current_manifest.artifacts, normalized: ref},
+            }))
         self.index.upsert_artifact(
-            artifact_hash=artifact_hash,
-            kind=kind,
-            run_id=run_id if run_id is not None else self.run_id,
-            candidate_key=candidate_key,
-            byte_count=len(data),
-            relative_path=relative_path,
+            artifact_hash=artifact_hash, kind=kind, run_id=ref.run_id,
+            candidate_key=candidate_key, byte_count=len(data), relative_path=ref.relative_path,
         )
-        return ArtifactRef(
-            kind=kind,
-            artifact_hash=artifact_hash,
-            run_id=run_id if run_id is not None else self.run_id,
-            candidate_key=candidate_key,
-            relative_path=relative_path,
-        )
+        return ref
 
     def put_json(
         self,
@@ -1129,12 +1314,21 @@ class FilesystemArtifactStore:
     ) -> ArtifactRef | None:
         """Look up a hash-bearing ref for a canonical run-local path."""
 
-        return self.index.artifact_ref_for_relative_path(
-            run_dir=self.run_dir,
-            relative_path=relative_path,
-            kind=kind,
-            candidate_key=candidate_key,
-        )
+        if self.manifest is not None:
+            current = load_run_manifest(self.run_dir)
+            if current is None or current.run_id != self.run_id:
+                raise ValueError("durable run manifest disappeared or changed identity")
+            ref = current.artifacts.get(posixpath.normpath(relative_path))
+            if ref is None and current.provenance_complete:
+                raise ValueError(f"artifact provenance missing from run manifest: {relative_path}")
+        else:
+            ref = self.index.artifact_ref_for_relative_path(
+                run_dir=self.run_dir, relative_path=relative_path,
+            )
+        if ref is not None and ((kind is not None and ref.kind != kind)
+                or (candidate_key is not None and ref.candidate_key != candidate_key)):
+            raise ValueError(f"artifact metadata mismatch for recorded path: {relative_path}")
+        return ref
 
     def get_json_by_relative_path(
         self,
@@ -1270,6 +1464,75 @@ def index_candidates(
             )
 
 
+class ReindexResult(BaseModel):
+    run_id: str
+    kind: RunKind
+    candidate_count: int
+    artifact_count: int
+    provenance_complete: bool
+
+
+def reindex_run(
+    run_dir: Path | str, *, run_id: str | None = None, index: SqliteIndex | None = None,
+) -> ReindexResult:
+    """Rebuild a run projection from recorded provenance, never invented hashes."""
+    from kayakgen.search.sweep import CandidateRecord, _index_row_for_candidate
+
+    store = FilesystemArtifactStore(run_dir, run_id=run_id, index=index)
+    if store.manifest is None:
+        prior = store.index.run_for_directory(store.run_dir)
+        if prior is not None and run_id is not None and run_id != prior["run_id"]:
+            raise ValueError("run_id conflicts with indexed legacy run")
+        # Legacy run metadata is read as unverified unless a surviving index
+        # binding supplies its original expected hash.
+        payload = store.get_json_by_relative_path("run.json")
+        if payload is None:
+            payload = json.loads((store.run_dir / "run.json").read_bytes())
+        kind = prior["kind"] if prior else (
+            "cfd" if "job_id" in payload else "search" if "search_metadata" in payload else "sweep"
+        )
+        identity = prior["run_id"] if prior else run_id or f"{kind}-{uuid.uuid4().hex}"
+        refs = store.index.artifact_refs_for_run(identity) if prior else []
+        manifest = RunManifest(
+            run_id=identity, kind=kind,
+            spec_hash=prior["spec_hash"] if prior else payload.get("spec_hash", "unknown"),
+            run_hash=prior["run_hash"] if prior else None,
+            created_at=prior["created_at"] if prior else int(time.time()),
+            location=str(store.run_dir.resolve()), provenance_complete=False,
+            artifacts={ref.relative_path: ref for ref in refs},
+        )
+        store.run_id = identity
+        store._publish_manifest(manifest)
+    manifest = store.manifest
+    if run_id is not None and run_id != manifest.run_id:
+        raise ValueError("run_id conflicts with durable run manifest")
+    record_kinds: dict[RunKind, ArtifactKind] = {
+        "sweep": "sweep_run_record", "search": "search_run_record",
+        "cfd": "cfd_run_record", "comparison": "comparison_report",
+    }
+    store.ref_for_relative_path("run.json", kind=record_kinds[manifest.kind])
+    verified: dict[str, bytes] = {}
+    for relative_path, ref in manifest.artifacts.items():
+        _, verified[relative_path] = store._resolve_artifact(ref)
+    if "run.json" in verified:
+        payload = json.loads(verified["run.json"])
+    elif manifest.provenance_complete:
+        raise ValueError("artifact provenance missing from run manifest: run.json")
+    else:
+        payload = json.loads((store.run_dir / "run.json").read_bytes())
+    records = payload.get("candidates", [])
+    rows = [_index_row_for_candidate(CandidateRecord.model_validate(record)) for record in records]
+    manifest = manifest.model_copy(update={"location": str(store.run_dir.resolve())})
+    store._publish_manifest(manifest)
+    store.index.replace_run_projection(
+        manifest, rows, {path: len(content) for path, content in verified.items()},
+    )
+    return ReindexResult(
+        run_id=manifest.run_id, kind=manifest.kind, candidate_count=len(rows),
+        artifact_count=len(verified), provenance_complete=manifest.provenance_complete,
+    )
+
+
 __all__ = [
     "ArtifactKind",
     "ArtifactIntegrityError",
@@ -1279,6 +1542,10 @@ __all__ = [
     "FilesystemArtifactStore",
     "RunEvent",
     "RunKind",
+    "RunManifest",
+    "ReindexResult",
+    "load_run_manifest",
+    "reindex_run",
     "SqliteIndex",
     "index_candidates",
     "index_run_directory",

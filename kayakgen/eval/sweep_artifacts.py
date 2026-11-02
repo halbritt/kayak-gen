@@ -17,6 +17,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 from kayakgen.io.stl import write_stl
+from kayakgen.io.json import write_text_atomic
 from kayakgen.model.hull import Hull
 
 STL_HASH_ALGORITHM = "sha256"
@@ -50,6 +51,10 @@ def write_candidate_stl(hull: Hull, candidate_dir: Path, out_root: Path) -> StlA
     candidate_dir.mkdir(parents=True, exist_ok=True)
     hull_path = candidate_dir / "hull.stl"
     deck_path = candidate_dir / "deck.stl"
+    # Preserve previous content-addressed inodes if a rerun fails before
+    # publication. The STL writer retains its canonical filename/header.
+    hull_path.unlink(missing_ok=True)
+    deck_path.unlink(missing_ok=True)
     write_stl(hull, "hull", hull_path)
     write_stl(hull, "deck", deck_path)
     return StlArtifactSet(
@@ -89,7 +94,7 @@ def write_candidate_high_angle_gz(
     candidate_dir.mkdir(parents=True, exist_ok=True)
     path = candidate_dir / "high_angle_gz.json"
     payload = json.dumps(block, indent=2)
-    path.write_text(payload)
+    write_text_atomic(path, payload)
     data = path.read_bytes()
     return HighAngleGzArtifact(
         path=str(path.relative_to(out_root)),

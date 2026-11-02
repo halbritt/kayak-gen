@@ -731,10 +731,27 @@ def test_cfd_routes_failed_command_logs_and_artifact_bounds(tmp_path) -> None:
             assert raw_absent_response.status == 404
             assert raw_absent["error"] == "raw_result_not_found"
 
+            from kayakgen.services.artifact_store import FilesystemArtifactStore
+
             run_path = tmp_path / "jobs" / job_id / "run.json"
+            store = FilesystemArtifactStore(run_path.parent)
+            original_ref = store.ref_for_relative_path("run.json", kind="cfd_run_record")
+            assert original_ref is not None
+            committed_path = store.get_file(original_ref)
             run_data = json.loads(run_path.read_text())
             run_data["logs"]["stdout"] = "../outside.log"
             run_path.write_text(json.dumps(run_data, indent=2) + "\n")
+            # Also corrupt the recorded copy: copy-fallback filesystems may
+            # otherwise retain valid committed bytes and correctly serve them.
+            committed_path.write_bytes(run_path.read_bytes())
+            uncommitted_response = await client.get(f"/api/cfd/jobs/{job_id}/logs")
+            uncommitted = await uncommitted_response.json()
+            assert uncommitted_response.status == 500
+            assert "ArtifactIntegrityError" in uncommitted["message"]
+
+            # Publish the deliberately invalid path as a known record so the
+            # route still exercises its independent artifact-boundary check.
+            store.put_file("cfd_run_record", run_path)
             traversal_response = await client.get(f"/api/cfd/jobs/{job_id}/logs")
             traversal = await traversal_response.json()
             assert traversal_response.status == 400
@@ -743,7 +760,10 @@ def test_cfd_routes_failed_command_logs_and_artifact_bounds(tmp_path) -> None:
             run_data["status"] = "succeeded"
             run_data["logs"] = {}
             run_data["output_manifest"] = "raw-result.json"
-            run_path.write_text(json.dumps(run_data, indent=2) + "\n")
+            store.put_bytes(
+                "cfd_run_record", (json.dumps(run_data, indent=2) + "\n").encode("utf-8"),
+                canonical_path=run_path,
+            )
             (tmp_path / "jobs" / job_id / "raw-result.json").write_text("{not-json")
             malformed_response = await client.get(f"/api/cfd/jobs/{job_id}/raw-result")
             malformed = await malformed_response.json()

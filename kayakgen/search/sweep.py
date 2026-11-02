@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import io
 import json
 from itertools import product
 from pathlib import Path
@@ -28,7 +29,7 @@ from kayakgen.eval.sweep_artifacts import (
     write_candidate_high_angle_gz,
     write_candidate_stl,
 )
-from kayakgen.io.json import save_evaluation, save_hull
+from kayakgen.io.json import write_text_atomic, save_evaluation, save_hull
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import DesignValidityReport, evaluate_design_validity
 from kayakgen.search.objectives import OBJECTIVE_METADATA
@@ -210,7 +211,6 @@ def run_sweep(
     from kayakgen.services.artifact_store import (
         FilesystemArtifactStore,
         index_candidates,
-        index_run_directory,
     )
     from kayakgen.services.identity import run_hash as compute_run_hash
 
@@ -219,19 +219,13 @@ def run_sweep(
     candidates_dir.mkdir(parents=True, exist_ok=True)
 
     spec_hash_value = spec.spec_hash()
-    run_id = f"sweep-{spec_hash_value[:16]}-{out.name}"
-    store = FilesystemArtifactStore(out, run_id=run_id)
     run_hash_value = compute_run_hash(
         spec.model_dump(mode="json"), kayakgen_version
     )
-    index_run_directory(
-        out,
-        run_id=run_id,
-        kind="sweep",
-        spec_hash=spec_hash_value,
-        run_hash_value=run_hash_value,
-        index=store.index,
+    store = FilesystemArtifactStore.open_run(
+        out, kind="sweep", spec_hash=spec_hash_value, run_hash_value=run_hash_value,
     )
+    run_id = store.run_id
     store.put_json("sweep_run_record", spec, canonical_path=out / "spec.json")
 
     records: list[CandidateRecord] = []
@@ -408,7 +402,7 @@ def _evaluate_candidate(
 
         mesh_path = candidates_dir / f"{candidate_key}.mesh.json"
         mesh = diagnose_mesh(hull)
-        mesh_path.write_text(mesh.model_dump_json(indent=2))
+        write_text_atomic(mesh_path, mesh.model_dump_json(indent=2))
         if store is not None:
             store.put_file("mesh_quality_json", mesh_path, candidate_key=candidate_key)
         artifacts["mesh_diagnostics"] = str(mesh_path.relative_to(out))
@@ -576,7 +570,7 @@ def _write_summary(path: Path, records: list[CandidateRecord]) -> None:
         *[f"param_{name}" for name in parameter_names],
         *metric_columns,
     ]
-    with path.open("w", newline="") as fh:
+    with io.StringIO(newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
         writer.writeheader()
         for record in records:
@@ -592,12 +586,11 @@ def _write_summary(path: Path, records: list[CandidateRecord]) -> None:
             for key in metric_columns:
                 row[key] = record.summary.get(key, "")
             writer.writerow(row)
+        write_text_atomic(path, fh.getvalue(), newline="")
 
 
 def _write_failures(path: Path, failures: list[CandidateRecord]) -> None:
-    with path.open("w") as fh:
-        for failure in failures:
-            fh.write(failure.model_dump_json() + "\n")
+    write_text_atomic(path, "".join(failure.model_dump_json() + "\n" for failure in failures))
 
 
 def _canonical_json(value: Any) -> str:

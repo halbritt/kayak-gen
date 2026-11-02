@@ -8,6 +8,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Fixed
 
+- RFC 0067 / KAYGEN-3: manifest-backed sweep/search/CFD outputs preserve run
+  identity and expected hashes across index reconstruction. Same-basename runs
+  remain distinct; reindex reports incomplete legacy provenance explicitly.
+  Manifest-backed CFD reads retain published expected hashes instead of
+  adopting external edits; legacy reanchoring remains available.
+
 - Search and comparison now enforce the objective registry's `display_only`
   refusal for all four turning metrics, including explicit exploratory mode
   (KAYGEN-1). Generative jobs report the existing objective-admission error
