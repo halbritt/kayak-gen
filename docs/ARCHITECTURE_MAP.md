@@ -23,6 +23,7 @@ identity and run manifests retain their existing authority.
 ```
 kayakgen/
 ├── operations/               # Operational checks; separate from hull claim gates
+│   ├── citation_closure.py      installed Pincite classifier → phase/packet-bound closure
 │   ├── completion.py            terminal audit + declared receipts → one action
 │   ├── gate.py                  fixed full pytest/skip pin then Ruff + optional receipt
 │   ├── release.py               immutable source → wheel → inactive installed verification
@@ -154,6 +155,7 @@ The `cli/` directory carries seven sibling modules used by `main.py`:
 
 | Command | Purpose | Writes |
 |---|---|---|
+| `python -m kayakgen.operations.citation_closure close\|verify\|correct ...` | Classify phase citations against their packet with the installed Pincite classifier; verify; record attribution corrections | New closure directory or correction JSON; never replaces records |
 | `python -m kayakgen.operations.completion --audit-result ... --requirements ... -- ACTION...` | Require terminal successful audit and source-bound receipts before one actual action | JSON decision on stdout; admitted action owns its writes |
 | `kayakgen init <out>` | default Hull JSON | `out.json` |
 | `kayakgen generate <hull>` | open hull + deck inspection STLs | `<stem>_{hull,deck}.stl` |
