@@ -456,6 +456,7 @@ def _evaluate_candidate(
         "Cp_actual": hydro.Cp_actual,
     }
     if resistance is not None:
+        summary["resistance_numerical_quality"] = resistance.metadata.numerical_quality.model_dump(mode="json")
         summary["resistance_use"] = ",".join(resistance.metadata.accepted_use)
         summary["resistance_claim_state"] = resistance.metadata.claim_state
         summary["resistance_accepted_uses"] = ",".join(resistance.metadata.accepted_uses)

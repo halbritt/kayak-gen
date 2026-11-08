@@ -119,3 +119,7 @@ What is *not* on this list, and why:
 
 - The codebase has enough documentation (PRD, SPEC, ubiquitous language, RFCs, AGENTS.md) and test coverage that a second contributor can add a new hull-form parameter without breaking existing STL output or hydrostatic readouts.
 - A new contributor can run `kayakgen evaluate hull.json` on a CI runner with no display, and the output is identical (within numerical tolerance) to what the GUI shows for the same hull.
+
+## Numerical status and diagnostic results
+
+Resistance estimates carry numerical quality separately from physical claims. Unassessed finite output is diagnostic and cannot drive a ranked resistance frontier even with exploratory opt-in. Measuring a method-specific adequate policy remains separate from physical calibration.

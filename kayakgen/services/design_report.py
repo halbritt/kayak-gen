@@ -403,13 +403,14 @@ def _section_resistance(curve: Any) -> dict[str, Any]:
         "id": "resistance",
         "title": "Resistance",
         "rows": rows,
+        "numerical_quality": metadata.numerical_quality.status,
         "claim_state": metadata.claim_state,
         "accepted_uses": list(metadata.accepted_uses),
         "warnings": list(metadata.warnings),
         # Surface notice deliberately written to avoid forbidden tokens.
         "notice": (
             "Curve carries the uncalibrated_comparative resistance claim; "
-            "rows are for comparative filtering between candidates only."
+            "unassessed rows are diagnostics and cannot establish candidate ordering."
         ),
     }
 

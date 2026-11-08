@@ -1268,3 +1268,7 @@ normalize, validate, or calibrate external solver output.
   bounded, unvalidated hydrostatic semantics instead.
 - Some class/shape parameters are reserved or partially surfaced in frontends
   while the RFC backlog lands.
+
+## Resistance numerical quality
+
+Resistance metadata includes `numerical_quality`. Its default `unknown` means the curve is diagnostic. Finite numbers and legacy `converged` stage flags do not establish numerical adequacy. `objectives_explicit_exploratory` retains its calibration meaning but cannot bypass numerical evidence. An unassessed resistance objective yields diagnostic candidates and an empty resistance frontier; other conservative objectives remain usable. Assessed quality names its policy, resolutions, per-speed changes, tolerance and evidence. Physical claim states are unchanged.

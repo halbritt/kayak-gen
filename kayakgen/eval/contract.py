@@ -21,6 +21,37 @@ from kayakgen.eval.turning import TurningMetrics
 from kayakgen.model.validity import DesignValidityReport
 
 
+class NumericalQuality(BaseModel):
+    """Resolution evidence, independent of calibration and physical validity."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    status: Literal["unknown", "converged", "not_converged"] = "unknown"
+    policy_version: str | None = None
+    resolutions: list[dict[str, int]] = Field(default_factory=list)
+    relative_changes: list[float] = Field(default_factory=list)
+    relative_tolerance: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    evidence: str | None = None
+
+    @model_validator(mode="after")
+    def _assessment_requires_evidence(self) -> "NumericalQuality":
+        if any(not math.isfinite(x) or x < 0 for x in self.relative_changes):
+            raise ValueError("numerical relative changes must be finite and nonnegative")
+        if any(not level or any(n <= 0 for n in level.values()) for level in self.resolutions):
+            raise ValueError("numerical resolutions must contain positive sample counts")
+        if self.status != "unknown":
+            if not self.policy_version or not self.evidence or len(self.resolutions) < 3:
+                raise ValueError("numerical assessment requires a policy, evidence and three resolutions")
+            if len({tuple(sorted(level.items())) for level in self.resolutions}) < 3:
+                raise ValueError("numerical assessment requires three distinct resolutions")
+            if self.relative_tolerance is None or not self.relative_changes:
+                raise ValueError("numerical assessment requires changes and tolerance")
+            if self.status == "converged" and max(self.relative_changes) > self.relative_tolerance:
+                raise ValueError("converged numerical evidence exceeds its tolerance")
+        return self
+
+
 class ResistanceMetadata(BaseModel):
     """Provenance and validity warnings for resistance curves."""
 
@@ -36,6 +67,7 @@ class ResistanceMetadata(BaseModel):
     fit_status: SerializedResistanceFitStatus | None = None
     fit_metrics: dict[str, float] = Field(default_factory=dict)
     validity_envelope: dict[str, Any] | None = None
+    numerical_quality: NumericalQuality = Field(default_factory=NumericalQuality)
     model_family: str = "raw_ittc_michell"
     calibration_status: str = "uncalibrated"
     calibration_name: str | None = None
@@ -105,6 +137,14 @@ class ResistanceCurve(BaseModel):
     Rw_N: list[float]
     Rt_N: list[float]
     metadata: ResistanceMetadata = Field(default_factory=ResistanceMetadata)
+
+
+    @model_validator(mode="after")
+    def _numerical_evidence_covers_speed_grid(self) -> "ResistanceCurve":
+        quality = self.metadata.numerical_quality
+        if quality.status != "unknown" and len(quality.relative_changes) != len(self.V_knots):
+            raise ValueError("numerical assessment must cover every requested speed")
+        return self
 
 
 class GZHeelPointMetadata(BaseModel):
@@ -411,20 +451,17 @@ class CfdResult(RawUnvalidatedClaimFields):
 
 
 class ConvergenceFlag(BaseModel):
-    """RFC 0052 value object: per-evaluator-stage convergence status.
+    """Per-stage numerical evidence; merely completing a stage is unknown.
 
-    Emitted additively on :class:`EvaluationResult` so designers can tell
-    whether the upright trim solve converged, the per-heel GZ solve hit its
-    residual, or the resistance/mesh-diagnostics stage simply ran. The
-    ``residual`` field is the numeric driver of the convergence check when one
-    exists (e.g. ``displacement_error_kg`` or ``moment_error_kg_m``); it is
-    ``None`` for stages that do not iterate (resistance, mesh diagnostics).
+    Older explicit flags are retained as historical assertions. Admission uses
+    the separate numerical_quality record, so legacy stage-ran flags cannot
+    establish numerical adequacy.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     stage: str
-    status: Literal["converged", "not_converged", "iteration_cap"]
+    status: Literal["unknown", "converged", "not_converged", "iteration_cap"]
     residual: float | None = None
 
     @field_validator("residual")
@@ -539,11 +576,15 @@ class EvaluationResult(BaseModel):
             return self
 
         flags: list[ConvergenceFlag] = [
-            ConvergenceFlag(stage="hydrostatics", status="converged", residual=None)
+            ConvergenceFlag(stage="hydrostatics", status="unknown", residual=None)
         ]
         if self.resistance is not None:
             flags.append(
-                ConvergenceFlag(stage="resistance", status="converged", residual=None)
+                ConvergenceFlag(
+                    stage="resistance",
+                    status=self.resistance.metadata.numerical_quality.status,
+                    residual=None,
+                )
             )
         if self.stability is not None:
             flags.extend(_flags_from_stability(self.stability))

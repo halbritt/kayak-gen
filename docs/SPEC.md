@@ -313,3 +313,7 @@ SPEC changes must respect these:
 - Class validity / advisory badges are not proof of seaworthiness,
   calibrated performance, or final design fitness.
 - The web frontend stays local-only; D023 defers public hosted demo.
+
+## Numerical evidence invariant
+
+A completed finite resistance calculation without numerical assessment is unknown. Resistance dominance/frontier/search selection requires distinct resolution evidence under a declared policy, even in explicit exploratory mode. Legacy convergence literals alone are insufficient; raw results remain viewable.

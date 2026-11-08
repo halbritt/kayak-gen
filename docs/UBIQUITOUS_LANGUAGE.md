@@ -183,3 +183,7 @@ coverage, not candidate/job completion or scientific validation.
 **SectionExportGeometry** (RFC 0069): the existing closed-section and
 waterline/keel/deck-curve capability consumed by builder writers. Lofted and
 distribution_v2 geometry both satisfy it; it is not a separate geometry model.
+
+## NumericalQuality
+
+Resolution evidence with status `unknown`, `converged`, or `not_converged`, a versioned policy, distinct resolutions, per-speed relative changes, tolerance and evidence locator. Numerical quality is independent of physical calibration, accepted use, execution completion and fitness.

@@ -439,3 +439,7 @@ RFC 0066 / KAYGEN-2 landed artifact occurrence bindings and transactional
 SQLite v1 migration. RFC 0067 / KAYGEN-3 also landed durable run identity and honest manifest
 reconstruction. Future-Striatum-Batches: no further storage feature is scheduled; no remote storage or
 scientific claim expansion is included.
+
+## RFC 0072 numerical evidence
+
+Landed conservative numerical status and objective admission (KAYGEN-7). Method-specific numerical policy measurement remains KAYGEN-15/RFC0077; this does not unblock physical calibration or final prediction.

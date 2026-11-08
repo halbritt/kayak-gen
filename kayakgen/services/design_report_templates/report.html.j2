@@ -150,6 +150,7 @@
   <h2>Resistance</h2>
   <p class="notice">{{ section.notice }}</p>
   <p class="small">
+    Numerical quality: <code>{{ section.numerical_quality }}</code>.
     Claim state: <code>{{ section.claim_state }}</code>.
     Accepted uses: {% for use in section.accepted_uses %}<code>{{ use }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
   </p>

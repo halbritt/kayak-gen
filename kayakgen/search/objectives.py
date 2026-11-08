@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -44,6 +44,7 @@ class ObjectiveMetadata(BaseModel):
     role: ObjectiveRole
     display_format: str = "{value:.3f}"
     availability_conditions: list[str] = []
+    numerical_evidence_required: bool = False
     default_objective_eligible: bool = False
     within_evaluator_noise_threshold: float | None = None
     """RFC 0052 tolerance map entry. When two default-objective metric values
@@ -156,6 +157,7 @@ OBJECTIVE_METADATA: dict[str, ObjectiveMetadata] = {
     "Rt_N_last": ObjectiveMetadata(
         metric="Rt_N_last",
         label="Total resistance at last sweep speed",
+        numerical_evidence_required=True,
         unit="N",
         direction="min",
         source_evaluator="resistance",
@@ -414,3 +416,24 @@ def is_objective_metric_admissible(
         }
 
     return True, None
+
+
+def objective_has_numerical_evidence(metric: str, provenance: dict[str, Any]) -> bool:
+    """Require assessed numerics even when exploratory physical use is allowed."""
+    metadata = OBJECTIVE_METADATA.get(metric)
+    if metadata is None or not (metadata.numerical_evidence_required or metadata.source_evaluator == "resistance"):
+        return True
+    from pydantic import ValidationError
+    from kayakgen.eval.contract import NumericalQuality
+
+    details = provenance.get(metric)
+    if not isinstance(details, dict):
+        return False
+    quality = details.get("numerical_quality")
+    if quality is None:
+        return False
+    try:
+        assessed = NumericalQuality.model_validate(quality)
+    except ValidationError:
+        return False
+    return assessed.status == "converged"

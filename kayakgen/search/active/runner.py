@@ -282,7 +282,25 @@ def _build_pending_record(
     )
 
 
+def _record_has_numerical_evidence(
+    record: CandidateRecord, objectives: list[ObjectiveSpec]
+) -> bool:
+    from kayakgen.search.objectives import objective_has_numerical_evidence
+
+    return all(
+        objective_has_numerical_evidence(obj.metric, {
+            obj.metric: {"numerical_quality": record.summary.get("resistance_numerical_quality")}
+        })
+        for obj in objectives
+    )
+
+
 def _objective_value(record: CandidateRecord, metric: str) -> float | None:
+    from kayakgen.search.objectives import objective_has_numerical_evidence
+
+    provenance = {metric: {"numerical_quality": record.summary.get("resistance_numerical_quality")}}
+    if not objective_has_numerical_evidence(metric, provenance):
+        return None
     if metric in record.summary:
         value = record.summary.get(metric)
     elif metric in record.parameters:
@@ -608,7 +626,7 @@ def run_search(
             if reason is not None and termination_reason is None:
                 termination_reason = reason
             obj = _signed_objective(record, objectives)
-            feasible = record.status == "complete"
+            feasible = record.status == "complete" and _record_has_numerical_evidence(record, objectives)
             return individual.model_copy(
                 update={"objectives": obj, "feasible": feasible}
             )
@@ -764,7 +782,7 @@ def _build_generation_history(
         r for r in population_records if r.status == "constraint_failed"
     ]
     failed = [r for r in population_records if r.status == "failed"]
-    frontier_size = len(generation.fronts[0]) if generation.fronts else 0
+    frontier_size = len(_final_frontier_keys(evaluated, objectives, exploratory=True))
 
     summary: dict[str, dict[str, float]] = {}
     for obj in objectives:
@@ -1347,7 +1365,11 @@ def _final_frontier_keys(
     *,
     exploratory: bool,
 ) -> list[str]:
-    eligible = [r for r in records if r.status == "complete"]
+    eligible = [
+        r for r in records
+        if r.status == "complete"
+        and _record_has_numerical_evidence(r, objectives)
+    ]
     if not eligible:
         return []
     # Build minimize-direction tuples.

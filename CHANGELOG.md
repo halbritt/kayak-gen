@@ -18,6 +18,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   preflight dependencies and publish from staging into a new/empty directory;
   failed writes preserve prior files and cannot leave a stale completion manifest.
 
+- RFC 0072 / KAYGEN-7: finite evaluator output no longer implies numerical
+  convergence. Resistance quality defaults to unknown; exploratory search and
+  comparison retain diagnostics but require separate numerical evidence for
+  ranked frontiers. Physical claim and display-only gates remain unchanged.
+
 - RFC 0067 / KAYGEN-3: manifest-backed sweep/search/CFD outputs preserve run
   identity and expected hashes across index reconstruction. Same-basename runs
   remain distinct; reindex reports incomplete legacy provenance explicitly.

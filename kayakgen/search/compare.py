@@ -424,6 +424,7 @@ def _candidate_summary(root: Path, record: CandidateRecord) -> CandidateSummary:
         resistance_claim = claim_metadata_from_fields(resistance.metadata)
         accepted = claim_allows_calibrated_prediction(resistance_claim)
         provenance["Rt_N_last"] = {
+            "numerical_quality": resistance.metadata.numerical_quality.model_dump(mode="json"),
             "accepted_use": accepted,
             "accepted_use_values": resistance.metadata.accepted_uses,
             "claim_state": resistance_claim.claim_state,
@@ -437,6 +438,8 @@ def _candidate_summary(root: Path, record: CandidateRecord) -> CandidateSummary:
             "calibration_status": resistance.metadata.calibration_status,
             "model_family": resistance.metadata.model_family,
         }
+        if resistance.metadata.numerical_quality.status != "converged":
+            _append_once(warnings, "resistance numerical evidence is not adequate for ranking")
         for warning in resistance.metadata.warnings:
             _append_once(warnings, f"resistance: {warning}")
     elif "resistance_use" in record.summary:

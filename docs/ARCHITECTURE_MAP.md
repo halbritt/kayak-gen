@@ -379,3 +379,7 @@ Enforced by `tests/test_import_boundaries.py` and
 - `docs/SPEC.md` (invariants and schemas)
 - `docs/DECISION_LOG.md` (D001-D028)
 - `docs/rfcs/README.md` (RFC index)
+
+## Numerical admission boundary
+
+`NumericalQuality` in `eval.contract` is independent of physical claim metadata. `search.objectives.objective_has_numerical_evidence` owns per-result numerical admission, shared by Pareto and active-search inputs. Missing legacy evidence stays unknown; stored explicit stage flags never override admission.

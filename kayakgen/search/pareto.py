@@ -274,7 +274,13 @@ def pareto_front(
     The input objects are not mutated.
     """
 
-    annotated = [_with_objective_warnings(candidate, objectives) for candidate in candidates]
+    from kayakgen.search.objectives import objective_has_numerical_evidence
+
+    annotated = [
+        _with_objective_warnings(candidate, objectives)
+        for candidate in candidates
+        if all(objective_has_numerical_evidence(obj.metric, candidate.provenance) for obj in objectives)
+    ]
     front: list[CandidatePoint] = []
     for index, candidate in enumerate(annotated):
         if not any(
@@ -286,6 +292,10 @@ def pareto_front(
 
 
 def _has_usable_metric(candidate: CandidatePoint, objective: Objective) -> bool:
+    from kayakgen.search.objectives import objective_has_numerical_evidence
+
+    if not objective_has_numerical_evidence(objective.metric, candidate.provenance):
+        return False
     if objective.metric not in candidate.metrics:
         return False
     if objective.accepted_use_required and not _has_accepted_use(candidate, objective.metric):

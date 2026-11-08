@@ -231,7 +231,8 @@ def resistance_table_for_hull(
         "metadata": resistance.metadata.model_dump(mode="json"),
         "caption": (
             "Uncalibrated; no accepted final-prediction validity envelope. "
-            "Compare nearby candidates, do not report as drag."
+            f"Numerical quality: {resistance.metadata.numerical_quality.status}; "
+            "unassessed values are diagnostic-only."
         ),
     }
 
