@@ -370,10 +370,28 @@ Minimal sweep spec:
 
 The run directory contains `run.json`, `summary.csv`, `failures.jsonl`, the
 copied `spec.json`, and per-candidate artifacts under `candidates/`.
-Current sweep record statuses are `complete`, `failed`, `pending`, and
-`skipped` on resume. The `pending` state remains visible across resume; the
-CLI reports a pending count; pending and failed candidates remain in the
-comparison report but are frontier-ineligible.
+Current sweep outcomes are `complete`, `failed`, and `pending`. Reuse leaves
+completed outcomes and their comparison eligibility intact. `reused_count` and
+`reused_candidate_keys` describe reuse actions; the legacy `skipped_count` field
+is an alias for that count. Old candidate records marked `skipped` remain
+readable and frontier-ineligible; they are not automatically promoted.
+
+`run.json` reports `execution_state` (`running`, `complete`, `cancelled`, or
+`incomplete`), requested/processed candidate counts and `execution_errors`.
+The CLI displays state, scope and reuse count. A cancelled partial run retains
+its full requested count. Pending outcomes remain visible and make execution
+incomplete. Legacy absent execution fields mean unknown completion scope.
+Managed incomplete sweeps remain `resumable` with an explicit scope error;
+returning from the sweep function does not by itself make a job `succeeded`.
+Sweep job progress resets before replay so reused outcomes are counted once.
+
+Resume verifies candidate and required artifact bytes against recorded
+manifest/content hashes. Missing canonical files can be restored from matching
+content; missing all copies or corrupt bytes fail the invocation. Comparison
+also verifies the recorded content when an evaluation's canonical file is
+missing. Unknown legacy bindings cannot be inferred from current files: keep
+those runs for inspection and start in a new output directory. Run only one
+writer per directory, and do not invoke the CLI against an active managed job.
 
 Set `evaluators.stl: true` in a sweep spec to emit per-candidate open inspection
 surfaces. Each `complete` candidate gets `candidates/<key>/hull.stl` and

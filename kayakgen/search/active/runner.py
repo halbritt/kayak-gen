@@ -59,6 +59,7 @@ from kayakgen.search.active.spec import (
     UniformVariable,
     load_search_spec,
 )
+from kayakgen.search.candidate_reuse import CandidateReuseUnavailable, load_finalized_candidates
 from kayakgen.search.objectives import DEFAULT_OBJECTIVE_METRICS, OBJECTIVE_METADATA
 from kayakgen.search.pareto import (
     Objective,
@@ -441,6 +442,10 @@ def run_search(
         out, kind="search", spec_hash=spec_h_pre, run_hash_value=run_hash_value,
     )
     run_id = store.run_id
+    if resume and (out / "run.json").exists() and "run.json" not in store.manifest.artifacts:
+        raise CandidateReuseUnavailable(
+            "legacy run provenance is unknown; preserve it and use a new output directory"
+        )
     store.put_json("search_run_record", spec, canonical_path=out / "spec.json")
 
     objectives = resolve_objectives(spec)
@@ -478,16 +483,7 @@ def run_search(
     if state is None:
         state = _RunnerState(seed=spec.algorithm.seed)
 
-    records_by_key: dict[str, CandidateRecord] = {}
-    # If resuming, pre-load existing records that were already finalised.
-    if resume:
-        for path in sorted((out / "candidates").glob("*.record.json")):
-            try:
-                rec = CandidateRecord.model_validate_json(path.read_text())
-            except ValidationError:
-                continue
-            if rec.status in ("complete", "failed", "constraint_failed"):
-                records_by_key[rec.candidate_key] = rec
+    records_by_key = load_finalized_candidates(store) if resume else {}
 
     # ---- Replay pending queue first (resume) -------------------------------
     pending_queue: list[_PendingEntry] = list(state.pending_queue)
@@ -976,15 +972,7 @@ def _run_ehvi_search(
     py_rng = random.Random(algorithm.seed)
     np_rng = np.random.default_rng(algorithm.seed)
 
-    records_by_key: dict[str, CandidateRecord] = {}
-    if resume:
-        for path in sorted((out / "candidates").glob("*.record.json")):
-            try:
-                rec = CandidateRecord.model_validate_json(path.read_text())
-            except ValidationError:
-                continue
-            if rec.status in ("complete", "failed", "constraint_failed"):
-                records_by_key[rec.candidate_key] = rec
+    records_by_key = load_finalized_candidates(store) if resume else {}
 
     evaluations = sum(1 for r in records_by_key.values() if r.status != "pending")
     termination_reason: TerminationReason | None = None

@@ -315,18 +315,30 @@ def test_failed_candidates_remain_visible_but_not_frontier_members(tmp_path: Pat
     assert "candidate status not eligible for pareto: failed" in summary.warnings
 
 
-def test_skipped_candidates_remain_visible_but_not_frontier_members(tmp_path: Path) -> None:
+def test_reused_completed_candidates_remain_eligible_frontier_members(tmp_path: Path) -> None:
     run_sweep(_spec(), tmp_path)
+    before = build_comparison_report(tmp_path)
     run_sweep(_spec(), tmp_path, resume=True)
 
     report = build_comparison_report(tmp_path)
 
+    assert report.pareto_front_keys == before.pareto_front_keys
+    assert report.pareto_front_keys
+    assert {summary.status for summary in report.candidate_summaries} == {"complete"}
+
+
+def test_legacy_skipped_candidates_are_not_promoted_to_completed(tmp_path: Path) -> None:
+    _write_run_with_pending_candidate(tmp_path)
+    run = SweepRunRecord.model_validate_json((tmp_path / "run.json").read_bytes())
+    records = [record.model_copy(update={"status": "skipped"}) for record in run.candidates]
+    historical = run.model_copy(update={
+        "candidates": records, "completed_count": 0, "pending_count": 0, "skipped_count": 2,
+    })
+    (tmp_path / "run.json").write_text(historical.model_dump_json())
+    report = build_comparison_report(tmp_path)
     assert report.pareto_front_keys == []
     assert {summary.status for summary in report.candidate_summaries} == {"skipped"}
-    assert all(
-        "candidate status not eligible for pareto: skipped" in summary.warnings
-        for summary in report.candidate_summaries
-    )
+    assert "legacy sweep completion scope is unknown" in report.warnings
 
 
 def test_pending_candidates_remain_visible_but_not_frontier_members(tmp_path: Path) -> None:

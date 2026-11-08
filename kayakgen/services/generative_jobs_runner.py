@@ -173,6 +173,7 @@ def _run_owned(jobs_root: Path, job_id: str, *, resume: bool) -> int:
     output_dir = Path(running.output_dir)
     sink = _FileBackedSink(jobs_root=jobs_root, job_id=job_id)
     error: GenerativeJobError | None = None
+    sweep_result = None
     try:
         if _hash_spec_payload(spec_payload) != running.spec_hash:
             raise ValueError("persisted spec differs from the admitted job request")
@@ -188,7 +189,7 @@ def _run_owned(jobs_root: Path, job_id: str, *, resume: bool) -> int:
             from kayakgen.search.sweep import SweepSpec, run_sweep
 
             sweep_spec = SweepSpec.model_validate(spec_payload)
-            run_sweep(sweep_spec, output_dir, resume=resume, progress_sink=sink)
+            sweep_result = run_sweep(sweep_spec, output_dir, resume=resume, progress_sink=sink)
         else:  # pragma: no cover - JobKind is a Literal
             raise ValueError(f"unknown job_kind={running.job_kind!r}")
     except Exception as exc:  # noqa: BLE001 - re-classify at boundary
@@ -202,6 +203,13 @@ def _run_owned(jobs_root: Path, job_id: str, *, resume: bool) -> int:
         error = GenerativeJobError(
             kind="cancelled_by_operator",
             message="cancellation requested via subprocess manager flag",
+        )
+    elif sweep_result is not None and sweep_result.execution_state != "complete":
+        terminal_state = "resumable"
+        error = GenerativeJobError(
+            kind="internal_error",
+            message=f"sweep execution incomplete: {sweep_result.processed_candidate_count}/"
+            f"{sweep_result.requested_candidate_count} processed, {sweep_result.pending_count} pending",
         )
     else:
         terminal_state = "succeeded"

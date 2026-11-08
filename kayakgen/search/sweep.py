@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:  # pragma: no cover - import only for type hints
+    from kayakgen.services.artifact_store import FilesystemArtifactStore
     from kayakgen.services.generative_jobs import GenerativeJobProgressSink
 
 import numpy as np
@@ -30,11 +31,16 @@ from kayakgen.eval.sweep_artifacts import (
 from kayakgen.io.json import write_text_atomic, save_evaluation, save_hull
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import DesignValidityReport, evaluate_design_validity
+from kayakgen.search.candidate_reuse import (
+    CandidateReuseUnavailable as SweepReuseUnavailable,
+    load_reusable_candidate,
+)
 from kayakgen.search.objectives import OBJECTIVE_METADATA
 from kayakgen.search.pareto import HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS
 
 ParameterKind = Literal["values", "linspace"]
 CandidateStatus = Literal["pending", "complete", "failed", "skipped", "constraint_failed"]
+SweepExecutionState = Literal["running", "complete", "cancelled", "incomplete"]
 
 
 class ParameterSweep(BaseModel):
@@ -161,6 +167,37 @@ class SweepRunRecord(BaseModel):
     failed_count: int
     skipped_count: int
     candidates: list[CandidateRecord]
+    execution_state: SweepExecutionState | None = None
+    requested_candidate_count: int | None = Field(default=None, ge=0)
+    processed_candidate_count: int | None = Field(default=None, ge=0)
+    reused_count: int | None = Field(default=None, ge=0)
+    reused_candidate_keys: list[str] = Field(default_factory=list)
+    execution_errors: list[str] = Field(default_factory=list)
+    previous_run_artifact_hash: str | None = None
+
+    @model_validator(mode="after")
+    def _execution_scope_matches_outcomes(self) -> "SweepRunRecord":
+        if self.execution_state is None:
+            return self
+        processed = len(self.candidates)
+        if (self.requested_candidate_count is None or self.processed_candidate_count != processed
+                or self.candidate_count != processed or self.requested_candidate_count < processed):
+            raise ValueError("execution scope must name the requested and processed candidate sets")
+        if self.reused_count != len(self.reused_candidate_keys) or self.skipped_count != self.reused_count:
+            raise ValueError("reuse count must match its execution keys")
+        complete = {r.candidate_key for r in self.candidates if r.status == "complete"}
+        if not set(self.reused_candidate_keys).issubset(complete):
+            raise ValueError("only completed outcomes can be reused")
+        if (self.completed_count != sum(r.status == "complete" for r in self.candidates)
+                or self.pending_count != sum(r.status == "pending" for r in self.candidates)
+                or self.failed_count != sum(r.status == "failed" for r in self.candidates)):
+            raise ValueError("outcome counts must match candidate scientific states")
+        if self.execution_state == "complete" and (
+            processed != self.requested_candidate_count or self.pending_count != 0
+            or any(r.status == "skipped" for r in self.candidates) or self.execution_errors
+        ):
+            raise ValueError("complete execution must resolve the entire requested scope")
+        return self
 
 
 def load_sweep_spec(path: str | Path) -> SweepSpec:
@@ -201,16 +238,15 @@ def run_sweep(
     :class:`kayakgen.services.artifact_store.FilesystemArtifactStore`
     (RFC 0049) so the run directory gains a ``_store/`` content-addressed
     mirror and the SQLite index records the run + candidates + metrics +
-    artifacts. The canonical paths under ``out_dir`` remain byte-stable
-    with prior releases.
+    artifacts. Canonical artifact paths retain their existing layout.
 
     ``progress_sink`` is an optional :class:`GenerativeJobProgressSink`
     (RFC 0057). When provided, the runner calls
     ``progress_sink.candidate_completed(...)`` after every candidate
     write and checks ``progress_sink.should_cancel()`` between
     emissions; a ``True`` cancel breaks the iteration loop after the
-    in-flight candidate finishes. Default ``progress_sink=None`` is
-    byte-equal to the historical runner.
+    in-flight candidate finishes. Default ``progress_sink=None``
+    leaves progress publication disabled.
     """
     from kayakgen import __version__ as kayakgen_version
     from kayakgen.services.artifact_store import (
@@ -219,6 +255,7 @@ def run_sweep(
     )
     from kayakgen.services.identity import run_hash as compute_run_hash
 
+    expanded = expand_candidates(spec)
     out = Path(out_dir)
     candidates_dir = out / "candidates"
     candidates_dir.mkdir(parents=True, exist_ok=True)
@@ -231,90 +268,95 @@ def run_sweep(
         out, kind="sweep", spec_hash=spec_hash_value, run_hash_value=run_hash_value,
     )
     run_id = store.run_id
+    prior_run = store.manifest.artifacts.get("run.json")
+    if resume and (out / "run.json").exists() and prior_run is None:
+        raise SweepReuseUnavailable("legacy run provenance is unknown; preserve it and use a new output directory")
     store.put_json("sweep_run_record", spec, canonical_path=out / "spec.json")
-
-    records: list[CandidateRecord] = []
-    failures: list[CandidateRecord] = []
-    cancelled = False
-    for index, candidate_key, params, attempted in expand_candidates(spec):
-        if cancelled:
-            break
-        record_path = candidates_dir / f"{candidate_key}.record.json"
-        if resume and record_path.exists():
-            prior = CandidateRecord.model_validate_json(record_path.read_text())
-            if prior.status == "complete":
-                records.append(prior.model_copy(update={"status": "skipped"}))
-                continue
-            if prior.status == "pending":
-                records.append(prior)
-                continue
-
-        try:
-            hull = Hull(**attempted)
-            record = _evaluate_candidate(
-                hull=hull,
-                spec=spec,
-                index=index,
-                candidate_key=candidate_key,
-                params=params,
-                attempted=attempted,
-                out=out,
-                store=store,
-            )
-        except (ValidationError, ValueError) as exc:
-            record = CandidateRecord(
-                candidate_index=index,
-                candidate_key=candidate_key,
-                parameters=params,
-                attempted_hull=attempted,
-                status="failed",
-                evaluator_settings=spec.evaluators.model_dump(mode="json"),
-                evaluator_versions={"sweep_schema": "1"},
-                error=str(exc),
-            )
-            failures.append(record)
-
-        store.put_json(
-            "candidate_record",
-            record,
-            candidate_key=candidate_key,
-            canonical_path=record_path,
-        )
-        records.append(record)
-        if progress_sink is not None:
-            progress_sink.candidate_completed(
-                candidate_key=record.candidate_key,
-                status=record.status,
-                generation=None,
-                iteration=index,
-                realized_evaluations=len(records),
-            )
-            if progress_sink.should_cancel():
-                cancelled = True
-
     run = SweepRunRecord(
-        name=spec.name,
-        spec_hash=spec_hash_value,
-        candidate_count=len(records),
-        pending_count=sum(1 for record in records if record.status == "pending"),
-        completed_count=sum(1 for record in records if record.status == "complete"),
-        failed_count=sum(1 for record in records if record.status == "failed"),
-        skipped_count=sum(1 for record in records if record.status == "skipped"),
-        candidates=records,
+        name=spec.name, spec_hash=spec_hash_value, candidate_count=0,
+        pending_count=0, completed_count=0, failed_count=0, skipped_count=0,
+        candidates=[], execution_state="running", requested_candidate_count=len(expanded),
+        processed_candidate_count=0, reused_count=0,
+        previous_run_artifact_hash=prior_run.artifact_hash if prior_run is not None else None,
     )
     store.put_json("sweep_run_record", run, canonical_path=out / "run.json")
-    _write_summary(out / "summary.csv", records)
-    store.put_file("sweep_summary_csv", out / "summary.csv")
-    failures_target = failures or [r for r in records if r.status == "failed"]
-    _write_failures(out / "failures.jsonl", failures_target)
-    store.put_file("sweep_failures_jsonl", out / "failures.jsonl")
-
-    index_candidates(
-        run_id=run_id,
-        candidate_rows=[_index_row_for_candidate(rec) for rec in records],
-        index=store.index,
-    )
+    cancelled = False
+    try:
+        for index, candidate_key, params, attempted in expanded:
+            if cancelled:
+                break
+            record = load_reusable_candidate(store, candidate_key) if resume else None
+            if record is not None and record.status in ("complete", "pending"):
+                if record.parameters != params or record.attempted_hull != attempted:
+                    raise SweepReuseUnavailable(f"cached candidate differs from requested inputs: {candidate_key}")
+                if record.status == "complete":
+                    run.reused_candidate_keys.append(candidate_key)
+            else:
+                request = CandidateRecord(
+                    candidate_index=index, candidate_key=candidate_key, parameters=params,
+                    attempted_hull=attempted, status="pending",
+                )
+                record = _run_candidate(spec, request, store)
+            run.candidates.append(record)
+            if progress_sink is not None:
+                progress_sink.candidate_completed(
+                    candidate_key=record.candidate_key, status=record.status,
+                    generation=None, iteration=index, realized_evaluations=len(run.candidates),
+                )
+                cancelled = progress_sink.should_cancel()
+        state = ("cancelled" if cancelled else "incomplete"
+                 if any(record.status == "pending" for record in run.candidates) else "complete")
+        run = _execution_snapshot(run, state)
+        _write_summary(out / "summary.csv", run.candidates)
+        store.put_file("sweep_summary_csv", out / "summary.csv")
+        _write_failures(out / "failures.jsonl", [r for r in run.candidates if r.status == "failed"])
+        store.put_file("sweep_failures_jsonl", out / "failures.jsonl")
+        index_candidates(
+            run_id=run_id, candidate_rows=[_index_row_for_candidate(rec) for rec in run.candidates],
+            index=store.index,
+        )
+        # Completion is published after every required bundle output.
+        store.put_json("sweep_run_record", run, canonical_path=out / "run.json")
+    except Exception as exc:
+        incomplete = _execution_snapshot(run, "incomplete", errors=[str(exc)])
+        store.put_json("sweep_run_record", incomplete, canonical_path=out / "run.json")
+        raise
     return run
+
+
+def _execution_snapshot(
+    run: SweepRunRecord, state: SweepExecutionState, *, errors: list[str] | None = None,
+) -> SweepRunRecord:
+    return SweepRunRecord.model_validate({**run.model_dump(mode="json"),
+        "execution_state": state, "execution_errors": errors or [],
+        "candidate_count": len(run.candidates), "processed_candidate_count": len(run.candidates),
+        "pending_count": sum(r.status == "pending" for r in run.candidates),
+        "completed_count": sum(r.status == "complete" for r in run.candidates),
+        "failed_count": sum(r.status == "failed" for r in run.candidates),
+        "skipped_count": len(run.reused_candidate_keys), "reused_count": len(run.reused_candidate_keys),
+    })
+
+
+def _run_candidate(
+    spec: SweepSpec, request: CandidateRecord, store: "FilesystemArtifactStore",
+) -> CandidateRecord:
+    try:
+        record = _evaluate_candidate(
+            hull=Hull(**request.attempted_hull), spec=spec, index=request.candidate_index,
+            candidate_key=request.candidate_key, params=request.parameters,
+            attempted=request.attempted_hull, out=store.run_dir, store=store,
+        )
+    except (ValidationError, ValueError) as exc:
+        record = request.model_copy(update={
+            "status": "failed", "evaluator_settings": spec.evaluators.model_dump(mode="json"),
+            "evaluator_versions": {"sweep_schema": "1"}, "error": str(exc),
+        })
+    store.put_json(
+        "candidate_record", record, candidate_key=record.candidate_key,
+        canonical_path=store.run_dir / "candidates" / f"{record.candidate_key}.record.json",
+    )
+    return record
+
 
 
 def _index_row_for_candidate(record: CandidateRecord) -> dict[str, Any]:

@@ -64,12 +64,16 @@ def test_sweep_resume_reports_pending_count(tmp_path) -> None:
     record_path = next(run_dir.glob("*.record.json"))
     record = json.loads(record_path.read_text())
     record["status"] = "pending"
-    record_path.write_text(json.dumps(record, indent=2))
+    FilesystemArtifactStore(out).put_json(
+        "candidate_record", record, candidate_key=record["candidate_key"],
+        canonical_path=record_path,
+    )
 
     result = runner.invoke(app, ["sweep", str(sweep), "--out", str(out), "--resume"])
 
     assert result.exit_code == 0
     assert "1 pending" in result.stdout
+    assert "incomplete, 1/1 processed" in result.stdout
 
 
 def test_compare_writes_report_for_sweep_run(tmp_path) -> None:

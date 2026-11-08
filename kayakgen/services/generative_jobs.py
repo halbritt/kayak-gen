@@ -769,6 +769,13 @@ class InProcessGenerativeJobManager:
                     "started_at": started_at,
                 }
             )
+            if resume and job.job_kind == "sweep":
+                # Sweep resume emits the whole requested scope, including
+                # verified reuse; these counters describe that replay once.
+                running = running.model_copy(update={"progress": GenerativeJobProgress(
+                    budget_max_evaluations=job.progress.budget_max_evaluations,
+                    last_update_at=float(time.time()),
+                )})
             self._persist_job(running)
         self._append_log(
             job_id, f"job {job_id} state=running resume={resume}"
@@ -780,6 +787,7 @@ class InProcessGenerativeJobManager:
         job_kind = self.get(job_id).job_kind
         output_dir = Path(self.get(job_id).output_dir)
         error: GenerativeJobError | None = None
+        sweep_result = None
         try:
             if job_kind == "search":
                 spec_in = output_dir / "spec.in.json"
@@ -793,7 +801,7 @@ class InProcessGenerativeJobManager:
                 )
             elif job_kind == "sweep":
                 sweep_spec = SweepSpec.model_validate(spec_payload)
-                run_sweep(
+                sweep_result = run_sweep(
                     sweep_spec,
                     output_dir,
                     resume=resume,
@@ -812,6 +820,13 @@ class InProcessGenerativeJobManager:
             error = GenerativeJobError(
                 kind="cancelled_by_operator",
                 message="cancellation requested via manager",
+            )
+        elif sweep_result is not None and sweep_result.execution_state != "complete":
+            terminal_state = "resumable"
+            error = GenerativeJobError(
+                kind="internal_error",
+                message=f"sweep execution incomplete: {sweep_result.processed_candidate_count}/"
+                f"{sweep_result.requested_candidate_count} processed, {sweep_result.pending_count} pending",
             )
         else:
             terminal_state = "succeeded"

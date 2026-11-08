@@ -15,6 +15,14 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 - RFC 0078: wheels include the design-report and OpenFOAM runtime templates,
   so installed packages can render reports and case dictionaries.
 
+- RFC 0076 / KAYGEN-12: resume preserves completed candidate outcomes and
+  frontier eligibility. Sweep records report requested/processed scope,
+  cancellation, incomplete execution and reuse separately. Sweep and active
+  search verify cached evidence and restore missing canonical files only from
+  recorded trusted bytes; unavailable or corrupt evidence refuses reuse.
+  Concurrent index initialization now serializes schema checks and mutations,
+  preventing one opener from deleting another's freshly committed tables.
+
 - RFC 0068 / KAYGEN-6: v2 physical identity now binds its complete nested
   distribution spec with the explicit `distribution_v2_v2:` scheme. Lofted,
   record and content hashes remain unchanged; old ambiguous v2 evidence is

@@ -2,6 +2,12 @@
 
 Updated: 2026-05-25
 
+RFC 0076 / KAYGEN-12 landed verified sweep/search candidate reuse and explicit
+sweep execution scope. No-op resume preserves outcomes and comparison eligibility;
+missing canonical files recover only from recorded trusted content. Automatic
+manager resume requires RFC 0075 ownership admission. Authenticated provenance,
+multi-writer repair and universal crash/power-loss guarantees remain separate work.
+
 RFC 0068 / KAYGEN-6 landed the v2 physical-identity correction: complete nested
 inputs and an explicit scheme, with unchanged lofted/record/content identity and
 no historical evidence reacceptance. This closes the identity slice; evaluation

@@ -11,6 +11,7 @@ from kayakgen.model.hull import Hull
 from kayakgen.model.validity import CODE_L_BWL_LOW
 from kayakgen.search.objectives import DEFAULT_OBJECTIVE_METRICS
 from kayakgen.search.sweep import CandidateRecord, SweepSpec, expand_candidates, run_sweep
+from kayakgen.services.artifact_store import FilesystemArtifactStore
 
 
 def _spec() -> SweepSpec:
@@ -51,10 +52,11 @@ def test_run_sweep_writes_records_and_summary(tmp_path: Path) -> None:
         assert (tmp_path / record.artifacts["evaluation"]).exists()
 
 
-def test_resume_marks_completed_records_as_skipped(tmp_path: Path) -> None:
+def test_resume_preserves_completed_records_and_counts_reuse(tmp_path: Path) -> None:
     run_sweep(_spec(), tmp_path)
     resumed = run_sweep(_spec(), tmp_path, resume=True)
-    assert resumed.completed_count == 0
+    assert resumed.completed_count == 2
+    assert resumed.reused_count == 2
     assert resumed.skipped_count == 2
 
 
@@ -62,13 +64,17 @@ def test_resume_preserves_pending_records(tmp_path: Path) -> None:
     run = run_sweep(_spec(), tmp_path)
     record_path = tmp_path / "candidates" / f"{run.candidates[0].candidate_key}.record.json"
     record = CandidateRecord.model_validate_json(record_path.read_text())
-    record_path.write_text(record.model_copy(update={"status": "pending"}).model_dump_json(indent=2))
+    FilesystemArtifactStore(tmp_path).put_json(
+        "candidate_record", record.model_copy(update={"status": "pending"}),
+        candidate_key=record.candidate_key, canonical_path=record_path,
+    )
 
     resumed = run_sweep(_spec(), tmp_path, resume=True)
 
     assert resumed.pending_count == 1
-    assert resumed.completed_count == 0
+    assert resumed.completed_count == 1
     assert resumed.skipped_count == 1
+    assert resumed.execution_state == "incomplete"
     assert resumed.candidates[0].status == "pending"
     assert CandidateRecord.model_validate_json(record_path.read_text()).status == "pending"
 
@@ -272,7 +278,10 @@ def test_sweep_stl_pending_candidate_skips_artifacts(tmp_path: Path) -> None:
         for stl in candidate_dir.glob("*.stl"):
             stl.unlink()
     pending = target.model_copy(update={"status": "pending", "stl_artifacts": None})
-    record_path.write_text(pending.model_dump_json(indent=2))
+    FilesystemArtifactStore(tmp_path).put_json(
+        "candidate_record", pending, candidate_key=target.candidate_key,
+        canonical_path=record_path,
+    )
 
     resumed = run_sweep(spec, tmp_path, resume=True)
 
@@ -380,7 +389,10 @@ def test_sweep_high_angle_gz_pending_candidate_skips_artifact(tmp_path: Path) ->
         for stale in candidate_dir.glob("high_angle_gz.json"):
             stale.unlink()
     pending = target.model_copy(update={"status": "pending", "high_angle_gz_artifact": None})
-    record_path.write_text(pending.model_dump_json(indent=2))
+    FilesystemArtifactStore(tmp_path).put_json(
+        "candidate_record", pending, candidate_key=target.candidate_key,
+        canonical_path=record_path,
+    )
 
     resumed = run_sweep(spec, tmp_path, resume=True)
 
@@ -404,9 +416,10 @@ def test_sweep_high_angle_gz_resume_preserves_existing_artifact(tmp_path: Path) 
 
     resumed = run_sweep(spec, tmp_path, resume=True)
     assert resumed.skipped_count == 2
-    assert resumed.completed_count == 0
+    assert resumed.reused_count == 2
+    assert resumed.completed_count == 2
     for record in resumed.candidates:
-        assert record.status == "skipped"
+        assert record.status == "complete"
         assert record.high_angle_gz_artifact is not None
         artifact_path = tmp_path / record.high_angle_gz_artifact.path
         prior_bytes, prior_mtime = fingerprints[record.candidate_key]
@@ -463,11 +476,11 @@ def test_sweep_stl_resume_preserves_existing_artifacts(tmp_path: Path) -> None:
 
     resumed = run_sweep(spec, tmp_path, resume=True)
     assert resumed.skipped_count == 2
-    assert resumed.completed_count == 0
+    assert resumed.reused_count == 2
+    assert resumed.completed_count == 2
     for record in resumed.candidates:
-        assert record.status == "skipped"
-        # The completed-run record carried stl_artifacts forward; the skipped
-        # resume copy must preserve them rather than dropping them.
+        assert record.status == "complete"
+        # Reuse retains the completed outcome and its construction artifacts.
         assert record.stl_artifacts is not None
         hull_path = tmp_path / record.stl_artifacts.hull.path
         deck_path = tmp_path / record.stl_artifacts.deck.path

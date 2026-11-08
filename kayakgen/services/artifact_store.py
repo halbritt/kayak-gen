@@ -187,6 +187,8 @@ class ArtifactStore(Protocol):
 
     def get_file(self, ref: ArtifactRef) -> Path: ...
 
+    def restore_artifact(self, ref: ArtifactRef) -> bytes: ...
+
     def record_event(self, run_id: str, event: RunEvent) -> None: ...
 
     def query_candidates(
@@ -253,6 +255,10 @@ class SqliteIndex:
         Current/newer stamps never drop rows or downgrade the stamp.
         """
 
+        # Serialize the version observation and every schema mutation across
+        # independent instances/processes. Otherwise two new openers can both
+        # observe zero and one can drop the other's freshly committed tables.
+        conn.execute("BEGIN IMMEDIATE")
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         if version == 1:
             self._migrate_occurrences(conn)
@@ -368,7 +374,8 @@ class SqliteIndex:
 
     def _migrate_occurrences(self, conn: sqlite3.Connection) -> None:
         """Preserve surviving v1 hash bindings without reading canonical bytes."""
-        conn.execute("BEGIN IMMEDIATE")
+        if not conn.in_transaction:
+            conn.execute("BEGIN IMMEDIATE")
         # A second opener may have completed the migration while we waited.
         if conn.execute("PRAGMA user_version").fetchone()[0] != 1:
             return
@@ -1294,6 +1301,21 @@ class FilesystemArtifactStore:
         raise FileNotFoundError(
             f"artifact {ref.artifact_hash} not found under {self.store_dir}"
         )
+
+    def restore_artifact(self, ref: ArtifactRef) -> bytes:
+        """Restore a canonical mirror from the exact recorded, verified bytes.
+
+        This explicit repair leaves occurrence metadata and expected hashes
+        unchanged. Its returned bytes are the verified snapshot, not a later
+        reread of the restored path.
+        """
+        _, data = self._resolve_artifact(ref)
+        canonical = self._canonical_path_for_ref(ref)
+        if canonical is None:
+            raise ValueError("artifact has no recorded canonical path to restore")
+        if not canonical.exists() or _hash_bytes(canonical.read_bytes()) != ref.artifact_hash:
+            _atomic_write_bytes(canonical, data)
+        return data
 
     def get_json(self, ref: ArtifactRef) -> dict[str, Any]:
         """Decode the exact rehash-verified bytes (D050; MF-1).

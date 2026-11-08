@@ -175,7 +175,7 @@ def load_sweep_run(run_dir: str | Path) -> SweepRunRecord:
     """Load a sweep run from ``run.json``."""
     root = Path(run_dir)
     run_path = root / "run.json"
-    if not run_path.exists():
+    if not run_path.exists() and not (root / "_store").is_dir():
         raise ValueError(f"missing sweep run record: {run_path}")
     payload = _load_json_artifact(
         root,
@@ -264,6 +264,13 @@ def build_comparison_report(
         )
 
     report_warnings: list[str] = []
+    if run.execution_state is None:
+        report_warnings.append("legacy sweep completion scope is unknown")
+    elif run.execution_state != "complete":
+        report_warnings.append(
+            f"sweep execution {run.execution_state}: {run.processed_candidate_count}/"
+            f"{run.requested_candidate_count} candidates processed"
+        )
     if not selected_objectives:
         report_warnings.append("no default objectives available")
     for objective in selected_objectives:
@@ -603,9 +610,6 @@ def _optional_float(value: Any) -> float | None:
 def _load_evaluation(root: Path, record: CandidateRecord) -> EvaluationResult | None:
     eval_rel = record.artifacts.get("evaluation")
     if not eval_rel:
-        return None
-    eval_path = root / eval_rel
-    if not eval_path.exists():
         return None
     payload = _load_json_artifact(
         root,

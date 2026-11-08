@@ -109,9 +109,10 @@ kayakgen/
 │   │   └── runner.py            algorithm dispatch + run-record writer
 │   ├── compare.py               ComparisonReport + high_angle_gz_display
 │   │                            (claim-admissibility gate per D048/RFC 0044)
+│   ├── candidate_reuse.py       verified outcome admission + canonical repair
 │   ├── objectives.py            OBJECTIVE_METADATA registry
 │   ├── pareto.py                Objective gates + RFC 0043/0044 refusal tokens
-│   └── sweep.py                 SweepSpec, CandidateRecord, pending lifecycle
+│   └── sweep.py                 SweepSpec, CandidateRecord, explicit execution scope
 ├── services/                 # Application services (no UI/CLI deps)
 │   ├── design.py                hull-state assembly, presets, validity badges
 │   ├── evaluation.py            metrics + independent hydro/resistance view models +

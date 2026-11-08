@@ -722,7 +722,7 @@ def sweep(
         "--out",
         help="Output directory for generated candidates.",
     ),
-    resume: bool = typer.Option(False, "--resume", help="Skip completed candidate records."),
+    resume: bool = typer.Option(False, "--resume", help="Reuse verified completed outcomes."),
 ) -> None:
     """Run a deterministic JSON sweep and write candidate records."""
     from kayakgen.search.sweep import load_sweep_spec, run_sweep
@@ -734,7 +734,8 @@ def sweep(
         raise typer.Exit(code=1)
     typer.echo(
         f"wrote {out} ({run.completed_count} complete, {run.failed_count} failed, "
-        f"{run.skipped_count} skipped, {run.pending_count} pending)"
+        f"{run.reused_count} reused, {run.pending_count} pending; "
+        f"{run.execution_state}, {run.processed_candidate_count}/{run.requested_candidate_count} processed)"
     )
 
 
