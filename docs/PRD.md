@@ -43,7 +43,7 @@ This section describes current behavior, not the whole roadmap.
   sibling.
 - Ends taper using a prismatic-coefficient-derived area curve. The centre parallel mid-body fraction is configurable.
 - Class presets (touring sea kayak, performance sea kayak, intermediate surfski, elite surfski) seed a hull at sensible defaults derived from `docs/design/kayak_hull_design_constraints.md`. Users can deviate from the preset; surfaced constraint checks are advisory and still incomplete in the desktop GUI.
-- Hull body and deck are exported as separate binary STL surfaces suitable for inspection, CAD import, or downstream packaging. Default generated mesh packages remain open-surface candidates; only the narrow fixture-backed volume-mesh evidence path can report `cfd_ready`.
+- Hull body and deck are exported as separate binary STL surfaces suitable for inspection, CAD import, or downstream packaging. RFC 0069 records full source Hull record identity, metre units and part name in each binary header. Default generated mesh packages remain open-surface candidates; only the narrow fixture-backed volume-mesh evidence path can report `cfd_ready`.
 
 ### Evaluation
 

@@ -32,7 +32,9 @@ remain open inspection surfaces, not closed bodies or CFD readiness evidence.
 The STL writer serializes `HullGeometry.mesh()` arrays into the same
 numpy-stl triangle format used by the legacy convenience method. It stages
 one file beside its destination before replacement so serialization failure
-preserves a prior artifact. Each file keeps metre coordinates.
+preserves a prior artifact. Each file keeps metre coordinates. Its 80-byte
+binary STL header is `sha256:<full Hull record hash> m <part>`, padded with
+spaces; triangle bytes remain compatible with the lofted golden payloads.
 
 Builder writers declare their existing closed-section and curve needs as a
 structural `SectionExportGeometry` capability. Both lofted and distribution_v2

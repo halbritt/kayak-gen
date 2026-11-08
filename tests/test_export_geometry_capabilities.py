@@ -184,3 +184,17 @@ def test_v2_mold_layout_uses_actual_section_width_and_depth(tmp_path: Path) -> N
     scale_bars = [e for e in doc.modelspace().query("LINE") if abs(e.dxf.end.x - e.dxf.start.x) == 100.0]
     assert len(scale_bars) == 3
     assert all(e.dxf.start.y < -300.0 for e in scale_bars)
+
+
+@pytest.mark.parametrize("part", ["hull", "deck"])
+@pytest.mark.parametrize("kind", ["lofted", "distribution_v2"])
+def test_stl_binary_header_binds_source_record_units_and_part(tmp_path: Path, part: str, kind: str) -> None:
+    from kayakgen.io.stl import write_stl
+
+    hull = Hull() if kind == "lofted" else _hull("round")
+    path = tmp_path / f"{kind}-{part}.stl"
+    write_stl(hull, part, path)
+    assert path.read_bytes()[:80].decode("ascii").rstrip() == f"sha256:{hull.record_hash()} m {part}"
+    actual = stl_mesh.Mesh.from_file(str(path))
+    vertices, faces = hull.to_geometry().mesh(part)
+    np.testing.assert_allclose(actual.vectors, vertices[faces], rtol=1e-6, atol=1e-7)

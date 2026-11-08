@@ -410,3 +410,7 @@ mass/trim solving. Hydrostatics and resistance share the posed geometry.
 Physical Hull identity remains separate from operating state.
 
 RFC 0073: eval.contract.EvaluationContext is an immutable value object embedded in EvaluationResult. services.evaluation.evaluate_with_context is the shared CLI/sweep/REST/explicit-UI entry. design_report renders supplied records; no new analytic request store or lifecycle is introduced.
+
+RFC 0069 standalone binary STL headers bind each surface to its full Hull
+record SHA-256, metre coordinates and part name; triangle payloads retain the
+legacy format. Existing recorded artifacts are not rewritten on read.

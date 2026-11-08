@@ -112,7 +112,8 @@ kayakgen generate hull.json --stl-out build/example
 Without `--stl-out`, the prefix is the hull path without `.json`. Both
 `lofted` and `distribution_v2` geometry are supported, including every admitted
 v2 section family. STL coordinates are metres; the hull and deck remain
-separate open inspection surfaces. A serialization failure preserves any
+separate open inspection surfaces. The binary STL header records the full
+Hull record SHA-256, `m` units and `hull`/`deck` part name. A serialization failure preserves any
 previous file at that part's destination (RFC 0069).
 
 ### `evaluate`

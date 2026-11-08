@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from typing import Literal
 
 import numpy as np
-from stl import mesh as numpy_stl_mesh
+from stl import Mode, mesh as numpy_stl_mesh
 
 from kayakgen.model.hull import Hull
 
@@ -23,5 +23,8 @@ def write_stl(hull: Hull, part: PartType, path: str | Path) -> None:
     # Keep a prior artifact intact if serialization fails before replacement.
     with TemporaryDirectory(dir=destination.parent, prefix=".kayakgen-stl-") as staging:
         temporary_path = Path(staging) / destination.name
-        mesh_obj.save(str(temporary_path))
+        mesh_obj.save(str(temporary_path), mode=Mode.BINARY)
+        header = f"sha256:{hull.record_hash()} m {part}".encode("ascii").ljust(80, b" ")
+        with temporary_path.open("r+b") as artifact:
+            artifact.write(header)
         temporary_path.replace(destination)
