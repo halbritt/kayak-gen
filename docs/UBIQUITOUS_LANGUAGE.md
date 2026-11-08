@@ -281,3 +281,11 @@ process continuity, effective settings and readiness over an explicit idle
 interval. A **transient idle control** intentionally exits on a positive idle
 timeout; that valid control does not imply persistent-deployment acceptance.
 Neither term changes scientific accepted uses or managed-job ownership.
+
+## Doctrine citation closure
+
+A **citation closure** records one phase's actual citation classifications
+against its retained evidence packet and the installed Pincite classifier.
+An **attribution correction** is a separate record that preserves a refused
+original and identifies where a removed citation was served or why it was
+withdrawn. It creates no runtime verification or acceptance evidence.

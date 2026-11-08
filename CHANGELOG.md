@@ -13,6 +13,14 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   requires effective timeout-zero/server policy, stable process identity and
   process-owned HTTP readiness before and after an explicit idle interval.
 
+- RFC 0086 / KAYGEN-23: maintained `python -m kayakgen.operations.citation_closure`
+  binds each doctrine citation closure to its phase and immutable packet through
+  the installed Pincite classifier, refusing non-activated or unknown doctrine
+  identifiers even when the classifier exits zero. Foreign repository/evidence
+  locators remain external provenance. Attribution corrections keep the original
+  refused closure, require a different-phase closure that actually cited the
+  concept and create no runtime or acceptance evidence.
+
 - RFC 0083 / KAYGEN-20: maintained `python -m kayakgen.operations.release`
   builds an immutable source snapshot, stages a noneditable wheel and verifies
   installed bytes plus actual HTML/report/export and bounded real CFD workflows.

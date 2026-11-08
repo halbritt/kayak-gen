@@ -1543,6 +1543,62 @@ historical methods and missing legacy metadata remain readable without running
 an evaluator or demanding the current runtime method. Runtime availability is
 checked only for explicit recomputation.
 
+## Closing doctrine citations against their packet (RFC 0086)
+
+When evidence work relied on a Pincite doctrine packet, close the citations the
+result actually used against the packet of the phase that served them. Do this
+before you accept that evidence:
+
+```bash
+python -m kayakgen.operations.citation_closure close --phase final \
+  --packet final-packet.json --observations final-citations.json \
+  --out evidence/citations/final
+```
+
+The observations file is Pincite `citation-observations/1`. The command copies
+the packet and observations into the new `--out` directory and runs the
+installed `pincite-citations` on those copies. The classifier is found under
+`$PINCITE_RELEASE_HOME`, by default `~/.local/share/pincite/release`. The
+directory keeps the copies, the classifier report and stderr, and
+`closure.json`, which records the phase, the packet hashes and ID, the classifier
+and index hashes, the exit status and a disposition for each citation.
+
+- Exit 0, `closed`: every citation is valid for this packet, or it is a
+  foreign `source-locator`. A foreign locator is a repository or evidence
+  path, which is kept as external provenance.
+- Exit 2, `refused`: a concept or formulation was not activated in this
+  packet, or it does not exist in the doctrine index. The classifier itself can
+  exit zero in this case.
+- Exit 1, `classifier_failed`: the classifier failed or its report does not
+  match this packet and these observations.
+
+An existing directory is refused, so a closure is never replaced.
+`python -m kayakgen.operations.citation_closure verify evidence/citations/final/closure.json`
+rehashes the retained files, recomputes the status and reruns the installed
+classifier.
+
+A concept can be removed from a final closure because the agent relied on it
+during discovery and the final packet did not serve it. Keep the refused
+original, close the corrected observations against the same final packet, and
+record the correction:
+
+```bash
+python -m kayakgen.operations.citation_closure correct \
+  --original evidence/citations/final-original/closure.json \
+  --corrected evidence/citations/final/closure.json \
+  --attribute some-concept-id=evidence/citations/discovery/closure.json \
+  --out evidence/citations/final-correction.json
+```
+
+Every refused identifier needs one `--attribute ID=CLOSURE` or
+`--withdraw ID=REASON`. The corrected closure must list exactly the original
+accepted citations in order. An attribution needs a closed closure from a
+different phase that cited that identifier. Activation in the discovery packet
+alone is not enough. The correction record lists every closure by path and
+SHA-256. Its `evidence_effect` is always no runtime verification and no
+acceptance. A closure is a mechanical provenance check, not verification or
+adjudication.
+
 ## Guarding an operational completion action (RFC 0079)
 
 Use the maintained caller when an authorized publication, tracker or completion

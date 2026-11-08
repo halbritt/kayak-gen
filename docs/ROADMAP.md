@@ -533,3 +533,12 @@ persistent service acceptance. It preserves timeout zero/server mode, stable
 paths, detached jobs, `Restart=always` and `KillMode=process`. Actual process and
 HTTP lifetime matter separately from startup. Deployment changes, another
 service manager/backend and physical validation remain separate work.
+
+## RFC 0086 citation closure disposition
+
+KAYGEN-23 / R8 maintains phase/packet-bound closure through the installed
+Pincite classifier. Final citations must be served by that phase's packet;
+external provenance remains distinct. Attribution corrections retain refused
+originals and cite a verified closure from another phase. Future-Striatum-Batches:
+doctrine corpus/index/classifier changes and automatic task acceptance remain
+outside this operational tooling slice.
