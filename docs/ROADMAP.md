@@ -492,3 +492,12 @@ per invocation, retains refusal reasons and does not retry. Task-specific
 source/predicate policies replace session-local assumptions; service idle checks
 remain explicit task requirements. Hosted protocols and distributed action
 recovery are outside this completed slice, not implied future implementations.
+
+## Release-gate follow-up disposition
+
+| Work | Disposition | Evidence / remaining scope |
+| --- | --- | --- |
+| KAYGEN-21 / RFC 0084 | completed-history | Full pytest and skip pin followed by mandatory Ruff; optional persistent candidate-bound receipts. Actual renderer probe/scheduling remains KAYGEN-19. |
+
+Future-Striatum-Batches: the canonical full-gate order and receipt work is
+implemented; no separate campaign wrapper or test-coverage reduction is queued.

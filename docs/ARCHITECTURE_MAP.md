@@ -22,8 +22,9 @@ identity and run manifests retain their existing authority.
 
 ```
 kayakgen/
-├── operations/               # Operational admission; separate from hull claim gates
-│   └── completion.py            terminal audit + declared receipts → one action
+├── operations/               # Operational checks; separate from hull claim gates
+│   ├── completion.py            terminal audit + declared receipts → one action
+│   └── gate.py                  fixed full pytest/skip pin then Ruff + optional receipt
 ├── cli/                      # Typer subcommands; thin glue
 │   ├── main.py                  init / generate / evaluate / mesh-check
 │   │                            / mesh-package / mesh-evidence / stability
@@ -204,6 +205,15 @@ and successor admission hold the namespace lock. Existing algorithm artifacts,
 manifest authority and derived job index remain separate.
 
 ## Durable artifact types
+
+RFC 0084 adds an optional `kayakgen-gate-receipt/1` at an explicitly selected
+new path outside source or inside a Git-ignored directory. The maintained
+`python -m kayakgen.operations.gate --receipt PATH` entry point is called by
+`scripts/full-gate.sh`. It records candidate source trees/raw fingerprints,
+interpreter, renderer declarations and observation status, ordered command
+durations/exits, skip pin and terminal result; per-command diagnostic logs
+live beside it. It is verification evidence, with no task or scientific
+acceptance authority. See [the contract](rfcs/0084-source-bound-full-gate.md).
 
 - **Completion requirements JSON** (RFC 0079): schema `"1"`, explicit source
   hashes and mandatory receipt path/digest/pointer predicates. Trusted operator

@@ -91,7 +91,7 @@ Every commit must pass, in this order:
    in: `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>`.
 
 Requirements 1 and 2 have a mechanical form: `scripts/full-gate.sh`
-runs ruff plus the full suite and **enforces** the skip count — it
+runs the full suite, **enforces** the skip count, then runs Ruff — it
 exports `KAYAKGEN_ENFORCE_SKIP_PIN=1` so `tests/conftest.py` also
 enforces the count inside pytest, then parses the final pytest summary
 line as a redundant script-level check. The expected count is derived
@@ -100,6 +100,28 @@ OpenFOAM smoke+local-run opt-in expects those tests to pass instead of
 skip (audit G1, 2026-06-06; workflow 0067 gate-altitude follow-up).
 The env knob is intentionally explicit so partial invocations such as
 `pytest tests/test_x.py` are not punished for having zero skips.
+
+RFC 0084 / D070 adds optional persistent receipts to this same canonical
+runner. Use `scripts/full-gate.sh --receipt /outside/source/full-gate.json`
+or `KAYAKGEN_GATE_RECEIPT`; the path must be new and outside source or in
+a Git-ignored directory. `KAYAKGEN_PY` still selects a supported external
+interpreter. Inherited `PYTEST_ADDOPTS` is cleared so environment-only
+selectors cannot narrow the full suite; tracked pytest configuration stays
+effective. No subset or arbitrary-command option is supported.
+
+Freeze source before starting. The receipt binds actual candidate bytes and
+a Git tree captured through a copied index, including staged, dirty and
+nonignored untracked content. It records both snapshots, interpreter,
+declared renderer settings, actual renderer observation status, command
+durations/exits and expected/observed skips. `passed` requires both checks,
+the skip pin and unchanged source; failures and caught interruptions are
+distinct terminal outcomes. A `running` receipt is incomplete. The original
+index is unchanged; committing the identical tested content afterward keeps
+the recorded tree identity. Endpoint checks do not detect transient edits
+restored between snapshots, so they do not replace the freeze requirement.
+Renderer `unobserved` is an explicit absence, never proof of a CPU/GPU mode.
+See [RFC 0084](rfcs/0084-source-bound-full-gate.md) for the receipt schema,
+output ownership and interruption limits.
 
 The opt-in OpenFOAM smoke is the recommended pre-push gate when a
 change touches CFD, the OpenFOAM adapter, the case templates, or the
