@@ -1509,3 +1509,63 @@ context and resistance curve supply them. A conflict refuses parsing. Matching
 historical methods and missing legacy metadata remain readable without running
 an evaluator or demanding the current runtime method. Runtime availability is
 checked only for explicit recomputation.
+
+## Guarding an operational completion action (RFC 0079)
+
+Use the maintained caller when an authorized publication, tracker or completion
+action depends on an audit and task-specific receipts:
+
+```bash
+python -m kayakgen.operations.completion \
+  --audit-result audit-result.json --requirements completion-requirements.json \
+  -- your-authorized-command its-arguments
+```
+
+`audit-result.json` must contain integer `exit_code: 0` and no non-null
+`session_id` or `cell_id`. If `status` is present, only `passed`, `succeeded` or
+`success` is supported. A running handle, failed status, unknown status, boolean
+exit code or missing exit code refuses the action. Use the actual command result;
+normal tool return alone is insufficient.
+
+The requirements file declares every necessary receipt. This illustrative file
+binds a source tree and two predicates; replace the placeholder hashes with the
+accepted source identity and SHA-256 of the actual receipt bytes:
+
+```json
+{
+  "schema_version": "1",
+  "expected_source": {"tree": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "receipts": [{
+    "path": "release-receipt.json",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "source_fields": {"tree": "/source_before/tree_sha"},
+    "equals": {"/status": "passed", "/source_unchanged": true}
+  }]
+}
+```
+
+Source identities must be lowercase 40- or 64-digit hashes. Every receipt must
+bind every declared source identity and at least one equality predicate.
+Pointers select receipt fields, including nested objects and arrays; `~1`
+escapes `/` and `~0` escapes `~`. Missing fields refuse. Equality preserves JSON
+types: `true`, `1` and `1.0` differ. Relative receipt paths resolve from the
+requirements file. Unknown policy keys, duplicate JSON keys, malformed UTF-8 and
+non-finite numbers refuse. The helper imposes no domain-specific receipt schema,
+idle duration or current-HEAD requirement. Declare the checks this action needs.
+
+The Python API is `guarded_completion(audit_result, requirements_path, action)`
+in `kayakgen.operations.completion`; it calls `action(evidence)` once after
+admission. Evidence is immutable and `evidence.as_dict()` returns a serializable
+copy with requirements and receipt hashes.
+
+The CLI writes one JSON result on stdout and action output on stderr. `refused`
+includes a reason and exits 2. `action_succeeded` means the process exited zero;
+`action_failed` propagates its failure status. Missing executables exit 127,
+other launch failures 126, and signal exits use 128 plus the signal number.
+Callback exceptions propagate in the Python API. Actions are never retried.
+
+The operator owns authorization and the completeness/truth of policy and audit
+inputs. Hashes identify consumed bytes without authenticating them. Validation
+does not lock files through execution; callers own later changes, action
+deadlines, atomicity and resulting state. A later invocation may run the action
+again. Admission does not certify the whole task or change scientific claim states.

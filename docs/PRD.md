@@ -149,3 +149,8 @@ RFC0077 operating comparison requires the same physical load/CG, fluid, speeds
 and operating intent before resistance can establish a strict winner. Numerical
 refinement remains independent; reported intervals do not cover operating pose
 solver error. Incompatible conditions stay visible with an explicit warning.
+
+Operational completion tooling (RFC 0079) gates an explicitly supplied action on
+a successful terminal audit and declared source-bound receipt predicates. Its
+local admission result does not grant authorization, certify an overall release
+or promote any scientific claim/readiness state.

@@ -22,6 +22,8 @@ identity and run manifests retain their existing authority.
 
 ```
 kayakgen/
+├── operations/               # Operational admission; separate from hull claim gates
+│   └── completion.py            terminal audit + declared receipts → one action
 ├── cli/                      # Typer subcommands; thin glue
 │   ├── main.py                  init / generate / evaluate / mesh-check
 │   │                            / mesh-package / mesh-evidence / stability
@@ -149,6 +151,7 @@ The `cli/` directory carries seven sibling modules used by `main.py`:
 
 | Command | Purpose | Writes |
 |---|---|---|
+| `python -m kayakgen.operations.completion --audit-result ... --requirements ... -- ACTION...` | Require terminal successful audit and source-bound receipts before one actual action | JSON decision on stdout; admitted action owns its writes |
 | `kayakgen init <out>` | default Hull JSON | `out.json` |
 | `kayakgen generate <hull>` | open hull + deck inspection STLs | `<stem>_{hull,deck}.stl` |
 | `kayakgen evaluate <hull>` | EvaluationResult JSON | `<out>.eval.json` |
@@ -202,6 +205,12 @@ manifest authority and derived job index remain separate.
 
 ## Durable artifact types
 
+- **Completion requirements JSON** (RFC 0079): schema `"1"`, explicit source
+  hashes and mandatory receipt path/digest/pointer predicates. Trusted operator
+  policy; no implicit domain schema, source HEAD or idle interval.
+- **Completion evidence JSON** (RFC 0079 module caller stdout): schema `"1"`,
+  refusal reason or action outcome plus consumed requirements/receipt hashes,
+  source identities and checked fields. Admission is local to one invocation.
 - **Hull JSON**: `kayakgen.model.hull.Hull` record. Stable schema; SHA-256
   via `Hull.hash()` (alias for `Hull.record_hash()` per RFC 0049);
   `Hull.design_hash()` for physical-inputs-only identity; optional

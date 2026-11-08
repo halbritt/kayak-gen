@@ -237,3 +237,13 @@ are distinct from hull identity, labels, origins and resistance refinement.
 Solved operating settings remain comparable requirements because resistance
 uncertainty does not bound pose-solver error. The public warning token is
 `incompatible_operating_inputs`.
+
+**Completion requirements** (RFC 0079): trusted operational JSON policy naming
+explicit source hash identities, mandatory receipt byte hashes and selected
+receipt predicates for one completion action. Task-specific checks do not become
+global hull-domain or service-idle requirements.
+
+**Completion evidence** (RFC 0079): immutable admission proof identifying consumed
+requirements/receipt bytes, expected source and checked selectors. It permits
+one action call per invocation after a terminal successful audit; it does not
+authenticate evidence or certify the action's resulting external state.

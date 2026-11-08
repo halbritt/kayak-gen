@@ -483,3 +483,12 @@ shared sweep evaluation service and carries operating comparison conditions to
 comparison/search outputs. The physical operating projection and its independent
 34-case oracle close the context/admission integration slice; broader numerical
 controls and all physical calibration gates remain separately evidence-gated.
+
+## RFC 0079 completion admission disposition
+
+KAYGEN-16 / retrospective R1 supplies a maintained terminal-audit and declared
+receipt guard plus a real argv caller. The caller admits one authorized action
+per invocation, retains refusal reasons and does not retry. Task-specific
+source/predicate policies replace session-local assumptions; service idle checks
+remain explicit task requirements. Hosted protocols and distributed action
+recovery are outside this completed slice, not implied future implementations.

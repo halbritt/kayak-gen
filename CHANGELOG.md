@@ -208,6 +208,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- RFC 0079 / KAYGEN-16: maintained completion admission API and
+  `python -m kayakgen.operations.completion` argv caller. Strict terminal audit,
+  receipt byte/source bindings and task-declared JSON predicates gate one actual
+  action invocation; refusals retain reasons and actions are never retried.
+
 - Workflow 0063 (test-protection P1 durable-state hardening) landed the
   remediation plan's three P1 durable-state slices. P1-STORE-ATOMIC:
   `FilesystemArtifactStore._put_bytes` writes store bytes via a temp
