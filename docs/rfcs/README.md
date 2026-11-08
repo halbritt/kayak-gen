@@ -17,6 +17,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0081](0081-semantic-preflight.md) | landed selected semantic preflight | Source-bound shared-input contract checks before full release gates |
 | [0082](0082-verified-gate-renderers.md) | landed verified full/fast renderer admission | Actual Mesa software evidence and coordinated NVIDIA hardware gates |
 | [0086](0086-citation-closure.md) | landed phase/packet-bound citation closure | Bind doctrine citations to the phase and packet that served them |
+| [0087](0087-ledger-current-acceptance.md) | landed receipt-applicability ledger view and proposed finalization | Current ledger acceptance versus historical pending flags |
 | [0084](0084-source-bound-full-gate.md) | landed full pytest then Ruff + persistent receipts | Fixed full-check sequence and actual candidate source identity |
 | [0079](0079-completion-admission.md) | landed terminal audit and declared receipt admission | Guard completion actions with terminal audits and source-bound evidence |
 | [0080](0080-installed-runtime-lifecycle.md) | landed installed runtime lifecycle acceptance | Installed idle controls and read-only persistent service lifetime |

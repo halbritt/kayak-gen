@@ -542,3 +542,12 @@ external provenance remains distinct. Attribution corrections retain refused
 originals and cite a verified closure from another phase. Future-Striatum-Batches:
 doctrine corpus/index/classifier changes and automatic task acceptance remain
 outside this operational tooling slice.
+
+## RFC 0087 ledger finalization disposition
+
+KAYGEN-24 / R9 provides a receipt-applicability view and a proposed finalized
+ledger with exact original-byte history. Item identities must be unique and
+nonempty, so no pending entry can disappear during indexing. Historical
+acceptance stays bound to its accepted source; future physical obligations
+remain open. Future-Striatum-Batches: automatic live-ledger replacement and
+physical-claim expansion are not part of this tooling slice.

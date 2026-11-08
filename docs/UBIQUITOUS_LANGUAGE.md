@@ -253,6 +253,17 @@ requirements/receipt bytes, expected source and checked selectors. It permits
 one action call per invocation after a terminal successful audit; it does not
 authenticate evidence or certify the action's resulting external state.
 
+**Ledger finalization policy** (RFC 0087): trusted operational JSON naming a
+ledger by SHA-256 and, per item, mandatory criteria (applicable accepted source,
+supporting receipts, optional retained pending flag) or future obligations that
+no receipt can clear.
+
+**Ledger view** (RFC 0087): derived current status per item and criterion.
+A retained pending flag is `historical` only with Git-ancestry or
+recorded-timestamp ordering proof; otherwise it is `current_conflict`. Item
+statuses are `accepted`, `claimed_unreviewed`, `not_accepted` or `conflict`.
+This is operational accounting, not scientific acceptance.
+
 ## Release verification
 
 A **source manifest** records the immutable Git tree and expected Python/resource
