@@ -870,6 +870,11 @@ class EvaluationResult(BaseModel):
                     raise ValueError("stability load does not match evaluation context")
             if self.resistance is not None:
                 curve = self.resistance
+                recorded_method = dict(self.context.evaluator_versions).get("resistance")
+                curve_method = curve.metadata.numerical_method_version
+                if (recorded_method is not None and curve_method is not None
+                        and recorded_method != curve_method):
+                    raise ValueError("resistance method does not match evaluation context")
                 if tuple(curve.V_knots) != self.context.speeds_knots:
                     raise ValueError("resistance speed grid does not match evaluation context")
                 expected_grid = {key: getattr(self.context, key)

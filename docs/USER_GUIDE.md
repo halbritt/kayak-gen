@@ -1503,3 +1503,9 @@ speed. When the view target is absent from a supplied evaluation grid, the view
 shows a sampled point with an explicit `speed_selection_warning`; it does not
 insert the target into the grid or relabel that point as requested. Legacy
 at-target metrics retain their existing target evaluation behavior.
+
+Saved-result method binding compares the two recorded versions when both the
+context and resistance curve supply them. A conflict refuses parsing. Matching
+historical methods and missing legacy metadata remain readable without running
+an evaluator or demanding the current runtime method. Runtime availability is
+checked only for explicit recomputation.

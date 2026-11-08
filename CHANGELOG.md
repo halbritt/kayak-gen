@@ -23,6 +23,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   Concurrent index initialization now serializes schema checks and mutations,
   preventing one opener from deleting another's freshly committed tables.
 
+- Saved evaluation records refuse conflicting recorded context/curve numerical
+  method versions. Matching historical methods and missing legacy method metadata
+  remain readable; parsing does not execute or require the current evaluator.
+
 - RFC0073/RFC0077 integration: sweep numerical budgets now reach the shared
   evaluator and saved result. Reported resistance comparisons preserve common
   physical operating requests and warn `incompatible_operating_inputs` for

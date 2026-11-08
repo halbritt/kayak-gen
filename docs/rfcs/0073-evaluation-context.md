@@ -23,6 +23,10 @@ The mass solver uses the recorded hydrostatic mesh resolution; component loads
 retain their mass and CG, and the GM correction applies load CG once.
 A failed equilibrium refuses evaluation. Resistance arrays, grid and fluid
 constants must agree with the attached context when records are loaded.
+When both context and curve record a resistance numerical method version, those
+recorded versions must agree. Loading accepts matching historical methods without
+checking the installed evaluator and preserves missing legacy metadata as unknown;
+only explicit recomputation requires an available requested runtime method.
 
 `design-report --evaluation FILE` renders saved numerical results without
 calling evaluators. Missing sections remain unavailable; hull and context
