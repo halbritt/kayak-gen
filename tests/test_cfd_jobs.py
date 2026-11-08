@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 
 import pytest
+
+from cfd_test_cases import prepare_profile_attempt
 from pydantic import ValidationError
 
 from kayakgen.eval.cfd.jobs import (
@@ -92,22 +94,8 @@ def _prepare_openfoam_job(tmp_path: Path, *, speed_mps: float = 2.4):
     )
 
 
-def _set_fixture_command(job_dir: Path, command_template: list[str]) -> None:
-    profile_path = job_dir / "profile.json"
-    profile = json.loads(profile_path.read_text())
-    assert profile["name"] == FIXTURE_PROFILE_NAME
-    assert profile["adapter_name"] == "fixture_local_command"
-    profile["command_template"] = command_template
-    profile_path.write_text(json.dumps(profile, indent=2, sort_keys=True) + "\n")
 
 
-def _set_openfoam_profile_fields(job_dir: Path, **updates: object) -> None:
-    profile_path = job_dir / "profile.json"
-    profile = json.loads(profile_path.read_text())
-    assert profile["name"] == OPENFOAM_PROFILE_NAME
-    assert profile["adapter_name"] == "openfoam_local"
-    profile.update(updates)
-    profile_path.write_text(json.dumps(profile, indent=2, sort_keys=True) + "\n")
 
 
 def _case_file_texts(job_dir: Path) -> dict[str, str]:
@@ -969,7 +957,7 @@ def test_fixture_missing_command_persists_unavailable_or_failed_record(
 ) -> None:
     job = _prepare_fixture_job(tmp_path)
     missing_command = job.job_dir / "bin" / "missing-fixture-command"
-    _set_fixture_command(job.job_dir, [str(missing_command)])
+    job = prepare_profile_attempt(job, command_template=[str(missing_command)])
 
     record = run_cfd_job(job.job_dir)
 
@@ -985,9 +973,9 @@ def test_fixture_nonzero_command_persists_failed_record_and_logs(
     tmp_path: Path,
 ) -> None:
     job = _prepare_fixture_job(tmp_path)
-    _set_fixture_command(
-        job.job_dir,
-        [
+    job = prepare_profile_attempt(
+        job,
+        command_template=[
             sys.executable,
             "-c",
             (
@@ -1018,9 +1006,9 @@ def test_fixture_clean_command_with_missing_raw_output_persists_failed_record(
     tmp_path: Path,
 ) -> None:
     job = _prepare_fixture_job(tmp_path)
-    _set_fixture_command(
-        job.job_dir,
-        [
+    job = prepare_profile_attempt(
+        job,
+        command_template=[
             sys.executable,
             "-c",
             "import sys; sys.stdout.write('no raw output written\\n'); sys.exit(0)",
@@ -1039,9 +1027,9 @@ def test_fixture_clean_command_with_missing_raw_output_persists_failed_record(
 
 def test_fixture_malformed_raw_output_persists_failed_record(tmp_path: Path) -> None:
     job = _prepare_fixture_job(tmp_path)
-    _set_fixture_command(
-        job.job_dir,
-        [
+    job = prepare_profile_attempt(
+        job,
+        command_template=[
             sys.executable,
             "-c",
             (
@@ -1066,8 +1054,8 @@ def test_openfoam_missing_version_command_persists_unavailable_record(
 ) -> None:
     job = _prepare_openfoam_job(tmp_path)
     missing_command = job.job_dir / "bin" / "missing-foamVersion"
-    _set_openfoam_profile_fields(
-        job.job_dir,
+    job = prepare_profile_attempt(
+        job,
         solver_version_command=[str(missing_command)],
     )
 
@@ -1087,8 +1075,8 @@ def test_openfoam_missing_version_command_persists_unavailable_record(
 
 def test_openfoam_version_mismatch_persists_unavailable_record(tmp_path: Path) -> None:
     job = _prepare_openfoam_job(tmp_path)
-    _set_openfoam_profile_fields(
-        job.job_dir,
+    job = prepare_profile_attempt(
+        job,
         solver_version_command=[
             sys.executable,
             "-c",
@@ -1110,8 +1098,8 @@ def test_openfoam_nonzero_solver_command_persists_failed_record_and_capped_logs(
     tmp_path: Path,
 ) -> None:
     job = _prepare_openfoam_job(tmp_path)
-    _set_openfoam_profile_fields(
-        job.job_dir,
+    job = prepare_profile_attempt(
+        job,
         solver_version_command=[
             sys.executable,
             "-c",
@@ -1152,8 +1140,8 @@ def test_openfoam_nonzero_solver_command_persists_failed_record_and_capped_logs(
 
 def test_openfoam_solver_timeout_persists_failed_record(tmp_path: Path) -> None:
     job = _prepare_openfoam_job(tmp_path)
-    _set_openfoam_profile_fields(
-        job.job_dir,
+    job = prepare_profile_attempt(
+        job,
         solver_version_command=[
             sys.executable,
             "-c",
@@ -1181,8 +1169,8 @@ def test_openfoam_clean_command_with_missing_force_dat_persists_failed_record(
     tmp_path: Path,
 ) -> None:
     job = _prepare_openfoam_job(tmp_path)
-    _set_openfoam_profile_fields(
-        job.job_dir,
+    job = prepare_profile_attempt(
+        job,
         solver_version_command=[
             sys.executable,
             "-c",
@@ -1207,8 +1195,8 @@ def test_openfoam_clean_command_with_missing_force_dat_persists_failed_record(
 
 def test_openfoam_malformed_force_dat_persists_failed_record(tmp_path: Path) -> None:
     job = _prepare_openfoam_job(tmp_path)
-    _set_openfoam_profile_fields(
-        job.job_dir,
+    job = prepare_profile_attempt(
+        job,
         solver_version_command=[
             sys.executable,
             "-c",
@@ -1239,8 +1227,8 @@ def test_openfoam_parser_readable_force_dat_does_not_enable_succeeded_path(
     tmp_path: Path,
 ) -> None:
     job = _prepare_openfoam_job(tmp_path)
-    _set_openfoam_profile_fields(
-        job.job_dir,
+    job = prepare_profile_attempt(
+        job,
         solver_version_command=[
             sys.executable,
             "-c",
@@ -1281,8 +1269,8 @@ def test_openfoam_rerun_ignores_stale_force_dat_and_raw_result(
     tmp_path: Path,
 ) -> None:
     job = _prepare_openfoam_job(tmp_path)
-    _set_openfoam_profile_fields(
-        job.job_dir,
+    job = prepare_profile_attempt(
+        job,
         solver_version_command=[
             sys.executable,
             "-c",
@@ -1315,25 +1303,32 @@ def test_openfoam_rerun_ignores_stale_force_dat_and_raw_result(
     assert first.raw_records["drag_force_n"] == pytest.approx(3.5)
     assert (job.job_dir / OPENFOAM_RAW_RESULT).is_file()
 
-    _set_openfoam_profile_fields(
-        job.job_dir,
+    old_raw = (job.job_dir / OPENFOAM_RAW_RESULT).read_bytes()
+    old_run = (job.job_dir / "run.json").read_bytes()
+    second_job = prepare_profile_attempt(
+        job,
         command_template=[
-            sys.executable,
-            "-c",
-            "print('second fake interFoam completed without force output')",
+            sys.executable, "-c", "print('second fake interFoam completed without force output')",
         ],
     )
+    # Even externally copied stale outputs cannot turn a fresh attempt into success.
+    (second_job.job_dir / OPENFOAM_RAW_RESULT).write_bytes(old_raw)
+    force_path = second_job.job_dir / OPENFOAM_CASE_ROOT / OPENFOAM_FORCE_DAT_OUTPUT
+    force_path.parent.mkdir(parents=True, exist_ok=True)
+    force_path.write_text("stale force output")
+    second = run_cfd_job(second_job.job_dir)
 
-    second = run_cfd_job(job.job_dir)
-
+    assert (job.job_dir / OPENFOAM_RAW_RESULT).read_bytes() == old_raw
+    assert (job.job_dir / "run.json").read_bytes() == old_run
+    assert second_job.job_dir != job.job_dir
     assert second.status == "failed"
     assert second.error_kind == "missing_output"
     assert second.output_manifest is None
     assert "drag_force_n" not in second.raw_records
-    assert not (job.job_dir / OPENFOAM_RAW_RESULT).exists()
-    force_path = job.job_dir / OPENFOAM_CASE_ROOT / OPENFOAM_FORCE_DAT_OUTPUT
+    assert not (second_job.job_dir / OPENFOAM_RAW_RESULT).exists()
+    force_path = second_job.job_dir / OPENFOAM_CASE_ROOT / OPENFOAM_FORCE_DAT_OUTPUT
     assert not force_path.exists()
-    assert load_run_record(job.job_dir / "run.json") == second
+    assert load_run_record(second_job.job_dir / "run.json") == second
 
 
 def test_openfoam_force_dat_parser_reads_checked_in_fixture() -> None:

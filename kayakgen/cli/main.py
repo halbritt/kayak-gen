@@ -419,6 +419,9 @@ def cfd_prepare(
         "--kinematic-viscosity-m2-s",
         help="Kinematic viscosity used by the solver job.",
     ),
+    new_attempt: bool = typer.Option(
+        False, "--new-attempt", help="Create a distinct attempt while retaining existing results.",
+    ),
     allow_real_solver_execution: bool = typer.Option(
         False,
         "--allow-real-solver-execution",
@@ -439,6 +442,7 @@ def cfd_prepare(
             seawater_density_kg_m3=seawater_density_kg_m3,
             kinematic_viscosity_m2_s=kinematic_viscosity_m2_s,
             allow_real_solver_execution=allow_real_solver_execution,
+            new_attempt=new_attempt,
         )
     except CfdDispatchError as exc:
         typer.echo(f"blocker_class: {exc.code}", err=True)

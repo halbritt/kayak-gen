@@ -391,3 +391,12 @@ monotonic per-command deadline. Each streamed command owns a process group;
 timeout terminates that group and reaps the leader. Returned output is a bounded
 64 KiB tail with explicit truncation, while the selected disk log remains complete.
 The ordinary adapter subprocess path and whole-job state remain separate.
+
+## CFD attempt publication (RFC 0070)
+
+`eval/cfd/attempts.py` owns normalized full-input fingerprints and local
+request-prefix admission. `job_store.py` stages preparation, publishes
+`preparation.json`, and snapshots actual execution inputs in
+`execution-inputs.json`. The existing occurrence store binds those bytes.
+Preparation completeness, terminal execution and physical claim state are
+independent facts. New attempts use distinct sibling paths; old results persist.

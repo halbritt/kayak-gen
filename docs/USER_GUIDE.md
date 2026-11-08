@@ -1285,3 +1285,32 @@ The returned `stdout` retains the final 64 KiB of raw output, with an explicit
 truncation notice. The selected on-disk stage log retains the complete received
 stream. This is a per-command deadline, not a whole-job or physical-convergence
 claim. Full logs are not deleted or truncated by this change.
+
+### CFD preparation replay and new attempts (RFC 0070)
+
+Preparing identical full inputs again returns the existing preparation/result,
+without resetting completion. Conflicting profile or mesh inputs refuse before
+changing that attempt. `kayakgen cfd run <job-dir>` returns an existing terminal
+result; it does not rerun it. For an intentional rerun use:
+
+```bash
+kayakgen cfd prepare --mesh-package mesh-package --out cfd-jobs \
+  --solver-profile fixture-local-command --speed-mps 2.4 --new-attempt
+kayakgen cfd run <new-attempt-directory>
+```
+
+The web create body accepts `new_attempt: true` with the same meaning. Each
+attempt has `preparation.json` (full profile, mesh and file hashes, request and
+attempt identities) and `execution-inputs.json` (actual inputs before execution).
+Published profile/job/mesh edits refuse before execution; custom profiles must
+be supplied at preparation and subsequent changes require a new attempt. Prior attempt results and logs remain at their own path.
+
+An active request returns `cfd_job_busy` rather than starting another writer.
+Unresolved running state returns `cfd_attempt_incomplete`; inspect retained logs
+and request a distinct new attempt explicitly. Incomplete/unverified preparation
+returns `cfd_preparation_unverified`. A failed preparation retains a hidden
+provisional directory for diagnosis, without publishing an executable job.
+
+Before updating or reverting active CFD job handling, stop admissions and drain
+owned legacy writers. The OS lock is a local protocol, not cross-host ownership
+or a power-loss guarantee. Existing historical jobs remain readable.

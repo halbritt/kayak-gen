@@ -193,3 +193,14 @@ startup, stream draining and process wait. It is not a whole-job SLA or a
 numerical-convergence criterion. Timeout returns 124 after bounded owned-group
 termination/reaping grace; captured stdout is the final 64 KiB with an explicit
 truncation notice, and the selected disk log retains complete received bytes.
+
+**CFD request fingerprint** (RFC 0070): SHA-256 of normalized full profile,
+mesh manifest/file digests and physical job inputs. A legacy deterministic
+directory ID alone does not prove input equivalence.
+**CFD attempt**: a retained preparation/execution history with its own directory.
+Equal-input explicit attempts share request fingerprint while retaining distinct
+attempt identities. `preparation.json` is a preparation publication marker;
+`execution-inputs.json` binds the unchanged prepared profile to execution.
+`cfd_job_busy`, `cfd_request_conflict`, `cfd_preparation_unverified`,
+`cfd_unpublished_attempt`, and `cfd_attempt_incomplete` are explicit local
+admission/recovery refusals, not solver success or scientific validation.

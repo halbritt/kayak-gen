@@ -27,6 +27,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   while consuming output, terminate their owned process group on expiry, and
   retain a bounded output tail while preserving the complete selected disk log.
 
+- RFC 0070 / KAYGEN-11: repeated CFD preparation and terminal run replay preserve
+  committed results. Full input conflicts refuse; explicit new attempts retain old
+  history. Local preparation/run admission is serialized and provisional
+  directories are not executable published jobs.
+
 - RFC 0067 / KAYGEN-3: manifest-backed sweep/search/CFD outputs preserve run
   identity and expected hashes across index reconstruction. Same-basename runs
   remain distinct; reindex reports incomplete legacy provenance explicitly.

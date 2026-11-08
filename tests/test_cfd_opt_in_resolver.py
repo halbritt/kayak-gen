@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from cfd_test_cases import prepare_profile_attempt
+
 from kayakgen.eval.cfd.jobs import (
     OPENFOAM_CASE_TEMPLATE_VERSION,
     OPENFOAM_LOCAL_RUN_ENV_VAR,
@@ -53,18 +55,12 @@ def _prepare_openfoam_job(tmp_path: Path, *, speed_mps: float = 2.4):
     )
 
 
-def _set_openfoam_profile_fields(job_dir: Path, **updates: object) -> None:
-    profile_path = job_dir / "profile.json"
-    profile = json.loads(profile_path.read_text())
-    assert profile["name"] == OPENFOAM_PROFILE_NAME
-    profile.update(updates)
-    profile_path.write_text(json.dumps(profile, indent=2, sort_keys=True) + "\n")
 
 
-def _install_fake_solver(job_dir: Path) -> None:
+def _install_fake_solver(job):
     """Install a fake interFoam-equivalent command that emits a v2512 force.dat."""
-    _set_openfoam_profile_fields(
-        job_dir,
+    return prepare_profile_attempt(
+        job,
         solver_version_command=[
             sys.executable,
             "-c",
@@ -118,7 +114,7 @@ def test_opt_in_resolver_profile_flag_wins_over_persistent_and_env(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     job = _prepare_openfoam_job(tmp_path)
-    _set_openfoam_profile_fields(job.job_dir, allow_real_solver_execution=True)
+    job = prepare_profile_attempt(job, allow_real_solver_execution=True)
     _write_persistent_config(monkeypatch, tmp_path, [OPENFOAM_PROFILE_NAME])
     monkeypatch.setenv(OPENFOAM_LOCAL_RUN_ENV_VAR, "1")
 
@@ -174,7 +170,7 @@ def test_succeeded_record_carries_opt_in_label(
 ) -> None:
     """The persistent-setting opt-in produces a succeeded record stamped accordingly."""
     job = _prepare_openfoam_job(tmp_path)
-    _install_fake_solver(job.job_dir)
+    job = _install_fake_solver(job)
     _write_persistent_config(monkeypatch, tmp_path, [OPENFOAM_PROFILE_NAME])
     monkeypatch.delenv(OPENFOAM_LOCAL_RUN_ENV_VAR, raising=False)
 
@@ -194,8 +190,8 @@ def test_succeeded_record_carries_solver_execution_audit(
 ) -> None:
     """The audit block records the case-template lock and wall-clock timings."""
     job = _prepare_openfoam_job(tmp_path)
-    _install_fake_solver(job.job_dir)
-    _set_openfoam_profile_fields(job.job_dir, allow_real_solver_execution=True)
+    job = _install_fake_solver(job)
+    job = prepare_profile_attempt(job, allow_real_solver_execution=True)
     monkeypatch.delenv(OPENFOAM_LOCAL_RUN_ENV_VAR, raising=False)
 
     record = run_cfd_job(job.job_dir)
@@ -218,7 +214,7 @@ def test_blocked_record_has_none_opt_in_and_none_audit(
 ) -> None:
     """Regression: the historical blocked path leaves the new fields as ``None``."""
     job = _prepare_openfoam_job(tmp_path)
-    _install_fake_solver(job.job_dir)
+    job = _install_fake_solver(job)
     # No profile flag, no persistent setting, no env knob.
     _write_persistent_config(monkeypatch, tmp_path, [])
     monkeypatch.delenv(OPENFOAM_LOCAL_RUN_ENV_VAR, raising=False)

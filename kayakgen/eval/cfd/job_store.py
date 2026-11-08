@@ -16,11 +16,18 @@ import hashlib
 import json
 import os
 import subprocess
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import BaseModel, ValidationError
 
+from kayakgen.eval.cfd.attempts import (
+    CfdPreparation,
+    CfdRequestInputs,
+    exclusive_request,
+    mesh_file_hashes,
+)
 from kayakgen.eval.cfd.manifest_validation import (
     _load_mesh_manifest,
     _validate_mesh_package,
@@ -53,6 +60,7 @@ def prepare_cfd_job(
     kinematic_viscosity_m2_s: float = 1.19e-6,
     hull_ref: str | None = None,
     allow_real_solver_execution: bool = False,
+    new_attempt: bool = False,
 ) -> CfdJobPaths:
     """Prepare a local CFD job using a named built-in solver profile.
 
@@ -72,6 +80,7 @@ def prepare_cfd_job(
         speed_mps=speed_mps,
         seawater_density_kg_m3=seawater_density_kg_m3,
         kinematic_viscosity_m2_s=kinematic_viscosity_m2_s,
+        new_attempt=new_attempt,
     )
     return CfdJobPaths(
         job_dir=job.job_dir,
@@ -102,6 +111,7 @@ def prepare_local_job(
     seawater_density_kg_m3: float = 1025.0,
     kinematic_viscosity_m2_s: float = 1.19e-6,
     created_at: str | None = None,
+    new_attempt: bool = False,
 ) -> LocalCfdJob:
     """Validate a mesh package and write deterministic local job records.
 
@@ -125,8 +135,73 @@ def prepare_local_job(
         seawater_density_kg_m3=seawater_density_kg_m3,
         kinematic_viscosity_m2_s=kinematic_viscosity_m2_s,
     )
-    job_dir = Path(jobs_dir) / job_id
-    job_dir.mkdir(parents=True, exist_ok=True)
+    inputs = CfdRequestInputs(
+        mesh_manifest=manifest.model_copy(deep=True),
+        mesh_files=mesh_file_hashes(mesh_dir, manifest),
+        profile=solver_profile.model_copy(deep=True),
+        hull_ref=hull_ref,
+        speed_mps=speed_mps,
+        seawater_density_kg_m3=seawater_density_kg_m3,
+        kinematic_viscosity_m2_s=kinematic_viscosity_m2_s,
+    )
+    request_dir = Path(jobs_dir) / job_id
+    with exclusive_request(request_dir):
+        if new_attempt:
+            job_id = f"{job_id}-attempt-{uuid.uuid4().hex[:12]}"
+        job_dir = Path(jobs_dir) / job_id
+        if job_dir.exists():
+            return _reuse_preparation(job_dir, inputs)
+        staging = job_dir.with_name(f".{job_id}.preparing-{uuid.uuid4().hex}")
+        staging.mkdir()
+        _write_preparation(staging, mesh_dir, job_id, inputs, created_at)
+        staging.rename(job_dir)
+        FilesystemArtifactStore.open_run(
+            job_dir, kind="cfd", spec_hash=job_id, run_hash_value=job_id,
+        )
+        return _reuse_preparation(job_dir, inputs)
+
+
+def _read_preparation(job_dir: Path) -> CfdPreparation:
+    try:
+        store = FilesystemArtifactStore(job_dir)
+        if store.manifest is None:
+            raise ValueError("preparation lacks a durable run manifest")
+        ref = store.ref_for_relative_path("preparation.json", kind="cfd_run_record")
+        if ref is None:
+            raise ValueError("preparation lacks a committed artifact occurrence")
+        return CfdPreparation.model_validate(store.get_json(ref))
+    except (FileNotFoundError, ValidationError, ValueError, ArtifactIntegrityError) as exc:
+        raise CfdDispatchError(
+            "CFD preparation is incomplete or legacy-unverified; create a new attempt",
+            code="cfd_preparation_unverified",
+        ) from exc
+
+
+def _reuse_preparation(job_dir: Path, inputs: CfdRequestInputs) -> LocalCfdJob:
+    preparation = _read_preparation(job_dir)
+    if preparation.inputs != inputs or preparation.request_id != inputs.fingerprint():
+        raise CfdDispatchError("CFD preparation input conflict", code="cfd_request_conflict")
+    case = _load_prepared_case(job_dir)
+    if case.job_spec != preparation.job_spec:
+        raise CfdDispatchError("CFD prepared job conflict", code="cfd_request_conflict")
+    if case.solver_profile != inputs.profile:
+        raise CfdDispatchError("CFD prepared profile conflict", code="cfd_request_conflict")
+    return LocalCfdJob(
+        job_dir=job_dir, job_spec=case.job_spec, solver_profile=case.solver_profile,
+        mesh_manifest=case.mesh_manifest, run_record=read_local_status(job_dir),
+    )
+
+
+def _write_preparation(
+    job_dir: Path, mesh_dir: Path, job_id: str,
+    inputs: CfdRequestInputs, created_at: str | None,
+) -> LocalCfdJob:
+    manifest = inputs.mesh_manifest
+    solver_profile = inputs.profile
+    hull_ref = inputs.hull_ref
+    speed_mps = inputs.speed_mps
+    seawater_density_kg_m3 = inputs.seawater_density_kg_m3
+    kinematic_viscosity_m2_s = inputs.kinematic_viscosity_m2_s
 
     mesh_package_ref = _relative_ref(mesh_dir, job_dir)
     input_manifest = _join_ref(mesh_package_ref, "manifest.json")
@@ -171,6 +246,15 @@ def prepare_local_job(
         )
         _adapter_for(solver_profile).prepare(prepared_case)
 
+    if _load_mesh_manifest(mesh_dir) != manifest or mesh_file_hashes(mesh_dir, manifest) != inputs.mesh_files:
+        raise CfdDispatchError("CFD mesh changed during preparation", code="cfd_request_conflict")
+    preparation = CfdPreparation(
+        request_id=inputs.fingerprint(), attempt_id=job_id, inputs=inputs, job_spec=job_spec,
+    )
+    _write_json(job_dir / "preparation.json", preparation)
+    _route_cfd_writes_through_store(
+        job_dir, job_spec, files=(("cfd_run_record", "preparation.json"),),
+    )
     return LocalCfdJob(
         job_dir=job_dir,
         job_spec=job_spec,
@@ -182,7 +266,48 @@ def prepare_local_job(
 
 def run_local_job(job_dir: str | Path) -> CfdRunRecord:
     """Run a prepared local job with its configured adapter."""
-    case = _load_prepared_case(Path(job_dir))
+    job_dir = Path(job_dir)
+    with exclusive_request(job_dir):
+        current = read_local_status(job_dir)
+        if current.status not in {"queued", "running"}:
+            return current
+        if current.status == "running":
+            raise CfdDispatchError(
+                "CFD attempt has unresolved running state; create an explicit new attempt",
+                code="cfd_attempt_incomplete",
+            )
+        case = _load_prepared_case(job_dir)
+        _snapshot_execution_inputs(case)
+        return _execute_case(case)
+
+
+def _snapshot_execution_inputs(case: PreparedSolverCase) -> None:
+    prepared = _read_preparation(case.job_dir)
+    if case.job_spec != prepared.job_spec:
+        raise CfdDispatchError("CFD job inputs changed after preparation", code="cfd_request_conflict")
+    mesh_dir = (case.job_dir / case.job_spec.mesh_package_ref).resolve()
+    if case.solver_profile != prepared.inputs.profile:
+        raise CfdDispatchError("CFD profile changed after preparation", code="cfd_request_conflict")
+    _validate_mesh_package(mesh_dir, case.mesh_manifest, case.solver_profile)
+    actual = prepared.inputs.model_copy(update={
+        "mesh_manifest": case.mesh_manifest,
+        "mesh_files": mesh_file_hashes(mesh_dir, case.mesh_manifest),
+    })
+    if actual != prepared.inputs:
+        raise CfdDispatchError("CFD mesh inputs changed after preparation", code="cfd_request_conflict")
+    # The execution snapshot binds the prepared inputs to the run publication;
+    # later replay cannot reinterpret a modified input file as another execution.
+    execution_inputs = actual.model_copy(update={"profile": case.solver_profile})
+    execution = prepared.model_copy(update={
+        "inputs": execution_inputs, "request_id": execution_inputs.fingerprint(),
+    })
+    _write_json(case.job_dir / "execution-inputs.json", execution)
+    _route_cfd_writes_through_store(
+        case.job_dir, case.job_spec, files=(("cfd_run_record", "execution-inputs.json"),),
+    )
+
+
+def _execute_case(case: PreparedSolverCase) -> CfdRunRecord:
     adapter = _adapter_for(case.solver_profile)
     prepared = adapter.prepare(case)
 
@@ -252,6 +377,11 @@ def _load_prepared_case(job_dir: Path) -> PreparedSolverCase:
     except (ValidationError, ValueError) as exc:
         raise CfdDispatchError(f"malformed CFD job record in {job_dir}") from exc
 
+    if job_spec.job_id != job_dir.name:
+        raise CfdDispatchError(
+            "CFD attempt is not published at its committed directory",
+            code="cfd_unpublished_attempt",
+        )
     manifest_path = (job_dir / job_spec.input_manifest).resolve()
     try:
         manifest = MeshPackageManifest.model_validate_json(manifest_path.read_text())
@@ -270,14 +400,14 @@ def _load_prepared_case(job_dir: Path) -> PreparedSolverCase:
 
 def _load_job_json_artifact(path: Path) -> dict:
     job_dir = path.parent
-    if path.name == "run.json" and path.is_file() and (job_dir / "_store").is_dir():
+    if path.name in {"run.json", "preparation.json", "execution-inputs.json"} and path.is_file() and (job_dir / "_store").is_dir():
         store = FilesystemArtifactStore(job_dir)
         try:
             ref = store.ref_for_relative_path(path.name, kind="cfd_run_record")
             if ref is not None:
                 return store.get_json(ref)
         except ArtifactIntegrityError:
-            if store.manifest is not None:
+            if store.manifest is not None or path.name != "run.json":
                 # A published manifest is the commit point. Canonical edits
                 # cannot distinguish an operator change from a failed write.
                 raise

@@ -25,6 +25,8 @@ import sys
 from pathlib import Path
 
 import pytest
+
+from cfd_test_cases import prepare_profile_attempt
 from pydantic import ValidationError
 
 from kayakgen.eval.cfd.jobs import (
@@ -130,18 +132,12 @@ def _prepare_openfoam_job(tmp_path: Path, *, speed_mps: float = 2.4):
     )
 
 
-def _set_openfoam_profile_fields(job_dir: Path, **updates: object) -> None:
-    profile_path = job_dir / "profile.json"
-    profile = json.loads(profile_path.read_text())
-    assert profile["name"] == OPENFOAM_PROFILE_NAME
-    profile.update(updates)
-    profile_path.write_text(json.dumps(profile, indent=2, sort_keys=True) + "\n")
 
 
-def _install_fake_solver(job_dir: Path) -> None:
+def _install_fake_solver(job):
     """Install a fake interFoam-equivalent command that emits a v2512 force.dat."""
-    _set_openfoam_profile_fields(
-        job_dir,
+    return prepare_profile_attempt(
+        job,
         solver_version_command=[
             sys.executable,
             "-c",
@@ -172,7 +168,7 @@ def test_blocked_record_stages_remain_empty(
 ) -> None:
     """Without opt-in, the adapter's ``solver_success_blocked`` path leaves ``stages=[]``."""
     job = _prepare_openfoam_job(tmp_path)
-    _install_fake_solver(job.job_dir)
+    job = _install_fake_solver(job)
     monkeypatch.delenv(OPENFOAM_LOCAL_RUN_ENV_VAR, raising=False)
 
     record = run_cfd_job(job.job_dir)
@@ -228,7 +224,7 @@ def test_succeeded_record_emits_expected_stage_sequence(tmp_path: Path) -> None:
     needs to actually run.
     """
     job = _prepare_openfoam_job(tmp_path)
-    _install_fake_solver(job.job_dir)
+    job = _install_fake_solver(job)
 
     record = run_cfd_job(job.job_dir)
 
@@ -259,7 +255,7 @@ def test_succeeded_record_emits_expected_stage_sequence(tmp_path: Path) -> None:
 def test_succeeded_record_stage_wall_clocks_are_non_negative(tmp_path: Path) -> None:
     """Every emitted stage carries a non-negative or ``None`` wall-clock."""
     job = _prepare_openfoam_job(tmp_path)
-    _install_fake_solver(job.job_dir)
+    job = _install_fake_solver(job)
 
     record = run_cfd_job(job.job_dir)
 

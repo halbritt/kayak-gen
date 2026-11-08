@@ -449,3 +449,9 @@ Landed conservative numerical status and objective admission (KAYGEN-7). Method-
 | Work | Disposition | Evidence / remaining scope |
 | --- | --- | --- |
 | KAYGEN-13 / RFC 0071 | completed-history | Concurrent streamed-command deadline, process-group cleanup and bounded memory capture; full selected disk logs retained. Whole-job budgets remain separate. |
+
+## 2026-11-07 implementation follow-up
+
+| Work | Disposition | Evidence / remaining scope |
+| --- | --- | --- |
+| KAYGEN-11 / RFC 0070 | completed-history | Full-input CFD prepare replay, retained explicit attempts, local one-writer admission and staged publication. No distributed or power-loss guarantee. |

@@ -45,6 +45,7 @@ class CfdJobCreateRequest(BaseModel):
     seawater_density_kg_m3: float = Field(default=1025.0, gt=0)
     kinematic_viscosity_m2_s: float = Field(default=1.19e-6, gt=0)
     hull_ref: str | None = None
+    new_attempt: bool = False
 
 
 class CfdWebError(Exception):
@@ -122,6 +123,7 @@ def create_cfd_job_payload(raw_payload: dict[str, Any], store: CfdWebStore) -> d
             seawater_density_kg_m3=request.seawater_density_kg_m3,
             kinematic_viscosity_m2_s=request.kinematic_viscosity_m2_s,
             hull_ref=request.hull_ref,
+            new_attempt=request.new_attempt,
         )
     except CfdDispatchError as exc:
         raise _cfd_dispatch_web_error(
@@ -149,10 +151,11 @@ def run_cfd_job_payload(job_id: str, store: CfdWebStore) -> dict[str, Any]:
     try:
         run = run_cfd_job(job_dir)
     except CfdDispatchError as exc:
+        kind = "cfd_dispatch_failed" if exc.code == "cfd_dispatch_error" else exc.code
         raise CfdWebError(
-            500,
+            _cfd_dispatch_error_status(kind),
             _cfd_error_payload(
-                "cfd_dispatch_failed",
+                kind,
                 f"CFD local dispatch failed: {exc}",
                 job_id=job_id,
             ),
@@ -473,7 +476,7 @@ def _cfd_dispatch_web_error(
     manifest: MeshPackageManifest | None,
 ) -> CfdWebError:
     message = str(exc)
-    kind = _cfd_dispatch_error_kind(message)
+    kind = exc.code if exc.code.startswith("cfd_") and exc.code != "cfd_dispatch_error" else _cfd_dispatch_error_kind(message)
     status = _cfd_dispatch_error_status(kind)
     extra: dict[str, Any] = {
         "solver_profile": solver_profile,
@@ -519,6 +522,8 @@ def _cfd_dispatch_error_kind(message: str) -> str:
 
 
 def _cfd_dispatch_error_status(kind: str) -> int:
+    if kind in {"cfd_job_busy", "cfd_request_conflict", "cfd_preparation_unverified", "cfd_attempt_incomplete", "cfd_unpublished_attempt"}:
+        return 409
     if kind in {"mesh_readiness_rejected", "solver_profile_mismatch"}:
         return 422
     if kind in {
