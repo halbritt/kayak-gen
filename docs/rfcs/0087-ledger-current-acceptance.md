@@ -54,6 +54,11 @@ nonempty subset of the declared source. Together the receipts must bind all of
 it. An optional `observed_at` pointer selects an RFC 3339 time recorded inside
 the receipt.
 
+Before building the item lookup, require an `items` list whose entries each
+have a nonempty string `work_id`. Duplicate IDs are refused in either order;
+entries are never skipped or replaced by a later duplicate. Otherwise a
+pending entry could disappear before any criterion or pending check sees it.
+
 Applicability rules for a mandatory criterion:
 
 1. The applicable source must equal the item's accepted `final_source_tree` and

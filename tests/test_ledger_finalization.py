@@ -98,6 +98,37 @@ def by_id(view: dict) -> dict[str, dict]:
     return {v["work_id"]: v for v in view["items"]}
 
 
+@pytest.mark.parametrize("pending_first", [True, False])
+def test_duplicate_work_ids_refuse_in_both_orders(tmp_path: Path, lineage: dict, pending_first):
+    accepted = lineage["B"]
+    ordinary = item("W3", accepted, {})
+    with_pending = item("W3", accepted, {"extra_render_pending": True})
+    rows = [with_pending, ordinary] if pending_first else [ordinary, with_pending]
+    ledger, policy = write_inputs(tmp_path, rows, [
+        mandatory("render", "W3", accepted, [receipt(tmp_path, "render.json", accepted)])])
+    with pytest.raises(PolicyRefused, match="duplicate.*work_id"):
+        build_view(ledger, policy, tmp_path / "repo")
+    result = subprocess.run(
+        [sys.executable, "-m", "kayakgen.operations.ledger_finalization", "view",
+         "--ledger", str(ledger), "--policy", str(policy), "--repo", str(tmp_path / "repo")],
+        env={**os.environ, "PYTHONPATH": str(REPO_ROOT)}, capture_output=True, text=True, timeout=30)
+    assert result.returncode == 2, result.stdout + result.stderr
+    assert json.loads(result.stdout)["status"] == "refused"
+    assert "duplicate" in json.loads(result.stdout)["reason"]
+
+
+@pytest.mark.parametrize("invalid", [None, {}, {"work_id": None}, {"work_id": 3},
+                                    {"work_id": ""}, {"work_id": "   "}])
+def test_missing_or_invalid_work_id_refuses_instead_of_skipping_an_item(
+    tmp_path: Path, lineage: dict, invalid,
+):
+    accepted = lineage["B"]
+    ledger, policy = write_inputs(tmp_path, [invalid, item("W3", accepted, {})], [
+        mandatory("render", "W3", accepted, [receipt(tmp_path, "render.json", accepted)])])
+    with pytest.raises(PolicyRefused, match="work_id"):
+        build_view(ledger, policy, tmp_path / "repo")
+
+
 def test_mixed_historical_and_current_ledger(tmp_path: Path, lineage: dict) -> None:
     a, b, c = lineage["A"], lineage["B"], lineage["C"]
     snapshot = receipt(tmp_path, "snapshot-a.json", a, fields=("source_commit",))

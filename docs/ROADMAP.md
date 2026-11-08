@@ -509,3 +509,12 @@ environment → actual installed workflow acceptance command. This replaces the
 campaign-specific staging checklist as the reusable entry point. Runtime service
 lifecycle checks and deployment authority remain separate follow-up work; there
 is no public demo, owner CFD or physical claim expansion.
+
+## RFC 0087 ledger finalization disposition
+
+KAYGEN-24 / R9 provides a receipt-applicability view and a proposed finalized
+ledger with exact original-byte history. Item identities must be unique and
+nonempty, so no pending entry can disappear during indexing. Historical
+acceptance stays bound to its accepted source; future physical obligations
+remain open. Future-Striatum-Batches: automatic live-ledger replacement and
+physical-claim expansion are not part of this tooling slice.

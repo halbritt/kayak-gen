@@ -1576,6 +1576,9 @@ Callback exceptions propagate in the Python API. Actions are never retried.
 
 ## Current ledger acceptance versus historical pending flags (RFC 0087)
 
+Ledger items must have unique, nonempty string `work_id` values. Duplicate IDs
+and missing identities are refused before any item can be skipped or replaced.
+
 Check a ledger against a finalization policy before you treat a retained
 `*_pending` flag as resolved:
 

@@ -269,8 +269,17 @@ def build_view(ledger_path: Path, policy_path: Path, repo: Path | None = None) -
             raise PolicyRefused("ledger bytes do not match the policy's ledger sha256")
         ledger = _decode_json(ledger_raw, "ledger")
         base = policy_path.absolute().parent
-        items = {item.get("work_id"): item for item in ledger.get("items", [])
-                 if isinstance(item, dict)}
+        if not isinstance(ledger, dict) or not isinstance(ledger.get("items"), list):
+            raise PolicyRefused("ledger must contain an items list with unique work_id values")
+        items = {}
+        for position, item in enumerate(ledger["items"]):
+            if (not isinstance(item, dict) or not isinstance(item.get("work_id"), str)
+                    or not item["work_id"].strip()):
+                raise PolicyRefused(f"ledger item {position} requires a nonempty string work_id")
+            work_id = item["work_id"]
+            if work_id in items:
+                raise PolicyRefused(f"duplicate ledger work_id {work_id!r}")
+            items[work_id] = item
         criteria = policy["criteria"]
         if not isinstance(criteria, list) or not criteria:
             raise PolicyRefused("policy requires at least one criterion")

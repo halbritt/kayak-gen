@@ -26,6 +26,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Fixed
 
+- RFC 0087 / KAYGEN-24 review correction: ledger views refuse duplicate or
+  missing item identities before aggregation, so an earlier pending entry
+  cannot disappear behind another item with the same `work_id`.
+
 - RFC 0084 / KAYGEN-21: the canonical full gate runs complete pytest and
   its skip pin before mandatory Ruff. Optional persistent JSON receipts bind
   actual staged/dirty candidate content, preserve failure/interruption
