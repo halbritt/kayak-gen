@@ -41,6 +41,29 @@ failed and interrupted runs. Inherited `PYTEST_ADDOPTS` is cleared for this
 full check. See [release discipline](RELEASE_DISCIPLINE.md) and
 [the receipt contract](rfcs/0084-source-bound-full-gate.md).
 
+## Selecting a release-gate renderer (RFC 0082)
+
+`scripts/full-gate.sh --renderer software --receipt /outside/source/full.json`
+uses verified Mesa rendering by default. `scripts/fast-gate.sh` accepts the same
+renderer/receipt options for its fixed pre-push subset. Receipt destinations must
+be new and outside source or inside an ignored directory. `KAYAKGEN_PY` selects
+the supported external interpreter, and `KAYAKGEN_GATE_RENDERER` selects the
+profile without changing a hook command.
+
+Software mode fixes `LIBGL_ALWAYS_SOFTWARE=1`, the installed Mesa EGL vendor
+file and `VTK_DEFAULT_OPENGL_WINDOW=vtkEGLRenderWindow` in both the actual probe
+and test commands. The receipt separates the original declarations from the
+actual OpenGL/window/library observations. A failed probe or an unexpected
+NVIDIA selection refuses the gate before any check commands run.
+
+For the supported NVIDIA hardware profile, supply the intended hardware
+environment and select `--renderer hardware`. Its probe and checks hold the
+shared host lock; if that environment selects Mesa software, the gate refuses
+with `hardware profile selected a software renderer`. Correct the environment
+or explicitly choose software mode. The lock does not stop other GPU workloads
+or ensure VRAM availability. See [release discipline](RELEASE_DISCIPLINE.md) for
+profiles, platform limits and the distinction between full and fast receipts.
+
 ## Quick Start
 
 Create a default hull, generate STL surfaces, evaluate hydrostatics plus raw

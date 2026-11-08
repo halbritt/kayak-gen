@@ -16,12 +16,18 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Fixed
 
+- RFC 0082 / KAYGEN-19: full and fast/pre-push gates verify actual rendering.
+  Mesa software is the default and may overlap after capability/library checks;
+  supported NVIDIA hardware holds the existing host lock. Failed or mismatched
+  probes prevent check commands. Both fixed plans retain skip/source checks,
+  persistent renderer evidence and existing test coverage.
+
 - RFC 0084 / KAYGEN-21: the canonical full gate runs complete pytest and
   its skip pin before mandatory Ruff. Optional persistent JSON receipts bind
   actual staged/dirty candidate content, preserve failure/interruption
   outcomes and refuse changed source. Inherited `PYTEST_ADDOPTS` cannot
   silently narrow the full check; external-interpreter worktrees remain
-  supported. Actual renderer absence is reported explicitly.
+  supported. Actual renderer absence remains explicit; RFC 0082 supplies actual observations.
 
 - RFC 0073 / KAYGEN-22: evaluator no-rerun test guards share
   `tests/evaluator_guard.py`. It preloads by-name consumers before stubbing,

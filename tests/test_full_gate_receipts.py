@@ -11,6 +11,8 @@ import time
 import subprocess
 import sys
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -27,6 +29,7 @@ def fixture_repo(tmp_path: Path) -> Path:
             operations, repo / "kayakgen/operations", ignore=shutil.ignore_patterns("__pycache__")
         )
     shutil.copyfile(ROOT / "scripts/full-gate.sh", repo / "scripts/full-gate.sh")
+    shutil.copyfile(ROOT / "scripts/fast-gate.sh", repo / "scripts/fast-gate.sh")
     (repo / ".gitignore").write_text("__pycache__/\n.pytest_cache/\n.ruff_cache/\n")
     (repo / "tests/test_fixture.py").write_text(
         "import os\nimport pytest\n\n"
@@ -125,6 +128,157 @@ def test_full_gate_runs_pytest_then_ruff_and_binds_uncommitted_candidate(tmp_pat
     )
     assert tree == git(repo, "rev-parse", "HEAD^{tree}")
     assert Path(record["interpreter"]["executable"]).resolve() == Path(sys.executable).resolve()
+
+
+def test_full_caller_records_actual_software_renderer_and_checked_environment(tmp_path):
+    repo = fixture_repo(tmp_path)
+    with (repo / "tests/test_fixture.py").open("a") as stream:
+        stream.write(
+            "\ndef test_renderer_environment():\n"
+            "    assert os.environ['LIBGL_ALWAYS_SOFTWARE'] == '1'\n"
+            "    assert os.environ['__EGL_VENDOR_LIBRARY_FILENAMES'].endswith('/50_mesa.json')\n"
+            "    assert os.environ['VTK_DEFAULT_OPENGL_WINDOW'] == 'vtkEGLRenderWindow'\n"
+        )
+    receipt = tmp_path / "renderer.json"
+    completed = subprocess.run(
+        ["bash", "scripts/full-gate.sh", "--renderer", "software", "--receipt", str(receipt)],
+        cwd=repo, env=gate_env(repo), capture_output=True, text=True, timeout=45,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    record = json.loads(receipt.read_text())
+    assert record["status"] == "passed" and record["source_unchanged"] is True
+    renderer = record["renderer"]
+    assert renderer["requested_mode"] == "software"
+    assert renderer["actual"]["status"] == "observed"
+    assert renderer["actual"]["nvidia_opengl_loaded"] is False
+    assert "llvmpipe" in renderer["actual"]["opengl_renderer"].lower()
+    assert renderer["probe"]["exit_code"] == 0
+
+
+def test_fast_caller_uses_same_renderer_policy_and_retains_fixed_subset(tmp_path):
+    repo = fixture_repo(tmp_path)
+    (repo / "tests/test_web_browser.py").write_text("def test_ignored():\n    assert False\n")
+    receipt = tmp_path / "fast-renderer.json"
+    completed = subprocess.run(
+        ["bash", "scripts/fast-gate.sh", "--renderer", "software", "--receipt", str(receipt)],
+        cwd=repo, env=gate_env(repo), capture_output=True, text=True, timeout=45,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    record = json.loads(receipt.read_text())
+    assert record["gate"] == "fast" and record["status"] == "passed"
+    assert [step["name"] for step in record["commands"]] == ["ruff", "pytest"]
+    assert record["expected_skips"] == record["observed_skips"] == 4
+    assert record["renderer"]["actual"]["status"] == "observed"
+    assert record["renderer"]["coordination"]["policy"] == "independent_verified_software"
+    assert record["source_unchanged"] is True
+
+
+def test_fast_caller_refuses_a_green_pytest_with_wrong_skip_count(tmp_path):
+    repo = fixture_repo(tmp_path)
+    tests = repo / "tests/test_fixture.py"
+    tests.write_text(tests.read_text().replace("range(4)", "range(3)"))
+    receipt = tmp_path / "fast-skips.json"
+    completed = subprocess.run(
+        ["bash", "scripts/fast-gate.sh", "--receipt", str(receipt)],
+        cwd=repo, env=gate_env(repo), capture_output=True, text=True, timeout=45,
+    )
+    record = json.loads(receipt.read_text())
+    assert completed.returncode == 1
+    assert record["gate"] == "fast" and record["status"] == "failed"
+    assert all(step["exit_code"] == 0 for step in record["commands"])
+    assert record["observed_skips"] == 3 and record["expected_skips"] == 4
+    assert record["failure_reasons"] == ["skip_count_mismatch"]
+
+
+@pytest.mark.parametrize("kind", ["full", "fast"])
+def test_renderer_probe_crash_cannot_start_either_gate_plan(tmp_path, kind):
+    repo = fixture_repo(tmp_path)
+    source = repo / "kayakgen/operations/renderer.py"
+    text = source.read_text()
+    needle = "    from vtkmodules.vtkCommonCore import vtkVersion"
+    assert text.count(needle) == 1
+    source.write_text(text.replace(needle,
+        "    import resource, signal\n"
+        "    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))\n"
+        "    os.kill(os.getpid(), signal.SIGSEGV)\n" + needle))
+    receipt = tmp_path / "crashed-probe.json"
+    completed = subprocess.run(
+        ["bash", f"scripts/{kind}-gate.sh", "--receipt", str(receipt)],
+        cwd=repo, env=gate_env(repo), capture_output=True, text=True, timeout=45,
+    )
+    record = json.loads(receipt.read_text())
+    assert completed.returncode == 1 and record["status"] == "failed"
+    assert record["renderer"]["probe"]["exit_code"] == -signal.SIGSEGV
+    assert record["renderer"]["actual"]["status"] == "unobserved"
+    assert all(command["status"] == "not_run" for command in record["commands"])
+
+
+@pytest.mark.parametrize("kind", ["full", "fast"])
+def test_actual_renderer_mismatch_refuses_both_callers_before_commands(tmp_path, kind):
+    repo = fixture_repo(tmp_path)
+    receipt = tmp_path / "hardware-mismatch.json"
+    lock = tmp_path / "isolated-hardware.lock"
+    script = (
+        "import sys\nfrom pathlib import Path\n"
+        "from kayakgen.operations import renderer, gate\n"
+        "renderer.HARDWARE_LOCK = Path(sys.argv[2])\n"
+        "sys.exit(gate.run_gate(Path(sys.argv[1]), 'hardware', gate_kind=sys.argv[3]))\n"
+    )
+    environment = {**gate_env(repo), "LIBGL_ALWAYS_SOFTWARE": "1",
+        "__EGL_VENDOR_LIBRARY_FILENAMES": "/usr/share/glvnd/egl_vendor.d/50_mesa.json",
+        "VTK_DEFAULT_OPENGL_WINDOW": "vtkEGLRenderWindow"}
+    completed = subprocess.run([sys.executable, "-c", script, str(receipt), str(lock), kind],
+        cwd=repo, env=environment, capture_output=True, text=True, timeout=45)
+    record = json.loads(receipt.read_text())
+    assert completed.returncode == 1 and record["status"] == "failed"
+    assert "hardware profile selected a software renderer" in record["diagnostics"]
+    assert record["renderer"]["actual"]["status"] == "observed"
+    assert record["renderer"]["coordination"]["state"] == "released"
+    assert all(command["status"] == "not_run" for command in record["commands"])
+
+
+def test_two_verified_software_gate_callers_can_reach_tests_concurrently(tmp_path):
+    processes, receipts, markers = [], [], []
+    try:
+        for name in ("one", "two"):
+            base = tmp_path / name
+            base.mkdir()
+            repo = fixture_repo(base)
+            marker, other = tmp_path / name, tmp_path / ("two" if name == "one" else "one")
+            # Markers are separate files outside either frozen candidate.
+            marker, other = marker.with_suffix(".ready"), other.with_suffix(".ready")
+            with (repo / "tests/test_fixture.py").open("a") as stream:
+                stream.write(
+                    "\ndef test_concurrent_caller():\n"
+                    "    import time\n    from pathlib import Path\n"
+                    "    Path(os.environ['CALLER_READY']).write_text('pytest reached')\n"
+                    "    deadline = time.monotonic() + 10\n"
+                    "    while not Path(os.environ['OTHER_READY']).exists():\n"
+                    "        assert time.monotonic() < deadline, 'other caller was serialized'\n"
+                    "        time.sleep(.025)\n"
+                )
+            receipt = tmp_path / (name + ".json")
+            process = subprocess.Popen(
+                ["bash", "scripts/full-gate.sh", "--receipt", str(receipt)],
+                cwd=repo, env={**gate_env(repo), "CALLER_READY": str(marker), "OTHER_READY": str(other)},
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+            )
+            processes.append(process)
+            receipts.append(receipt)
+            markers.append(marker)
+        for process, receipt in zip(processes, receipts, strict=True):
+            output, _ = process.communicate(timeout=30)
+            assert process.returncode == 0, output
+            record = json.loads(receipt.read_text())
+            assert record["status"] == "passed"
+            assert record["renderer"]["coordination"]["policy"] == "independent_verified_software"
+            assert record["renderer"]["actual"]["nvidia_opengl_loaded"] is False
+        assert all(marker.exists() for marker in markers)
+    finally:
+        for process in processes:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
 
 
 def test_explicit_openfoam_configuration_requires_zero_skips(tmp_path: Path) -> None:

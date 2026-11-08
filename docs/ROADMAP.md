@@ -497,7 +497,7 @@ recovery are outside this completed slice, not implied future implementations.
 
 | Work | Disposition | Evidence / remaining scope |
 | --- | --- | --- |
-| KAYGEN-21 / RFC 0084 | completed-history | Full pytest and skip pin followed by mandatory Ruff; optional persistent candidate-bound receipts. Actual renderer probe/scheduling remains KAYGEN-19. |
+| KAYGEN-21 / RFC 0084 | completed-history | Full pytest and skip pin followed by mandatory Ruff; optional persistent candidate-bound receipts. Actual renderer probe/scheduling is implemented by KAYGEN-19 / RFC 0082. |
 
 Future-Striatum-Batches: the canonical full-gate order and receipt work is
 implemented; no separate campaign wrapper or test-coverage reduction is queued.
@@ -517,3 +517,10 @@ existing context, recorded-method, numerical-admission and presentation tests.
 The retained operating oracle supplies no-rerun consumer controls. This completes
 the preflight tooling slice; a passing receipt does not complete a release gate
 or discharge physical calibration. New consumers require routing review.
+## Renderer-policy follow-up disposition
+
+KAYGEN-19 / RFC 0082 adds shared actual-renderer admission to full and fast gates.
+Verified Mesa software runs may overlap; NVIDIA hardware runs hold the existing
+host lock. Real context/library and caller/concurrency controls protect the
+policy. Future-Striatum-Batches: no duplicate gate runner or rendering-test
+reduction is queued. Other platforms/drivers require new capability evidence.

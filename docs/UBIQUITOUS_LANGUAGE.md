@@ -267,3 +267,8 @@ and retained consumer oracles run before a full source freeze. The work packet
 names producers, consumers and shared values. Its source-bound result is partial
 verification evidence; `not_applicable` means no group was selected, and every
 outcome continues to require the complete release gate.
+**Gate renderer profile** (RFC 0082): operational admission for a real observed
+VTK/OpenGL context and its resource policy. `software` requires Mesa CPU rendering
+without NVIDIA OpenGL mappings; `hardware` requires supported NVIDIA rendering
+under the shared host lock. It is distinct from a numerical evaluator, hull
+readiness or physical validation.

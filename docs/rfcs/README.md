@@ -15,6 +15,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | RFC | Status | Topic |
 | --- | --- | --- |
 | [0081](0081-semantic-preflight.md) | landed selected semantic preflight | Source-bound shared-input contract checks before full release gates |
+| [0082](0082-verified-gate-renderers.md) | landed verified full/fast renderer admission | Actual Mesa software evidence and coordinated NVIDIA hardware gates |
 | [0084](0084-source-bound-full-gate.md) | landed full pytest then Ruff + persistent receipts | Fixed full-check sequence and actual candidate source identity |
 | [0079](0079-completion-admission.md) | landed terminal audit and declared receipt admission | Guard completion actions with terminal audits and source-bound evidence |
 | [0077](0077-resistance-quadrature-policy.md) | landed exact linear depth + explicit interval screening policy | Correct depth quadrature and measured resistance screening uncertainty |

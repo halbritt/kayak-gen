@@ -24,7 +24,9 @@ identity and run manifests retain their existing authority.
 kayakgen/
 ├── operations/               # Operational checks; separate from hull claim gates
 │   ├── completion.py            terminal audit + declared receipts → one action
-│   ├── gate.py                  fixed full pytest/skip pin then Ruff + optional receipt
+│   ├── gate.py                  fixed full/fast plans + source-bound receipts
+│   ├── fast_gate.py             dedicated pre-push plan entry point
+│   ├── renderer.py              actual context evidence + renderer resource policy
 │   ├── release.py               immutable source → wheel → inactive installed verification
 │   ├── release_*.py             manifests, staging, byte audit and actual installed workflows
 │   └── semantic_preflight.py    selected shared-input regressions + partial evidence
@@ -213,6 +215,11 @@ manifest authority and derived job index remain separate.
 - **Semantic preflight receipt** (RFC 0081): selected contracts, actual source
   before/after, real commands and observed outcomes; explicitly partial with
   full release gates required. Unmapped paths remain visible to the operator.
+RFC 0082 extends gate receipts with requested/effective renderer profile, actual
+VTK/OpenGL capabilities and mapped libraries, probe outcomes and hardware-lock
+state. The dedicated fast caller uses `gate: "fast"`; its fixed subset is not
+full release evidence. Renderer imports stay lazy for reusable source/process
+helpers. No evaluator or scientific claim state changes.
 
 RFC 0084 adds an optional `kayakgen-gate-receipt/1` at an explicitly selected
 new path outside source or inside a Git-ignored directory. The maintained

@@ -49,7 +49,7 @@ The schema identifier is `kayakgen-gate-receipt/1`. Fields are:
 
 | Field | Meaning |
 | --- | --- |
-| `gate`, `run_id`, `repository` | Literal `full`, invocation UUID and resolved Git worktree |
+| `gate`, `run_id`, `repository` | `full` for this entry point; RFC 0082's dedicated pre-push caller uses `fast`; invocation UUID and resolved Git worktree |
 | `status`, `exit_code` | `running`, `passed`, `failed` or `interrupted`; null exit while running |
 | `started_at`, `finished_at`, `duration_seconds` | UTC wall-clock timestamps and monotonic elapsed duration |
 | `source_before`, `source_after` | Candidate Git `tree_sha`, raw `fingerprint_sha256`, observed `head_commit`, original `index_tree_sha`, `dirty` |
@@ -57,7 +57,7 @@ The schema identifier is `kayakgen-gate-receipt/1`. Fields are:
 | `expected_skips`, `observed_skips` | Four by default, zero when both supported OpenFOAM knobs equal `1`; null observation before a parsed summary |
 | `interpreter` | Actual executable, resolved executable, requested override, version, prefix and base prefix |
 | `renderer.declared` | The three software/EGL/VTK environment declarations, including absent values |
-| `renderer.actual` | Explicit `unobserved` plus reason until an actual probe is integrated |
+| `renderer.actual` | Explicit `unobserved` plus reason in historical receipts; RFC 0082 adds actual context/library evidence and resource admission |
 | `commands` | Ordered `pytest`, `ruff` objects: actual argv, status, raw child exit, timestamps, duration, log path and pytest summary when observed |
 | `environment_policy` | Cleared `PYTEST_ADDOPTS` policy and whether an inherited value existed; never retains supplied option text |
 | `failure_reasons`, `diagnostics` | Stable failure categories and descriptive execution errors |
@@ -95,7 +95,8 @@ in-suite skip-pin checks remain. No fixture-only acceptance switch ships.
 
 ## Open questions and domain modeling
 
-Actual renderer evidence and scheduling remain KAYGEN-19. A **gate receipt**
+Actual renderer evidence and scheduling are implemented by KAYGEN-19 / RFC 0082.
+A **gate receipt**
 records one verification invocation. A **candidate source snapshot** identifies
 the tested content independently of the commit that may later contain it.
 Neither creates a scientific accepted-use or task-completion state.
