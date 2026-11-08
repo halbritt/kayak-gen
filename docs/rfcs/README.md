@@ -14,6 +14,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 
 | RFC | Status | Topic |
 | --- | --- | --- |
+| [0087](0087-ledger-current-acceptance.md) | landed receipt-applicability ledger view and proposed finalization | Current ledger acceptance versus historical pending flags |
 | [0084](0084-source-bound-full-gate.md) | landed full pytest then Ruff + persistent receipts | Fixed full-check sequence and actual candidate source identity |
 | [0079](0079-completion-admission.md) | landed terminal audit and declared receipt admission | Guard completion actions with terminal audits and source-bound evidence |
 | [0077](0077-resistance-quadrature-policy.md) | landed exact linear depth + explicit interval screening policy | Correct depth quadrature and measured resistance screening uncertainty |

@@ -8,6 +8,16 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- RFC 0087 / KAYGEN-24: maintained `python -m kayakgen.operations.ledger_finalization`
+  derives current ledger criterion status only from receipts applicable to each
+  item's accepted source, using the RFC 0079 validator. A retained pending
+  flag becomes history only when Git ancestry or recorded timestamps prove it
+  is older. Newer, unordered, same-source and undeclared pending flags stay
+  explicit conflicts. Future physical obligations stay open. `finalize` writes
+  the exact original bytes and a proposed ledger to new paths. The real
+  2026-11-07 ledger copy shows W3 accepted with its render-pending flag as
+  history. Root still owns live application. No claim ceilings change.
+
 - RFC 0083 / KAYGEN-20: maintained `python -m kayakgen.operations.release`
   builds an immutable source snapshot, stages a noneditable wheel and verifies
   installed bytes plus actual HTML/report/export and bounded real CFD workflows.

@@ -1574,6 +1574,35 @@ includes a reason and exits 2. `action_succeeded` means the process exited zero;
 other launch failures 126, and signal exits use 128 plus the signal number.
 Callback exceptions propagate in the Python API. Actions are never retried.
 
+## Current ledger acceptance versus historical pending flags (RFC 0087)
+
+Check a ledger against a finalization policy before you treat a retained
+`*_pending` flag as resolved:
+
+```bash
+python -m kayakgen.operations.ledger_finalization view \
+  --ledger ledger.json --policy ledger-policy.json --repo /path/to/kayak-gen
+```
+
+A `mandatory` criterion declares the item's accepted `applicable_source`
+(`source_tree`/`source_commit`, which must equal the item's `final_source_*`)
+and RFC 0079-style receipts. Each receipt binds a subset of that source, and
+together they must bind all of it. An optional `observed_at` pointer selects a
+recorded time. A `pending` declaration names the flag pointer, `as_of` (RFC
+3339 or `"unknown"`) and the `observed_source` with its own evidence receipts.
+The flag becomes `historical` only when its evidenced commit is a strict Git
+ancestor of the accepted commit, or its known `as_of` is earlier than every
+supporting receipt's `observed_at`. Otherwise it stays `current_conflict`.
+Other `true` pending flags in an item are reported as `undeclared_pending`.
+`future` obligations carry only a requirement and stay `open_future`.
+
+`view` exits 0 when consistent, 1 on conflict and 2 on refusal. `finalize`
+takes `--out` and `--history`, both new paths. It refuses conflicts. It writes
+the exact original ledger bytes to `--history`, and to `--out` a proposed
+ledger in which only proven-historical flags move into `ledger_history`. It
+never edits the input ledger. Applying the proposal to a live ledger stays a
+separate, reviewed operator action.
+
 The operator owns authorization and the completeness/truth of policy and audit
 inputs. Hashes identify consumed bytes without authenticating them. Validation
 does not lock files through execution; callers own later changes, action

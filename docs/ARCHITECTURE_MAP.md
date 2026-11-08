@@ -155,6 +155,7 @@ The `cli/` directory carries seven sibling modules used by `main.py`:
 | Command | Purpose | Writes |
 |---|---|---|
 | `python -m kayakgen.operations.completion --audit-result ... --requirements ... -- ACTION...` | Require terminal successful audit and source-bound receipts before one actual action | JSON decision on stdout; admitted action owns its writes |
+| `python -m kayakgen.operations.ledger_finalization {view,finalize} --ledger ... --policy ... [--repo ...]` | Derive current ledger criteria from applicable receipts; classify retained pending flags | View JSON on stdout; `finalize` writes new `--history` (original bytes) and `--out` (proposed ledger) paths only |
 | `kayakgen init <out>` | default Hull JSON | `out.json` |
 | `kayakgen generate <hull>` | open hull + deck inspection STLs | `<stem>_{hull,deck}.stl` |
 | `kayakgen evaluate <hull>` | EvaluationResult JSON | `<out>.eval.json` |
@@ -223,6 +224,13 @@ acceptance authority. See [the contract](rfcs/0084-source-bound-full-gate.md).
 - **Completion evidence JSON** (RFC 0079 module caller stdout): schema `"1"`,
   refusal reason or action outcome plus consumed requirements/receipt hashes,
   source identities and checked fields. Admission is local to one invocation.
+- **Ledger finalization policy JSON** (RFC 0087): schema `"1"`, ledger SHA-256,
+  mandatory criteria with applicable item source, RFC 0079 receipt specs and an
+  optional pending declaration, plus receipt-free future obligations.
+- **Ledger view JSON** (RFC 0087): `kayakgen.ledger-view/1`, per-item
+  `current_status`, criterion receipt links, pending classification and
+  ordering basis. Proposed ledgers add `ledger_history`, `current_criteria`
+  and `finalization.previous_ledger_sha256`.
 - **Hull JSON**: `kayakgen.model.hull.Hull` record. Stable schema; SHA-256
   via `Hull.hash()` (alias for `Hull.record_hash()` per RFC 0049);
   `Hull.design_hash()` for physical-inputs-only identity; optional
