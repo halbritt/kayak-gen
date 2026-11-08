@@ -1609,3 +1609,46 @@ control. Its report and exports exercise installation; its separate CFD fixture
 is not owner-hull CFD or physical validation. HTML works without WeasyPrint/PDF.
 The worker forces software Mesa rendering and uses an isolated artifact index.
 See RFC 0083 for the reusable runtime audit seam and precise scope.
+
+## Shared-input semantic preflight (RFC 0081)
+
+From the source-checkout root, use the same interpreter and extras as the full
+release gate. Before freezing a change that combines evaluation context, saved
+results, numerical admission or presentation, run the selected-contract checks:
+
+```bash
+python -m kayakgen.operations.semantic_preflight \
+  --changed-path kayakgen/eval/contract.py \
+  --out "$HOME/.local/share/kayakgen/preflight-new-attempt"
+```
+
+Repeat `--changed-path` for all relevant repository-relative paths. Repeat
+`--contract operating-inputs`, `recorded-methods`, `numerical-admission` or
+`presentation` to select additional groups explicitly. A shared context or
+preflight-caller change selects all four. Web/desktop adapter and web-state changes select
+operating inputs plus presentation because those adapters supply physical
+contexts; an explicit `--contract presentation` packet selects the narrower
+display checks. Unmapped paths stay in the work packet for review. Operators must select a contract explicitly for
+new consumers whose paths are not yet mapped. This routing aid does not prove a
+complete change-impact analysis.
+
+The new external directory contains the work packet in `receipt.json`, selected
+pytest logs/JUnit results, and the operating oracle's own files when applicable.
+The packet names producers, consumers, shared inputs and exact existing test
+targets. The operating oracle uses the checked-in retained curves and study
+payloads, runs 34 physical-input comparisons plus compatible/incompatible public
+consumers, and refuses any numerical evaluator call. Other selected regressions
+exercise actual evaluation and budget-forwarding paths where required.
+
+A successful partial receipt binds source before/after and retains interpreter,
+command outcomes, logs and test counts. The wrapper refuses failed, skipped,
+deselected, timed-out or interrupted checks and source changes. Existing output
+is retained; use another new directory for a retry. A path selecting no groups
+produces `not_applicable` without running the matrix. That means no checks were
+selected, not that the change was independently proved unrelated.
+
+Every result states `evidence_scope="semantic_preflight"`,
+`release_acceptance=false`, `full_release_gate_required=true` and
+`scientific_claim_promotion=false`. After reviewing the preflight, freeze the
+candidate and still run the required complete pytest suite followed by Ruff.
+A numerical admission or preflight pass supplies no physical-validation claim.

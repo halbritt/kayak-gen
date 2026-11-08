@@ -509,3 +509,11 @@ environment → actual installed workflow acceptance command. This replaces the
 campaign-specific staging checklist as the reusable entry point. Runtime service
 lifecycle checks and deployment authority remain separate follow-up work; there
 is no public demo, owner CFD or physical claim expansion.
+
+## RFC 0081 semantic preflight disposition
+
+KAYGEN-18 / R3 provides a selected-contract handoff and executable preflight over
+existing context, recorded-method, numerical-admission and presentation tests.
+The retained operating oracle supplies no-rerun consumer controls. This completes
+the preflight tooling slice; a passing receipt does not complete a release gate
+or discharge physical calibration. New consumers require routing review.

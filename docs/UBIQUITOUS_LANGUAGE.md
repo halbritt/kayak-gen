@@ -261,3 +261,9 @@ receipt** records build, inactive installation and installed workflow evidence;
 it does not promote scientific claim or readiness states. A **generated smoke
 control** is an explicit installation exercise used when no owner hull/context
 pair is supplied; it is not an owner design or physical reference measurement.
+
+**Semantic preflight** (RFC 0081): selected existing shared-input contract tests
+and retained consumer oracles run before a full source freeze. The work packet
+names producers, consumers and shared values. Its source-bound result is partial
+verification evidence; `not_applicable` means no group was selected, and every
+outcome continues to require the complete release gate.

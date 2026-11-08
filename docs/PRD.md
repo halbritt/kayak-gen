@@ -160,3 +160,7 @@ wheel byte identity, pinned dependencies, actual selected HTML report and export
 workflows, and bounded real legacy-fixture OpenFOAM smoke. It stages an inactive
 environment only. HTML does not require the optional PDF extra; owner-hull CFD and
 physical validation remain outside this operational acceptance scope.
+
+Semantic preflight tooling (RFC 0081) selects existing shared-input contract
+checks before a candidate freeze and records partial evidence against its actual
+source. Complete release gates and physical-validation requirements remain separate.

@@ -26,7 +26,8 @@ kayakgen/
 │   ├── completion.py            terminal audit + declared receipts → one action
 │   ├── gate.py                  fixed full pytest/skip pin then Ruff + optional receipt
 │   ├── release.py               immutable source → wheel → inactive installed verification
-│   └── release_*.py             manifests, staging, byte audit and actual installed workflows
+│   ├── release_*.py             manifests, staging, byte audit and actual installed workflows
+│   └── semantic_preflight.py    selected shared-input regressions + partial evidence
 ├── cli/                      # Typer subcommands; thin glue
 │   ├── main.py                  init / generate / evaluate / mesh-check
 │   │                            / mesh-package / mesh-evidence / stability
@@ -155,6 +156,7 @@ The `cli/` directory carries seven sibling modules used by `main.py`:
 | Command | Purpose | Writes |
 |---|---|---|
 | `python -m kayakgen.operations.completion --audit-result ... --requirements ... -- ACTION...` | Require terminal successful audit and source-bound receipts before one actual action | JSON decision on stdout; admitted action owns its writes |
+| `python -m kayakgen.operations.semantic_preflight --changed-path ... --out ...` | Select existing shared-input contract checks before the full gate | New external work packet, logs and partial receipt |
 | `kayakgen init <out>` | default Hull JSON | `out.json` |
 | `kayakgen generate <hull>` | open hull + deck inspection STLs | `<stem>_{hull,deck}.stl` |
 | `kayakgen evaluate <hull>` | EvaluationResult JSON | `<out>.eval.json` |
@@ -207,6 +209,10 @@ and successor admission hold the namespace lock. Existing algorithm artifacts,
 manifest authority and derived job index remain separate.
 
 ## Durable artifact types
+
+- **Semantic preflight receipt** (RFC 0081): selected contracts, actual source
+  before/after, real commands and observed outcomes; explicitly partial with
+  full release gates required. Unmapped paths remain visible to the operator.
 
 RFC 0084 adds an optional `kayakgen-gate-receipt/1` at an explicitly selected
 new path outside source or inside a Git-ignored directory. The maintained

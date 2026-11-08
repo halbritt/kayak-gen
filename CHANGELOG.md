@@ -228,6 +228,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   receipt byte/source bindings and task-declared JSON predicates gate one actual
   action invocation; refusals retain reasons and actions are never retried.
 
+- RFC 0081 / KAYGEN-18: maintained selected semantic preflight reuses existing
+  context, method, admission and display regressions plus the retained operating
+  oracle; source-bound partial receipts keep the complete release gate required.
+
 - Workflow 0063 (test-protection P1 durable-state hardening) landed the
   remediation plan's three P1 durable-state slices. P1-STORE-ATOMIC:
   `FilesystemArtifactStore._put_bytes` writes store bytes via a temp
