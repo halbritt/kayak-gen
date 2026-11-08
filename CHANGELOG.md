@@ -39,6 +39,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Fixed
 
+- RFC 0084 / KAYGEN-21 acceptance correction: two default-refusal CFD tests
+  explicitly disable their local-run opt-in for that test only. A complete
+  opt-in run can therefore exercise both refusal controls and the enabled
+  solver paths while preserving every assertion and all rendering coverage.
+
 - RFC 0082 / KAYGEN-19: full and fast/pre-push gates verify actual rendering.
   Mesa software is the default and may overlap after capability/library checks;
   supported NVIDIA hardware holds the existing host lock. Failed or mismatched

@@ -271,7 +271,7 @@ Any commit that proposes to widen one of the above must:
   `claude/<slug>` and `feature/<slug>` historically; no rule).
 - Merge strategy (`main` accepts fast-forwards and merge commits;
   no rebasing rule).
-- Issue tracking (no issue tracker in this repo today).
+- Issue tracking (the current Plane workspace and project are specified in `AGENTS.md`).
 - PR review process (single-operator project; no PR template).
 
 These items become load-bearing only if the project grows beyond

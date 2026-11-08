@@ -86,6 +86,12 @@ local receipt is neither an authenticated attestation nor power-loss storage.
 
 ## Acceptance criteria and implementation path
 
+The complete OpenFOAM opt-in run also exercises default-refusal controls. Such
+tests explicitly remove the local-run opt-in for their own function scope;
+pytest restores the caller's enabled setting afterward. They keep their
+refusal, stale-output and raw-claim assertions. The enabled stage and real
+solver tests still execute, and the whole opt-in gate requires zero skips.
+
 Real-process temporary Git repositories exercise full pytest then real Ruff,
 four and zero skips, failed pytest, failed post-suite Ruff, source mutation,
 SIGTERM cleanup, output ownership, environment-only subset refusal and unchanged

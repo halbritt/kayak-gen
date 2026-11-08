@@ -21,6 +21,7 @@ from kayakgen.eval.cfd.jobs import (
     OPENFOAM_CASE_ROOT,
     OPENFOAM_CASE_TEMPLATE_VERSION,
     OPENFOAM_FORCE_DAT_OUTPUT,
+    OPENFOAM_LOCAL_RUN_ENV_VAR,
     OPENFOAM_PROFILE_NAME,
     OPENFOAM_RAW_RESULT,
     SolverRawResult,
@@ -1225,7 +1226,10 @@ def test_openfoam_malformed_force_dat_persists_failed_record(tmp_path: Path) -> 
 
 def test_openfoam_parser_readable_force_dat_does_not_enable_succeeded_path(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Readable output alone cannot opt a default-disabled job into execution."""
+    monkeypatch.delenv(OPENFOAM_LOCAL_RUN_ENV_VAR, raising=False)
     job = _prepare_openfoam_job(tmp_path)
     job = prepare_profile_attempt(
         job,
@@ -1267,7 +1271,10 @@ def test_openfoam_parser_readable_force_dat_does_not_enable_succeeded_path(
 
 def test_openfoam_rerun_ignores_stale_force_dat_and_raw_result(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """A default-disabled attempt still refuses copied outputs on a fresh run."""
+    monkeypatch.delenv(OPENFOAM_LOCAL_RUN_ENV_VAR, raising=False)
     job = _prepare_openfoam_job(tmp_path)
     job = prepare_profile_attempt(
         job,
