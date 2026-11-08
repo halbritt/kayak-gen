@@ -155,3 +155,6 @@ wheel byte identity, pinned dependencies, actual selected HTML report and export
 workflows, and bounded real legacy-fixture OpenFOAM smoke. It stages an inactive
 environment only. HTML does not require the optional PDF extra; owner-hull CFD and
 physical validation remain outside this operational acceptance scope.
+
+RFC 0080 separately adds installed idle controls and read-only local persistent
+runtime observation with an explicit idle interval and process-owned readiness.

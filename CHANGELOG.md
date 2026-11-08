@@ -8,6 +8,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- RFC 0080 / KAYGEN-17: installed runtime lifecycle verification exercises real
+  idle controls and optionally observes a persistent local service. Acceptance
+  requires effective timeout-zero/server policy, stable process identity and
+  process-owned HTTP readiness before and after an explicit idle interval.
+
 - RFC 0083 / KAYGEN-20: maintained `python -m kayakgen.operations.release`
   builds an immutable source snapshot, stages a noneditable wheel and verifies
   installed bytes plus actual HTML/report/export and bounded real CFD workflows.

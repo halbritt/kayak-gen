@@ -195,3 +195,20 @@ Any commit that proposes to widen one of the above must:
 
 These items become load-bearing only if the project grows beyond
 one operator + agents.
+
+## Persistent runtime observation (RFC 0080 / D066)
+
+Installed-release workflow acceptance does not by itself prove persistent
+service lifetime. `python -I -B -m kayakgen.operations.runtime` reuses the
+selected installed verification request and byte audit. Backend-only controls
+retain `persistent_deployment_accepted=false`. Persistent observation requires
+an explicit unit, idle interval and loopback readiness URL, effective installed
+parser settings, process/invocation continuity, restart count and HTTP readiness
+before and after that interval. No WebSocket or HTTP keepalive is introduced
+during the interval. A healthy replacement still counts as a restart.
+
+Keep stable release paths, timeout zero/server mode, `Restart=always`, detached
+workers and `KillMode=process`. Positive timeout remains valid for intentionally
+transient servers. Retain failed attempts and their reasons. The campaign's
+315 seconds is one deployment observation, not a universal policy. The verifier
+reads the unit; activation or configuration remains separately authorized work.

@@ -491,3 +491,11 @@ environment → actual installed workflow acceptance command. This replaces the
 campaign-specific staging checklist as the reusable entry point. Runtime service
 lifecycle checks and deployment authority remain separate follow-up work; there
 is no public demo, owner CFD or physical claim expansion.
+
+## RFC 0080 runtime lifecycle disposition
+
+KAYGEN-17 / R2 adds installed backend controls and explicit-duration, read-only
+persistent service acceptance. It preserves timeout zero/server mode, stable
+paths, detached jobs, `Restart=always` and `KillMode=process`. Actual process and
+HTTP lifetime matter separately from startup. Deployment changes, another
+service manager/backend and physical validation remain separate work.

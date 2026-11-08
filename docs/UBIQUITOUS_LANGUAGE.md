@@ -246,3 +246,11 @@ receipt** records build, inactive installation and installed workflow evidence;
 it does not promote scientific claim or readiness states. A **generated smoke
 control** is an explicit installation exercise used when no owner hull/context
 pair is supplied; it is not an owner design or physical reference measurement.
+
+## Runtime lifecycle acceptance
+
+**Runtime lifecycle acceptance** records one installed service's observed
+process continuity, effective settings and readiness over an explicit idle
+interval. A **transient idle control** intentionally exits on a positive idle
+timeout; that valid control does not imply persistent-deployment acceptance.
+Neither term changes scientific accepted uses or managed-job ownership.
