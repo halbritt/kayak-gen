@@ -443,3 +443,9 @@ scientific claim expansion is included.
 ## RFC 0072 numerical evidence
 
 Landed conservative numerical status and objective admission (KAYGEN-7). Method-specific numerical policy measurement remains KAYGEN-15/RFC0077; this does not unblock physical calibration or final prediction.
+
+## Staged command lifetime follow-up
+
+| Work | Disposition | Evidence / remaining scope |
+| --- | --- | --- |
+| KAYGEN-13 / RFC 0071 | completed-history | Concurrent streamed-command deadline, process-group cleanup and bounded memory capture; full selected disk logs retained. Whole-job budgets remain separate. |

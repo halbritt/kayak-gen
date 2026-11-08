@@ -15,19 +15,25 @@ callers.
 from __future__ import annotations
 
 import os
+import selectors
+import signal
+import time
 import re
 import shlex
 import shutil
 import subprocess
 from dataclasses import dataclass, field
+from contextlib import nullcontext
 from pathlib import Path
-from typing import Sequence
+from typing import BinaryIO, Sequence
 
 from kayakgen.eval.snappy_hex_mesh import CheckMeshSummary
 
 OPENFOAM_BASHRC_ENV_VAR = "KAYAKGEN_OPENFOAM_BASHRC"
 OPENFOAM_BASHRC = Path("/usr/lib/openfoam/openfoam2512/etc/bashrc")
 DEFAULT_PROBE_TIMEOUT_SECONDS = 30
+STREAM_CAPTURE_LIMIT_BYTES = 64 * 1024
+PROCESS_TERMINATION_GRACE_SECONDS = 0.5
 
 
 def _resolve_bashrc(bashrc: str | Path | None = None) -> Path:
@@ -107,8 +113,10 @@ def bash_source_run_streamed(
     """Like :func:`bash_source_run` but tees the merged output to ``log_path``.
 
     Useful for long-running meshing/solver stages where the operator wants
-    to inspect progress on disk. The returned ``stdout`` field contains the
-    merged stream and ``stderr`` is empty.
+    to inspect progress on disk. The returned ``stdout`` field contains the final 64 KiB of merged output
+    (with a truncation notice when needed); ``stderr`` is empty. The disk log
+    retains the complete stream. The deadline includes output draining and
+    descendant-held pipes, with a bounded termination/reaping grace.
     """
 
     bashrc_path = _resolve_bashrc(bashrc)
@@ -121,38 +129,114 @@ def bash_source_run_streamed(
         f"source {shlex.quote(str(bashrc_path))} >/dev/null 2>&1 && "
         f"{command}"
     )
-    log_file = open(log_path, "w") if log_path is not None else None
-    try:
+    deadline = None if timeout_s is None else time.monotonic() + timeout_s
+    destination = open(log_path, "wb") if log_path is not None else nullcontext(None)
+    with destination as log_file:
         process = subprocess.Popen(
             ["bash", "-lc", wrapped],
             cwd=str(cwd) if cwd is not None else None,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True,
+            start_new_session=True,
         )
-        buffer: list[str] = []
+        capture = _StreamCapture(log_file)
+        completed = False
         try:
-            assert process.stdout is not None
-            for line in process.stdout:
-                buffer.append(line)
-                if log_file is not None:
-                    log_file.write(line)
-                    log_file.flush()
-            returncode = process.wait(timeout=timeout_s)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
-            returncode = 124
-    finally:
-        if log_file is not None:
-            log_file.close()
+            timed_out = _stream_until_eof(process, capture, deadline)
+            if not timed_out:
+                try:
+                    process.wait(timeout=_remaining(deadline))
+                except subprocess.TimeoutExpired:
+                    timed_out = True
+            if timed_out:
+                _terminate_owned_group(process)
+                _drain_available(process, capture)
+            returncode = 124 if timed_out else process.returncode
+            completed = True
+        finally:
+            if not completed or process.poll() is None:
+                _terminate_owned_group(process)
+            if process.stdout is not None:
+                process.stdout.close()
     return OpenFoamCommandResult(
-        command=command,
-        returncode=returncode,
-        stdout="".join(buffer),
-        stderr="",
+        command=command, returncode=returncode, stdout=capture.text(), stderr="",
         bashrc=bashrc_path,
     )
+
+
+@dataclass
+class _StreamCapture:
+    log: BinaryIO | None
+    tail: bytearray = field(default_factory=bytearray)
+    omitted: int = 0
+
+    def accept(self, chunk: bytes) -> None:
+        if self.log is not None:
+            self.log.write(chunk)
+            self.log.flush()
+        self.tail.extend(chunk)
+        excess = max(0, len(self.tail) - STREAM_CAPTURE_LIMIT_BYTES)
+        if excess:
+            del self.tail[:excess]
+            self.omitted += excess
+
+    def text(self) -> str:
+        prefix = f"[truncated {self.omitted} earlier bytes; retained output tail]\n" if self.omitted else ""
+        return prefix + self.tail.decode("utf-8", errors="replace")
+
+
+def _remaining(deadline: float | None) -> float | None:
+    return None if deadline is None else max(0.0, deadline - time.monotonic())
+
+
+def _stream_until_eof(
+    process: subprocess.Popen, capture: _StreamCapture, deadline: float | None,
+) -> bool:
+    assert process.stdout is not None
+    descriptor = process.stdout.fileno()
+    os.set_blocking(descriptor, False)
+    with selectors.DefaultSelector() as selector:
+        selector.register(descriptor, selectors.EVENT_READ)
+        while True:
+            remaining = _remaining(deadline)
+            if remaining == 0:
+                return True
+            if not selector.select(remaining):
+                return True
+            chunk = os.read(descriptor, STREAM_CAPTURE_LIMIT_BYTES)
+            if not chunk:
+                return False
+            capture.accept(chunk)
+
+
+def _terminate_owned_group(process: subprocess.Popen) -> None:
+    # A session/group per command also covers grandchildren retaining the pipe
+    # after their immediate parent exits; killing only Popen.pid leaves them live.
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        process.wait(timeout=PROCESS_TERMINATION_GRACE_SECONDS)
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait(timeout=PROCESS_TERMINATION_GRACE_SECONDS)
+
+
+def _drain_available(process: subprocess.Popen, capture: _StreamCapture) -> None:
+    assert process.stdout is not None
+    while True:
+        try:
+            chunk = os.read(process.stdout.fileno(), STREAM_CAPTURE_LIMIT_BYTES)
+        except BlockingIOError:
+            return
+        if not chunk:
+            return
+        capture.accept(chunk)
 
 
 def is_openfoam_available(bashrc: str | Path | None = None) -> bool:

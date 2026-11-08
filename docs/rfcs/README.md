@@ -84,6 +84,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0067](0067-run-manifest-recovery.md) | landed run manifests + honest index reconstruction | Durable run instance identity, expected hashes and explicit legacy recovery limits |
 | [0068](0068-versioned-v2-design-identity.md) | landed versioned v2 physical identity | Complete distribution identity with an explicit scheme and unchanged legacy evidence |
 | [0069](0069-geometry-export-capabilities.md) | landed shared geometry exports + staged builder bundles | Common mesh/section capabilities for lofted and v2 exports; complete-bundle publication |
+| [0071](0071-streamed-command-deadline.md) | landed streamed deadlines + bounded capture | Bound staged command lifetime while consuming output |
 
 Architecture-plan landing notes (not RFCs themselves; see
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`):

@@ -383,3 +383,11 @@ Enforced by `tests/test_import_boundaries.py` and
 ## Numerical admission boundary
 
 `NumericalQuality` in `eval.contract` is independent of physical claim metadata. `search.objectives.objective_has_numerical_evidence` owns per-result numerical admission, shared by Pareto and active-search inputs. Missing legacy evidence stays unknown; stored explicit stage flags never override admission.
+
+## Streamed subprocess lifetime (RFC 0071)
+
+`eval/cfd/openfoam_v2512_interfoam/runner.py` drains nonblocking output under a
+monotonic per-command deadline. Each streamed command owns a process group;
+timeout terminates that group and reaps the leader. Returned output is a bounded
+64 KiB tail with explicit truncation, while the selected disk log remains complete.
+The ordinary adapter subprocess path and whole-job state remain separate.

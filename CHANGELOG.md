@@ -23,6 +23,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   comparison retain diagnostics but require separate numerical evidence for
   ranked frontiers. Physical claim and display-only gates remain unchanged.
 
+- RFC 0071 / KAYGEN-13: staged streamed commands enforce a monotonic deadline
+  while consuming output, terminate their owned process group on expiry, and
+  retain a bounded output tail while preserving the complete selected disk log.
+
 - RFC 0067 / KAYGEN-3: manifest-backed sweep/search/CFD outputs preserve run
   identity and expected hashes across index reconstruction. Same-basename runs
   remain distinct; reindex reports incomplete legacy provenance explicitly.

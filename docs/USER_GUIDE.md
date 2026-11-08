@@ -1272,3 +1272,16 @@ normalize, validate, or calibrate external solver output.
 ## Resistance numerical quality
 
 Resistance metadata includes `numerical_quality`. Its default `unknown` means the curve is diagnostic. Finite numbers and legacy `converged` stage flags do not establish numerical adequacy. `objectives_explicit_exploratory` retains its calibration meaning but cannot bypass numerical evidence. An unassessed resistance objective yields diagnostic candidates and an empty resistance frontier; other conservative objectives remain usable. Assessed quality names its policy, resolutions, per-speed changes, tolerance and evidence. Physical claim states are unchanged.
+
+### Staged command deadlines (RFC 0071)
+
+The streamed OpenFOAM helper applies its command timeout while sourcing the
+bashrc, reading output and waiting for the process. Silent commands, output
+without line breaks and descendants retaining stdout cannot postpone that timer.
+Expiry returns exit code 124, terminates the command's owned process group and
+reaps its direct child with bounded termination grace.
+
+The returned `stdout` retains the final 64 KiB of raw output, with an explicit
+truncation notice. The selected on-disk stage log retains the complete received
+stream. This is a per-command deadline, not a whole-job or physical-convergence
+claim. Full logs are not deleted or truncated by this change.
