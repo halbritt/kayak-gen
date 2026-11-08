@@ -8,11 +8,13 @@ This module owns the four explicit hash concepts defined by RFC 0049:
 - :func:`design_hash_for_hull` — SHA-256 over *only* the physical inputs
   that affect a hull's geometry/evaluation. Renaming a hull, changing
   ``class_preset`` (if it ever lands), or reordering JSON keys does not
-  change this hash. Changing ``Cp`` (or any other physical input) does.
+  change this hash. The geometry strategy determines its physical inputs.
 - :func:`run_hash` — SHA-256 over a canonical ``{spec, version}`` blob.
 
-All hashes are 64-character lowercase hex (SHA-256). The functions are
-pure: they own no state and depend on no global configuration.
+Record, run and legacy lofted hashes are 64-character lowercase SHA-256 hex.
+V2 physical identities include a scheme prefix, ``distribution_v2_v2:``, so
+legacy scalar-only identities cannot be mistaken for complete v2 identities.
+The functions own no state and depend on no global configuration.
 """
 
 from __future__ import annotations
@@ -60,8 +62,8 @@ def record_hash(payload: dict[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def design_hash_for_hull(hull: "Hull") -> str:
-    """SHA-256 over a hull's physical design inputs only.
+def legacy_design_hash_for_hull(hull: "Hull") -> str:
+    """Return the pre-RFC-0068 scalar-only design hash for historical lookup.
 
     Covers ``length_m``, ``beam_oa_m``, ``beam_wl_m``, ``draft_m``,
     ``deck_height_m``, ``Cp``, ``Cm``, ``deck_flatness``,
@@ -78,6 +80,24 @@ def design_hash_for_hull(hull: "Hull") -> str:
     return record_hash(payload)
 
 
+def design_hash_for_hull(hull: "Hull") -> str:
+    """Identify physical design inputs in the geometry's declared scheme.
+
+    Lofted identities remain byte-stable. V2 uses length and the complete
+    nested distribution spec; its legacy scalar reporting fields do not
+    drive that geometry. The scheme is part of the digest and its prefix.
+    """
+    if hull.geometry_kind == "lofted":
+        return legacy_design_hash_for_hull(hull)
+    scheme = "distribution_v2_v2"
+    payload = {
+        "scheme": scheme,
+        "length_m": hull.length_m,
+        "distribution_v2": hull.distribution_v2.model_dump(mode="json"),
+    }
+    return scheme + ":" + record_hash(payload)
+
+
 def run_hash(spec_payload: dict[str, Any], kayakgen_version: str) -> str:
     """SHA-256 over a canonical ``{spec, version}`` blob.
 
@@ -91,6 +111,7 @@ def run_hash(spec_payload: dict[str, Any], kayakgen_version: str) -> str:
 
 __all__ = [
     "design_hash_for_hull",
+    "legacy_design_hash_for_hull",
     "record_hash",
     "run_hash",
 ]

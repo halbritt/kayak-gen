@@ -90,7 +90,8 @@ def runs_query_command(
         help=(
             "Filter candidates as key:value (equality only); may be repeated. "
             "Honored keys: 'status' (e.g. accepted|rejected) and "
-            "'hull_design_hash' (full hex). Other keys parse without error "
+            "'hull_design_hash' (full identity, including a v2 scheme prefix). "
+            "Other keys parse without error "
             "but match no rows and silently drop the candidate from the "
             "output. The filter is applied client-side after the SQLite "
             "candidates query."

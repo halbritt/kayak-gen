@@ -639,7 +639,7 @@ with existing scripts that parse the tab-separated output. Pass
 `--header` to prefix the rows with a `#`-prefixed header line naming
 the columns. `runs query --filter key:value` honors two keys today —
 `status` (e.g. `accepted`, `rejected`) and `hull_design_hash` (full
-hex). Unknown keys parse cleanly but match no rows, silently
+identity, including the scheme prefix for v2). Unknown keys parse cleanly but match no rows, silently
 dropping the candidate; the filter is applied client-side after the
 SQLite query. Example:
 
@@ -648,6 +648,22 @@ kayakgen runs list --header --limit 5
 kayakgen runs query <run_id> --filter status:accepted --metric GM0_m
 kayakgen runs jobs --header --state succeeded
 ```
+
+Physical design identity is separate from full record identity. `Hull.design_hash()`
+keeps the existing 64-hex value for lofted hulls and returns
+`distribution_v2_v2:<sha256>` for v2 hulls (RFC 0068). Pass the entire value,
+including its prefix, to hash filters and evidence envelopes. V2 identity binds
+length and the complete nested distribution spec; changing a legacy reporting
+scalar such as `draft_m` does not redesign a v2 hull. A load/pose change belongs
+to the evaluation context instead.
+
+`Hull.legacy_design_hash()` reproduces the former scalar-only value for
+historical inspection. That value cannot establish v2 shape equivalence or
+upgrade an old fit scope. Existing records and expected content hashes are
+never rewritten. Explicit reindex can rebuild derived identity rows from verified
+full hull inputs; fit acceptance must be reviewed separately. New calibration
+campaign ingestion binds the current design identity, while old record-hash
+placeholders remain historical data.
 
 The SQLite index lives at `~/.local/share/kayakgen/index.sqlite` by
 default; override via `KAYAKGEN_INDEX_DB`. Modern sweep/search/CFD runs

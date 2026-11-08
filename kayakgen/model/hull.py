@@ -129,13 +129,24 @@ class Hull(BaseModel):
         """SHA-256 over this hull's physical design inputs only (RFC 0049).
 
         Invariant under renaming the hull or reordering JSON keys; changes
-        whenever any physical input (``length_m``, ``Cp``, ...) changes.
+        whenever a physical design input changes. Lofted hashes remain bare
+        SHA-256 hex; v2 identities use ``distribution_v2_v2:<sha256>``.
         Delegates to :func:`kayakgen.services.identity.design_hash_for_hull`.
         """
 
         from kayakgen.services.identity import design_hash_for_hull
 
         return design_hash_for_hull(self)
+
+    def legacy_design_hash(self) -> str:
+        """Return the historical scalar-only identity without upgrading evidence.
+
+        On v2 this identity omits shape inputs and is suitable only for
+        historical lookup. It must never establish physical equivalence.
+        """
+        from kayakgen.services.identity import legacy_design_hash_for_hull
+
+        return legacy_design_hash_for_hull(self)
 
     def hash(self) -> str:
         """Backwards-compat alias for :meth:`record_hash` (RFC 0049)."""

@@ -8,6 +8,16 @@ layout, public surfaces, durable artifacts, claim/readiness vocabulary, and
 the no-claim rules. Then dive into `docs/UBIQUITOUS_LANGUAGE.md` for term
 definitions and `docs/DDD.md` for aggregate ownership.
 
+## Physical identity schemes
+
+RFC 0068 retains bare legacy SHA-256 design values for lofted hulls and uses
+`distribution_v2_v2:<sha256>` for length plus the complete nested v2 spec.
+`Hull.legacy_design_hash()` is a historical-lookup accessor, not v2 equivalence.
+Exact scheme-bearing values flow through index queries, campaign references and
+fit envelopes. Reindex derives candidate values from verified inputs; it does
+not rewrite artifact hashes or reaccept physical evidence. Record/content/run
+identity and run manifests retain their existing authority.
+
 ## Package map
 
 ```

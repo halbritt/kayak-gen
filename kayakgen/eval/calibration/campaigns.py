@@ -11,9 +11,9 @@ Three aggregates live here:
   ``calibration_fixture`` per D006.
 
 Hull-geometry binding is by hash, per the RFC 0054 deferred decision
-(``hull_design_hash``). RFC 0049 introduces a stable ``Hull.design_hash()``
-that we will eventually consume; until that lands, callers should use
-``Hull.hash()`` as the placeholder (see ``GeometryReference`` notes).
+(``hull_design_hash``). New campaigns use ``Hull.design_hash()``. V2
+physical identities are version-prefixed per RFC 0068; historical scalar
+or record-hash references retain their original meaning and bytes.
 """
 
 from __future__ import annotations
@@ -44,9 +44,9 @@ class GeometryReference(BaseModel):
     locator so a reviewer can fetch the actual surface the lab measured
     — it is NOT a substitute for the hash.
 
-    Until ``Hull.design_hash()`` lands as part of RFC 0049 (a parallel
-    effort), operators should populate ``hull_design_hash`` with
-    ``Hull.hash()`` and document the transition in the campaign notes.
+    New rows use ``Hull.design_hash()``. Historical references using a
+    record hash or scalar-only v2 hash are retained as historical data;
+    they are not upgraded or automatically accepted for a new identity.
     """
 
     model_config = ConfigDict(extra="forbid")

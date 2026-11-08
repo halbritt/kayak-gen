@@ -254,3 +254,27 @@ def test_real_hull_stays_unvalidated_when_registry_drops_fit(tmp_path) -> None:
         assert resolve_analytical_claim_label(hull, fits) == UNVALIDATED
     finally:
         reg.clear_registry_cache()
+
+
+def test_v2_legacy_or_other_scheme_envelope_does_not_reaccept_current_geometry() -> None:
+    from kayakgen.model.distribution_v2 import DistributionV2Spec, UniformDistribution
+    from kayakgen.model.hull import Hull
+
+    spec = DistributionV2Spec(
+        waterline_half_breadth=UniformDistribution(value=0.24),
+        draft_profile=UniformDistribution(value=0.11),
+        section_area_curve=UniformDistribution(value=0.035),
+        deck_freeboard=UniformDistribution(value=0.16),
+        rocker=UniformDistribution(value=0),
+    )
+    hull = Hull(geometry_kind="distribution_v2", distribution_v2=spec, hull_class="sea_kayak")
+    for identity in [hull.legacy_design_hash(), hull.design_hash().split(":", 1)[-1],
+                     hull.design_hash().replace("distribution_v2_v2:", "distribution_v2_v1:")]:
+        record = _fit_record(hull_family_scope=_scope(
+            hull_class="sea_kayak", design_hash_envelope=[identity],
+        ))
+        assert resolve_analytical_claim_label(hull, [record]) == UNVALIDATED
+    newly_accepted = _fit_record(hull_family_scope=_scope(
+        hull_class="sea_kayak", design_hash_envelope=[hull.design_hash()],
+    ))
+    assert resolve_analytical_claim_label(hull, [newly_accepted]) == VALIDATED

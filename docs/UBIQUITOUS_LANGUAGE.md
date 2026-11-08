@@ -16,6 +16,13 @@ Renaming a term is a `docs/DECISION_LOG.md` row, not an inline edit.
 A regression test (`tests/test_vocabulary_coverage.py`) checks that every
 claim/readiness/source-use literal exposed in code is documented here.
 
+## Physical identity
+
+| Term | Definition |
+| --- | --- |
+| **Versioned v2 physical identity** | `distribution_v2_v2:<sha256>` returned by `Hull.design_hash()` for length and the complete nested v2 spec. The scheme prefix is part of identity and must not be stripped or matched by suffix. Lofted physical identities remain their existing bare SHA-256 values. |
+| **Legacy design hash** | `Hull.legacy_design_hash()` reproduces the pre-RFC-0068 scalar-only algorithm. Useful for historical lookup; incomplete for v2 shape and never sufficient to reaccept a fit or assert current physical equivalence. |
+
 ## Geometry
 
 | Term | Definition |
@@ -120,7 +127,7 @@ manifest-backed reads retain expected hashes even when the index is lost.
 | **ArtifactStore** | `kayakgen.services.artifact_store.ArtifactStore` protocol: `put_json`, `put_file`, `get_json`, `get_file`, `record_event`, `query_candidates`. The filesystem implementation (`FilesystemArtifactStore`) writes a `_store/<hash>.<ext>` mirror under each run directory and hard-links the canonical paths into it (copies on Windows with a warning). |
 | **ArtifactRef** | Pydantic record returned by every `put_*` call. Carries `kind`, `artifact_hash` (SHA-256 of the on-disk bytes, 64 hex chars), and optional `run_id` / `candidate_key` / `relative_path`. |
 | **ArtifactKind** | Closed Literal enum of artifact tags persisted by the store: `hull_json`, `eval_result_json`, `stability_result_json`, `mesh_package_manifest`, `mesh_quality_json`, `hull_stl`, `deck_stl`, `cfd_run_record`, `cfd_raw_result`, `openfoam_force_dat`, `openfoam_polymesh_file`, `snappy_hex_mesh_evidence`, `sweep_run_record`, `sweep_summary_csv`, `sweep_failures_jsonl`, `candidate_record`, `high_angle_gz_artifact`, `search_run_record`, `comparison_report`. |
-| **design_hash** | `kayakgen.services.identity.design_hash_for_hull` / `Hull.design_hash()`: SHA-256 over the physical inputs only (`length_m`, `beam_oa_m`, `beam_wl_m`, `draft_m`, `deck_height_m`, `Cp`, `Cm`, `deck_flatness`, `center_box_ratio`, `bow_rake`, `stern_rake`, `rocker_bow_m`, `rocker_stern_m`, `LCB_frac`, `geometry_kind`). Invariant under renaming the hull or reordering JSON keys. |
+| **design_hash** | `kayakgen.services.identity.design_hash_for_hull` / `Hull.design_hash()`: physical-input identity. Lofted retains the legacy scalar-input SHA-256; v2 uses `distribution_v2_v2:<sha256>` over length and the complete nested distribution spec. Invariant under cosmetic renaming or JSON key order. Historical scalar-only v2 values do not establish current shape equivalence. |
 | **record_hash** | `kayakgen.services.identity.record_hash` / `Hull.record_hash()`: SHA-256 over the canonical-form JSON of the full record. Differs whenever any field — including `name` — differs. `Hull.hash()` is a backwards-compat alias. |
 | **run_hash** | Producer-defined semantic identity, separate from the run instance. Sweep/search use `kayakgen.services.identity.run_hash`: SHA-256 over canonical `{spec, version}` inputs; CFD preserves its deterministic `job_id` as run_hash. |
 | **SqliteIndex** | Machine-wide SQLite read model at `~/.local/share/kayakgen/index.sqlite` (override with `KAYAKGEN_INDEX_DB`). Tables: `runs`, `candidates`, `metrics`, `artifacts`, `artifact_occurrences`, `events`, `generative_jobs`. Run/candidate/metric/occurrence projection rebuilt by `kayakgen runs reindex` from RFC 0067 manifests; incomplete legacy provenance is explicit. Jobs/events are separate. |

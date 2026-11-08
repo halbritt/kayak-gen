@@ -8,6 +8,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Fixed
 
+- RFC 0068 / KAYGEN-6: v2 physical identity now binds its complete nested
+  distribution spec with the explicit `distribution_v2_v2:` scheme. Lofted,
+  record and content hashes remain unchanged; old ambiguous v2 evidence is
+  not automatically reaccepted. New calibration campaigns use design identity.
+
 - RFC 0067 / KAYGEN-3: manifest-backed sweep/search/CFD outputs preserve run
   identity and expected hashes across index reconstruction. Same-basename runs
   remain distinct; reindex reports incomplete legacy provenance explicitly.

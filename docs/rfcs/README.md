@@ -81,6 +81,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0065](0065-ui-polish-redesign.md) | proposed | UI polish redesign — a coherent visual-system pass over the landed workspace: extend `kayakgen/ui/theme.py` with spacing/density/radius/elevation/focus-ring/state tokens, one information hierarchy across the three-region shell + Generate panel, uniform control and empty/loading/error states, and accessible focus/keyboard behaviour. Sequenced into safe slices (theme tokens → shell layout → per-panel states → Playwright/Chromium committed-baseline visual-regression harness + a11y/Lighthouse gates). Preserves every claim/readiness/status chip and the RFC 0032 web-analysis boundary; adds no analysis capability or claim-state literal. Desktop polish deferred (Slice 5, operator-gated per D009/D021). Docs-only; authorises no behaviour change. Adds DECISION_LOG row D047 (committed screenshot baselines). |
 | [0066](0066-artifact-occurrence-bindings.md) | landed occurrence bindings + transactional v1 migration | Separate content identity from current run/path bindings |
 | [0067](0067-run-manifest-recovery.md) | landed run manifests + honest index reconstruction | Durable run instance identity, expected hashes and explicit legacy recovery limits |
+| [0068](0068-versioned-v2-design-identity.md) | landed versioned v2 physical identity | Complete distribution identity with an explicit scheme and unchanged legacy evidence |
 
 Architecture-plan landing notes (not RFCs themselves; see
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`):

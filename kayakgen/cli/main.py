@@ -870,16 +870,14 @@ def calibration_ingest_tank_test(
     try:
         hull_obj = load_hull(hull)
         rights_obj = RightsChecklist.model_validate_json(rights.read_text())
-        # Until RFC 0049 lands Hull.design_hash(), use Hull.hash() as the
-        # placeholder per the RFC 0054 deferred decision.
         geometry = GeometryReference(
             geometry_path=str(hull),
-            hull_design_hash=hull_obj.hash(),
+            hull_design_hash=hull_obj.design_hash(),
         )
         campaign = tank_test_campaign_from_csv(
             csv_path,
             source_id=source_id,
-            hull_design_hash=hull_obj.hash(),
+            hull_design_hash=hull_obj.design_hash(),
             rights_checklist=rights_obj,
             geometry_reference=geometry,
             uncertainty_method=uncertainty_method,  # type: ignore[arg-type]
@@ -951,12 +949,12 @@ def calibration_ingest_inclining_test(
             )
         geometry = GeometryReference(
             geometry_path=str(hull),
-            hull_design_hash=hull_obj.hash(),
+            hull_design_hash=hull_obj.design_hash(),
         )
         campaign = inclining_test_campaign_from_csv(
             csv_path,
             source_id=source_id,
-            hull_design_hash=hull_obj.hash(),
+            hull_design_hash=hull_obj.design_hash(),
             rights_checklist=rights_obj,
             geometry_reference=geometry,
         )

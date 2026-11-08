@@ -435,6 +435,8 @@ def test_cli_ingest_tank_test_writes_campaign(tmp_path: Path) -> None:
     loaded = TankTestCampaign.model_validate_json(campaign_path.read_text())
     assert loaded.source_id == "synthetic-tank-001"
     assert len(loaded.rows) == 4
+    assert loaded.geometry_reference.hull_design_hash == Hull().design_hash()
+    assert all(row.hull_design_hash == Hull().design_hash() for row in loaded.rows)
 
 
 def test_cli_ingest_inclining_test_writes_campaign(tmp_path: Path) -> None:
@@ -459,6 +461,9 @@ def test_cli_ingest_inclining_test_writes_campaign(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     campaign_path = out_dir / "synthetic-inclining-001.campaign.json"
     assert campaign_path.is_file()
+    loaded = IncliningTestCampaign.model_validate_json(campaign_path.read_text())
+    assert loaded.geometry_reference.hull_design_hash == Hull().design_hash()
+    assert all(row.hull_design_hash == Hull().design_hash() for row in loaded.rows)
 
 
 # ---------------------------------------------------------------------------

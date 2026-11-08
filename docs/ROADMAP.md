@@ -2,6 +2,11 @@
 
 Updated: 2026-05-25
 
+RFC 0068 / KAYGEN-6 landed the v2 physical-identity correction: complete nested
+inputs and an explicit scheme, with unchanged lofted/record/content identity and
+no historical evidence reacceptance. This closes the identity slice; evaluation
+context, numerical admission and operating-state work remain independently tracked.
+
 This roadmap is the contributor-facing reconciliation point for the current
 RFC index, the older deferred workflow queue, and the workflow 0048 successor
 RFC backlog. The RFC index remains authoritative for RFC status. The PRD and
