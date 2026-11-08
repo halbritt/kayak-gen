@@ -1,0 +1,605 @@
+{
+  "schema_version": "1",
+  "run_name": "operating-input-consumer-oracle",
+  "spec_hash": "oracle-test-fixture",
+  "report_kind": "exploratory_frontier",
+  "objectives": [
+    {
+      "metric": "Rt_N_last",
+      "direction": "min",
+      "accepted_use_required": true
+    }
+  ],
+  "objective_metadata": {
+    "Rt_N_last": {
+      "metric": "Rt_N_last",
+      "label": "Total resistance at last sweep speed",
+      "unit": "N",
+      "direction": "min",
+      "source_evaluator": "resistance",
+      "availability_rule": "present when raw analytical resistance evaluation runs",
+      "claim_state_required": "calibrated_model",
+      "accepted_use_required": "final_prediction",
+      "role": "explicit_exploratory",
+      "display_format": "{value:.3f}",
+      "availability_conditions": [
+        "resistance_evaluator_ran"
+      ],
+      "numerical_evidence_required": true,
+      "default_objective_eligible": false,
+      "within_evaluator_noise_threshold": null
+    }
+  },
+  "pareto_front_keys": [
+    "6",
+    "8"
+  ],
+  "candidate_summaries": [
+    {
+      "candidate_index": 0,
+      "candidate_key": "6",
+      "status": "complete",
+      "hull_hash": "7c7b5766a23835c20e20d20234524cc15425e59a4d2af6383ff55d965036e2ed",
+      "parameters": {},
+      "metrics": {
+        "Rt_N_last": 28.646484513385136
+      },
+      "objective_values": {
+        "Rt_N_last": 28.646484513385136
+      },
+      "warnings": [
+        "resistance: comparative_filter_only",
+        "resistance: not_final_performance_prediction",
+        "resistance: uncalibrated_no_validity_envelope",
+        "metric requires accepted-use provenance: Rt_N_last"
+      ],
+      "design_validity": {
+        "schema_version": "1",
+        "findings": [],
+        "advisory_count": 0,
+        "warning_count": 0,
+        "unsupported_count": 0,
+        "error_count": 0
+      },
+      "design_warning_count": 0,
+      "design_unsupported_count": 0,
+      "error": null,
+      "artifacts": {
+        "evaluation": "candidates/6.eval.json"
+      },
+      "provenance": {
+        "evaluation_context_hash": "5d60150078c80bc8b85f97303dda3a51eaec798596be0f6e5c020eaba7eb4c78",
+        "Rt_N_last": {
+          "accepted_use": false,
+          "accepted_use_values": [
+            "comparative_filter"
+          ],
+          "claim_state": "uncalibrated_comparative",
+          "accepted_uses": [
+            "comparative_filter"
+          ],
+          "calibration_fixture_ids": [],
+          "validation_fixture_ids": [],
+          "model_version": null,
+          "fit_status": null,
+          "fit_metrics": {},
+          "validity_envelope": null,
+          "calibration_status": "uncalibrated",
+          "model_family": "raw_ittc_michell",
+          "numerical_quality": {
+            "schema_version": "1",
+            "status": "converged",
+            "policy_version": "michell_linear_depth_screening_v1",
+            "resolutions": [
+              {
+                "n_stations": 400,
+                "n_depths": 25,
+                "n_theta": 40
+              },
+              {
+                "n_stations": 400,
+                "n_depths": 100,
+                "n_theta": 640
+              },
+              {
+                "n_stations": 800,
+                "n_depths": 100,
+                "n_theta": 640
+              },
+              {
+                "n_stations": 1600,
+                "n_depths": 100,
+                "n_theta": 640
+              },
+              {
+                "n_stations": 1600,
+                "n_depths": 25,
+                "n_theta": 640
+              },
+              {
+                "n_stations": 1600,
+                "n_depths": 50,
+                "n_theta": 640
+              },
+              {
+                "n_stations": 1600,
+                "n_depths": 100,
+                "n_theta": 40
+              },
+              {
+                "n_stations": 1600,
+                "n_depths": 100,
+                "n_theta": 160
+              }
+            ],
+            "relative_changes": [
+              0.009681216705376722
+            ],
+            "relative_tolerance": 0.01,
+            "evidence": "RFC0077: requested-to-finest change + independent x/z/theta residuals + wetted-surface viscous refinement + closed-transform reference allowance; empirical screening uncertainty, not physical validation or a universal mathematical error bound",
+            "speeds_knots": [
+              5.0
+            ],
+            "absolute_uncertainty_N": [
+              0.27733282442129975
+            ],
+            "observations": [
+              {
+                "resolution": {
+                  "n_stations": 400,
+                  "n_depths": 25,
+                  "n_theta": 40
+                },
+                "total_resistance_N": [
+                  28.646484513385136
+                ],
+                "seconds": 0.07222198601812124
+              },
+              {
+                "resolution": {
+                  "n_stations": 400,
+                  "n_depths": 100,
+                  "n_theta": 640
+                },
+                "total_resistance_N": [
+                  28.89636081019897
+                ],
+                "seconds": 0.1845738620031625
+              },
+              {
+                "resolution": {
+                  "n_stations": 800,
+                  "n_depths": 100,
+                  "n_theta": 640
+                },
+                "total_resistance_N": [
+                  28.898363836557998
+                ],
+                "seconds": 0.41269379504956305
+              },
+              {
+                "resolution": {
+                  "n_stations": 1600,
+                  "n_depths": 100,
+                  "n_theta": 640
+                },
+                "total_resistance_N": [
+                  28.898693540173394
+                ],
+                "seconds": 0.6645836500683799
+              },
+              {
+                "resolution": {
+                  "n_stations": 1600,
+                  "n_depths": 25,
+                  "n_theta": 640
+                },
+                "total_resistance_N": [
+                  28.898700209751652
+                ],
+                "seconds": 0.35655699588824064
+              },
+              {
+                "resolution": {
+                  "n_stations": 1600,
+                  "n_depths": 50,
+                  "n_theta": 640
+                },
+                "total_resistance_N": [
+                  28.898747785387226
+                ],
+                "seconds": 0.4323340430855751
+              },
+              {
+                "resolution": {
+                  "n_stations": 1600,
+                  "n_depths": 100,
+                  "n_theta": 40
+                },
+                "total_resistance_N": [
+                  28.64829745101449
+                ],
+                "seconds": 0.009351836051791906
+              },
+              {
+                "resolution": {
+                  "n_stations": 1600,
+                  "n_depths": 100,
+                  "n_theta": 160
+                },
+                "total_resistance_N": [
+                  28.919941054737734
+                ],
+                "seconds": 0.03276541002560407
+              }
+            ],
+            "surface_observations": [
+              {
+                "stations": 60,
+                "wetted_surface_m2": 2.1013844773184696,
+                "viscous_resistance_N": [
+                  20.757145337795507
+                ],
+                "seconds": 0.019046596949920058
+              },
+              {
+                "stations": 120,
+                "wetted_surface_m2": 2.1014871616346626,
+                "viscous_resistance_N": [
+                  20.75815963731953
+                ],
+                "seconds": 0.020988255040720105
+              },
+              {
+                "stations": 240,
+                "wetted_surface_m2": 2.101508907610099,
+                "viscous_resistance_N": [
+                  20.758374440644438
+                ],
+                "seconds": 0.041614606976509094
+              }
+            ],
+            "viscous_uncertainty_N": [
+              0.0014439061738400483
+            ],
+            "comparison_inputs": {
+              "speeds_knots": [
+                5.0
+              ],
+              "hull_length_m": 5.4864,
+              "density_kg_m3": 1025.0,
+              "kinematic_viscosity_m2_s": 1.19e-06,
+              "gravity_m_s2": 9.80665,
+              "numerical_method_version": "michell_linear_depth_v2",
+              "model_family": "raw_ittc_michell",
+              "calibration_model_version": null
+            },
+            "input_fingerprint": "e51c751bf1695b014a00dc94524fa416bcb98dff3131e344137e345b6ca03dd6",
+            "reference_fn_range": [
+              0.25,
+              0.5
+            ],
+            "reference_resolution_floor": {
+              "n_stations": 400,
+              "n_depths": 25,
+              "n_theta": 40
+            },
+            "reference_relative_allowance": 7.088306821851369e-05
+          },
+          "operating_context": {
+            "schema_version": "1",
+            "load": {
+              "paddler_mass_kg": 81.6466266,
+              "hull_mass_kg": 18.143694800000002,
+              "cargo_mass_kg": 15.875732950000002,
+              "kg": {
+                "kg_above_keel_m": 0.25,
+                "kg_reference": "keel",
+                "kg_reference_value_m": null,
+                "seat_height_above_keel_m": null
+              }
+            },
+            "water_density_kg_m3": 1025.0,
+            "kinematic_viscosity_m2_s": 1.19e-06,
+            "speeds_knots": [
+              5.0
+            ],
+            "operating": {
+              "equilibrium": false,
+              "sinkage_m": 0.0,
+              "trim_angle_deg": 0.0
+            }
+          }
+        }
+      },
+      "high_angle_gz_display": null
+    },
+    {
+      "candidate_index": 1,
+      "candidate_key": "8",
+      "status": "complete",
+      "hull_hash": "454a20370900ab62143b713215a2b22566850e27e0cf8a355662a3072fe19f80",
+      "parameters": {},
+      "metrics": {
+        "Rt_N_last": 29.596997107875318
+      },
+      "objective_values": {
+        "Rt_N_last": 29.596997107875318
+      },
+      "warnings": [
+        "resistance: comparative_filter_only",
+        "resistance: not_final_performance_prediction",
+        "resistance: uncalibrated_no_validity_envelope",
+        "metric requires accepted-use provenance: Rt_N_last"
+      ],
+      "design_validity": {
+        "schema_version": "1",
+        "findings": [],
+        "advisory_count": 0,
+        "warning_count": 0,
+        "unsupported_count": 0,
+        "error_count": 0
+      },
+      "design_warning_count": 0,
+      "design_unsupported_count": 0,
+      "error": null,
+      "artifacts": {
+        "evaluation": "candidates/8.eval.json"
+      },
+      "provenance": {
+        "evaluation_context_hash": "ac94af26a39f7eb37b0d1d6b4112e806fad4b0a545d3b03316f5128d9b46fb92",
+        "Rt_N_last": {
+          "accepted_use": false,
+          "accepted_use_values": [
+            "comparative_filter"
+          ],
+          "claim_state": "uncalibrated_comparative",
+          "accepted_uses": [
+            "comparative_filter"
+          ],
+          "calibration_fixture_ids": [],
+          "validation_fixture_ids": [],
+          "model_version": null,
+          "fit_status": null,
+          "fit_metrics": {},
+          "validity_envelope": null,
+          "calibration_status": "uncalibrated",
+          "model_family": "raw_ittc_michell",
+          "numerical_quality": {
+            "schema_version": "1",
+            "status": "converged",
+            "policy_version": "michell_linear_depth_screening_v1",
+            "resolutions": [
+              {
+                "n_stations": 400,
+                "n_depths": 25,
+                "n_theta": 40
+              },
+              {
+                "n_stations": 400,
+                "n_depths": 100,
+                "n_theta": 640
+              },
+              {
+                "n_stations": 800,
+                "n_depths": 100,
+                "n_theta": 640
+              },
+              {
+                "n_stations": 1600,
+                "n_depths": 100,
+                "n_theta": 640
+              },
+              {
+                "n_stations": 1600,
+                "n_depths": 25,
+                "n_theta": 640
+              },
+              {
+                "n_stations": 1600,
+                "n_depths": 50,
+                "n_theta": 640
+              },
+              {
+                "n_stations": 1600,
+                "n_depths": 100,
+                "n_theta": 40
+              },
+              {
+                "n_stations": 1600,
+                "n_depths": 100,
+                "n_theta": 160
+              }
+            ],
+            "relative_changes": [
+              0.0065658664989444665
+            ],
+            "relative_tolerance": 0.01,
+            "evidence": "RFC0077: requested-to-finest change + independent x/z/theta residuals + wetted-surface viscous refinement + closed-transform reference allowance; empirical screening uncertainty, not physical validation or a universal mathematical error bound",
+            "speeds_knots": [
+              5.0
+            ],
+            "absolute_uncertainty_N": [
+              0.1943299317799548
+            ],
+            "observations": [
+              {
+                "resolution": {
+                  "n_stations": 400,
+                  "n_depths": 25,
+                  "n_theta": 40
+                },
+                "total_resistance_N": [
+                  29.596997107875318
+                ],
+                "seconds": 0.08811955701094121
+              },
+              {
+                "resolution": {
+                  "n_stations": 400,
+                  "n_depths": 100,
+                  "n_theta": 640
+                },
+                "total_resistance_N": [
+                  29.762306191963162
+                ],
+                "seconds": 0.30686542904004455
+              },
+              {
+                "resolution": {
+                  "n_stations": 800,
+                  "n_depths": 100,
+                  "n_theta": 640
+                },
+                "total_resistance_N": [
+                  29.765193670626623
+                ],
+                "seconds": 0.3336736260680482
+              },
+              {
+                "resolution": {
+                  "n_stations": 1600,
+                  "n_depths": 100,
+                  "n_theta": 640
+                },
+                "total_resistance_N": [
+                  29.766343098443603
+                ],
+                "seconds": 0.7386069690110162
+              },
+              {
+                "resolution": {
+                  "n_stations": 1600,
+                  "n_depths": 25,
+                  "n_theta": 640
+                },
+                "total_resistance_N": [
+                  29.76174474218256
+                ],
+                "seconds": 0.5104515820275992
+              },
+              {
+                "resolution": {
+                  "n_stations": 1600,
+                  "n_depths": 50,
+                  "n_theta": 640
+                },
+                "total_resistance_N": [
+                  29.765666577254827
+                ],
+                "seconds": 0.5132515979930758
+              },
+              {
+                "resolution": {
+                  "n_stations": 1600,
+                  "n_depths": 100,
+                  "n_theta": 40
+                },
+                "total_resistance_N": [
+                  29.605210422882607
+                ],
+                "seconds": 0.009091648971661925
+              },
+              {
+                "resolution": {
+                  "n_stations": 1600,
+                  "n_depths": 100,
+                  "n_theta": 160
+                },
+                "total_resistance_N": [
+                  29.785436453496832
+                ],
+                "seconds": 0.033720872015692294
+              }
+            ],
+            "surface_observations": [
+              {
+                "stations": 60,
+                "wetted_surface_m2": 2.0705321691035543,
+                "viscous_resistance_N": [
+                  20.452391090043253
+                ],
+                "seconds": 0.010696199024096131
+              },
+              {
+                "stations": 120,
+                "wetted_surface_m2": 2.070671094142358,
+                "viscous_resistance_N": [
+                  20.453763369724875
+                ],
+                "seconds": 0.03611485206056386
+              },
+              {
+                "stations": 240,
+                "wetted_surface_m2": 2.0707005756678165,
+                "viscous_resistance_N": [
+                  20.454054583596175
+                ],
+                "seconds": 0.042660683975555
+              }
+            ],
+            "viscous_uncertainty_N": [
+              0.00195470742422188
+            ],
+            "comparison_inputs": {
+              "speeds_knots": [
+                5.0
+              ],
+              "hull_length_m": 5.4864,
+              "density_kg_m3": 1025.0,
+              "kinematic_viscosity_m2_s": 1.19e-06,
+              "gravity_m_s2": 9.80665,
+              "numerical_method_version": "michell_linear_depth_v2",
+              "model_family": "raw_ittc_michell",
+              "calibration_model_version": null
+            },
+            "input_fingerprint": "c037db91517560dc59cb01b0c736805900cf021339c32b2a54cc1cdb7efb214e",
+            "reference_fn_range": [
+              0.25,
+              0.5
+            ],
+            "reference_resolution_floor": {
+              "n_stations": 400,
+              "n_depths": 25,
+              "n_theta": 40
+            },
+            "reference_relative_allowance": 7.088306821851369e-05
+          },
+          "operating_context": {
+            "schema_version": "1",
+            "load": {
+              "paddler_mass_kg": 81.6466266,
+              "hull_mass_kg": 18.143694800000002,
+              "cargo_mass_kg": 15.875732950000002,
+              "kg": {
+                "kg_above_keel_m": 0.25,
+                "kg_reference": "keel",
+                "kg_reference_value_m": null,
+                "seat_height_above_keel_m": null
+              }
+            },
+            "water_density_kg_m3": 1025.0,
+            "kinematic_viscosity_m2_s": 1.19e-06,
+            "speeds_knots": [
+              5.0
+            ],
+            "operating": {
+              "equilibrium": false,
+              "sinkage_m": 0.0,
+              "trim_angle_deg": 0.0
+            }
+          }
+        }
+      },
+      "high_angle_gz_display": null
+    }
+  ],
+  "warnings": [
+    "exploratory frontier includes resistance objective"
+  ],
+  "design_validity": {},
+  "design_warning_count": 0,
+  "design_unsupported_count": 0,
+  "high_angle_gz_columns": false,
+  "pairwise_notes": []
+}

@@ -1,0 +1,54 @@
+{
+  "schema_version": "1",
+  "hull_record_hash": "05abf34985b4b4c4ba75f4572aa3aac79e622d34577901bafdd94e496b97667d",
+  "hull_design_hash": "4f3de0c94b242c01377e4264e3d9021b8ad9e6af0a5a179ae0496ae24ae5e84e",
+  "geometry_kind": "lofted",
+  "input_origin": "supplied",
+  "load_supplied_fields": [
+    "cargo_mass_kg",
+    "hull_mass_kg",
+    "kg_above_keel_m",
+    "name",
+    "paddler_mass_kg",
+    "seawater_density_kg_m3"
+  ],
+  "load_case": {
+    "name": "owner request A",
+    "paddler_mass_kg": 81.6466266,
+    "hull_mass_kg": 18.143694800000002,
+    "cargo_mass_kg": 15.875732950000002,
+    "kg_above_keel_m": 0.25,
+    "kg_reference": "keel",
+    "kg_reference_value_m": null,
+    "seat_height_above_keel_m": null,
+    "seawater_density_kg_m3": 1025.0,
+    "components": []
+  },
+  "speeds_knots": [
+    4.5,
+    5.0
+  ],
+  "kinematic_viscosity_m2_s": 1.19e-6,
+  "hydrostatic_stations": 150,
+  "n_stations": 400,
+  "n_depths": 25,
+  "n_theta": 40,
+  "numerical_relative_tolerance": 0.01,
+  "equilibrium": true,
+  "equilibrium_tolerance_kg": 0.01,
+  "moment_tolerance_kg_m": 0.02,
+  "equilibrium_max_iterations": 60,
+  "max_trim_angle_deg": 8.0,
+  "sinkage_m": 0.005,
+  "trim_angle_deg": 0.2,
+  "evaluator_versions": [
+    [
+      "hydrostatics",
+      "mesh_integral_v1"
+    ],
+    [
+      "resistance",
+      "michell_linear_depth_v2"
+    ]
+  ]
+}

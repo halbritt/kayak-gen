@@ -122,13 +122,15 @@ class HandlersMixin:
             f"Waterplane   {m['waterplane_area_m2']:7.3f} m²",
             f"Cp / Cm      {m['Cp_actual']:.3f} / {m['Cm_actual']:.3f}",
             f"L/B_wl       {m['l_over_bwl']:7.2f}",
-            f"At {self.state.target_speed_kt:.1f} kt (Fn {m['Fn']:.2f})",
+            f"At {m['evaluated_speed_kt']:g} kt (Fn {m['Fn']:.2f})",
             f"  Claim     {m['resistance_claim_state']}",
             "  Warning   raw comparative filter; not final prediction",
             f"  Viscous   {m['Rv_N']:6.1f} N",
             f"  Wave      {m['Rw_N']:6.1f} N",
             f"  Total     {m['Rt_N']:6.1f} N",
         ]
+        if m["speed_selection_warning"]:
+            self.state.metrics_lines.append(m["speed_selection_warning"])
         if m["advisory_warnings"]:
             self.state.metrics_lines.extend(
                 ["Advisory", *[f"  {w}" for w in m["advisory_warnings"]]]

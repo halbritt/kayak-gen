@@ -23,6 +23,69 @@ from kayakgen.eval.turning import TurningMetrics
 from kayakgen.model.validity import DesignValidityReport
 
 
+class NumericalObservation(BaseModel):
+    """One actually evaluated resolution, including bounded failed observations."""
+
+    model_config = ConfigDict(extra="forbid")
+    resolution: dict[str, int]
+    total_resistance_N: list[float | None]
+    seconds: float = Field(ge=0, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def _finite_observation(self) -> "NumericalObservation":
+        if not self.resolution or any(n <= 0 for n in self.resolution.values()):
+            raise ValueError("numerical resolutions must contain positive sample counts")
+        if any(x is not None and not math.isfinite(x) for x in self.total_resistance_N):
+            raise ValueError("numerical observations must be finite or explicitly unavailable")
+        return self
+
+
+class NumericalSurfaceObservation(BaseModel):
+    """Actual wetted-area refinement and its per-speed viscous contribution."""
+
+    model_config = ConfigDict(extra="forbid")
+    stations: int = Field(ge=3)
+    wetted_surface_m2: float = Field(ge=0, allow_inf_nan=False)
+    viscous_resistance_N: list[float]
+    seconds: float = Field(ge=0, allow_inf_nan=False)
+
+    @field_validator("viscous_resistance_N")
+    @classmethod
+    def _finite_viscous_values(cls, values: list[float]) -> list[float]:
+        if any(not math.isfinite(value) or value < 0 for value in values):
+            raise ValueError("numerical viscous observations must be finite and nonnegative")
+        return values
+
+
+class ResistanceComparisonInputs(BaseModel):
+    """Actual assessment inputs and the shared physical comparison conditions."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    speeds_knots: list[float]
+    hull_length_m: float = Field(gt=0, allow_inf_nan=False)
+    density_kg_m3: float = Field(gt=0, allow_inf_nan=False)
+    kinematic_viscosity_m2_s: float = Field(gt=0, allow_inf_nan=False)
+    gravity_m_s2: float = Field(gt=0, allow_inf_nan=False)
+    numerical_method_version: str = Field(min_length=1)
+    model_family: str = Field(min_length=1)
+    calibration_model_version: str | None = None
+
+    @field_validator("speeds_knots")
+    @classmethod
+    def _finite_speeds(cls, speeds: list[float]) -> list[float]:
+        if not speeds or any(not math.isfinite(v) or v < 0 for v in speeds):
+            raise ValueError("comparison speeds must be finite and nonnegative")
+        return speeds
+
+    def comparison_key(self) -> tuple[Any, ...]:
+        # Length is bound for Froude checking, but different-length hulls may
+        # legitimately be compared at the same physical speeds and fluid.
+        return (tuple(self.speeds_knots), self.density_kg_m3,
+                self.kinematic_viscosity_m2_s, self.gravity_m_s2,
+                self.numerical_method_version, self.model_family,
+                self.calibration_model_version)
+
+
 class NumericalQuality(BaseModel):
     """Resolution evidence, independent of calibration and physical validity."""
 
@@ -35,6 +98,17 @@ class NumericalQuality(BaseModel):
     relative_changes: list[float] = Field(default_factory=list)
     relative_tolerance: float | None = Field(default=None, gt=0, allow_inf_nan=False)
     evidence: str | None = None
+
+    speeds_knots: list[float] = Field(default_factory=list)
+    absolute_uncertainty_N: list[float] = Field(default_factory=list)
+    observations: list[NumericalObservation] = Field(default_factory=list)
+    surface_observations: list[NumericalSurfaceObservation] = Field(default_factory=list)
+    viscous_uncertainty_N: list[float] = Field(default_factory=list)
+    comparison_inputs: ResistanceComparisonInputs | None = None
+    input_fingerprint: str | None = None
+    reference_fn_range: tuple[float, float] | None = None
+    reference_resolution_floor: dict[str, int] = Field(default_factory=dict)
+    reference_relative_allowance: float | None = Field(default=None, ge=0, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def _assessment_requires_evidence(self) -> "NumericalQuality":
@@ -51,6 +125,72 @@ class NumericalQuality(BaseModel):
                 raise ValueError("numerical assessment requires changes and tolerance")
             if self.status == "converged" and max(self.relative_changes) > self.relative_tolerance:
                 raise ValueError("converged numerical evidence exceeds its tolerance")
+        if any(not math.isfinite(x) or x < 0 for x in self.absolute_uncertainty_N + self.viscous_uncertainty_N):
+            raise ValueError("numerical uncertainty must be finite and nonnegative")
+        if any(not math.isfinite(x) or x < 0 for x in self.speeds_knots):
+            raise ValueError("numerical speeds must be finite and nonnegative")
+        if self.absolute_uncertainty_N and len(self.absolute_uncertainty_N) != len(self.speeds_knots):
+            raise ValueError("numerical uncertainty must cover its exact speed grid")
+        if any(len(o.total_resistance_N) != len(self.speeds_knots) for o in self.observations):
+            raise ValueError("numerical observations must cover their exact speed grid")
+        if self.observations and self.resolutions != [o.resolution for o in self.observations]:
+            raise ValueError("numerical resolutions must match actual observations")
+        if self.comparison_inputs is not None and self.comparison_inputs.speeds_knots != self.speeds_knots:
+            raise ValueError("comparison inputs must bind the exact requested speed grid")
+        if self.policy_version == "michell_linear_depth_screening_v1":
+            from kayakgen.eval.michell_screening import (
+                METHOD_VERSION, REFERENCE_FN_RANGE, REFERENCE_RESOLUTION_FLOOR,
+                REFERENCE_RELATIVE_ALLOWANCE, SURFACE_STATIONS,
+                achieved_uncertainty, refinement_levels,
+            )
+            if (self.reference_fn_range != REFERENCE_FN_RANGE
+                    or self.reference_resolution_floor != REFERENCE_RESOLUTION_FLOOR
+                    or self.reference_relative_allowance != REFERENCE_RELATIVE_ALLOWANCE):
+                raise ValueError("screening policy scope, floor or reference allowance changed")
+        if self.policy_version == "michell_linear_depth_screening_v1" and self.status != "unknown":
+            if (not self.input_fingerprint or len(self.input_fingerprint) != 64
+                    or not self.absolute_uncertainty_N or len(self.observations) != 8
+                    or self.reference_fn_range is None or self.reference_relative_allowance is None
+                    or self.comparison_inputs is None
+                    or len(self.surface_observations) != 3
+                    or len(self.viscous_uncertainty_N) != len(self.speeds_knots)):
+                raise ValueError("screening assessment requires bound inputs, uncertainty and eight observations")
+            if (len(self.relative_changes) != len(self.speeds_knots)
+                    or any(value is None for o in self.observations for value in o.total_resistance_N)):
+                raise ValueError("assessed screening observations must be complete at every speed")
+            if any(len(o.viscous_resistance_N) != len(self.speeds_knots) for o in self.surface_observations):
+                raise ValueError("surface observations must cover every assessed speed")
+            for value, uncertainty, relative in zip(
+                self.observations[0].total_resistance_N, self.absolute_uncertainty_N,
+                self.relative_changes, strict=True,
+            ):
+                if value == 0 or not math.isclose(uncertainty / abs(value), relative, rel_tol=1e-12):
+                    raise ValueError("screening relative and absolute uncertainty must agree")
+            inputs = self.comparison_inputs
+            assert inputs is not None
+            if inputs.numerical_method_version != METHOD_VERSION:
+                raise ValueError("screening policy method version changed")
+            if any(not REFERENCE_FN_RANGE[0] <= speed*.514444 / math.sqrt(
+                    inputs.gravity_m_s2 * inputs.hull_length_m) <= REFERENCE_FN_RANGE[1]
+                   for speed in inputs.speeds_knots):
+                raise ValueError("screening assessment is outside its actual Froude scope")
+            requested = self.resolutions[0]
+            if set(requested) != set(REFERENCE_RESOLUTION_FLOOR) or any(
+                    requested[key] < minimum for key, minimum in REFERENCE_RESOLUTION_FLOOR.items()):
+                raise ValueError("screening assessment is outside its resolution scope")
+            n, m, t = (requested[key] for key in ("n_stations", "n_depths", "n_theta"))
+            expected = [dict(zip(("n_stations", "n_depths", "n_theta"), level, strict=True))
+                        for level in refinement_levels(n, m, t)]
+            if self.resolutions != expected or tuple(o.stations for o in self.surface_observations) != SURFACE_STATIONS:
+                raise ValueError("screening observations do not follow the published refinement policy")
+            for index in range(len(self.speeds_knots)):
+                total_error, viscous_error = achieved_uncertainty(
+                    [o.total_resistance_N[index] for o in self.observations],
+                    [o.viscous_resistance_N[index] for o in self.surface_observations],
+                )
+                if (not math.isclose(self.absolute_uncertainty_N[index], total_error, rel_tol=1e-12, abs_tol=0)
+                        or not math.isclose(self.viscous_uncertainty_N[index], viscous_error, rel_tol=1e-12, abs_tol=0)):
+                    raise ValueError("screening uncertainty contradicts retained policy observations")
         return self
 
 
@@ -71,6 +211,7 @@ class ResistanceMetadata(BaseModel):
     validity_envelope: dict[str, Any] | None = None
     numerical_quality: NumericalQuality = Field(default_factory=NumericalQuality)
     model_family: str = "raw_ittc_michell"
+    numerical_method_version: str | None = None
     calibration_status: str = "uncalibrated"
     calibration_name: str | None = None
     calibration_version: str | None = None
@@ -140,12 +281,39 @@ class ResistanceCurve(BaseModel):
     Rt_N: list[float]
     metadata: ResistanceMetadata = Field(default_factory=ResistanceMetadata)
 
-
     @model_validator(mode="after")
     def _numerical_evidence_covers_speed_grid(self) -> "ResistanceCurve":
         quality = self.metadata.numerical_quality
         if quality.status != "unknown" and len(quality.relative_changes) != len(self.V_knots):
             raise ValueError("numerical assessment must cover every requested speed")
+        if quality.speeds_knots and quality.speeds_knots != self.V_knots:
+            raise ValueError("numerical assessment must bind the exact requested speed grid")
+        if quality.policy_version == "michell_linear_depth_screening_v1" and quality.status != "unknown":
+            inputs = quality.comparison_inputs
+            assert inputs is not None  # NumericalQuality enforces policy evidence.
+            constants = self.metadata.constants
+            if (inputs.numerical_method_version != self.metadata.numerical_method_version
+                    or inputs.model_family != self.metadata.model_family
+                    or inputs.calibration_model_version != self.metadata.model_version
+                    or inputs.density_kg_m3 != constants.get("seawater_density_kg_m3")
+                    or inputs.kinematic_viscosity_m2_s != constants.get("seawater_kinematic_viscosity_m2_s")
+                    or inputs.gravity_m_s2 != constants.get("gravity_m_s2")):
+                raise ValueError("numerical assessment input metadata changed")
+            if (self.metadata.quadrature != quality.observations[0].resolution
+                    or self.Rt_N != quality.observations[0].total_resistance_N
+                    or self.Rv_N != quality.surface_observations[0].viscous_resistance_N):
+                raise ValueError("numerical assessment requested observations changed")
+            count = len(self.V_knots)
+            if any(len(values) != count for values in (self.Fn, self.Rv_N, self.Rw_N, self.Rt_N)):
+                raise ValueError("assessed resistance vectors must cover the requested speed grid")
+            actual_fn = [v * .514444 / math.sqrt(inputs.gravity_m_s2 * inputs.hull_length_m)
+                         for v in self.V_knots]
+            if any(not math.isclose(reported, actual, rel_tol=1e-12, abs_tol=0)
+                   for reported, actual in zip(self.Fn, actual_fn, strict=True)):
+                raise ValueError("numerical assessment Froude numbers changed")
+            if any(total != viscous + wave for total, viscous, wave in
+                   zip(self.Rt_N, self.Rv_N, self.Rw_N, strict=True)):
+                raise ValueError("assessed resistance contributions do not sum to their total")
         return self
 
 
@@ -487,6 +655,45 @@ class EvaluationContext(BaseModel):
             **settings,
         )
 
+    def operating_comparison_inputs(self) -> dict[str, Any]:
+        """Project shared operating conditions without evaluating or mutating them.
+
+        Resistance refinement has its own achieved uncertainty. Solved operating
+        pose error does not, so its solver settings remain comparison conditions.
+        Explicit component values retain their distribution, independent of names.
+        """
+        kg = {key: getattr(self.load_case, key) for key in (
+            "kg_above_keel_m", "kg_reference", "kg_reference_value_m",
+            "seat_height_above_keel_m",
+        )}
+        if self.load_case.components:
+            components = [{key: getattr(component, key) for key in (
+                "mass_kg", "x_m", "kg_above_keel_m",
+            )} for component in self.load_case.components]
+            components.sort(key=lambda value: json.dumps(value, sort_keys=True))
+            load = {"components": components}
+            if any(component["kg_above_keel_m"] is None for component in components):
+                load["inherited_kg"] = kg
+        else:
+            load = {key: getattr(self.load_case, key) for key in (
+                "paddler_mass_kg", "hull_mass_kg", "cargo_mass_kg",
+            )}
+            load["kg"] = kg
+        operating: dict[str, Any] = {"equilibrium": self.equilibrium}
+        if self.equilibrium:
+            operating.update({key: getattr(self, key) for key in (
+                "hydrostatic_stations", "equilibrium_tolerance_kg",
+                "moment_tolerance_kg_m", "equilibrium_max_iterations", "max_trim_angle_deg",
+            )})
+        else:
+            operating.update(sinkage_m=self.sinkage_m, trim_angle_deg=self.trim_angle_deg)
+        return {
+            "schema_version": "1", "load": load,
+            "water_density_kg_m3": self.load_case.seawater_density_kg_m3,
+            "kinematic_viscosity_m2_s": self.kinematic_viscosity_m2_s,
+            "speeds_knots": list(self.speeds_knots), "operating": operating,
+        }
+
     def fingerprint(self) -> str:
         payload = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(payload.encode()).hexdigest()
@@ -669,6 +876,8 @@ class EvaluationResult(BaseModel):
                                  for key in ("n_stations", "n_depths", "n_theta")}
                 if curve.metadata.quadrature != expected_grid:
                     raise ValueError("resistance quadrature does not match evaluation context")
+                if curve.metadata.numerical_quality.relative_tolerance != self.context.numerical_relative_tolerance:
+                    raise ValueError("resistance numerical budget does not match evaluation context")
                 constants = curve.metadata.constants
                 if (constants.get("seawater_density_kg_m3") != self.context.load_case.seawater_density_kg_m3
                     or constants.get("seawater_kinematic_viscosity_m2_s") != self.context.kinematic_viscosity_m2_s):

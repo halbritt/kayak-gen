@@ -431,3 +431,54 @@ legacy format. Existing recorded artifacts are not rewritten on read.
 RFC 0078 packages `services/design_report_templates/*.j2` and the OpenFOAM
 `templates/*.template` resources inside wheels. Local deployment uses an
 isolated release virtualenv; runtime imports resolve to installed files.
+
+RFC0077 places exact sampled-depth arithmetic in `eval/michell_quadrature.py`,
+method-specific independent-axis assessment in `eval/numerical_resistance.py`,
+and shared reported comparison intervals in `search/numerical_intervals.py`.
+ResistanceMetadata carries numerical method version plus additive typed quality,
+observations, exact speeds, input fingerprint, reference allowance and achieved
+absolute uncertainties. New search metadata records diagnostic point-estimate
+sampling versus achieved-interval reported frontiers. Historical absent fields
+remain unknown; calibration model version and physical claim gates are separate.
+
+The total-resistance allowance also includes actual wetted-surface refinements
+at 60/120/240 longitudinal stations, evaluated with the same fluid and rigid pose.
+`surface_observations` retains area, per-speed viscous resistance and time;
+`viscous_uncertainty_N` is |Rv60−Rv240|+|Rv120−Rv240|. This contribution is added
+to the eight-grid Michell allowance before budget admission and interval ranking.
+The requested viscous values remain unchanged, and its fixed60-station surface rule
+is recorded by the surface observations in numerical quality. The requested
+x/z/theta quadrature metadata remains unchanged. Reported viscous inputs are recomputed
+and compared before assessment, so fluid/pose mismatch stays diagnostic unknown.
+
+Scope is calculated from actual speed, hull length and gravity; relabeling a
+reported Fn cannot admit an out-of-study calculation. Typed `comparison_inputs`
+binds the exact speeds, length, fluid and method/model identity. Saved assessed
+curves refuse stale total/viscous observations, requested grid, fluid, method or
+Fn metadata. Reported interval comparisons require common exact speeds, fluid
+and method/model identity; length may vary between candidate hulls. Optional
+per-metric `operating_context` must be present on both sides and equal when either
+side supplies it. Standalone curves without operating context use their typed
+numerical comparison conditions. Missing historical comparison inputs stay
+readable and cannot establish a strict resistance winner.
+
+Current numerical admission recognizes only the supported, verified policy.
+Unknown/historical policy strings remain readable assertions and diagnostic values,
+but cannot join even a singleton resistance frontier, train resistance selection,
+or establish dominance. The known policy recomputes total and viscous allowances
+from the eight plus three retained observations during parsing; jointly lowering
+absolute and relative errors cannot manufacture zero-width comparison intervals.
+Its method, scope, floor, refinement levels and reference allowance are bound to
+the immutable v1 definition in `eval/michell_screening.py`, independently of a
+future runtime method. Deserialization does not rerun geometry or resistance.
+
+`eval/michell_screening.py` retains immutable policy v1 definitions and scalar
+uncertainty arithmetic. Schema parsing validates retained observations against
+that version without executing an evaluator; runtime assessment owns sampling.
+
+EvaluationContext owns the schema-v1 operating comparison projection. Sweep keeps
+its existing shared evaluation-service path and records the projection beside
+numerical quality; compare and active-search reported frontiers preserve it in
+per-metric provenance. `search.numerical_intervals.operating_inputs_compatible`
+provides the public warning check without executing an evaluator. This adds no
+analytic request lifecycle or new ownership engine.

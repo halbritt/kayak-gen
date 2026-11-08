@@ -1,0 +1,47 @@
+from pathlib import Path
+import hashlib,json,sys
+import numpy as np
+from kayakgen.eval.contract import ResistanceCurve
+from kayakgen.eval.numerical_resistance import assess_resistance
+from kayakgen.eval.resistance import resistance_curve
+from kayakgen.model.hull import Hull
+from kayakgen.model.operating_state import OperatingPose
+from kayakgen.search.pareto import CandidatePoint,Objective,dominates,pareto_front
+repo=Path('/home/halbritt/.cache/agent-worktrees/kayak-gen/impl-numerical-policy')
+out=Path(sys.argv[1])
+out.mkdir(exist_ok=False)
+files=['kayakgen/eval/contract.py','kayakgen/eval/michell_screening.py','kayakgen/eval/numerical_resistance.py','kayakgen/search/numerical_intervals.py','kayakgen/search/objectives.py','kayakgen/search/pareto.py']
+def hashes():return {p:hashlib.sha256((repo/p).read_bytes()).hexdigest() for p in files}
+before=hashes()
+curves={}
+for name,number,speed,kwargs in [('06_5',6,5.,{}),('08_5',8,5.,{}),('06_4',6,4.,{}),('18_4',18,4.,{}),('08_5_fresh',8,5.,{'rho':997.}),('08_5_viscous',8,5.,{'nu':1.4e-6}),('08_5_pose',8,5.,{'pose':OperatingPose(.005,.2)})]:
+ hull=Hull.model_validate_json((repo/f'tests/fixtures/numerical/fast-tourer-{number:02d}.json').read_text())
+ curves[name]=resistance_curve(hull,np.array([speed]),n_stations=400,n_depths=25,n_theta=40,numerical_relative_tolerance=.01,**kwargs)
+ (out/f'{name}.json').write_text(curves[name].model_dump_json(indent=2))
+def point(name,curve):return CandidatePoint(id=name,metrics={'Rt_N_last':curve.Rt_N[-1]},provenance={'Rt_N_last':{'numerical_quality':curve.metadata.numerical_quality.model_dump(mode='json')}})
+obj=[Objective(metric='Rt_N_last',direction='min')]
+def pair(a,b):
+ x,y=point(a,curves[a]),point(b,curves[b])
+ return [dominates(x,y,obj),dominates(y,x,obj)]
+mutants=[]
+for name in ['06_4','18_4']:
+ data=curves[name].model_dump(mode='json')
+ data['metadata']['numerical_quality'].update(policy_version='unavailable_history_v99',absolute_uncertainty_N=[0.],relative_changes=[0.])
+ restored=ResistanceCurve.model_validate(data)
+ mutants.append(point(name,restored))
+h8=Hull.model_validate_json((repo/'tests/fixtures/numerical/fast-tourer-08.json').read_text())
+wrong_pose=assess_resistance(h8,curves['08_5_pose'],.01)
+result={'quality_statuses':{n:c.metadata.numerical_quality.status for n,c in curves.items()},'positive_wider_pair_dominance':pair('06_5','08_5'),'close_pair_dominance':pair('06_4','18_4'),'different_density_dominance':pair('08_5','08_5_fresh'),'different_viscosity_dominance':pair('08_5','08_5_viscous'),'unsupported_policy':{'records_readable':True,'pair_dominance':[dominates(mutants[0],mutants[1],obj),dominates(mutants[1],mutants[0],obj)],'singleton_front':[p.id for p in pareto_front([mutants[0]],obj)],'pair_front':[p.id for p in pareto_front(mutants,obj)]},'pose_and_fluid_fingerprints':{n:c.metadata.numerical_quality.input_fingerprint for n,c in curves.items() if n.startswith('08_5')},'wrong_pose_assessment':{'status':wrong_pose['status'],'reason':wrong_pose['evidence']},'physical_claims':{n:{'claim_state':c.metadata.claim_state,'model_version':c.metadata.model_version,'accepted_uses':c.metadata.accepted_uses} for n,c in curves.items()},'source_before_sha256':before,'source_after_sha256':hashes()}
+(out/'receipt.json').write_text(json.dumps(result,indent=2))
+assert result['source_before_sha256']==result['source_after_sha256'],'source changed during closure probe'
+assert sum(result['positive_wider_pair_dominance'])==1
+for key in ['close_pair_dominance','different_density_dominance','different_viscosity_dominance']:
+ assert result[key]==[False,False],key
+assert result['unsupported_policy']['pair_dominance']==[False,False]
+assert result['unsupported_policy']['singleton_front']==[]
+assert result['unsupported_policy']['pair_front']==[]
+assert wrong_pose['status']=='unknown'
+assert len(set(result['pose_and_fluid_fingerprints'].values()))==4
+assert all(x['claim_state']=='uncalibrated_comparative' and x['model_version'] is None and x['accepted_uses']==['comparative_filter'] for x in result['physical_claims'].values())
+print(json.dumps({k:v for k,v in result.items() if k not in ['physical_claims','source_before_sha256','source_after_sha256','pose_and_fluid_fingerprints']},indent=2))
+print('source unchanged; distinct actual pose/fluid fingerprints; physical claim scope unchanged')

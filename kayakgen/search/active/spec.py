@@ -285,6 +285,7 @@ class SearchMetadata(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    numerical_comparison_policy: str | None = None
     algorithm_kind: Literal["nsga2", "ehvi"] = "nsga2"
     seed: int
     population_size: int | None = None

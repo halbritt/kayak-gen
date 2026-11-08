@@ -1,0 +1,113 @@
+{
+  "quality_statuses": {
+    "06_5": "converged",
+    "08_5": "converged",
+    "06_4": "converged",
+    "18_4": "converged",
+    "08_5_fresh": "converged",
+    "08_5_viscous": "converged",
+    "08_5_pose": "converged"
+  },
+  "positive_wider_pair_dominance": [
+    true,
+    false
+  ],
+  "close_pair_dominance": [
+    false,
+    false
+  ],
+  "different_density_dominance": [
+    false,
+    false
+  ],
+  "different_viscosity_dominance": [
+    false,
+    false
+  ],
+  "unsupported_policy": {
+    "records_readable": true,
+    "pair_dominance": [
+      false,
+      false
+    ],
+    "singleton_front": [],
+    "pair_front": []
+  },
+  "pose_and_fluid_fingerprints": {
+    "08_5": "c037db91517560dc59cb01b0c736805900cf021339c32b2a54cc1cdb7efb214e",
+    "08_5_fresh": "047d2731ac39dbd36c8c2e7d95a5e32aa02329ef9eecf069c78863a32d8d95c8",
+    "08_5_viscous": "70a112b7d05027616b7d5293ea82016eada18fe830a820415b0bc8b6500e61dd",
+    "08_5_pose": "5dc5f9eade089ea5a2044f25bca1f6a270f6f0d19cd3c392cffd8479d1d9e67b"
+  },
+  "wrong_pose_assessment": {
+    "status": "unknown",
+    "reason": "reported_viscous_values_do_not_match_assessed_inputs"
+  },
+  "physical_claims": {
+    "06_5": {
+      "claim_state": "uncalibrated_comparative",
+      "model_version": null,
+      "accepted_uses": [
+        "comparative_filter"
+      ]
+    },
+    "08_5": {
+      "claim_state": "uncalibrated_comparative",
+      "model_version": null,
+      "accepted_uses": [
+        "comparative_filter"
+      ]
+    },
+    "06_4": {
+      "claim_state": "uncalibrated_comparative",
+      "model_version": null,
+      "accepted_uses": [
+        "comparative_filter"
+      ]
+    },
+    "18_4": {
+      "claim_state": "uncalibrated_comparative",
+      "model_version": null,
+      "accepted_uses": [
+        "comparative_filter"
+      ]
+    },
+    "08_5_fresh": {
+      "claim_state": "uncalibrated_comparative",
+      "model_version": null,
+      "accepted_uses": [
+        "comparative_filter"
+      ]
+    },
+    "08_5_viscous": {
+      "claim_state": "uncalibrated_comparative",
+      "model_version": null,
+      "accepted_uses": [
+        "comparative_filter"
+      ]
+    },
+    "08_5_pose": {
+      "claim_state": "uncalibrated_comparative",
+      "model_version": null,
+      "accepted_uses": [
+        "comparative_filter"
+      ]
+    }
+  },
+  "source_before_sha256": {
+    "kayakgen/eval/contract.py": "bb362a25fb3fc4bf6304dcb7d79b1c4032eb5d7511d10516cadabd5fca77bc2c",
+    "kayakgen/eval/michell_screening.py": "2fdf5a178a8100b89176b00fedcfc74dcc0a81fb2ccef3ead775ce9b831836aa",
+    "kayakgen/eval/numerical_resistance.py": "6d9edcaf10218f9a238a7cae93294e6b1edbbe21d3c6577b8a9abd4c0ff86a43",
+    "kayakgen/search/numerical_intervals.py": "7f34954c6ef85bfaa789915cfbd90a5ecc6d9293e2e89cabf80999406e978dcc",
+    "kayakgen/search/objectives.py": "c65acdbe8a002623800f47b1cd7e3eaf4bc691a836d53037f8d660ff874ffcc4",
+    "kayakgen/search/pareto.py": "ca59e93c55987cccf0c056e3afb53854f0077b5e38a2b82b28e30ce9c2a608ee"
+  },
+  "source_after_sha256": {
+    "kayakgen/eval/contract.py": "bb362a25fb3fc4bf6304dcb7d79b1c4032eb5d7511d10516cadabd5fca77bc2c",
+    "kayakgen/eval/michell_screening.py": "2fdf5a178a8100b89176b00fedcfc74dcc0a81fb2ccef3ead775ce9b831836aa",
+    "kayakgen/eval/numerical_resistance.py": "6d9edcaf10218f9a238a7cae93294e6b1edbbe21d3c6577b8a9abd4c0ff86a43",
+    "kayakgen/search/numerical_intervals.py": "7f34954c6ef85bfaa789915cfbd90a5ecc6d9293e2e89cabf80999406e978dcc",
+    "kayakgen/search/objectives.py": "c65acdbe8a002623800f47b1cd7e3eaf4bc691a836d53037f8d660ff874ffcc4",
+    "kayakgen/search/pareto.py": "ca59e93c55987cccf0c056e3afb53854f0077b5e38a2b82b28e30ce9c2a608ee"
+  }
+}

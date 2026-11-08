@@ -220,3 +220,20 @@ Hull. Sinkage is its body-frame waterplane intercept; positive trim is
 stern-down. Pose changes evaluation state, not the Hull shape.
 
 **Evaluation context** (RFC 0073): immutable actual load, environment, method, grid, speed and operating-pose inputs bound to one full hull record. **Context fingerprint**: canonical SHA-256 of that snapshot; old missing context is unknown, rather than reconstructed from defaults.
+- **Numerical method version**: diagnostic identity of resistance arithmetic;
+  `michell_linear_depth_v2` does not identify a physical calibration fit.
+- **Screening budget**: caller-declared numerical relative admission ceiling,
+  with no universal default in RFC0077.
+- **Achieved numerical uncertainty**: recorded absolute per-speed allowance from
+  requested-to-finest change, independent-axis residuals and reference controls;
+  reported hull comparisons require separated intervals rather than point gaps.
+- **Numerical reference scope**: studied dimensionless Fn range for a numerical
+  policy, distinct from the physical model's validity envelope or accepted use.
+
+**Operating comparison inputs** (RFC0077): schema-v1 physical request projection
+used to decide whether resistance intervals may establish a strict winner.
+Physical load distributions, CG references, fluid, speeds and operating intent
+are distinct from hull identity, labels, origins and resistance refinement.
+Solved operating settings remain comparable requirements because resistance
+uncertainty does not bound pose-solver error. The public warning token is
+`incompatible_operating_inputs`.

@@ -436,4 +436,6 @@ def objective_has_numerical_evidence(metric: str, provenance: dict[str, Any]) ->
         assessed = NumericalQuality.model_validate(quality)
     except ValidationError:
         return False
-    return assessed.status == "converged"
+    from kayakgen.eval.michell_screening import POLICY_VERSION
+
+    return assessed.policy_version == POLICY_VERSION and assessed.status == "converged"

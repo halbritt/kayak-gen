@@ -23,6 +23,23 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   Concurrent index initialization now serializes schema checks and mutations,
   preventing one opener from deleting another's freshly committed tables.
 
+- RFC0073/RFC0077 integration: sweep numerical budgets now reach the shared
+  evaluator and saved result. Reported resistance comparisons preserve common
+  physical operating requests and warn `incompatible_operating_inputs` for
+  different or missing conditions. Web force labels use the actual sampled
+  speed and disclose a view target missing from the supplied grid; the grid is
+  preserved. Numerical refinement/budget alone is allowed
+  to differ. Solved-pose solver settings remain comparison inputs.
+
+- RFC0077 / KAYGEN-15: exact sampled linear-depth exponential integration
+  removes the Michell depth endpoint artifact. Explicit method-specific numerical
+  screening retains requested values, measured per-axis/reference evidence and
+  achieved uncertainty. Reported comparison/search frontiers preserve unresolved
+  intervals. Unsupported policy assertions remain diagnostic even as singleton
+  frontiers; retained observations bind achieved bounds. Historical/unassessed
+  curves remain diagnostic and physical claims
+  remain unchanged; no default tolerance is introduced.
+
 - RFC 0068 / KAYGEN-6: v2 physical identity now binds its complete nested
   distribution spec with the explicit `distribution_v2_v2:` scheme. Lofted,
   record and content hashes remain unchanged; old ambiguous v2 evidence is

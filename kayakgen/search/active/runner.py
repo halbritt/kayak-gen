@@ -62,7 +62,9 @@ from kayakgen.search.active.spec import (
 from kayakgen.search.candidate_reuse import CandidateReuseUnavailable, load_finalized_candidates
 from kayakgen.search.objectives import DEFAULT_OBJECTIVE_METRICS, OBJECTIVE_METADATA
 from kayakgen.search.pareto import (
+    CandidatePoint,
     Objective,
+    dominates,
     ensure_objectives_claim_admissible_for_search,
     ensure_objectives_not_high_angle_gz,
 )
@@ -283,6 +285,13 @@ def _build_pending_record(
     )
 
 
+def _record_resistance_provenance(record: CandidateRecord) -> dict[str, Any]:
+    details = {"numerical_quality": record.summary.get("resistance_numerical_quality")}
+    if "resistance_operating_context" in record.summary:
+        details["operating_context"] = record.summary["resistance_operating_context"]
+    return details
+
+
 def _record_has_numerical_evidence(
     record: CandidateRecord, objectives: list[ObjectiveSpec]
 ) -> bool:
@@ -290,7 +299,7 @@ def _record_has_numerical_evidence(
 
     return all(
         objective_has_numerical_evidence(obj.metric, {
-            obj.metric: {"numerical_quality": record.summary.get("resistance_numerical_quality")}
+            obj.metric: _record_resistance_provenance(record)
         })
         for obj in objectives
     )
@@ -299,7 +308,7 @@ def _record_has_numerical_evidence(
 def _objective_value(record: CandidateRecord, metric: str) -> float | None:
     from kayakgen.search.objectives import objective_has_numerical_evidence
 
-    provenance = {metric: {"numerical_quality": record.summary.get("resistance_numerical_quality")}}
+    provenance = {metric: _record_resistance_provenance(record)}
     if not objective_has_numerical_evidence(metric, provenance):
         return None
     if metric in record.summary:
@@ -695,6 +704,7 @@ def run_search(
     )
 
     metadata = SearchMetadata(
+        numerical_comparison_policy="achieved_intervals_v1; diagnostic_point_estimate_sampling",
         seed=spec.algorithm.seed,
         population_size=spec.algorithm.population_size,
         generations=spec.algorithm.generations,
@@ -796,6 +806,13 @@ def _build_generation_history(
             "worst": values_sorted[-1] if obj.direction == "min" else values_sorted[0],
             "median": values_sorted[len(values_sorted) // 2],
         }
+        registry = OBJECTIVE_METADATA.get(obj.metric)
+        if registry is not None and registry.source_evaluator == "resistance":
+            summary[obj.metric] = {
+                "point_estimate_min": values_sorted[0],
+                "point_estimate_max": values_sorted[-1],
+                "point_estimate_median": values_sorted[len(values_sorted) // 2],
+            }
     return GenerationHistoryEntry(
         generation=generation.index,
         evaluated_count=len(evaluated),
@@ -879,7 +896,7 @@ def _signed_value(value: float, direction: Literal["min", "max"]) -> float:
 def _ehvi_pareto_front(
     records: Iterable[CandidateRecord], objectives: list[ObjectiveSpec]
 ) -> np.ndarray:
-    """Return the non-dominated front (minimisation space) of evaluated records."""
+    """Diagnostic point-estimate acquisition front; reported fronts use intervals."""
     pts: list[list[float]] = []
     for rec in records:
         if rec.status != "complete":
@@ -1030,7 +1047,6 @@ def _run_ehvi_search(
             r for r in records_by_key.values() if r.status == "constraint_failed"
         ]
         failed = [r for r in records_by_key.values() if r.status == "failed"]
-        pareto = _ehvi_pareto_front(records_by_key.values(), objectives)
         summary: dict[str, dict[str, float]] = {}
         for obj in objectives:
             values: list[float] = []
@@ -1047,13 +1063,20 @@ def _run_ehvi_search(
                 "worst": values_sorted[-1] if obj.direction == "min" else values_sorted[0],
                 "median": values_sorted[len(values_sorted) // 2],
             }
+            registry = OBJECTIVE_METADATA.get(obj.metric)
+            if registry is not None and registry.source_evaluator == "resistance":
+                summary[obj.metric] = {
+                    "point_estimate_min": values_sorted[0],
+                    "point_estimate_max": values_sorted[-1],
+                    "point_estimate_median": values_sorted[len(values_sorted) // 2],
+                }
         ehvi_history.append(
             EhviHistoryEntry(
                 iteration=iteration,
                 evaluated_count=len(evaluated),
                 constraint_failed_count=len(constraint_failed),
                 failed_count=len(failed),
-                frontier_size=int(pareto.shape[0]),
+                frontier_size=len(_final_frontier_keys(evaluated, objectives, exploratory=True)),
                 ehvi_score=float(ehvi_score),
                 objective_summary=summary,
             )
@@ -1274,6 +1297,7 @@ def _run_ehvi_search(
     )
 
     metadata = SearchMetadata(
+        numerical_comparison_policy="achieved_intervals_v1; diagnostic_point_estimate_sampling",
         algorithm_kind="ehvi",
         seed=algorithm.seed,
         population_size=None,
@@ -1360,31 +1384,24 @@ def _final_frontier_keys(
     ]
     if not eligible:
         return []
-    # Build minimize-direction tuples.
-    tuples: list[tuple[float, ...]] = []
-    for rec in eligible:
-        tuples.append(_signed_objective(rec, objectives))
-    frontier: list[str] = []
-    for i, point in enumerate(tuples):
-        dominated = False
-        for j, other in enumerate(tuples):
-            if i == j:
-                continue
-            better_in_any = False
-            worse_in_any = False
-            for pv, ov in zip(point, other):
-                if math.isinf(pv) or math.isinf(ov):
-                    worse_in_any = True
-                    break
-                if ov < pv:
-                    better_in_any = True
-                elif ov > pv:
-                    worse_in_any = True
-            if better_in_any and not worse_in_any:
-                dominated = True
-                break
-        if not dominated:
-            frontier.append(eligible[i].candidate_key)
+    # Shared reported-frontier policy is independent of point-estimate
+    # selection/crowding heuristics inside NSGA-II and EHVI acquisition.
+    points = []
+    for record in eligible:
+        metrics = {}
+        for objective in objectives:
+            value = _objective_value(record, objective.metric)
+            if value is not None:
+                metrics[objective.metric] = value
+        points.append(CandidatePoint(
+            id=record.candidate_key, metrics=metrics,
+            provenance={objective.metric: _record_resistance_provenance(record)
+                        for objective in objectives},
+        ))
+    selected = [Objective(metric=o.metric, direction=o.direction) for o in objectives]
+    frontier = [point.id for i, point in enumerate(points) if not any(
+        i != j and dominates(other, point, selected) for j, other in enumerate(points)
+    )]
     if exploratory:
         # Exploratory frontier rows are surfaced but flagged elsewhere as
         # frontier-ineligible under the conservative view.

@@ -12,21 +12,16 @@ uses the polar form:
           \\int_0^{\\pi/2} (P^2 + Q^2)\\, \\sec^3\\theta\\, d\\theta
 
 with ``f(x, z)`` the hull half-breadth at longitudinal position ``x`` and
-depth ``z`` below the waterline. The 16/π prefactor is verified against the
-Wigley parabolic hull (L=1, B=0.1, T=0.0625): Cw matches published values
-within 5 % at Fn 0.30/0.40/0.50 with ≥800 stations.
+depth ``z`` below the waterline. The physical model and 16/π prefactor
+remain unchanged. RFC 0077 integrates each sampled linear depth segment
+against its exponential kernel exactly, avoiding the unresolved near-surface
+boundary layer of the former depth trapezoid. Uniform longitudinal gradients
+and angular trapezoids remain resolution-sensitive, especially near sharp tips.
 
-**Known limitation for sharp-ended hulls.** The kayak loft has ``∂f/∂x``
-of order ``ε^(-1/2)`` near the bow and stern (where the area fraction
-goes to zero). The integrable singularity is well-handled by analytical
-derivatives but trapezoidal-rule + ``np.gradient`` on a uniform grid
-oscillates badly between resolutions for slender, sharp-ended hulls.
-Results for the lofted kayak therefore stabilize qualitatively (zero at
-zero V, monotone growth across the kayak speed band) but absolute values
-should be treated as **fit for sweep/Pareto filtering, not for final
-performance prediction.** RFC 0005 calls this out as the "fast filter
-tier"; a follow-on RFC will replace ``df_dx`` with an analytical
-gradient and switch to oscillatory quadrature for the inner integral.
+Diagnostic curves default to unknown numerical quality. Explicitly requesting
+a numerical screening budget evaluates independent x/z/theta refinements and
+records achieved uncertainty against independent closed-transform controls.
+Assessment never replaces the requested-grid values or promotes physical claims.
 
 ITTC-57 friction line (well-converged for any hull):
 
@@ -47,15 +42,17 @@ from kayakgen.eval.claims import (
     UNCALIBRATED_COMPARATIVE,
     uncalibrated_resistance_warnings,
 )
-from kayakgen.eval.contract import ResistanceCurve, ResistanceMetadata
+from kayakgen.eval.contract import NumericalQuality, ResistanceCurve, ResistanceMetadata
 from kayakgen.model.hull import Hull
 from kayakgen.model.operating_state import OperatingPose
+from kayakgen.eval.michell_quadrature import wave_from_grid
 
-NUMERICAL_METHOD_VERSION = "michell_trapezoid_v1"
 GRAVITY_M_S2 = 9.80665
 SEAWATER_DENSITY_KG_M3 = 1025.0
 SEAWATER_KINEMATIC_VISCOSITY_M2_S = 1.19e-6  # 15 °C
 KNOTS_TO_MS = 0.514444
+NUMERICAL_METHOD_VERSION = "michell_linear_depth_v2"
+WETTED_SURFACE_STATIONS = 60
 
 
 def _half_breadth_grid(hull: Hull, n_stations: int, n_depths: int, pose: OperatingPose | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -72,7 +69,7 @@ def _half_breadth_grid(hull: Hull, n_stations: int, n_depths: int, pose: Operati
     return hull.to_geometry().half_breadth_grid(n_stations, n_depths)
 
 
-def wetted_surface(hull: Hull, stations: int = 60, *, pose: OperatingPose | None = None) -> float:
+def wetted_surface(hull: Hull, stations: int = WETTED_SURFACE_STATIONS, *, pose: OperatingPose | None = None) -> float:
     """Wetted surface area from triangle areas of the hull mesh."""
     if pose is not None:
         from kayakgen.eval.immersed_geometry import immersed_geometry
@@ -122,36 +119,11 @@ def wave_resistance_michell(
     """Wave-making resistance via the polar Michell integral, Newtons."""
     if V_ms <= 0:
         return 0.0
-    k0 = g / (V_ms * V_ms)
+    if n_stations < 3 or n_depths < 2 or n_theta < 2:
+        raise ValueError("Michell quadrature requires >=3 stations, >=2 depths and >=2 angles")
+    xs, zs, half_breadths = _half_breadth_grid(hull, n_stations, n_depths, pose=pose)
+    return wave_from_grid(xs, zs, half_breadths, V_ms, n_theta, rho, g)
 
-    xs, zs, f = _half_breadth_grid(hull, n_stations, n_depths, pose)
-    df_dx = np.gradient(f, xs, axis=0)
-
-    # Truncate the theta integration just shy of pi/2 (sec(theta) singular).
-    thetas = np.linspace(0.0, np.pi / 2 - 1e-3, n_theta)
-    cos_t = np.cos(thetas)
-    sec_t = 1.0 / cos_t
-    sec2_t = sec_t * sec_t
-    sec3_t = sec_t * sec2_t
-
-    pq2 = np.zeros_like(thetas)
-    for k, theta in enumerate(thetas):
-        cos_kx = np.cos(k0 * xs * sec_t[k])  # (N,)
-        sin_kx = np.sin(k0 * xs * sec_t[k])
-        exp_kz = np.exp(-k0 * zs * sec2_t[k])  # (M,)
-        kernel_P = cos_kx[:, None] * exp_kz[None, :]
-        kernel_Q = sin_kx[:, None] * exp_kz[None, :]
-        P = np.trapezoid(np.trapezoid(df_dx * kernel_P, zs, axis=1), xs)
-        Q = np.trapezoid(np.trapezoid(df_dx * kernel_Q, zs, axis=1), xs)
-        pq2[k] = P * P + Q * Q
-
-    # Factor 16 (= 4 × 4): the 4 from the standard Michell prefactor times
-    # a 4 from the (port + starboard) × (fore + aft) symmetry of integrating
-    # ∂f/∂x once over the half-hull. Verified against the Wigley parabolic
-    # hull (L=1, B=0.1, T=0.0625): with this factor, computed Cw at Fn=0.30
-    # matches the published 1.3e-3 ± 5%, and at Fn=0.50 the published 2.6e-3.
-    R_w = (16.0 * rho * g * g / (math.pi * V_ms * V_ms)) * np.trapezoid(pq2 * sec3_t, thetas)
-    return float(R_w)
 
 
 def _validate_fluid_properties(rho: float, nu: float) -> None:
@@ -169,6 +141,7 @@ def resistance_curve(
     pose: OperatingPose | None = None,
     rho: float = SEAWATER_DENSITY_KG_M3,
     nu: float = SEAWATER_KINEMATIC_VISCOSITY_M2_S,
+    numerical_relative_tolerance: float | None = None,
 ) -> ResistanceCurve:
     """Sweep viscous + wave resistance across a speed range."""
     _validate_fluid_properties(rho, nu)
@@ -197,6 +170,7 @@ def resistance_curve(
         fit_metrics={},
         validity_envelope=None,
         model_family="raw_ittc_michell",
+        numerical_method_version=NUMERICAL_METHOD_VERSION,
         calibration_status="uncalibrated",
         accepted_use=[ACCEPTED_USE_COMPARATIVE_FILTER],
         verification_fixtures=["wigley_parabolic_hull"],
@@ -213,7 +187,7 @@ def resistance_curve(
         warnings=uncalibrated_resistance_warnings(),
     )
 
-    return ResistanceCurve(
+    curve = ResistanceCurve(
         V_knots=V_knots.tolist(),
         Fn=Fn.tolist(),
         Rv_N=Rv.tolist(),
@@ -221,6 +195,16 @@ def resistance_curve(
         Rt_N=Rt.tolist(),
         metadata=metadata,
     )
+    if numerical_relative_tolerance is not None:
+        from kayakgen.eval.numerical_resistance import assess_resistance
+
+        curve.metadata.numerical_quality = NumericalQuality.model_validate(
+            assess_resistance(hull, curve, numerical_relative_tolerance, pose=pose)
+        )
+        # Bind newly assessed evidence through the same parser used for saved
+        # curves; requested values and metadata must still match its observations.
+        return ResistanceCurve.model_validate(curve.model_dump())
+    return curve
 
 
 def evaluate_resistance(

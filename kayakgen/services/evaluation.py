@@ -61,11 +61,19 @@ def metrics_from_state(state: dict[str, Any], stations: int = 60) -> dict[str, A
     """Single-shot read model: hydrostatics + at-speed resistance."""
     hull = hull_from_web_state(state)
     target_kt = float(state.get("target_speed_kt", 3.5))
+    evaluated_kt = target_kt
+    speed_selection_warning = None
     if state.get("evaluation_context") is not None or state.get("load_case") is not None:
         result = evaluation_for_state(state)
         h, curve = result.hydrostatics, result.resistance
         index = min(range(len(curve.V_knots)), key=lambda i: abs(curve.V_knots[i]-target_kt))
         r = {key: getattr(curve, key)[index] for key in ("Fn", "Rv_N", "Rw_N", "Rt_N")}
+        evaluated_kt = curve.V_knots[index]
+        if abs(evaluated_kt - target_kt) > 1e-9:
+            speed_selection_warning = (
+                f"View target {target_kt:g} kt is not in the evaluation speed grid; "
+                f"showing sampled {evaluated_kt:g} kt."
+            )
         resistance_claim = curve.metadata
     else:
         h = evaluate_hydrostatics(hull, stations=stations)
@@ -86,6 +94,8 @@ def metrics_from_state(state: dict[str, Any], stations: int = 60) -> dict[str, A
         "Cp_actual": h.Cp_actual,
         "Cm_actual": h.Cm_actual,
         "l_over_bwl": advisory.l_over_bwl,
+        "evaluated_speed_kt": evaluated_kt,
+        "speed_selection_warning": speed_selection_warning,
         "Fn": r["Fn"],
         "Rv_N": r["Rv_N"],
         "Rw_N": r["Rw_N"],

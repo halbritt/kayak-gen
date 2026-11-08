@@ -83,10 +83,22 @@ def test_assessed_point_needs_complete_distinct_resolution_evidence():
     point = CandidatePoint(id='assessed', metrics={'Rt_N_last': 60}, provenance={
         'Rt_N_last': {'numerical_quality': quality.model_dump(mode='json')},
     })
-    assert pareto_front([point], [Objective(metric='Rt_N_last', direction='min')])[0].id == 'assessed'
+    # RFC0077: an asserted generic policy remains readable historical evidence;
+    # current admission requires the supported, verified method-specific policy.
+    assert quality.status == 'converged'
+    assert pareto_front([point], [Objective(metric='Rt_N_last', direction='min')]) == []
     with pytest.raises(ValidationError, match='exceeds'):
         NumericalQuality.model_validate({**evidence, 'relative_changes': [.1]})
     with pytest.raises(ValidationError):
         NumericalQuality.model_validate({**evidence, 'relative_tolerance': float('inf')})
     with pytest.raises(ValidationError, match='distinct'):
         NumericalQuality.model_validate({**evidence, 'resolutions': [{'n': 100}]*3})
+
+
+def test_supported_real_assessed_control_joins_frontier():
+    from numerical_test_cases import assessed_curve
+    curve = assessed_curve()
+    point = CandidatePoint(id='measured-numerical-control', metrics={'Rt_N_last': curve.Rt_N[-1]},
+                           provenance={'Rt_N_last': {'numerical_quality':
+                               curve.metadata.numerical_quality.model_dump(mode='json')}})
+    assert pareto_front([point], [Objective(metric='Rt_N_last', direction='min')])[0].id == point.id

@@ -1,0 +1,614 @@
+[
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 0.5546962543077687,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.03792102388367425,
+    "seconds": 0.0025288480101153255
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 0.5567498431183777,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.03435922838761442,
+    "seconds": 0.0009374429937452078
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 0.5855190217174622,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.015538750326620502,
+    "seconds": 0.025753231020644307
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 0.5723747483888257,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.007259004169827271,
+    "seconds": 0.00517129700165242
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 0.5729320235971882,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.006292452191672222,
+    "seconds": 0.0018263580277562141
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 0.5814006665172086,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.008395772663488576,
+    "seconds": 0.0025654829805716872
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 0.5770596088900193,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.000866534373534364,
+    "seconds": 0.015927055035717785
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 0.5772059535321018,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.0011203581596541468,
+    "seconds": 0.004606425995007157
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 0.5773828929955018,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.0014272463646140096,
+    "seconds": 0.005460434942506254
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 0.576593149462542,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 5.749554390108544e-05,
+    "seconds": 0.06218637793790549
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 0.5766290982432539,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.00011984600304216655,
+    "seconds": 0.013800834072753787
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 0.5765369528182784,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 3.99733132516713e-05,
+    "seconds": 0.016289263032376766
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 1.3313826559310948,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.017526663806373684,
+    "seconds": 0.0022909300168976188
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 1.3339932098734533,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.019521813909780184,
+    "seconds": 0.0008754130685701966
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 1.2895522500217016,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.014442772764725966,
+    "seconds": 0.001130606047809124
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 1.3133894420460825,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.003775114006615264,
+    "seconds": 0.005084732081741095
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 1.3134754559325459,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.0038408512479291505,
+    "seconds": 0.0018748280126601458
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 1.3103115764315159,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.0014228148261484863,
+    "seconds": 0.002384247025474906
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 1.3077332609008587,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.000547696648116569,
+    "seconds": 0.01458971993997693
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 1.3078657677356749,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.000446426560992207,
+    "seconds": 0.004461214994080365
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 1.309206109786113,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.0005779474376219459,
+    "seconds": 0.006015737075358629
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 1.3084880163105121,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 2.913507682232201e-05,
+    "seconds": 0.06418712099548429
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 1.3085214275189432,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 5.467003125267948e-05,
+    "seconds": 0.013539502979256213
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 1.3085229599725121,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 5.584122899998826e-05,
+    "seconds": 0.016070453100837767
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.3662633397092203,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.0034844810223118136,
+    "seconds": 0.0023353620199486613
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.3687820651611475,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.0027388622909185725,
+    "seconds": 0.0009238020284101367
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.3239991987454776,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.015995941985513927,
+    "seconds": 0.0015653381124138832
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.382412299921948,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.0012960984639997363,
+    "seconds": 0.0051458090310916305
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.3830624867112005,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.0014885733717353228,
+    "seconds": 0.001980211935006082
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.3770173469173725,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.00030097040752808817,
+    "seconds": 0.0023450140142813325
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.3742576150247237,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.001117934317273735,
+    "seconds": 0.014643652946688235
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.3744089335009035,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.0010731394825849146,
+    "seconds": 0.004670104011893272
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.37789530983139,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 4.106689416219248e-05,
+    "seconds": 0.005679316003806889
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.3781114733888913,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 2.2924041171492037e-05,
+    "seconds": 0.06344212009571493
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.378150474812821,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 3.4469639446454295e-05,
+    "seconds": 0.013607978937216103
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.3779403418469385,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 2.773605880668864e-05,
+    "seconds": 0.01585721003357321
+  }
+]

@@ -114,6 +114,8 @@ class PairwiseNote(BaseModel):
     left_key: str
     right_key: str
     within_evaluator_noise: bool = True
+    within_numerical_uncertainty: bool = False
+    numerical_intervals: dict[str, list[list[float]]] = Field(default_factory=dict)
     metric_differences: dict[str, float] = Field(default_factory=dict)
     metric_thresholds: dict[str, float] = Field(default_factory=dict)
 
@@ -284,6 +286,22 @@ def build_comparison_report(
     if any(_is_design_fitness_metric(objective.metric) for objective in selected_objectives):
         report_warnings.append("exploratory frontier includes final design-fitness objective")
 
+    from kayakgen.search.numerical_intervals import (
+        INCOMPATIBLE_OPERATING_INPUTS, operating_inputs_compatible,
+    )
+    for objective in selected_objectives:
+        if not _is_resistance_metric(objective.metric):
+            continue
+        available = [summary for summary in candidate_summaries
+                     if summary.status == "complete" and objective.metric in summary.metrics]
+        if any(not operating_inputs_compatible(
+                left.provenance.get(objective.metric, {}), right.provenance.get(objective.metric, {}))
+               for i, left in enumerate(available) for right in available[i+1:]):
+            report_warnings.append(
+                INCOMPATIBLE_OPERATING_INPUTS + ": resistance candidates have different or missing operating conditions"
+            )
+            break
+
     objective_metadata = {
         objective.metric: objective_metadata_for(objective)
         for objective in selected_objectives
@@ -298,6 +316,9 @@ def build_comparison_report(
         pareto_keys=[point.id for point in front],
         objectives=selected_objectives,
     )
+    pairwise_notes.extend(_numerical_overlap_notes(
+        candidate_summaries, pareto_keys=[point.id for point in front], objectives=selected_objectives,
+    ))
 
     return ComparisonReport(
         run_name=run.name,
@@ -394,6 +415,36 @@ def _pairwise_noise_notes(
     return notes
 
 
+def _numerical_overlap_notes(
+    summaries: list[CandidateSummary], *, pareto_keys: list[str], objectives: list[Objective],
+) -> list[PairwiseNote]:
+    from kayakgen.search.numerical_intervals import objective_interval
+
+    selected = [s for s in summaries if s.candidate_key in pareto_keys]
+    notes = []
+    for i, left in enumerate(selected):
+        for right in selected[i+1:]:
+            intervals = {}
+            for objective in objectives:
+                registry = OBJECTIVE_METADATA.get(objective.metric)
+                if registry is None or registry.source_evaluator != "resistance":
+                    continue
+                if objective.metric not in left.metrics or objective.metric not in right.metrics:
+                    continue
+                a = objective_interval(objective.metric, left.metrics[objective.metric], left.provenance)
+                b = objective_interval(objective.metric, right.metrics[objective.metric], right.provenance)
+                if (a is not None and b is not None and a.comparison_key == b.comparison_key
+                        and max(a.bounds[0], b.bounds[0]) <= min(a.bounds[1], b.bounds[1])):
+                    intervals[objective.metric] = [list(a.bounds), list(b.bounds)]
+            if intervals:
+                notes.append(PairwiseNote(
+                    left_key=left.candidate_key, right_key=right.candidate_key,
+                    within_evaluator_noise=False, within_numerical_uncertainty=True,
+                    numerical_intervals=intervals,
+                ))
+    return notes
+
+
 def write_comparison_report(
     run_dir: str | Path,
     out_path: str | Path,
@@ -433,7 +484,6 @@ def _candidate_summary(root: Path, record: CandidateRecord) -> CandidateSummary:
         resistance_claim = claim_metadata_from_fields(resistance.metadata)
         accepted = claim_allows_calibrated_prediction(resistance_claim)
         provenance["Rt_N_last"] = {
-            "numerical_quality": resistance.metadata.numerical_quality.model_dump(mode="json"),
             "accepted_use": accepted,
             "accepted_use_values": resistance.metadata.accepted_uses,
             "claim_state": resistance_claim.claim_state,
@@ -446,8 +496,12 @@ def _candidate_summary(root: Path, record: CandidateRecord) -> CandidateSummary:
             "validity_envelope": resistance_claim.validity_envelope,
             "calibration_status": resistance.metadata.calibration_status,
             "model_family": resistance.metadata.model_family,
+            "numerical_quality": resistance.metadata.numerical_quality.model_dump(mode="json"),
         }
-        if resistance.metadata.numerical_quality.status != "converged":
+        if evaluation.context is not None:
+            provenance["Rt_N_last"]["operating_context"] = evaluation.context.operating_comparison_inputs()
+        from kayakgen.search.objectives import objective_has_numerical_evidence
+        if not objective_has_numerical_evidence("Rt_N_last", provenance):
             _append_once(warnings, "resistance numerical evidence is not adequate for ranking")
         for warning in resistance.metadata.warnings:
             _append_once(warnings, f"resistance: {warning}")

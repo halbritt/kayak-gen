@@ -1,0 +1,260 @@
+{
+  "V_knots": [
+    4.0
+  ],
+  "Fn": [
+    0.28053950478789214
+  ],
+  "Rv_N": [
+    13.806938105144653
+  ],
+  "Rw_N": [
+    4.860303910846789
+  ],
+  "Rt_N": [
+    18.66724201599144
+  ],
+  "metadata": {
+    "claim_state": "uncalibrated_comparative",
+    "accepted_uses": [
+      "comparative_filter"
+    ],
+    "calibration_fixture_ids": [],
+    "validation_fixture_ids": [],
+    "model_version": null,
+    "fit_status": null,
+    "fit_metrics": {},
+    "validity_envelope": null,
+    "numerical_quality": {
+      "schema_version": "1",
+      "status": "converged",
+      "policy_version": "michell_linear_depth_screening_v1",
+      "resolutions": [
+        {
+          "n_stations": 400,
+          "n_depths": 25,
+          "n_theta": 40
+        },
+        {
+          "n_stations": 400,
+          "n_depths": 100,
+          "n_theta": 640
+        },
+        {
+          "n_stations": 800,
+          "n_depths": 100,
+          "n_theta": 640
+        },
+        {
+          "n_stations": 1600,
+          "n_depths": 100,
+          "n_theta": 640
+        },
+        {
+          "n_stations": 1600,
+          "n_depths": 25,
+          "n_theta": 640
+        },
+        {
+          "n_stations": 1600,
+          "n_depths": 50,
+          "n_theta": 640
+        },
+        {
+          "n_stations": 1600,
+          "n_depths": 100,
+          "n_theta": 40
+        },
+        {
+          "n_stations": 1600,
+          "n_depths": 100,
+          "n_theta": 160
+        }
+      ],
+      "relative_changes": [
+        0.006897472187074246
+      ],
+      "relative_tolerance": 0.01,
+      "evidence": "RFC0077: requested-to-finest change + independent x/z/theta residuals + wetted-surface viscous refinement + closed-transform reference allowance; empirical screening uncertainty, not physical validation or a universal mathematical error bound",
+      "speeds_knots": [
+        4.0
+      ],
+      "absolute_uncertainty_N": [
+        0.12875678261468473
+      ],
+      "observations": [
+        {
+          "resolution": {
+            "n_stations": 400,
+            "n_depths": 25,
+            "n_theta": 40
+          },
+          "total_resistance_N": [
+            18.66724201599144
+          ],
+          "seconds": 0.07197035406716168
+        },
+        {
+          "resolution": {
+            "n_stations": 400,
+            "n_depths": 100,
+            "n_theta": 640
+          },
+          "total_resistance_N": [
+            18.780155538261013
+          ],
+          "seconds": 0.19234723795671016
+        },
+        {
+          "resolution": {
+            "n_stations": 800,
+            "n_depths": 100,
+            "n_theta": 640
+          },
+          "total_resistance_N": [
+            18.782103568657945
+          ],
+          "seconds": 0.35551969695370644
+        },
+        {
+          "resolution": {
+            "n_stations": 1600,
+            "n_depths": 100,
+            "n_theta": 640
+          },
+          "total_resistance_N": [
+            18.782415239590982
+          ],
+          "seconds": 0.630915813962929
+        },
+        {
+          "resolution": {
+            "n_stations": 1600,
+            "n_depths": 25,
+            "n_theta": 640
+          },
+          "total_resistance_N": [
+            18.7940021712946
+          ],
+          "seconds": 0.3761293899733573
+        },
+        {
+          "resolution": {
+            "n_stations": 1600,
+            "n_depths": 50,
+            "n_theta": 640
+          },
+          "total_resistance_N": [
+            18.78457746890814
+          ],
+          "seconds": 0.4397487409878522
+        },
+        {
+          "resolution": {
+            "n_stations": 1600,
+            "n_depths": 100,
+            "n_theta": 40
+          },
+          "total_resistance_N": [
+            18.65754350283819
+          ],
+          "seconds": 0.009601711994037032
+        },
+        {
+          "resolution": {
+            "n_stations": 1600,
+            "n_depths": 100,
+            "n_theta": 160
+          },
+          "total_resistance_N": [
+            18.773597372698706
+          ],
+          "seconds": 0.0326925030676648
+        }
+      ],
+      "surface_observations": [
+        {
+          "stations": 60,
+          "wetted_surface_m2": 2.1013844773184696,
+          "viscous_resistance_N": [
+            13.806938105144653
+          ],
+          "seconds": 0.009289697045460343
+        },
+        {
+          "stations": 120,
+          "wetted_surface_m2": 2.1014871616346626,
+          "viscous_resistance_N": [
+            13.807612782250793
+          ],
+          "seconds": 0.018475005053915083
+        },
+        {
+          "stations": 240,
+          "wetted_surface_m2": 2.101508907610099,
+          "viscous_resistance_N": [
+            13.807755662023691
+          ],
+          "seconds": 0.04973367298953235
+        }
+      ],
+      "viscous_uncertainty_N": [
+        0.0009604366519369023
+      ],
+      "comparison_inputs": {
+        "speeds_knots": [
+          4.0
+        ],
+        "hull_length_m": 5.4864,
+        "density_kg_m3": 1025.0,
+        "kinematic_viscosity_m2_s": 1.19e-6,
+        "gravity_m_s2": 9.80665,
+        "numerical_method_version": "michell_linear_depth_v2",
+        "model_family": "raw_ittc_michell",
+        "calibration_model_version": null
+      },
+      "input_fingerprint": "015683e03223d27cc064238ebe3e7531e56570b396d800f22197a5f223a99ffa",
+      "reference_fn_range": [
+        0.25,
+        0.5
+      ],
+      "reference_resolution_floor": {
+        "n_stations": 400,
+        "n_depths": 25,
+        "n_theta": 40
+      },
+      "reference_relative_allowance": 0.00007088306821851369
+    },
+    "model_family": "raw_ittc_michell",
+    "numerical_method_version": "michell_linear_depth_v2",
+    "calibration_status": "uncalibrated",
+    "calibration_name": null,
+    "calibration_version": null,
+    "valid_fn_range": null,
+    "valid_l_b_range": null,
+    "source_citation": null,
+    "source_license": null,
+    "extraction_method": null,
+    "accepted_use": [
+      "comparative_filter"
+    ],
+    "verification_fixtures": [
+      "wigley_parabolic_hull"
+    ],
+    "constants": {
+      "gravity_m_s2": 9.80665,
+      "seawater_density_kg_m3": 1025.0,
+      "seawater_kinematic_viscosity_m2_s": 1.19e-6
+    },
+    "quadrature": {
+      "n_stations": 400,
+      "n_depths": 25,
+      "n_theta": 40
+    },
+    "warnings": [
+      "comparative_filter_only",
+      "not_final_performance_prediction",
+      "uncalibrated_no_validity_envelope"
+    ]
+  }
+}

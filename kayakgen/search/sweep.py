@@ -78,6 +78,7 @@ class EvaluatorOptions(BaseModel):
 
     hydrostatics: bool = True
     resistance: bool = False
+    numerical_relative_tolerance: float | None = Field(default=None, gt=0, allow_inf_nan=False)
     stability: bool = False
     stability_equilibrium: bool = False
     stability_load_case: dict[str, Any] = Field(default_factory=dict)
@@ -413,6 +414,7 @@ def _evaluate_candidate(
         moment_tolerance_kg_m=spec.evaluators.stability_moment_tolerance_kg_m,
         n_stations=spec.evaluators.n_stations, n_depths=spec.evaluators.n_depths,
         n_theta=spec.evaluators.n_theta, speeds_knots=spec.evaluators.speeds_knots,
+        numerical_relative_tolerance=spec.evaluators.numerical_relative_tolerance,
         hydrostatic_stations=spec.evaluators.hydrostatic_stations,
         kinematic_viscosity_m2_s=spec.evaluators.kinematic_viscosity_m2_s,
     )
@@ -503,6 +505,7 @@ def _evaluate_candidate(
         "Cp_actual": hydro.Cp_actual,
     }
     if resistance is not None:
+        summary["resistance_operating_context"] = evaluation.context.operating_comparison_inputs()
         summary["resistance_numerical_quality"] = resistance.metadata.numerical_quality.model_dump(mode="json")
         summary["resistance_use"] = ",".join(resistance.metadata.accepted_use)
         summary["resistance_claim_state"] = resistance.metadata.claim_state

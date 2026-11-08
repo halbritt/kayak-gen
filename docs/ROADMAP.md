@@ -470,3 +470,16 @@ Landed conservative numerical status and objective admission (KAYGEN-7). Method-
 | KAYGEN-11 / RFC 0070 | completed-history | Full-input CFD prepare replay, retained explicit attempts, local one-writer admission and staged publication. No distributed or power-loss guarantee. |
 
 RFC 0073 / KAYGEN-8: immutable evaluation context and selected-result reporting implemented; acceptance includes matched-load fixed-body integration (KAYGEN-14) and independent numerical admission (KAYGEN-15).
+## RFC0077 numerical policy disposition
+
+KAYGEN-15 / W10 completed the measured numerical experiment, depth-only correction,
+explicit assessment policy and interval-aware reported frontiers. Reproducible
+inputs/results/costs are in `docs/research/rfc0077/`. This supersedes the
+numerical-policy experiment queue item; broader controls and physical calibration
+remain evidence-gated. Default diagnostic grids have no automatic adequacy claim.
+
+RFC0073/RFC0077 integration forwards declared numerical budgets through the
+shared sweep evaluation service and carries operating comparison conditions to
+comparison/search outputs. The physical operating projection and its independent
+34-case oracle close the context/admission integration slice; broader numerical
+controls and all physical calibration gates remain separately evidence-gated.

@@ -1,0 +1,313 @@
+#!/usr/bin/env python3
+"""CPU-only red oracle for EvaluationContext.operating_comparison_inputs().
+
+This uses one imported kayakgen contract version. It never runs hydrostatics,
+equilibrium, resistance, mesh or CFD evaluators. The initial frozen W3 tree is
+expected to fail because the planned method is absent. --integration additionally
+uses retained real W10 curves as numerical consumer controls, not new scientific
+runs, and tests public comparison provenance/warnings with explicit test records.
+"""
+from __future__ import annotations
+
+import argparse
+from contextlib import ExitStack
+import hashlib
+import importlib
+import json
+from pathlib import Path
+import traceback
+from unittest.mock import patch
+
+import kayakgen.eval.contract as contract_module
+from kayakgen.eval.contract import EvaluationContext, LoadCase
+from kayakgen.model.hull import Hull
+
+BASE = Path('/home/halbritt/.local/share/kayakgen/implementation-20261107')
+CACHED = BASE / 'numerical-review/closure-matrix-01'
+STUDY = Path('/home/halbritt/.local/share/kayakgen/designs/fast-tourer-18-20261103')
+API = 'operating_comparison_inputs'
+WARNING_TOKEN = 'incompatible_operating_inputs'
+
+
+def require(value: bool, message: str) -> None:
+    if not value:
+        raise AssertionError(message)
+
+
+def canonical(value) -> str:
+    return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
+
+
+def payload(context: EvaluationContext) -> dict:
+    value = getattr(context, API)()
+    require(isinstance(value, dict), 'Comparison inputs must be a JSON-ready dictionary')
+    require(bool(value.get('schema_version')), 'Comparison payload needs an explicit schema_version')
+    require(json.loads(canonical(value)) == value, 'Payload must round-trip through JSON without coercion')
+    def keys(item):
+        if isinstance(item, dict):
+            require(all(isinstance(k, str) for k in item), 'JSON object keys must be strings')
+            for child in item.values():
+                keys(child)
+        elif isinstance(item, list):
+            for child in item:
+                keys(child)
+    keys(value)
+    return value
+
+
+def changed(context: EvaluationContext, **updates) -> EvaluationContext:
+    data = context.model_dump(mode='json')
+    for key, value in updates.items():
+        data[key] = value.model_dump(mode='json') if hasattr(value, 'model_dump') else value
+    return EvaluationContext.model_validate(data)
+
+
+def changed_load(context: EvaluationContext, **updates) -> EvaluationContext:
+    data = context.load_case.model_dump(mode='json')
+    data.update(updates)
+    return changed(context, load_case=LoadCase.model_validate(data))
+
+
+def contexts():
+    load = LoadCase(name='owner request A', paddler_mass_kg=180*.45359237,
+                    hull_mass_kg=40*.45359237, cargo_mass_kg=35*.45359237,
+                    kg_above_keel_m=.25, seawater_density_kg_m3=1025.)
+    base = EvaluationContext.for_hull(
+        Hull(name='oracle hull A'), load_case=load, equilibrium=True,
+        speeds_knots=(4.5, 5.), hydrostatic_stations=150,
+        equilibrium_tolerance_kg=.01, moment_tolerance_kg_m=.02,
+        equilibrium_max_iterations=60, max_trim_angle_deg=8.,
+        n_stations=400, n_depths=25, n_theta=40, numerical_relative_tolerance=.01,
+        sinkage_m=.005, trim_angle_deg=.2,
+    )
+    cases = []
+    def add(name, left, right, same):
+        cases.append((name, left, right, same))
+    add('identical_physical_request', base, changed(base), True)
+    different_hull = EvaluationContext.for_hull(Hull(name='oracle hull B', length_m=6.),
+        **{k:v for k,v in base.model_dump(mode='json').items()
+           if k not in {'hull_record_hash','hull_design_hash','geometry_kind'}})
+    add('hull_identity_and_shape_excluded', base, different_hull, True)
+    add('input_origin_excluded', base, changed(base, input_origin='legacy_default'), True)
+    add('supplied_field_paths_excluded', base, changed(base, load_supplied_fields=[]), True)
+    add('load_label_excluded', base, changed_load(base, name='different human label'), True)
+    add('resistance_grid_excluded', base, changed(base, n_stations=1600, n_depths=100, n_theta=160), True)
+    add('resistance_budget_excluded', base, changed(base, numerical_relative_tolerance=.001), True)
+    add('unassessed_budget_excluded', base, changed(base, numerical_relative_tolerance=None), True)
+    add('solved_realized_pose_excluded', base, changed(base, sinkage_m=.03, trim_angle_deg=-.7), True)
+    add('load_mass_retained', base, changed_load(base, cargo_mass_kg=16.5), False)
+    add('load_kg_retained', base, changed_load(base, kg_above_keel_m=.35), False)
+    ref = changed_load(base, kg_reference='keel', kg_reference_value_m=.15)
+    add('kg_reference_retained', ref, changed_load(ref, kg_reference='waterline'), False)
+    seat = changed_load(base, kg_reference='seat', kg_reference_value_m=.2, seat_height_above_keel_m=.02)
+    add('seat_height_retained', seat, changed_load(seat, seat_height_above_keel_m=.04), False)
+    add('density_retained', base, changed_load(base, seawater_density_kg_m3=997.), False)
+    add('viscosity_retained', base, changed(base, kinematic_viscosity_m2_s=1.4e-6), False)
+    add('exact_speeds_retained', base, changed(base, speeds_knots=(5.,)), False)
+    add('speed_order_retained', base, changed(base, speeds_knots=(5.,4.5)), False)
+    add('equilibrium_intent_retained', base, changed(base, equilibrium=False), False)
+    for name, value in [('hydrostatic_stations',3), ('equilibrium_tolerance_kg',1.),
+                        ('moment_tolerance_kg_m',.5), ('equilibrium_max_iterations',30),
+                        ('max_trim_angle_deg',4.)]:
+        add('solved_operating_setting_' + name, base, changed(base, **{name:value}), False)
+    fixed = changed(base, equilibrium=False)
+    add('fixed_requested_sinkage_retained', fixed, changed(fixed, sinkage_m=.03), False)
+    add('fixed_requested_trim_retained', fixed, changed(fixed, trim_angle_deg=-.7), False)
+    add('fixed_hydro_display_grid_excluded', fixed, changed(fixed, hydrostatic_stations=3), True)
+    add('fixed_unused_solver_settings_excluded', fixed, changed(fixed, equilibrium_tolerance_kg=1.,
+        moment_tolerance_kg_m=.5, equilibrium_max_iterations=30, max_trim_angle_deg=4.), True)
+    components = [dict(name='paddler',mass_kg=80.,x_m=-.1,kg_above_keel_m=.45),
+                  dict(name='hull',mass_kg=18.,x_m=0.,kg_above_keel_m=.1),
+                  dict(name='gear',mass_kg=17.,x_m=.3,kg_above_keel_m=.15)]
+    component_context = changed_load(base, components=components)
+    renamed = [dict(c,name=f'other label {i}') for i,c in enumerate(reversed(components))]
+    add('component_names_and_order_excluded', component_context,
+        changed_load(component_context, components=renamed), True)
+    add('component_priority_ignores_unused_compact_masses', component_context,
+        changed_load(component_context, paddler_mass_kg=1., hull_mass_kg=2., cargo_mass_kg=3.), True)
+    for key, value in [('mass_kg',81.),('x_m',-.2),('kg_above_keel_m',.5)]:
+        mutated = [dict(c) for c in components]
+        mutated[0][key] = value
+        add('physical_component_' + key + '_retained', component_context,
+            changed_load(component_context, components=mutated), False)
+    symmetric_a = changed_load(base, components=[
+        dict(name='a',mass_kg=50.,x_m=-.2,kg_above_keel_m=.25),
+        dict(name='b',mass_kg=50.,x_m=.2,kg_above_keel_m=.25)])
+    symmetric_b = changed_load(base, components=[
+        dict(name='c',mass_kg=50.,x_m=-.3,kg_above_keel_m=.25),
+        dict(name='d',mass_kg=50.,x_m=.3,kg_above_keel_m=.25)])
+    add('component_values_not_collapsed_to_equal_total_and_cg', symmetric_a, symmetric_b, False)
+    inherited = changed_load(base, components=[dict(name='default kg',mass_kg=115.,x_m=0.)])
+    add('inherited_component_kg_retained', inherited, changed_load(inherited,kg_above_keel_m=.4), False)
+    return base, cases
+
+
+def guard_evaluators(stack: ExitStack, calls: list[str]) -> list[str]:
+    targets = {
+        'kayakgen.eval.hydrostatics': ('evaluate',),
+        'kayakgen.eval.resistance': ('resistance_curve','evaluate_resistance','wave_resistance_michell'),
+        'kayakgen.eval.immersed_geometry': ('evaluate_immersed',),
+        'kayakgen.eval.stability.operating_equilibrium': ('evaluate_fixed_body_equilibrium',),
+    }
+    for optional, names in {
+        'kayakgen.eval.numerical_resistance': ('assess_resistance',),
+        'kayakgen.eval.michell_quadrature': ('wave_from_grid',),
+    }.items():
+        if importlib.util.find_spec(optional) is not None:
+            targets[optional] = names
+    guarded = []
+    for module_name, names in targets.items():
+        module = importlib.import_module(module_name)
+        for name in names:
+            full = module_name + '.' + name
+            def fail(*args, _name=full, **kwargs):
+                calls.append(_name)
+                raise AssertionError('Oracle unexpectedly invoked numerical evaluator: ' + _name)
+            stack.enter_context(patch.object(module,name,side_effect=fail))
+            guarded.append(full)
+    return guarded
+
+
+def integration(out: Path, cached: Path, study: Path, base: EvaluationContext) -> dict:
+    # Every class below comes from the one current kayakgen import tree. Cached
+    # W10 curves are JSON data, never imported as another contract implementation.
+    from kayakgen.eval.contract import EvaluationResult, ResistanceCurve
+    from kayakgen.eval.hydrostatics import Hydrostatics
+    from kayakgen.search.compare import build_comparison_report
+    from kayakgen.search.pareto import CandidatePoint, Objective, dominates
+    from kayakgen.search.sweep import CandidateRecord, SweepRunRecord
+    require(ResistanceCurve.__module__ == EvaluationContext.__module__ == contract_module.__name__,
+            'Integration must use exactly one imported contract module version')
+    controls = {}
+    for number in (6,8):
+        source = cached / f'{number:02d}_5.json'
+        curve = ResistanceCurve.model_validate_json(source.read_text())
+        require(curve.metadata.numerical_quality.status == 'converged','Cached control is not assessed')
+        hull = Hull.model_validate_json((study / f'candidates/candidate-{number:02d}/hull.json').read_text())
+        hydro = Hydrostatics.model_validate_json((study / f'candidates/candidate-{number:02d}/hydro.json').read_text())
+        context = EvaluationContext.for_hull(hull, **{
+            **{k:v for k,v in base.model_dump(mode='json').items()
+               if k not in {'hull_record_hash','hull_design_hash','geometry_kind'}},
+            'equilibrium':False,'sinkage_m':0.,'trim_angle_deg':0.,
+            'speeds_knots':curve.V_knots, **curve.metadata.quadrature})
+        controls[number] = (hull,hydro,curve,context)
+    require(payload(controls[6][3]) == payload(controls[8][3]), 'Control operating requests differ')
+    def point(number, context, *, omit=False):
+        curve=controls[number][2]
+        details={'numerical_quality':curve.metadata.numerical_quality.model_dump(mode='json')}
+        if not omit:
+            details['operating_context']=payload(context)
+        return CandidatePoint(id=str(number),metrics={'Rt_N_last':curve.Rt_N[-1]},
+                              provenance={'Rt_N_last':details})
+    obj=[Objective(metric='Rt_N_last',direction='min')]
+    a=point(6,controls[6][3])
+    b=point(8,controls[8][3])
+    positive=[dominates(a,b,obj),dominates(b,a,obj)]
+    require(sum(positive)==1,'Actual wider cached numerical intervals should resolve under the same request')
+    incompatible=changed_load(controls[8][3],cargo_mass_kg=25.)
+    other=point(8,incompatible)
+    require(not dominates(a,other,obj) and not dominates(other,a,obj),'Different operating loads created a strict winner')
+    missing=point(8,controls[8][3],omit=True)
+    require(not dominates(a,missing,obj) and not dominates(missing,a,obj),'Missing/new operating provenance created a strict winner')
+    reports={}
+    for label,right_context in [('compatible',controls[8][3]),('incompatible',incompatible)]:
+        root=out/label
+        (root/'candidates').mkdir(parents=True)
+        records=[]
+        for i,number in enumerate((6,8)):
+            hull,hydro,curve,context=controls[number]
+            if number==8:
+                context=right_context
+            result=EvaluationResult(hull_hash=hull.record_hash(),context=context,
+                                    hydrostatics=hydro,resistance=curve)
+            rel=f'candidates/{number}.eval.json'
+            (root/rel).write_text(result.model_dump_json(indent=2))
+            records.append(CandidateRecord(candidate_index=i,candidate_key=str(number),
+                parameters={},attempted_hull=hull.model_dump(mode='json'),status='complete',
+                hull_hash=hull.record_hash(),artifacts={'evaluation':rel},
+                summary={'Rt_N_last':curve.Rt_N[-1]}))
+        run=SweepRunRecord(name='operating-input-consumer-oracle',spec_hash='oracle-test-fixture',
+            candidate_count=2,pending_count=0,completed_count=2,failed_count=0,skipped_count=0,candidates=records)
+        (root/'run.json').write_text(run.model_dump_json(indent=2))
+        report=build_comparison_report(root,objectives=obj,explicit_exploratory=True)
+        data=report.model_dump(mode='json')
+        (root/'comparison.json').write_text(json.dumps(data,indent=2))
+        warnings=list(data['warnings'])
+        warnings.extend(w for row in data['candidate_summaries'] for w in row.get('warnings',[]))
+        found=any(WARNING_TOKEN in warning for warning in warnings)
+        require(found == (label=='incompatible'), f'{label} warning token {WARNING_TOKEN!r} incorrect')
+        reports[label]={'pareto_front_keys':report.pareto_front_keys,'incompatible_warning':found}
+    return {'cached_source':'real W10 owner curves; original hydro JSON; no evaluator runs',
+        'fixture_scope':'constructed consumer-policy test contexts; no new matched-load scientific result',
+        'positive_numerical_dominance':positive,'incompatible_dominance':False,
+        'missing_new_provenance_dominance':False,'reports':reports,
+        'physical_claim_scope':'No accepted-use/calibration promotion; public report physical gates remain independent'}
+
+
+def main() -> int:
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--out',type=Path,required=True,help='New or empty external output directory')
+    parser.add_argument('--integration',action='store_true',help='Also exercise current comparison consumers with cached real W10 curves')
+    parser.add_argument('--cached-curves',type=Path,default=CACHED)
+    parser.add_argument('--study',type=Path,default=STUDY)
+    args=parser.parse_args()
+    require(not args.out.exists() or not any(args.out.iterdir()),'Output must be new or empty')
+    args.out.mkdir(parents=True,exist_ok=True)
+    receipt={'purpose':'Explicit red integration oracle until root adds the planned API after frozen gates',
+        'api':'EvaluationContext.'+API,'contract_module':str(Path(contract_module.__file__).resolve()),
+        'contract_sha256_before':hashlib.sha256(Path(contract_module.__file__).read_bytes()).hexdigest(),
+        'oracle_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        'integration_requested':args.integration,'numerical_evaluator_calls':[],
+        'status':'running','cases':[]}
+    code=0
+    try:
+        with ExitStack() as stack:
+            receipt['guarded_evaluators']=guard_evaluators(stack,receipt['numerical_evaluator_calls'])
+            base,cases=contexts()
+            receipt['constructed_actual_context_cases']=len(cases)
+            receipt['planned_cases']=[{'name':name,'expected_comparable':expected}
+                                      for name,left,right,expected in cases]
+            (args.out/'base-context.json').write_text(base.model_dump_json(indent=2))
+            if not hasattr(EvaluationContext,API):
+                receipt['status']='expected_red_api_absent'
+                raise AssertionError('Planned API is absent on frozen W3: EvaluationContext.'+API)
+            for name,left,right,expected in cases:
+                left_before=left.model_dump_json()
+                right_before=right.model_dump_json()
+                actual=payload(left)==payload(right)
+                receipt['cases'].append({'name':name,'expected_comparable':expected,'actual_comparable':actual,
+                                        'passed':actual==expected})
+                require(actual==expected,'Operating comparison semantics failed: '+name)
+                require(left.model_dump_json()==left_before and right.model_dump_json()==right_before,
+                        'Comparison projection mutated a context: '+name)
+            before=canonical(payload(base))
+            external=payload(base)
+            external.clear()
+            require(canonical(payload(base))==before,'Caller mutation changed a later comparison payload')
+            receipt['payload_schema_version']=payload(base)['schema_version']
+            receipt['payload_example']=payload(base)
+            receipt['fresh_payload_owned_by_caller']=True
+            if args.integration:
+                receipt['integration']=integration(args.out,args.cached_curves,args.study,base)
+            require(not receipt['numerical_evaluator_calls'],'Numerical evaluator was invoked')
+            receipt['status']='passed'
+    except Exception:
+        if receipt['status']!='expected_red_api_absent':
+            receipt['status']='failed'
+        receipt['error']=traceback.format_exc()
+        code=1
+    finally:
+        receipt['contract_sha256_after']=hashlib.sha256(Path(contract_module.__file__).read_bytes()).hexdigest()
+        receipt['contract_source_unchanged']=receipt['contract_sha256_before']==receipt['contract_sha256_after']
+        if not receipt['contract_source_unchanged']:
+            receipt['status']='diagnostic_source_changed'
+            code=1
+        (args.out/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+    print(json.dumps({'status':receipt['status'],'context_cases':receipt.get('constructed_actual_context_cases'),
+        'cases_exercised':len(receipt['cases']),'numerical_evaluator_calls':receipt['numerical_evaluator_calls'],
+        'source_unchanged':receipt['contract_source_unchanged'],'receipt':str(args.out/'receipt.json')},indent=2))
+    return code
+
+
+if __name__=='__main__':
+    raise SystemExit(main())

@@ -5,6 +5,12 @@ Date: 2026-11-07
 Context: KAYGEN-7; system review kayakgen-system-20261107; D058 supersedes
 D048 only for the numerical admission of resistance, preserving claim gates.
 
+Current interpretation: RFC0077 / D063 supersedes this phase's generic-policy
+admission example. Generic or unsupported policy assertions remain readable
+historical diagnostics and cannot enter resistance ranking. The original phase
+and accepted decision below are retained as history. Exploratory physical-claim
+permission remains separate from current method-specific numerical admission.
+
 ## Problem
 
 Finite resistance is not convergence evidence. The owner v2 hull produced
@@ -44,7 +50,8 @@ restriction. Default physical-claim and display-only gates stay closed.
 - Finite unstable and legacy stage-ran records have unknown numerical quality.
 - Raw curves remain visible while exploratory comparison/search omit them from
   numerical frontiers without evidence.
-- Synthetic explicit adequate evidence is admitted; insufficient, repeated or
+- Historical phase example (superseded for generic policies by RFC0077 / D063):
+  synthetic explicit adequate evidence is admitted; insufficient, repeated or
   above-tolerance evidence is refused. Evidence covers all requested speeds.
 - Conservative objectives and existing physical-claim refusals still work.
 - Full pytest and Ruff gates pass.
@@ -65,3 +72,9 @@ separate semantic checkpoints with new evaluator provenance.
 
 NumericalQuality records numerical evidence. It is independent of claim_state,
 accepted_uses, fit acceptance, geometry validity and execution completion.
+
+RFC0077 / D063 supplies the measured method-specific policy and supersedes the
+initial generic-policy admission example: generic/historical assertions remain
+readable, but current resistance ranking requires a supported policy whose
+retained observations and derived bounds validate. The positive admission gate
+uses a real cached owner-study assessment, with independent numerical controls.

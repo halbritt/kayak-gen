@@ -1,0 +1,424 @@
+{
+  "purpose": "Explicit red integration oracle until root adds the planned API after frozen gates",
+  "api": "EvaluationContext.operating_comparison_inputs",
+  "contract_module": "/home/halbritt/.cache/agent-worktrees/kayak-gen/impl-policy-context/kayakgen/eval/contract.py",
+  "contract_sha256_before": "964148e68850ffcdab5b9268e9088aa6ebd22dbd03ee185e11dc13fc7ccbb08a",
+  "oracle_sha256": "a538325614df2f01ca6070c63491bbf51e6616f0cbab3ddd3e853c278565c6b7",
+  "integration_requested": true,
+  "numerical_evaluator_calls": [],
+  "status": "passed",
+  "cases": [
+    {
+      "name": "identical_physical_request",
+      "expected_comparable": true,
+      "actual_comparable": true,
+      "passed": true
+    },
+    {
+      "name": "hull_identity_and_shape_excluded",
+      "expected_comparable": true,
+      "actual_comparable": true,
+      "passed": true
+    },
+    {
+      "name": "input_origin_excluded",
+      "expected_comparable": true,
+      "actual_comparable": true,
+      "passed": true
+    },
+    {
+      "name": "supplied_field_paths_excluded",
+      "expected_comparable": true,
+      "actual_comparable": true,
+      "passed": true
+    },
+    {
+      "name": "load_label_excluded",
+      "expected_comparable": true,
+      "actual_comparable": true,
+      "passed": true
+    },
+    {
+      "name": "resistance_grid_excluded",
+      "expected_comparable": true,
+      "actual_comparable": true,
+      "passed": true
+    },
+    {
+      "name": "resistance_budget_excluded",
+      "expected_comparable": true,
+      "actual_comparable": true,
+      "passed": true
+    },
+    {
+      "name": "unassessed_budget_excluded",
+      "expected_comparable": true,
+      "actual_comparable": true,
+      "passed": true
+    },
+    {
+      "name": "solved_realized_pose_excluded",
+      "expected_comparable": true,
+      "actual_comparable": true,
+      "passed": true
+    },
+    {
+      "name": "load_mass_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "load_kg_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "kg_reference_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "seat_height_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "density_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "viscosity_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "exact_speeds_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "speed_order_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "equilibrium_intent_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "solved_operating_setting_hydrostatic_stations",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "solved_operating_setting_equilibrium_tolerance_kg",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "solved_operating_setting_moment_tolerance_kg_m",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "solved_operating_setting_equilibrium_max_iterations",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "solved_operating_setting_max_trim_angle_deg",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "fixed_requested_sinkage_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "fixed_requested_trim_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "fixed_hydro_display_grid_excluded",
+      "expected_comparable": true,
+      "actual_comparable": true,
+      "passed": true
+    },
+    {
+      "name": "fixed_unused_solver_settings_excluded",
+      "expected_comparable": true,
+      "actual_comparable": true,
+      "passed": true
+    },
+    {
+      "name": "component_names_and_order_excluded",
+      "expected_comparable": true,
+      "actual_comparable": true,
+      "passed": true
+    },
+    {
+      "name": "component_priority_ignores_unused_compact_masses",
+      "expected_comparable": true,
+      "actual_comparable": true,
+      "passed": true
+    },
+    {
+      "name": "physical_component_mass_kg_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "physical_component_x_m_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "physical_component_kg_above_keel_m_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "component_values_not_collapsed_to_equal_total_and_cg",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    },
+    {
+      "name": "inherited_component_kg_retained",
+      "expected_comparable": false,
+      "actual_comparable": false,
+      "passed": true
+    }
+  ],
+  "guarded_evaluators": [
+    "kayakgen.eval.hydrostatics.evaluate",
+    "kayakgen.eval.resistance.resistance_curve",
+    "kayakgen.eval.resistance.evaluate_resistance",
+    "kayakgen.eval.resistance.wave_resistance_michell",
+    "kayakgen.eval.immersed_geometry.evaluate_immersed",
+    "kayakgen.eval.stability.operating_equilibrium.evaluate_fixed_body_equilibrium",
+    "kayakgen.eval.numerical_resistance.assess_resistance",
+    "kayakgen.eval.michell_quadrature.wave_from_grid"
+  ],
+  "constructed_actual_context_cases": 34,
+  "planned_cases": [
+    {
+      "name": "identical_physical_request",
+      "expected_comparable": true
+    },
+    {
+      "name": "hull_identity_and_shape_excluded",
+      "expected_comparable": true
+    },
+    {
+      "name": "input_origin_excluded",
+      "expected_comparable": true
+    },
+    {
+      "name": "supplied_field_paths_excluded",
+      "expected_comparable": true
+    },
+    {
+      "name": "load_label_excluded",
+      "expected_comparable": true
+    },
+    {
+      "name": "resistance_grid_excluded",
+      "expected_comparable": true
+    },
+    {
+      "name": "resistance_budget_excluded",
+      "expected_comparable": true
+    },
+    {
+      "name": "unassessed_budget_excluded",
+      "expected_comparable": true
+    },
+    {
+      "name": "solved_realized_pose_excluded",
+      "expected_comparable": true
+    },
+    {
+      "name": "load_mass_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "load_kg_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "kg_reference_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "seat_height_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "density_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "viscosity_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "exact_speeds_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "speed_order_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "equilibrium_intent_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "solved_operating_setting_hydrostatic_stations",
+      "expected_comparable": false
+    },
+    {
+      "name": "solved_operating_setting_equilibrium_tolerance_kg",
+      "expected_comparable": false
+    },
+    {
+      "name": "solved_operating_setting_moment_tolerance_kg_m",
+      "expected_comparable": false
+    },
+    {
+      "name": "solved_operating_setting_equilibrium_max_iterations",
+      "expected_comparable": false
+    },
+    {
+      "name": "solved_operating_setting_max_trim_angle_deg",
+      "expected_comparable": false
+    },
+    {
+      "name": "fixed_requested_sinkage_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "fixed_requested_trim_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "fixed_hydro_display_grid_excluded",
+      "expected_comparable": true
+    },
+    {
+      "name": "fixed_unused_solver_settings_excluded",
+      "expected_comparable": true
+    },
+    {
+      "name": "component_names_and_order_excluded",
+      "expected_comparable": true
+    },
+    {
+      "name": "component_priority_ignores_unused_compact_masses",
+      "expected_comparable": true
+    },
+    {
+      "name": "physical_component_mass_kg_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "physical_component_x_m_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "physical_component_kg_above_keel_m_retained",
+      "expected_comparable": false
+    },
+    {
+      "name": "component_values_not_collapsed_to_equal_total_and_cg",
+      "expected_comparable": false
+    },
+    {
+      "name": "inherited_component_kg_retained",
+      "expected_comparable": false
+    }
+  ],
+  "payload_schema_version": "1",
+  "payload_example": {
+    "schema_version": "1",
+    "load": {
+      "paddler_mass_kg": 81.6466266,
+      "hull_mass_kg": 18.143694800000002,
+      "cargo_mass_kg": 15.875732950000002,
+      "kg": {
+        "kg_above_keel_m": 0.25,
+        "kg_reference": "keel",
+        "kg_reference_value_m": null,
+        "seat_height_above_keel_m": null
+      }
+    },
+    "water_density_kg_m3": 1025.0,
+    "kinematic_viscosity_m2_s": 1.19e-06,
+    "speeds_knots": [
+      4.5,
+      5.0
+    ],
+    "operating": {
+      "equilibrium": true,
+      "hydrostatic_stations": 150,
+      "equilibrium_tolerance_kg": 0.01,
+      "moment_tolerance_kg_m": 0.02,
+      "equilibrium_max_iterations": 60,
+      "max_trim_angle_deg": 8.0
+    }
+  },
+  "fresh_payload_owned_by_caller": true,
+  "integration": {
+    "cached_source": "real W10 owner curves; original hydro JSON; no evaluator runs",
+    "fixture_scope": "constructed consumer-policy test contexts; no new matched-load scientific result",
+    "positive_numerical_dominance": [
+      true,
+      false
+    ],
+    "incompatible_dominance": false,
+    "missing_new_provenance_dominance": false,
+    "reports": {
+      "compatible": {
+        "pareto_front_keys": [
+          "6",
+          "8"
+        ],
+        "incompatible_warning": false
+      },
+      "incompatible": {
+        "pareto_front_keys": [
+          "6",
+          "8"
+        ],
+        "incompatible_warning": true
+      }
+    },
+    "physical_claim_scope": "No accepted-use/calibration promotion; public report physical gates remain independent"
+  },
+  "contract_sha256_after": "964148e68850ffcdab5b9268e9088aa6ebd22dbd03ee185e11dc13fc7ccbb08a",
+  "contract_source_unchanged": true
+}

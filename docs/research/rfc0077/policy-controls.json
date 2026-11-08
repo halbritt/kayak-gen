@@ -1,0 +1,61 @@
+{
+  "controls": [
+    {
+      "fn": 0.25,
+      "reference": 0.19890190422053064,
+      "reference_tail_bound": 2.991869369842869e-08,
+      "reference_outer_grid_change": 5.750955267558311e-13,
+      "depth_exact": 0.19888783536255378,
+      "relative_allowance": 7.088306821851369e-05
+    },
+    {
+      "fn": 0.275,
+      "reference": 0.30286626307644354,
+      "reference_tail_bound": 5.304619390674997e-08,
+      "reference_outer_grid_change": 5.2152171470254416e-12,
+      "depth_exact": 0.3028451701121325,
+      "relative_allowance": 6.981964747525179e-05
+    },
+    {
+      "fn": 0.3,
+      "reference": 0.5765599998317601,
+      "reference_tail_bound": 8.949005461502966e-08,
+      "reference_outer_grid_change": 7.16271486567166e-12,
+      "depth_exact": 0.5765196150382144,
+      "relative_allowance": 7.019961630164044e-05
+    },
+    {
+      "fn": 0.35,
+      "reference": 0.4572708714567641,
+      "reference_tail_bound": 2.2611780048503868e-07,
+      "reference_outer_grid_change": 1.2023604334387983e-11,
+      "depth_exact": 0.4572400349156847,
+      "relative_allowance": 6.793056991474793e-05
+    },
+    {
+      "fn": 0.4,
+      "reference": 1.308449894522317,
+      "reference_tail_bound": 5.050098381522753e-07,
+      "reference_outer_grid_change": 2.1178614417749486e-11,
+      "depth_exact": 1.3083967884655134,
+      "relative_allowance": 4.0972977295382885e-05
+    },
+    {
+      "fn": 0.45,
+      "reference": 2.516334977600636,
+      "reference_tail_bound": 1.0265073682529351e-06,
+      "reference_outer_grid_change": 3.7825742538188933e-11,
+      "depth_exact": 2.5161913454381986,
+      "relative_allowance": 5.748785790413417e-05
+    },
+    {
+      "fn": 0.5,
+      "reference": 3.3780340351975897,
+      "reference_tail_bound": 1.9372571594663698e-06,
+      "reference_outer_grid_change": 5.982148110206253e-11,
+      "depth_exact": 3.3778916357556996,
+      "relative_allowance": 4.27280357057149e-05
+    }
+  ],
+  "relative_allowance": 7.088306821851369e-05
+}

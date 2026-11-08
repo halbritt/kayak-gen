@@ -1403,3 +1403,103 @@ virtualenv separate from an editable checkout. Run `kayakgen --help`, render
 a report, and prepare an OpenFOAM case from that installed environment before
 switching a local service. Bind the web workspace to loopback; D023's public
 hosted-demo deferral remains in force.
+
+## Explicit numerical resistance screening (RFC0077)
+
+Raw resistance retains its requested speed grid and quadrature. Metadata records
+`numerical_method_version=michell_linear_depth_v2`; unassessed curves remain
+`numerical_quality.status=unknown`. Request an explicit study screening budget:
+
+```python
+curve = resistance_curve(hull, np.array([4., 4.5, 5., 5.5, 6.]),
+                         n_stations=800, n_depths=50, n_theta=80,
+                         numerical_relative_tolerance=.01)
+```
+
+Sweep/search EvaluatorOptions expose the same optional
+`numerical_relative_tolerance` field; evaluation context supplies the exact speed
+grid and operating inputs. A budget requests eight actual independent-axis
+observations and records elapsed time. It never substitutes finer-grid results
+for the requested values. Inspect achieved `absolute_uncertainty_N`, per-speed
+`relative_changes`, exact `speeds_knots`, input fingerprint, observations and
+reference controls. Every requested speed must meet the declared budget for
+converged status. Failing a1% budget does not automatically choose a looser one.
+
+The numerical policy's studied Fn scope is .25–.5. Outside it, raw points remain
+visible and quality stays unknown. This is a numerical evidence scope, not a
+physical validity envelope. Default1–6kn curves may therefore remain diagnostic.
+Physical calibration and default claim gates remain unchanged, even for
+numerically assessed curves.
+
+Reported Pareto and NSGA-II/EHVI history/final frontiers use achieved numerical
+intervals. Overlapping resistance intervals cannot establish strict dominance;
+comparison reports expose `within_numerical_uncertainty` and the actual intervals.
+Existing `within_evaluator_noise` advisories remain a separate concept. Search
+sampling/crowding/acquisition uses diagnostic point estimates, explicitly recorded
+in new `search_metadata.numerical_comparison_policy`; resistance history summaries
+label those values as `point_estimate_min/max/median`. Missing historical achieved
+bounds are never interpreted as zero error.
+
+See `docs/research/rfc0077/README.md` for exact study inputs, all five requested
+speeds, six section families, independent controls, costs and reproduction commands.
+
+The study-derived requested-resolution floor is 400 stations, 25 depths and 40 angles.
+Coarser requests retain raw values with unknown quality; they cannot borrow
+the reference allowance measured at 1600/100/640. The floor is numerical study
+applicability, not evidence of physical validity or automatic convergence.
+
+The total-resistance allowance also includes actual wetted-surface refinements
+at 60/120/240 longitudinal stations, evaluated with the same fluid and rigid pose.
+`surface_observations` retains area, per-speed viscous resistance and time;
+`viscous_uncertainty_N` is |Rv60−Rv240|+|Rv120−Rv240|. This contribution is added
+to the eight-grid Michell allowance before budget admission and interval ranking.
+The requested viscous values remain unchanged, and its fixed60-station surface rule
+is recorded by the surface observations in numerical quality. The requested
+x/z/theta quadrature metadata remains unchanged. Reported viscous inputs are recomputed
+and compared before assessment, so fluid/pose mismatch stays diagnostic unknown.
+
+Scope is calculated from actual speed, hull length and gravity; relabeling a
+reported Fn cannot admit an out-of-study calculation. Typed `comparison_inputs`
+binds the exact speeds, length, fluid and method/model identity. Saved assessed
+curves refuse stale total/viscous observations, requested grid, fluid, method or
+Fn metadata. Reported interval comparisons require common exact speeds, fluid
+and method/model identity; length may vary between candidate hulls. Optional
+per-metric `operating_context` must be present on both sides and equal when either
+side supplies it. Standalone curves without operating context use their typed
+numerical comparison conditions. Missing historical comparison inputs stay
+readable and cannot establish a strict resistance winner.
+
+Current numerical admission recognizes only the supported, verified policy.
+Unknown/historical policy strings remain readable assertions and diagnostic values,
+but cannot join even a singleton resistance frontier, train resistance selection,
+or establish dominance. The known policy recomputes total and viscous allowances
+from the eight plus three retained observations during parsing; jointly lowering
+absolute and relative errors cannot manufacture zero-width comparison intervals.
+Its method, scope, floor, refinement levels and reference allowance are bound to
+the immutable v1 definition in `eval/michell_screening.py`, independently of a
+future runtime method. Deserialization does not rerun geometry or resistance.
+
+### Comparing the same operating request
+
+`EvaluationContext.operating_comparison_inputs()` identifies common loads/CG,
+fluid, exact speed grid and operating intent without numerical evaluation.
+Comparison reports warn with `incompatible_operating_inputs` when resistance
+candidates have different or missing counterpart conditions. Active search uses
+the same restriction for reported frontiers. Hull identity, human labels, input
+origin and resistance refinement/budget do not change these physical conditions.
+When explicit load components are present, their physical mass/position/KG values
+matter; names/order and overridden compact masses do not. Global KG remains
+relevant when a component inherits it.
+
+A solved load may give different realized poses for different hulls. Comparison
+therefore retains the common equilibrium sampling, tolerances, iteration and trim
+limits while excluding the realized pose. Resistance error bars do not cover pose
+solver error. Fixed-pose requests retain sinkage and trim; unused equilibrium and
+hydro display settings are excluded. Both saved context and achieved numerical
+uncertainty remain available independently of this comparison projection.
+
+Web at-speed metrics expose `evaluated_speed_kt` and label the actual sampled
+speed. When the view target is absent from a supplied evaluation grid, the view
+shows a sampled point with an explicit `speed_selection_warning`; it does not
+insert the target into the grid or relabel that point as requested. Legacy
+at-target metrics retain their existing target evaluation behavior.

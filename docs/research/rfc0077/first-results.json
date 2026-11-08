@@ -1,0 +1,7769 @@
+[
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 0.5546962543077687,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.03792102388367425,
+    "seconds": 0.0025288480101153255
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 0.5567498431183777,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.03435922838761442,
+    "seconds": 0.0009374429937452078
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 0.5855190217174622,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.015538750326620502,
+    "seconds": 0.025753231020644307
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 0.5723747483888257,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.007259004169827271,
+    "seconds": 0.00517129700165242
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 0.5729320235971882,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.006292452191672222,
+    "seconds": 0.0018263580277562141
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 0.5814006665172086,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.008395772663488576,
+    "seconds": 0.0025654829805716872
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 0.5770596088900193,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.000866534373534364,
+    "seconds": 0.015927055035717785
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 0.5772059535321018,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.0011203581596541468,
+    "seconds": 0.004606425995007157
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 0.5773828929955018,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.0014272463646140096,
+    "seconds": 0.005460434942506254
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 0.576593149462542,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 5.749554390108544e-05,
+    "seconds": 0.06218637793790549
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 0.5766290982432539,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 0.00011984600304216655,
+    "seconds": 0.013800834072753787
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.3,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 0.5765369528182784,
+    "reference": 0.5765599998317601,
+    "reference_trap_change": 7.16271486567166e-12,
+    "reference_tail_bound": 8.949005461502966e-08,
+    "relative_error": 3.99733132516713e-05,
+    "seconds": 0.016289263032376766
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 1.3313826559310948,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.017526663806373684,
+    "seconds": 0.0022909300168976188
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 1.3339932098734533,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.019521813909780184,
+    "seconds": 0.0008754130685701966
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 1.2895522500217016,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.014442772764725966,
+    "seconds": 0.001130606047809124
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 1.3133894420460825,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.003775114006615264,
+    "seconds": 0.005084732081741095
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 1.3134754559325459,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.0038408512479291505,
+    "seconds": 0.0018748280126601458
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 1.3103115764315159,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.0014228148261484863,
+    "seconds": 0.002384247025474906
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 1.3077332609008587,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.000547696648116569,
+    "seconds": 0.01458971993997693
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 1.3078657677356749,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.000446426560992207,
+    "seconds": 0.004461214994080365
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 1.309206109786113,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 0.0005779474376219459,
+    "seconds": 0.006015737075358629
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 1.3084880163105121,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 2.913507682232201e-05,
+    "seconds": 0.06418712099548429
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 1.3085214275189432,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 5.467003125267948e-05,
+    "seconds": 0.013539502979256213
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.4,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 1.3085229599725121,
+    "reference": 1.308449894522317,
+    "reference_trap_change": 2.1178614417749486e-11,
+    "reference_tail_bound": 5.050098381522753e-07,
+    "relative_error": 5.584122899998826e-05,
+    "seconds": 0.016070453100837767
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.3662633397092203,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.0034844810223118136,
+    "seconds": 0.0023353620199486613
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.3687820651611475,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.0027388622909185725,
+    "seconds": 0.0009238020284101367
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      100,
+      10,
+      20
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.3239991987454776,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.015995941985513927,
+    "seconds": 0.0015653381124138832
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.382412299921948,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.0012960984639997363,
+    "seconds": 0.0051458090310916305
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.3830624867112005,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.0014885733717353228,
+    "seconds": 0.001980211935006082
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      200,
+      20,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.3770173469173725,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.00030097040752808817,
+    "seconds": 0.0023450140142813325
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.3742576150247237,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.001117934317273735,
+    "seconds": 0.014643652946688235
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.3744089335009035,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 0.0010731394825849146,
+    "seconds": 0.004670104011893272
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      400,
+      40,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.37789530983139,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 4.106689416219248e-05,
+    "seconds": 0.005679316003806889
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.3781114733888913,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 2.2924041171492037e-05,
+    "seconds": 0.06344212009571493
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.378150474812821,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 3.4469639446454295e-05,
+    "seconds": 0.013607978937216103
+  },
+  {
+    "subject": "wigley",
+    "fn": 0.5,
+    "resolution": [
+      800,
+      80,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.3779403418469385,
+    "reference": 3.3780340351975897,
+    "reference_trap_change": 5.982148110206253e-11,
+    "reference_tail_bound": 1.9372571594663698e-06,
+    "relative_error": 2.773605880668864e-05,
+    "seconds": 0.01585721003357321
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 758.0621993538331,
+    "seconds": 0.07379781303461641
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.860303910846788,
+    "seconds": 0.006657607038505375
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.862988709107961,
+    "seconds": 0.0021054979879409075
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 5.085088703579133,
+    "seconds": 0.002750240033492446
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 228226.2823006017,
+    "seconds": 0.07258996309246868
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 5.2443478962122745,
+    "seconds": 0.006630333955399692
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 5.233639173087289,
+    "seconds": 0.0021236230386421084
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.829901836627373,
+    "seconds": 0.0026674879482015967
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 33.88069416260681,
+    "seconds": 0.11354711197782308
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 7.889339175589629,
+    "seconds": 0.006625451962463558
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 7.892009581928119,
+    "seconds": 0.002829298027791083
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 8.214856095957481,
+    "seconds": 0.0029910170705989003
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 21.12901554265524,
+    "seconds": 0.13622519804630429
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 19.342234513238797,
+    "seconds": 0.012047576950863004
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 19.345540215651567,
+    "seconds": 0.004292965051718056
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 20.089386433919312,
+    "seconds": 0.0052296549547463655
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 49.46022123775657,
+    "seconds": 0.09123894094955176
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 32.76668081753429,
+    "seconds": 0.006655120989307761
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 32.76991530721347,
+    "seconds": 0.002140445983968675
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 33.125141101409305,
+    "seconds": 0.0025511200074106455
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 4.969448063466382,
+    "seconds": 0.1458822749555111
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.8618322196038894,
+    "seconds": 0.00927079503890127
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.8625094938722535,
+    "seconds": 0.00298405101057142
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 5.084675591679868,
+    "seconds": 0.0035601010313257575
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 291809.4107597635,
+    "seconds": 0.14876157499384135
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 5.250278683189338,
+    "seconds": 0.00866982399020344
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 5.233292027547124,
+    "seconds": 0.0027603370836004615
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.829468418302531,
+    "seconds": 0.003725058981217444
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 8.848197010713413,
+    "seconds": 0.1441515579354018
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 7.890935008268074,
+    "seconds": 0.009219986968673766
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 7.891601649552941,
+    "seconds": 0.002795918961055577
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 8.214365657979727,
+    "seconds": 0.003232326009310782
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 19.715575627926558,
+    "seconds": 0.1429682660382241
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 19.344271889720872,
+    "seconds": 0.009036788018420339
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 19.34509657816058,
+    "seconds": 0.0027071350486949086
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 20.088858102180673,
+    "seconds": 0.003238158067688346
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 6,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 57.8914376993386,
+    "seconds": 0.1429411401040852
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 32.768755328673926,
+    "seconds": 0.00863389193546027
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 32.76955813806394,
+    "seconds": 0.0026731169782578945
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 33.12468271062478,
+    "seconds": 0.003129370044916868
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 6.770355847239903,
+    "seconds": 0.3020286239916459
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.861857450332485,
+    "seconds": 0.017329442081972957
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.8620265121590345,
+    "seconds": 0.0039048560429364443
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 5.084266529038244,
+    "seconds": 0.00435652700252831
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 296588.11370408273,
+    "seconds": 0.28345957410056144
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 5.250794999568212,
+    "seconds": 0.012824119068682194
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 5.232917823956596,
+    "seconds": 0.003769716015085578
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.829016705496283,
+    "seconds": 0.004234628053382039
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 11.137286785681829,
+    "seconds": 0.2806612099520862
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 7.891033146193491,
+    "seconds": 0.012588344980031252
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 7.891199338951127,
+    "seconds": 0.003766085021197796
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 8.213873973328454,
+    "seconds": 0.004321894026361406
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 19.473949068217408,
+    "seconds": 0.2790296380408108
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 19.34443304201894,
+    "seconds": 0.012551108957268298
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 19.34463897429519,
+    "seconds": 0.0037733979988843203
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 20.08829913874549,
+    "seconds": 0.004287591902539134
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 6,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 32.84386235779801,
+    "seconds": 0.27772230992559344
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 32.76890759200418,
+    "seconds": 0.012477835989557207
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 32.769109298802036,
+    "seconds": 0.0036843210691586137
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 33.12413032678302,
+    "seconds": 0.004229646059684455
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 185.54341280529832,
+    "seconds": 0.08999059395864606
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.850652867386627,
+    "seconds": 0.00780711299739778
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.853337506862615,
+    "seconds": 0.002254438935779035
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 5.075220888551814,
+    "seconds": 0.0027629201067611575
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 54755.45961657062,
+    "seconds": 0.08971510094124824
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 5.233906746340234,
+    "seconds": 0.007829335983842611
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 5.2231974078929415,
+    "seconds": 0.0022700519766658545
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.81878086527423,
+    "seconds": 0.002710522967390716
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 14.124156988214482,
+    "seconds": 0.10970308701507747
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 7.8889207456790205,
+    "seconds": 0.007908822037279606
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 7.89159132123563,
+    "seconds": 0.0022775449324399233
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 8.213992882992354,
+    "seconds": 0.0028931399574503303
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 19.77772215956624,
+    "seconds": 0.09457136306446046
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 19.34955885325817,
+    "seconds": 0.008031829027459025
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 19.352865761679528,
+    "seconds": 0.0022796079283580184
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 20.096550668867078,
+    "seconds": 0.002972227055579424
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 6,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 36.78104616427453,
+    "seconds": 0.09189518599305302
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 32.7765898769744,
+    "seconds": 0.007829626905731857
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 32.779824087615104,
+    "seconds": 0.002210173988714814
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 33.13589972518614,
+    "seconds": 0.002839772030711174
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 49.11378495245187,
+    "seconds": 0.13654930796474218
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.848650164454407,
+    "seconds": 0.011331713059917092
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.851334654695873,
+    "seconds": 0.0026691469829529524
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 5.073157814387727,
+    "seconds": 0.003403904032893479
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 13417.657761060467,
+    "seconds": 0.14155611000023782
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 5.231605269246405,
+    "seconds": 0.010824293945915997
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 5.220895696469763,
+    "seconds": 0.0026311560068279505
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.816449558198385,
+    "seconds": 0.0030412739142775536
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 9.416462036627891,
+    "seconds": 0.13799274002667516
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 7.888994103093415,
+    "seconds": 0.011568326968699694
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 7.8916647494496415,
+    "seconds": 0.002697911928407848
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 8.214084448099303,
+    "seconds": 0.0031752329086884856
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 19.456335794586398,
+    "seconds": 0.13616158196236938
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 19.351485840384697,
+    "seconds": 0.010812749969772995
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 19.35479294753679,
+    "seconds": 0.00253036106005311
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 20.098523383544144,
+    "seconds": 0.003119289060123265
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 6,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 33.76031994423419,
+    "seconds": 0.1348102369811386
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 32.77935443412812,
+    "seconds": 0.011192998965270817
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 32.78258872906666,
+    "seconds": 0.002616747049614787
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 33.13877588369137,
+    "seconds": 0.0032091279281303287
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 376.79571337550317,
+    "seconds": 0.08761834003962576
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.952800827592347,
+    "seconds": 0.013197000953368843
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.955645790373897,
+    "seconds": 0.004251127946190536
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.991880664748345,
+    "seconds": 0.005109654972329736
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 112671.26718442567,
+    "seconds": 0.07769379194360226
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 5.176292197666393,
+    "seconds": 0.013088506064377725
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 5.172480741107271,
+    "seconds": 0.004441199009306729
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 5.180949340899603,
+    "seconds": 0.005354503053240478
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 21.029404359243763,
+    "seconds": 0.08309620094951242
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 8.168683821818048,
+    "seconds": 0.013050397974438965
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 8.171841863177505,
+    "seconds": 0.004201420000754297
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 8.213978162860542,
+    "seconds": 0.005208324990235269
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 20.611501974442817,
+    "seconds": 0.08076303394045681
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 19.71582362354998,
+    "seconds": 0.013239899068139493
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 19.71921201511742,
+    "seconds": 0.0040728189051151276
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 19.590878206359882,
+    "seconds": 0.00548419903498143
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 41.563833385855936,
+    "seconds": 0.07821333396714181
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 33.280248383298556,
+    "seconds": 0.012999588972888887
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 33.28406879165804,
+    "seconds": 0.00409012392628938
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 33.40920212121314,
+    "seconds": 0.00502555095590651
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 189.73635774955642,
+    "seconds": 0.08907488000113517
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.976434903679776,
+    "seconds": 0.027632275014184415
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.979327981877557,
+    "seconds": 0.008170899003744125
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.9905510113294325,
+    "seconds": 0.0104200120549649
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 55983.85681860475,
+    "seconds": 0.08851613197475672
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 5.08987264374466,
+    "seconds": 0.02561929600778967
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 5.089208113967575,
+    "seconds": 0.008259291062131524
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 5.102259409203453,
+    "seconds": 0.010561184026300907
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 14.563066656293653,
+    "seconds": 0.08743345690891147
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 8.160817803979027,
+    "seconds": 0.02703334006946534
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 8.163813633142276,
+    "seconds": 0.008372737094759941
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 8.127009546461723,
+    "seconds": 0.010902220965363085
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 20.171767012748195,
+    "seconds": 0.08970835898071527
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 19.71241942549385,
+    "seconds": 0.026868498069234192
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 19.71590062474431,
+    "seconds": 0.008075208985246718
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 19.713640597382398,
+    "seconds": 0.010423736996017396
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 37.561528683559104,
+    "seconds": 0.08829815406352282
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 33.432895758212624,
+    "seconds": 0.025818360038101673
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 33.43691238519926,
+    "seconds": 0.008379526901990175
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 33.410374313723096,
+    "seconds": 0.010778455063700676
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 4.960310478063408,
+    "seconds": 0.1983559950022027
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.944860023097545,
+    "seconds": 0.02289503498468548
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.945573401465406,
+    "seconds": 0.006195275927893817
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.981819002608983,
+    "seconds": 0.007367477985098958
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 34564.018000634554,
+    "seconds": 0.20159756497014314
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 5.169761751691367,
+    "seconds": 0.023249562946148217
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 5.161743747663015,
+    "seconds": 0.006149680004455149
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 5.1702285904205745,
+    "seconds": 0.007135718013159931
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 8.291080848030338,
+    "seconds": 0.20996982709039003
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 8.170470069811447,
+    "seconds": 0.023645623004995286
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 8.17125838230373,
+    "seconds": 0.006229603081010282
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 8.21341962461722,
+    "seconds": 0.007449493044987321
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 19.772601439967467,
+    "seconds": 0.19997532910201699
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 19.725502714549297,
+    "seconds": 0.02241064398549497
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 19.72634805930117,
+    "seconds": 0.006463599973358214
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 19.597983380969975,
+    "seconds": 0.007116068969480693
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 6,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 36.27903237440101,
+    "seconds": 0.20153451000805944
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 33.29400741902939,
+    "seconds": 0.023574491031467915
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 33.29495866640892,
+    "seconds": 0.006751428940333426
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 33.420093430631965,
+    "seconds": 0.007621843018569052
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 4.995449737835182,
+    "seconds": 0.8852200700202957
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.966659267554055,
+    "seconds": 0.23295667802449316
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.966840060874545,
+    "seconds": 0.02271190902683884
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.978064979953479,
+    "seconds": 0.02557474107015878
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 4280.368251850717,
+    "seconds": 0.9309136930387467
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 5.080056157806748,
+    "seconds": 0.2616133620031178
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 5.075793513587365,
+    "seconds": 0.02466347999870777
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 5.088840477381098,
+    "seconds": 0.02643044199794531
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 8.211621795991746,
+    "seconds": 0.9877325760899112
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 8.162795716942227,
+    "seconds": 0.25653983000665903
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 8.162982388421412,
+    "seconds": 0.024167545954696834
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 8.126163334139731,
+    "seconds": 0.02696996892336756
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 19.727415958344796,
+    "seconds": 0.980781128979288
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 19.724345588855176,
+    "seconds": 0.24062491091899574
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 19.724562460334734,
+    "seconds": 0.024481378961354494
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 19.722291610928252,
+    "seconds": 0.02621985599398613
+  },
+  {
+    "subject": "candidate-06",
+    "hull_sha256": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+    "speed": 6,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 33.45310643729777,
+    "seconds": 0.9409857899881899
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 33.450037127740025,
+    "seconds": 0.25968235498294234
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 33.45028740577753,
+    "seconds": 0.02330913196783513
+  },
+  {
+    "subject": "candidate-06",
+    "speed": 6,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 33.42375234623603,
+    "seconds": 0.027874677907675505
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 827.1679833864699,
+    "seconds": 0.07377992500551045
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.996326841377772,
+    "seconds": 0.006660150014795363
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.9984992470271314,
+    "seconds": 0.00214744103141129
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.092019897784207,
+    "seconds": 0.0026985870208591223
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 249425.93622791753,
+    "seconds": 0.07333617797121406
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.799901373918312,
+    "seconds": 0.007062155986204743
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.7884277705880685,
+    "seconds": 0.002292945981025696
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.5658676974878274,
+    "seconds": 0.0026689129881560802
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 37.54946606733469,
+    "seconds": 0.07716851099394262
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.144606017832066,
+    "seconds": 0.007323671015910804
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.147015556606263,
+    "seconds": 0.0021252320148050785
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.401948879199606,
+    "seconds": 0.0027070059441030025
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 25.028324892525774,
+    "seconds": 0.07427118893247098
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.07636295570262,
+    "seconds": 0.0071000580210238695
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.079566580487846,
+    "seconds": 0.0020995999220758677
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 23.68667386367219,
+    "seconds": 0.0026418810011819005
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 56.045030775389314,
+    "seconds": 0.073342265910469
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 37.80162996712751,
+    "seconds": 0.007583386031910777
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 37.80487555834866,
+    "seconds": 0.002202620031312108
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 38.198768801426304,
+    "seconds": 0.0026507889851927757
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 4.1151202818615555,
+    "seconds": 0.14651948807295412
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.998098530791607,
+    "seconds": 0.008888731012120843
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.998647976233844,
+    "seconds": 0.002785086049698293
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.092153078859667,
+    "seconds": 0.0034579599741846323
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 318916.36121767154,
+    "seconds": 0.14701745798811316
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.805656604662783,
+    "seconds": 0.008897593943402171
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.788479122748807,
+    "seconds": 0.0027224159566685557
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.565978390867164,
+    "seconds": 0.0032482160022482276
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 10.192254605129264,
+    "seconds": 0.13831450801808387
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.147083585332433,
+    "seconds": 0.008790597901679575
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.147685177283693,
+    "seconds": 0.0026843739906325936
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.402502165709743,
+    "seconds": 0.003230656962841749
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 23.48507342236447,
+    "seconds": 0.13858910591807216
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.080078301770143,
+    "seconds": 0.008684768923558295
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.080877574800187,
+    "seconds": 0.0026771340053528547
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 23.687806029992597,
+    "seconds": 0.0032042049570009112
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 6,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 65.26132467936566,
+    "seconds": 0.13941477600019425
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 37.80568476249468,
+    "seconds": 0.00867492996621877
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 37.80649037947869,
+    "seconds": 0.002656916039995849
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 38.20037896169706,
+    "seconds": 0.003185936948284507
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 6.084328731221179,
+    "seconds": 0.2786685610190034
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.9991205179144282,
+    "seconds": 0.013349540065973997
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.9992577021106315,
+    "seconds": 0.0037980600027367473
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.09263177386918,
+    "seconds": 0.004317063954658806
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 324139.15519966424,
+    "seconds": 0.28037815308198333
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.8068129462023763,
+    "seconds": 0.013112818938679993
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.7888880999531063,
+    "seconds": 0.004203230026178062
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.566526994117524,
+    "seconds": 0.004250362981110811
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 12.695030472684516,
+    "seconds": 0.2715938170440495
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.148220209236774,
+    "seconds": 0.012543743010610342
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.148370184570211,
+    "seconds": 0.003738593077287078
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.40327937455672,
+    "seconds": 0.004197772010229528
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 23.222389454351795,
+    "seconds": 0.27623829804360867
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.081642729847083,
+    "seconds": 0.013181780930608511
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.08184233597343,
+    "seconds": 0.0037921140901744366
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 23.68888066769346,
+    "seconds": 0.004210793995298445
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 6,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 37.8883581479983,
+    "seconds": 0.28021007298957556
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 37.80736142202043,
+    "seconds": 0.01251021702773869
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 37.80756384562481,
+    "seconds": 0.0037260630633682013
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 38.20159530870071,
+    "seconds": 0.0042932769283652306
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 201.4651869480523,
+    "seconds": 0.09059431694913656
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.986718645292669,
+    "seconds": 0.00783855898771435
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.9888898320147774,
+    "seconds": 0.0022955669555813074
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.082433608231762,
+    "seconds": 0.0027814600616693497
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 59840.16291662887,
+    "seconds": 0.0890411069849506
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.792853116533913,
+    "seconds": 0.00806791998911649
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.781379374184248,
+    "seconds": 0.002544932998716831
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.5581466412315366,
+    "seconds": 0.002794735017232597
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 15.962073519520468,
+    "seconds": 0.08973700401838869
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.147853277256068,
+    "seconds": 0.007952751009725034
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.150263247778364,
+    "seconds": 0.0023700660094618797
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.404676439377244,
+    "seconds": 0.002902499050833285
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 23.5545789759677,
+    "seconds": 0.09049691702239215
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.086868179822424,
+    "seconds": 0.00845177099108696
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.0900735150207,
+    "seconds": 0.00226684904191643
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 23.69679643928706,
+    "seconds": 0.0028483429923653603
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 6,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 42.19046005101216,
+    "seconds": 0.09467101003974676
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 37.81425026018666,
+    "seconds": 0.008218399016186595
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 37.81749595066454,
+    "seconds": 0.0024800950195640326
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 38.211845270653804,
+    "seconds": 0.002869945950806141
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 52.36217941123575,
+    "seconds": 0.13688669400289655
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.9849742480180934,
+    "seconds": 0.014915790990926325
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.987145858981416,
+    "seconds": 0.004960709949955344
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.080666536436963,
+    "seconds": 0.005849836044944823
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 14662.1960297771,
+    "seconds": 0.18975004903040826
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.791652330666201,
+    "seconds": 0.010797154973261058
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.7801790975996497,
+    "seconds": 0.002573033911176026
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.556813939211596,
+    "seconds": 0.003257315023802221
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 10.81807885542309,
+    "seconds": 0.13307024096138775
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.148775758563746,
+    "seconds": 0.010844259057193995
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.151186012393456,
+    "seconds": 0.0026922229444608092
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.405662599532272,
+    "seconds": 0.0030617458978667855
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 23.20390999350832,
+    "seconds": 0.13648822694085538
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.089379551173746,
+    "seconds": 0.011139411013573408
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.092585499967903,
+    "seconds": 0.0026965810684487224
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 23.699494681240587,
+    "seconds": 0.003430207958444953
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 6,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 38.88925055613139,
+    "seconds": 0.13905833393801004
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 37.81721961632789,
+    "seconds": 0.011956371017731726
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 37.82046532260679,
+    "seconds": 0.002850696910172701
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 38.21504736941043,
+    "seconds": 0.0031675099162384868
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 410.4291012881144,
+    "seconds": 0.07975851290393621
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.043798045216886,
+    "seconds": 0.01393103797454387
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.046047249197564,
+    "seconds": 0.004466893034987152
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.079445673518308,
+    "seconds": 0.005386236007325351
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 123136.24031688941,
+    "seconds": 0.08402780396863818
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.784092834712346,
+    "seconds": 0.021033626049757004
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.779622166996434,
+    "seconds": 0.00798649003263563
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.782281867572511,
+    "seconds": 0.010004246956668794
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 23.397884883367077,
+    "seconds": 0.09024870593566447
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.343513934046584,
+    "seconds": 0.015107052982784808
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.346315329337568,
+    "seconds": 0.004672706010751426
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.376839618446791,
+    "seconds": 0.0058050170773640275
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 24.291784113984512,
+    "seconds": 0.0825936789624393
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.31409154131917,
+    "seconds": 0.012965535977855325
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.317228744352434,
+    "seconds": 0.004073971998877823
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 23.21979071137623,
+    "seconds": 0.005106755997985601
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 47.27355457556446,
+    "seconds": 0.07586408103816211
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 38.22142947448012,
+    "seconds": 0.012825813028030097
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 38.22514381674789,
+    "seconds": 0.004119865014217794
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 38.34744015438021,
+    "seconds": 0.005085439886897802
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 205.98053947638425,
+    "seconds": 0.09264954796526581
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.057719974427328,
+    "seconds": 0.027104309992864728
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.059979011084359,
+    "seconds": 0.008716310025192797
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.070605650272838,
+    "seconds": 0.011439458001405
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 61182.745825029255,
+    "seconds": 0.0916039029834792
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.7082564566261036,
+    "seconds": 0.026302507962100208
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.7069725053589075,
+    "seconds": 0.00847099896054715
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.7192784072398704,
+    "seconds": 0.011181997950188816
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 16.320546576233756,
+    "seconds": 0.09195381496101618
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.324683247860563,
+    "seconds": 0.026177619001828134
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.327301668365594,
+    "seconds": 0.008763466961681843
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.29380403044749,
+    "seconds": 0.011668495018966496
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 23.830137890037975,
+    "seconds": 0.0945200000423938
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.329226022906187,
+    "seconds": 0.0263744950061664
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.332488806293604,
+    "seconds": 0.00864728691522032
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 23.332029974324545,
+    "seconds": 0.010629207012243569
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 42.867061928364016,
+    "seconds": 0.09168749791570008
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 38.356018295994716,
+    "seconds": 0.026709603960625827
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 38.359891269491264,
+    "seconds": 0.008590467972680926
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 38.33315621414275,
+    "seconds": 0.010719261947087944
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 4.053416458579589,
+    "seconds": 0.1919110610615462
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.036716318373331,
+    "seconds": 0.022067890968173742
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.03728115774702,
+    "seconds": 0.005985783995129168
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.070692321132232,
+    "seconds": 0.006880464963614941
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 37773.12202601453,
+    "seconds": 0.19513923907652497
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.781335514291427,
+    "seconds": 0.022549814078956842
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.7731532604164255,
+    "seconds": 0.006283218041062355
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.7758345361904295,
+    "seconds": 0.007432662998326123
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 9.481497857760615,
+    "seconds": 0.2109255800023675
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.349930129441706,
+    "seconds": 0.023398080957122147
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.350629703210434,
+    "seconds": 0.006021531065925956
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.3811775292504,
+    "seconds": 0.00813094899058342
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 23.37950064957804,
+    "seconds": 0.21186639298684895
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.32830806248415,
+    "seconds": 0.023636444006115198
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.32909094574278,
+    "seconds": 0.006159738986752927
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 23.23150913369843,
+    "seconds": 0.007014725939370692
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 6,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 41.501337576785296,
+    "seconds": 0.2378330499632284
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 38.23922956710256,
+    "seconds": 0.022853209055028856
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 38.24015446341905,
+    "seconds": 0.00586823106277734
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 38.36248982204091,
+    "seconds": 0.007387410965748131
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 4.0810602290031515,
+    "seconds": 0.8753598120529205
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.049642351649159,
+    "seconds": 0.23436189501080662
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.0497837061955,
+    "seconds": 0.021537606953643262
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.060419683187358,
+    "seconds": 0.024332569912075996
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 4676.1656107940125,
+    "seconds": 0.9630730029894039
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.703699673507289,
+    "seconds": 0.2791811319766566
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.6993985100709494,
+    "seconds": 0.023271479061804712
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.7117179677098666,
+    "seconds": 0.02717276895418763
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 9.386338981298755,
+    "seconds": 1.1823929339880124
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.33304536345358,
+    "seconds": 0.2624160849954933
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.333208607508215,
+    "seconds": 0.023375402088277042
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.299664397760834,
+    "seconds": 0.027305418043397367
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 23.350920780348495,
+    "seconds": 0.973949086968787
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.34763435475544,
+    "seconds": 0.2677430300973356
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.347837690189372,
+    "seconds": 0.031054963008500636
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 23.34736928323985,
+    "seconds": 0.02898356202058494
+  },
+  {
+    "subject": "candidate-08",
+    "hull_sha256": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+    "speed": 6,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 38.382502117231724,
+    "seconds": 1.0026321629993618
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 38.37921771303123,
+    "seconds": 0.29654059698805213
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 38.37945910839334,
+    "seconds": 0.02276086702477187
+  },
+  {
+    "subject": "candidate-08",
+    "speed": 6,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 38.35272909346082,
+    "seconds": 0.026837788987904787
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 716.1294939645366,
+    "seconds": 0.08157480391673744
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.057006753386245,
+    "seconds": 0.006944329012185335
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.059465492359853,
+    "seconds": 0.002197798923589289
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.162828314837191,
+    "seconds": 0.003045277902856469
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 215763.0765607521,
+    "seconds": 0.08074221294373274
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.9152963752477676,
+    "seconds": 0.007476467057131231
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.8998678629462105,
+    "seconds": 0.0023027759743854403
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.6314321243144954,
+    "seconds": 0.002937552984803915
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 34.13624001520774,
+    "seconds": 0.07973574800416827
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.565546990799218,
+    "seconds": 0.00765813491307199
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.56829908955924,
+    "seconds": 0.0027560900198295712
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.832881480173475,
+    "seconds": 0.002761807991191745
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 25.6267002876461,
+    "seconds": 0.08070671907626092
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.939559869376293,
+    "seconds": 0.00686769699677825
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.94318927270225,
+    "seconds": 0.0022220490500330925
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 24.63805684774071,
+    "seconds": 0.003598571987822652
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 54.78165091674082,
+    "seconds": 0.08041481801774353
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 39.00180714074239,
+    "seconds": 0.006888148025609553
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 39.005413485621304,
+    "seconds": 0.002355032949708402
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 39.45350280164376,
+    "seconds": 0.002853557001799345
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 4.15813904721828,
+    "seconds": 0.16435360698960721
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.057695008188876,
+    "seconds": 0.011419073096476495
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.058318563634391,
+    "seconds": 0.0030518410494551063
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.162329559549077,
+    "seconds": 0.003505373024381697
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 275874.80740868533,
+    "seconds": 0.1686075780307874
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.9221508347038765,
+    "seconds": 0.009343635058030486
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.8995075938318844,
+    "seconds": 0.003040259936824441
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.6300635611543455,
+    "seconds": 0.0034021480241790414
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 10.469594077182977,
+    "seconds": 0.1643616370856762
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.566022078632148,
+    "seconds": 0.009746778989210725
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.566709368905423,
+    "seconds": 0.003093381063081324
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.831308121125977,
+    "seconds": 0.004290262004360557
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 24.288980466388242,
+    "seconds": 0.1573425818933174
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.940037086290648,
+    "seconds": 0.009205808979459107
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.94094260045035,
+    "seconds": 0.0032656709663569927
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 24.636048385670858,
+    "seconds": 0.004864243092015386
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 6,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 62.750903744968326,
+    "seconds": 0.15967139601707458
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 39.00214730732375,
+    "seconds": 0.01169267704244703
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 39.003041597468524,
+    "seconds": 0.003302596975117922
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      800,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 39.45069481430911,
+    "seconds": 0.004207108984701335
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 5.861461735756296,
+    "seconds": 0.3144019589526579
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.05847333911491,
+    "seconds": 0.013090983033180237
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.058629034024005,
+    "seconds": 0.0040273419581353664
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.162655314197828,
+    "seconds": 0.005338785005733371
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 280392.71319922135,
+    "seconds": 0.3263047660002485
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.923399539883491,
+    "seconds": 0.013999740942381322
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.8998428658593927,
+    "seconds": 0.004011997953057289
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.6302668276925245,
+    "seconds": 0.004426953964866698
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 12.63439458703532,
+    "seconds": 0.3073284870479256
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.566814747283233,
+    "seconds": 0.013092634966596961
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.56698604608966,
+    "seconds": 0.0038512140745297074
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.831649474821136,
+    "seconds": 0.004442178993485868
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 24.061413756376997,
+    "seconds": 0.2999118020525202
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.941058532462193,
+    "seconds": 0.013949339976534247
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.94128467345539,
+    "seconds": 0.004681018064729869
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 24.636564124113047,
+    "seconds": 0.004372720955871046
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 6,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 39.07189963219579,
+    "seconds": 0.30616298608947545
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 39.003199140179014,
+    "seconds": 0.01426536904182285
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 39.00342409488546,
+    "seconds": 0.0039005610160529613
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      1600,
+      25,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 39.451108672159876,
+    "seconds": 0.004422076046466827
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 174.88283388475298,
+    "seconds": 0.10391220997553319
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.056987156382954,
+    "seconds": 0.010147752007469535
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.059446296180877,
+    "seconds": 0.002367987995967269
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.162204889127359,
+    "seconds": 0.002881246036849916
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 51764.53345364265,
+    "seconds": 0.09413742704782635
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.915752786473783,
+    "seconds": 0.008488556952215731
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.9003263759359363,
+    "seconds": 0.0023522620322182775
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.6316890918174414,
+    "seconds": 0.0032113069901242852
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 15.463615299475576,
+    "seconds": 0.09494902903679758
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.569175572028465,
+    "seconds": 0.008129851892590523
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.571929693696681,
+    "seconds": 0.00249931204598397
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.83583392379515,
+    "seconds": 0.0028547419933602214
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 24.351392044260482,
+    "seconds": 0.0980131640098989
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.947016929587452,
+    "seconds": 0.008682599989697337
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.950651585536466,
+    "seconds": 0.0024880539858713746
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 24.64448992580448,
+    "seconds": 0.003701481968164444
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 6,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 42.794930162993786,
+    "seconds": 0.1493236980168149
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 39.00958654422058,
+    "seconds": 0.009079249924980104
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 39.01319594065878,
+    "seconds": 0.003938299021683633
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      50,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 39.46220912854998,
+    "seconds": 0.003832249902188778
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 45.904138892180036,
+    "seconds": 0.1449728850275278
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.056144690851238,
+    "seconds": 0.012167615001089871
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.058605029374564,
+    "seconds": 0.0028991600265726447
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.161753736679575,
+    "seconds": 0.003168639028444886
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 12683.959154679811,
+    "seconds": 0.1582273649983108
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.915508232651377,
+    "seconds": 0.014521650969982147
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.9000831640041254,
+    "seconds": 0.003923056996427476
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.630951410357452,
+    "seconds": 0.004731819033622742
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 11.012365278247227,
+    "seconds": 0.15701967396307737
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.568382301310622,
+    "seconds": 0.013979707029648125
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.571137559276,
+    "seconds": 0.002858382067643106
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.835186693832231,
+    "seconds": 0.0034232739126309752
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 24.044602533029053,
+    "seconds": 0.21429438795894384
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 23.945568311080265,
+    "seconds": 0.011751943035051227
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 23.949203654302092,
+    "seconds": 0.0027598809683695436
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 24.643727995439686,
+    "seconds": 0.004558896995149553
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 6,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 39.93527050219055,
+    "seconds": 0.15273915696889162
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 39.00797550848833,
+    "seconds": 0.012327707023359835
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 39.01158526405428,
+    "seconds": 0.004484659060835838
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      100,
+      40
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 39.46051077401625,
+    "seconds": 0.0034105851082131267
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 355.65159873235376,
+    "seconds": 0.08571860298980027
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.114062375434929,
+    "seconds": 0.018091412028297782
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.116619306892435,
+    "seconds": 0.006912673939950764
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.160744391806079,
+    "seconds": 0.008734471048228443
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 106517.91551868457,
+    "seconds": 0.11606838705483824
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.891527024808393,
+    "seconds": 0.018010037951171398
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.8852904492742333,
+    "seconds": 0.0067024590680375695
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.886764714025401,
+    "seconds": 0.010312594939023256
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 21.948430891159745,
+    "seconds": 0.14642641600221395
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.791745854305953,
+    "seconds": 0.021060556988231838
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.794976459179988,
+    "seconds": 0.009380051051266491
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.832174416663534,
+    "seconds": 0.009781162953004241
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 25.039898268101446,
+    "seconds": 0.14897385402582586
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 24.19519477539,
+    "seconds": 0.023531132959760725
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 24.19866343988649,
+    "seconds": 0.008011828060261905
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 24.078156979417912,
+    "seconds": 0.010173141956329346
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 47.305946713171174,
+    "seconds": 0.121266711037606
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 39.47731248768161,
+    "seconds": 0.01846535096410662
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 39.48145790080456,
+    "seconds": 0.005193041986785829
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 39.63676198043653,
+    "seconds": 0.005630260915495455
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 178.7991630950572,
+    "seconds": 0.09980319591704756
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.129208259951216,
+    "seconds": 0.028360240045003593
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.131761283352742,
+    "seconds": 0.00955722201615572
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.146130978357375,
+    "seconds": 0.01242622802965343
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 52925.87143526892,
+    "seconds": 0.10083098302129656
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.7935470183637827,
+    "seconds": 0.030080836033448577
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.79149749312086,
+    "seconds": 0.010990486945956945
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.808016171408894,
+    "seconds": 0.01371689303778112
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 15.815487239750258,
+    "seconds": 0.18104529299307615
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.764604398444966,
+    "seconds": 0.029452935908921063
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.767586507575967,
+    "seconds": 0.010272278916090727
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.72302014965975,
+    "seconds": 0.012318752938881516
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 24.65217316409576,
+    "seconds": 0.12369899603072554
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 24.21992626198324,
+    "seconds": 0.04569679207634181
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 24.223571015557248,
+    "seconds": 0.016910481033846736
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 24.223856696964607,
+    "seconds": 0.013279035105369985
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 43.546474065592626,
+    "seconds": 0.10056061402428895
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 39.64558452301035,
+    "seconds": 0.02978757198434323
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 39.64992090705765,
+    "seconds": 0.012035273015499115
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      400,
+      25,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 39.61339090844108,
+    "seconds": 0.013000793056562543
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 4.129378344076055,
+    "seconds": 0.20751104701776057
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.115053333366825,
+    "seconds": 0.025787889026105404
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.115696915311183,
+    "seconds": 0.0064323380356654525
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.159900881325984,
+    "seconds": 0.007608659099787474
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 32675.73758451846,
+    "seconds": 0.2318333040457219
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.896027122621854,
+    "seconds": 0.02551285899244249
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.8851935963521993,
+    "seconds": 0.00718658696860075
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.886805943172829,
+    "seconds": 0.007297973032109439
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 9.909771636417647,
+    "seconds": 0.20856203394941986
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.796221558019944,
+    "seconds": 0.024931191001087427
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.797028952314907,
+    "seconds": 0.006232095998711884
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.834247575548435,
+    "seconds": 0.007241240004077554
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 24.245959311441663,
+    "seconds": 0.21171699301339686
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 24.201952043080777,
+    "seconds": 0.025712987990118563
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 24.202818026568057,
+    "seconds": 0.006512991967611015
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 24.082146789372402,
+    "seconds": 0.00808437098748982
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 6,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 42.3068379798531,
+    "seconds": 0.21068898704834282
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 39.48548362318146,
+    "seconds": 0.025368997012265027
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 39.486515969607666,
+    "seconds": 0.006168833933770657
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      800,
+      50,
+      80
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 39.641919637889636,
+    "seconds": 0.007196397986263037
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 4.158209029115163,
+    "seconds": 0.9674821170046926
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 4.131062086141901,
+    "seconds": 0.2638041810132563
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 4.131222232467982,
+    "seconds": 0.024293523048982024
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 4.145639739980747,
+    "seconds": 0.028507594019174576
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 4045.6437133191303,
+    "seconds": 1.0834080930799246
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 3.79721737126739,
+    "seconds": 0.30787863896694034
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 3.791547777649506,
+    "seconds": 0.02524945803452283
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 4.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 3.808110643102764,
+    "seconds": 0.029759944998659194
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 9.816665808837156,
+    "seconds": 0.9606313849799335
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 9.77060850977948,
+    "seconds": 0.2446472040610388
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 9.770794609431144,
+    "seconds": 0.024419493041932583
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 9.7260383290746,
+    "seconds": 0.02703986596316099
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 24.232006681312928,
+    "seconds": 0.8899444579146802
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 24.229211937544438,
+    "seconds": 0.22726281499490142
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 24.229439221415845,
+    "seconds": 0.024815809912979603
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 5.5,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 24.229691985553625,
+    "seconds": 0.02776803309097886
+  },
+  {
+    "subject": "candidate-18",
+    "hull_sha256": "1e3aa60cab8b0d717d73d4bfed0067be496f263cb2a8a67a66c389cc458beee0",
+    "speed": 6,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "legacy",
+    "angle": "trap",
+    "rw": 39.65993844296717,
+    "seconds": 0.948220437974669
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "depth",
+    "angle": "trap",
+    "rw": 39.65716563759996,
+    "seconds": 0.272788934991695
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "trap",
+    "rw": 39.65743608734095,
+    "seconds": 0.030477014021016657
+  },
+  {
+    "subject": "candidate-18",
+    "speed": 6,
+    "resolution": [
+      1600,
+      100,
+      160
+    ],
+    "method": "bilinear",
+    "angle": "gauss",
+    "rw": 39.62089529376643,
+    "seconds": 0.03808574506547302
+  }
+]

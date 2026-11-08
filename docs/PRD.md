@@ -139,3 +139,13 @@ What is *not* on this list, and why:
 
 Resistance estimates carry numerical quality separately from physical claims. Unassessed finite output is diagnostic and cannot drive a ranked resistance frontier even with exploratory opt-in. Measuring a method-specific adequate policy remains separate from physical calibration.
 RFC 0073 binds explicit evaluation inputs to saved results and renders selected results in reports. Default compatibility computations disclose their assumptions; old missing context remains unknown.
+
+RFC0077 corrects the sampled-depth integration of the existing analytical model.
+Explicit numerical screening budgets yield per-speed achieved uncertainties and
+preserve unresolved comparisons. No budget is selected by default. This supplies
+numerical evidence only; physical resistance calibration remains evidence-gated.
+
+RFC0077 operating comparison requires the same physical load/CG, fluid, speeds
+and operating intent before resistance can establish a strict winner. Numerical
+refinement remains independent; reported intervals do not cover operating pose
+solver error. Incompatible conditions stay visible with an explicit warning.

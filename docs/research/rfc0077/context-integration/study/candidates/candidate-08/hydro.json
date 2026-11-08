@@ -1,0 +1,31 @@
+{
+  "displaced_volume_m3": 0.11284493107317073,
+  "displaced_mass_kg": 115.66605435,
+  "wetted_surface_m2": 2.070685619430101,
+  "waterplane_area_m2": 1.7555762846142065,
+  "LCB_frac": 0.5013313211571803,
+  "Cp_actual": 0.5793719095014345,
+  "Cm_actual": 0.6658405110226217,
+  "GM0_m": 0.026390444469561847,
+  "gz_curve": null,
+  "notes": [],
+  "v2_cross_check": {
+    "section_volume_m3": 0.11284493107317073,
+    "triangle_volume_m3": 0.11285007789636703,
+    "section_waterplane_m2": 1.7555762846142065,
+    "triangle_waterplane_m2": 1.7555689203189044,
+    "section_lcb_frac": 0.5013313211571803,
+    "triangle_lcb_frac": 0.5013322444167325,
+    "section_gm0_m": 0.026390444469561847,
+    "triangle_gm0_m": 0.02638282481063403,
+    "volume_drift_frac": 0.00004560761757760402,
+    "waterplane_drift_frac": 4.1948022233810795e-6,
+    "lcb_drift_frac": 1.8416121495012504e-6,
+    "gm0_drift_frac": 0.00028872794986851437,
+    "volume_tolerance_frac": 0.01,
+    "waterplane_tolerance_frac": 0.01,
+    "lcb_tolerance_frac": 0.01,
+    "gm0_tolerance_frac": 0.005,
+    "notes": []
+  }
+}

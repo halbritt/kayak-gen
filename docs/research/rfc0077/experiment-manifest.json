@@ -1,0 +1,11 @@
+{
+  "quadrature_experiment_first.py": "410b4edfae6d28e94b8c04e3e2ee0a93a59e1242ddbefc1bdeaeea9bc85cd172",
+  "quadrature_experiment.py": "426fde4c15054d0c7970a3c097415b4b3c7ced0c15f6971775376acb8ed54e06",
+  "first-results.json": "6bb38a3ea7bc0ecf2c2263eda3f43b0d7d5c9e0089b6d473841ef09925a64836",
+  "family_experiment.py": "86311a8b2e2e8dbe0fc8b476d6e736fa1ef9c726e541e1a3a65bd1624c62a6c9",
+  "family-results.json": "260dd5fea2b510b0f906ed034db2a907939b64bdd962190e2969b448532e3b6c",
+  "angular-results.json": "373058a3016cd9480c63e801014c3cb450ef04c81f979c35097fbe970bebf894",
+  "policy_experiment.py": "2cb6178d4f952ec33ebe0ccd48e853489859ac37232757a12932604286ab5c6f",
+  "policy-results.json": "36b36a589c3dcbf06b9904f1622cc4d0d34042da2a2d17e3c33b66f657733c52",
+  "policy-controls.json": "fecf6c31bb508c33b499ccfcd2da45e8b0d7c9f8496f8ac8dcd64e9dceee5047"
+}

@@ -204,9 +204,9 @@ class Objective(BaseModel):
 class CandidatePoint(BaseModel):
     """A scored design candidate.
 
-    ``metrics`` are the only values used for Pareto comparison. ``warnings``
-    and ``provenance`` travel with the point so upstream exploratory evaluators
-    can keep their caveats attached without becoming hard-coded objectives.
+    ``metrics`` hold reported values; resistance provenance supplies achieved
+    numerical uncertainty for interval comparison. Warnings keep evaluator
+    caveats attached to the point.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -250,17 +250,24 @@ def dominates(left: CandidatePoint, right: CandidatePoint, objectives: list[Obje
         if not _has_usable_metric(left, objective) or not _has_usable_metric(right, objective):
             return False
 
-        left_value = left.metrics[objective.metric]
-        right_value = right.metrics[objective.metric]
+        from kayakgen.search.numerical_intervals import objective_interval
+
+        left_interval = objective_interval(objective.metric, left.metrics[objective.metric], left.provenance)
+        right_interval = objective_interval(objective.metric, right.metrics[objective.metric], right.provenance)
+        if (left_interval is None or right_interval is None
+                or left_interval.comparison_key != right_interval.comparison_key):
+            return False
+        left_low, left_high = left_interval.bounds
+        right_low, right_high = right_interval.bounds
 
         if objective.direction == "min":
-            if left_value > right_value:
+            if left_high > right_low:
                 return False
-            strictly_better = strictly_better or left_value < right_value
+            strictly_better = strictly_better or left_high < right_low
         else:
-            if left_value < right_value:
+            if left_low < right_high:
                 return False
-            strictly_better = strictly_better or left_value > right_value
+            strictly_better = strictly_better or left_low > right_high
 
     return strictly_better
 

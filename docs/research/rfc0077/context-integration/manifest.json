@@ -1,0 +1,20 @@
+{
+  "README.md": "671ee0a95cfe7e14efb39a097946b90cdd16891a92f3cd3f292c3c905112795e",
+  "integration/base-context.json": "6e70bd09b46c2154be0a108e2e294faa2da8ae465a5005d91c5adab913190fd0",
+  "integration/compatible/candidates/6.eval.json": "fc9cb426e267c3f8cbdadb1ea8bd868e375c1845be70d3792fd67d4f5745c155",
+  "integration/compatible/candidates/8.eval.json": "6ac6199779ca30722e575d7f48fded0e3cdfb656d1583bf95cae8415e7191a18",
+  "integration/compatible/comparison.json": "1868a31baec3e4004bb1a62ef3b8484a3e5b5e0216cd0d6de6090ccb3e4cec8d",
+  "integration/compatible/run.json": "120b00bc6c840960d6642a4fe45100ec66f204fc06f2224c8cb53ae58ef48eeb",
+  "integration/incompatible/candidates/6.eval.json": "fc9cb426e267c3f8cbdadb1ea8bd868e375c1845be70d3792fd67d4f5745c155",
+  "integration/incompatible/candidates/8.eval.json": "9155c5fc8589288b1111662127185f244acf65bf4aa13a45a2ae23b933d89fed",
+  "integration/incompatible/comparison.json": "e4785712b6c2a0b6af36b2d9f93cba597855ac4c1e5194444ebe30a1a404ef9f",
+  "integration/incompatible/run.json": "120b00bc6c840960d6642a4fe45100ec66f204fc06f2224c8cb53ae58ef48eeb",
+  "integration/receipt.json": "84edc9ee40f485714b81a9748583706860686fdc561d053e85926f1c91fe7975",
+  "operating-comparison-oracle.py.txt": "a538325614df2f01ca6070c63491bbf51e6616f0cbab3ddd3e853c278565c6b7",
+  "plain/base-context.json": "6e70bd09b46c2154be0a108e2e294faa2da8ae465a5005d91c5adab913190fd0",
+  "plain/receipt.json": "8b7cc23c50a996b7d9329d6d15e321f25daf952b8557effda8d34abfbc29d70e",
+  "study/candidates/candidate-06/hull.json": "3b291825de9da2a7ee51eb63caeb78ceb8a1424f10da125dc935e33f9d850b3f",
+  "study/candidates/candidate-06/hydro.json": "9a39541325c7c40f0ac813d18873638951835906d50f0f29bc17e11cb1ee75b5",
+  "study/candidates/candidate-08/hull.json": "012bbcaa3645b24216b181b3369fbc74b7bd4c480b2ddfb8cd7592761dc6ec00",
+  "study/candidates/candidate-08/hydro.json": "f03f18a5ab742ce14c234e75c2a5507d958bac414702bea0ce034fe673849700"
+}
