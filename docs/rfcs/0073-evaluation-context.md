@@ -49,7 +49,13 @@ embedded preview, responsive tables and collapsible full input records.
 
 Exercise persisted CLI/service roundtrips, two loads, freshwater/seawater,
 distinct grids, real v2 matched immersion, web/desktop adapters, deep mutation,
-wrong references and forbidden report recomputation. Inspect desktop and
+wrong references and forbidden report recomputation. Parser no-rerun guards
+use `tests/evaluator_guard.py`: it preloads guarded modules and declared
+by-name consumers before installing recording stubs, keeps the strict
+no-call assertion, and after restoration reports and repairs any stub alias
+left in those modules or modules first imported inside the guard (KAYGEN-22).
+`tests/test_evaluator_guard.py` runs the guard and the real operating-equilibrium
+consumers in both file orders. Inspect desktop and
 phone report renders with UIPass, including expanded input records. Run the
 full suite followed by Ruff. KAYGEN-14 supplies fixed-body geometry and
 KAYGEN-15 supplies numerical refinement/admission; no convergence or physical
