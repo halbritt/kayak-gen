@@ -149,3 +149,7 @@ RFC0077 operating comparison requires the same physical load/CG, fluid, speeds
 and operating intent before resistance can establish a strict winner. Numerical
 refinement remains independent; reported intervals do not cover operating pose
 solver error. Incompatible conditions stay visible with an explicit warning.
+
+Semantic preflight tooling (RFC 0081) selects existing shared-input contract
+checks before a candidate freeze and records partial evidence against its actual
+source. Complete release gates and physical-validation requirements remain separate.

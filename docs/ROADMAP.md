@@ -492,3 +492,11 @@ controls and all physical calibration gates remain separately evidence-gated.
 
 Future-Striatum-Batches: the canonical full-gate order and receipt work is
 implemented; no separate campaign wrapper or test-coverage reduction is queued.
+
+## RFC 0081 semantic preflight disposition
+
+KAYGEN-18 / R3 provides a selected-contract handoff and executable preflight over
+existing context, recorded-method, numerical-admission and presentation tests.
+The retained operating oracle supplies no-rerun consumer controls. This completes
+the preflight tooling slice; a passing receipt does not complete a release gate
+or discharge physical calibration. New consumers require routing review.

@@ -242,3 +242,9 @@ are distinct from hull identity, labels, origins and resistance refinement.
 Solved operating settings remain comparable requirements because resistance
 uncertainty does not bound pose-solver error. The public warning token is
 `incompatible_operating_inputs`.
+
+**Semantic preflight** (RFC 0081): selected existing shared-input contract tests
+and retained consumer oracles run before a full source freeze. The work packet
+names producers, consumers and shared values. Its source-bound result is partial
+verification evidence; `not_applicable` means no group was selected, and every
+outcome continues to require the complete release gate.

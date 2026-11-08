@@ -132,6 +132,29 @@ KAYAKGEN_OPENFOAM_SMOKE=1 KAYAKGEN_OPENFOAM_LOCAL_RUN=1 \
   .venv/bin/python -m pytest tests/test_openfoam_v2512_smoke.py -q
 ```
 
+## Shared-input semantic preflight (RFC 0081)
+
+For a change that combines evaluation context, numerical admission, saved results
+or presentation, run the relevant semantic preflight before the expensive full
+freeze. Supply all relevant changed paths or select contracts explicitly:
+
+```bash
+python -m kayakgen.operations.semantic_preflight \
+  --changed-path kayakgen/eval/contract.py --out /external/new-preflight-attempt
+```
+
+The work packet names producers, consumers and shared inputs. Existing context,
+method-binding, admission/interval and display regressions remain the oracles;
+operating-input checks also replay the retained 34-case no-evaluator consumer
+oracle. Review unmapped paths and explicitly select a group for a new consumer.
+Unrelated changes do not require the whole matrix. See the user guide for the
+four groups and physical-adapter routing.
+
+This command emits partial source-bound evidence. `not_applicable` means no group
+was selected. Every outcome keeps `release_acceptance=false` and
+`full_release_gate_required=true`; it does not replace either pre-merge check,
+change the four-skip pin, add a git hook or promote physical validation.
+
 ## Local enforcement (pre-push hook)
 
 Audit R0 (2026-06-06) found the documented gate red on `main` for 12
