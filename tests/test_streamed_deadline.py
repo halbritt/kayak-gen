@@ -17,9 +17,10 @@ def _bashrc(tmp_path: Path) -> Path:
 
 def _is_running(pid: int) -> bool:
     path = Path(f'/proc/{pid}/stat')
-    if not path.exists():
+    try:
+        return path.read_text().split()[2] != 'Z'
+    except (FileNotFoundError, ProcessLookupError):
         return False
-    return path.read_text().split()[2] != 'Z'
 
 
 def test_silent_command_timeout_is_whole_command_deadline(tmp_path: Path) -> None:
