@@ -531,6 +531,16 @@ The default mode writes the equilibrium `StabilityResult`. With
 `mismatch_percent`, `notes`). Loads that exceed 2× the hull's max
 displaced mass are refused with a structured `load_unphysical` error.
 
+For `distribution_v2`, equilibrium uses the fixed canonical hull-plus-deck
+body (RFC 0074). It changes the operating waterplane and trim, preserving the
+physical Hull record and using actual midship keel depth. `sinkage_m` is the
+body-frame waterplane intercept; positive trim is stern-down. The new fixed-body
+result's load and buoyancy centroids use common world X. Infeasible loads retain
+`not_converged`; dry/fully submerged pose diagnostics have no initial GM.
+Explicit evaluation contexts use the same realized pose for hydrostatics,
+wetted resistance and saved reporting. Legacy no-pose lofted evaluations retain
+their original behavior. Numerical and physical validation remain separate gates.
+
 ### `target-trim`
 
 Solve draft + trim for a load case with a non-zero longitudinal CG

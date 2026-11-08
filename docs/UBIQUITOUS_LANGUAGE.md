@@ -204,3 +204,7 @@ attempt identities. `preparation.json` is a preparation publication marker;
 `cfd_job_busy`, `cfd_request_conflict`, `cfd_preparation_unverified`,
 `cfd_unpublished_attempt`, and `cfd_attempt_incomplete` are explicit local
 admission/recovery refusals, not solver success or scientific validation.
+
+**OperatingPose** (RFC 0074): immutable sinkage and trim of a fixed physical
+Hull. Sinkage is its body-frame waterplane intercept; positive trim is
+stern-down. Pose changes evaluation state, not the Hull shape.

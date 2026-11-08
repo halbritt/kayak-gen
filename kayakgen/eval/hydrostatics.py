@@ -11,6 +11,7 @@ import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
 from kayakgen.model.hull import Hull
+from kayakgen.model.operating_state import OperatingPose
 
 SEAWATER_DENSITY_KG_M3 = 1025.0
 
@@ -123,13 +124,19 @@ def _waterplane_second_moment(vertices: np.ndarray) -> float:
     return float(np.trapezoid((2.0 / 3.0) * half_breadths**3, xs_unique))
 
 
-def evaluate(hull: Hull, stations: int | None = None) -> Hydrostatics:
+def evaluate(hull: Hull, stations: int | None = None, *, pose: OperatingPose | None = None, density_kg_m3: float = SEAWATER_DENSITY_KG_M3) -> Hydrostatics:
     """Compute hydrostatics from the integrated mesh of ``hull``."""
+    if not np.isfinite(density_kg_m3) or density_kg_m3 <= 0:
+        raise ValueError("water density must be finite and positive")
+    if pose is not None:
+        from kayakgen.eval.immersed_geometry import evaluate_immersed
+
+        return evaluate_immersed(hull, pose, stations, density_kg_m3)
     geom = hull.to_geometry()
     vertices, faces = geom.mesh("hull", stations=stations)
 
     volume = _signed_volume(vertices, faces)
-    mass = volume * SEAWATER_DENSITY_KG_M3
+    mass = volume * density_kg_m3
     wetted = _surface_area(vertices, faces)
     waterplane = _waterplane_area(vertices)
     waterplane_i_t = _waterplane_second_moment(vertices)

@@ -400,3 +400,11 @@ request-prefix admission. `job_store.py` stages preparation, publishes
 `execution-inputs.json`. The existing occurrence store binds those bytes.
 Preparation completeness, terminal execution and physical claim state are
 independent facts. New attempts use distinct sibling paths; old results persist.
+
+### Fixed-body operation (RFC 0074)
+
+`model/operating_state.py` owns immutable `OperatingPose`;
+`eval/immersed_geometry.py` clips a rigidly posed canonical body and samples
+its wetted geometry; `eval/stability/operating_equilibrium.py` owns bounded
+mass/trim solving. Hydrostatics and resistance share the posed geometry.
+Physical Hull identity remains separate from operating state.

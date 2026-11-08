@@ -32,6 +32,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   history. Local preparation/run admission is serialized and provisional
   directories are not executable published jobs.
 
+- RFC 0074 / KAYGEN-14: v2 equilibrium moves a waterplane over its fixed
+  canonical hull-plus-deck body. Hydrostatics and resistance accept the same
+  rigid sinkage/trim pose, with actual-keel reference and explicit infeasible
+  load bounds. No-pose legacy evaluations retain their existing behavior.
+
 - RFC 0067 / KAYGEN-3: manifest-backed sweep/search/CFD outputs preserve run
   identity and expected hashes across index reconstruction. Same-basename runs
   remain distinct; reindex reports incomplete legacy provenance explicitly.

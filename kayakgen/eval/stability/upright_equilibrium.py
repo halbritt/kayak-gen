@@ -55,6 +55,18 @@ def evaluate_equilibrium_stability(
     )
     if effective_moment_tolerance <= 0:
         raise ValueError("moment_tolerance_kg_m must be positive")
+    if hull.geometry_kind == "distribution_v2":
+        from kayakgen.eval.stability.operating_equilibrium import (
+            OperatingEquilibriumOptions,
+            evaluate_fixed_body_equilibrium,
+        )
+
+        return evaluate_fixed_body_equilibrium(
+            hull, load_case, solve_trim=load_case.uses_longitudinal_components,
+            options=OperatingEquilibriumOptions(
+                tolerance_kg, effective_moment_tolerance, max_iterations, max_trim_angle_deg
+            ),
+        )
     if load_case.uses_longitudinal_components:
         return _evaluate_trim_equilibrium(
             hull,

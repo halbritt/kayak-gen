@@ -86,6 +86,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0069](0069-geometry-export-capabilities.md) | landed shared geometry exports + staged builder bundles | Common mesh/section capabilities for lofted and v2 exports; complete-bundle publication |
 | [0071](0071-streamed-command-deadline.md) | landed streamed deadlines + bounded capture | Bound staged command lifetime while consuming output |
 | [0070](0070-cfd-attempt-replay.md) | landed idempotent preparation + explicit retained attempts | Preserve CFD request replay and execution history |
+| [0074](0074-fixed-body-operating-pose.md) | landed fixed-body immersion + v2 load equilibrium | Rigid operating pose, common wetted geometry and actual-body mass/trim brackets |
 
 Architecture-plan landing notes (not RFCs themselves; see
 `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`):
