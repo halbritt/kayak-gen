@@ -242,3 +242,9 @@ are distinct from hull identity, labels, origins and resistance refinement.
 Solved operating settings remain comparable requirements because resistance
 uncertainty does not bound pose-solver error. The public warning token is
 `incompatible_operating_inputs`.
+
+**Gate renderer profile** (RFC 0082): operational admission for a real observed
+VTK/OpenGL context and its resource policy. `software` requires Mesa CPU rendering
+without NVIDIA OpenGL mappings; `hardware` requires supported NVIDIA rendering
+under the shared host lock. It is distinct from a numerical evaluator, hull
+readiness or physical validation.

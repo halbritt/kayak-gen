@@ -11,13 +11,14 @@ exercised with real processes in test_full_gate_receipts.py.
 
 from __future__ import annotations
 
-import re
 import subprocess
 import sys
 from pathlib import Path
 
 import conftest as test_conftest
 import pytest
+
+from kayakgen.operations.gate import FAST_PYTEST_ARGS
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FAST_GATE = REPO_ROOT / "scripts" / "fast-gate.sh"
@@ -28,13 +29,13 @@ def _fast_gate_text() -> str:
 
 
 def _ignore_paths() -> list[str]:
-    # Matches the canonical form used in the script: --ignore=tests/foo.py
-    return re.findall(r"--ignore=(\S+)", _fast_gate_text())
+    return [arg.removeprefix("--ignore=") for arg in FAST_PYTEST_ARGS
+            if arg.startswith("--ignore=")]
 
 
 def _deselect_nodeids() -> list[str]:
-    # Matches the canonical form used in the script: --deselect "nodeid"
-    return re.findall(r'--deselect "([^"]+)"', _fast_gate_text())
+    return [arg.removeprefix("--deselect=") for arg in FAST_PYTEST_ARGS
+            if arg.startswith("--deselect=")]
 
 
 def test_every_ignore_path_exists_in_repo() -> None:
@@ -70,29 +71,10 @@ def test_every_deselect_nodeid_still_collects() -> None:
         )
 
 
-def test_fast_gate_script_contains_the_skip_count_pin() -> None:
-    # Audit G1: the skip pin was once claimed in the commit subject and
-    # the release doc while nothing enforced it. Pin its presence — the
-    # named expected count and the comparison that refuses the run.
-    for script in (FAST_GATE,):
-        assert script.is_file(), f"{script.name} missing from scripts/"
-        text = script.read_text(encoding="utf-8")
-        assert "EXPECTED_SKIPS=4" in text, (
-            f"{script.name} lost the EXPECTED_SKIPS=4 pin "
-            "(docs/RELEASE_DISCIPLINE.md documents exactly 4 OpenFOAM opt-ins)"
-        )
-        assert "export KAYAKGEN_ENFORCE_SKIP_PIN=1" in text, (
-            f"{script.name} no longer opts pytest into the in-suite skip pin"
-        )
-        assert "KAYAKGEN_OPENFOAM_SMOKE" in text
-        assert "KAYAKGEN_OPENFOAM_LOCAL_RUN" in text
-        assert "summary_line=" in text, (
-            f"{script.name} should parse from pytest's final summary line"
-        )
-        assert re.search(r"-ne\s+\"\$EXPECTED_SKIPS\"", text), (
-            f"{script.name} no longer compares the parsed skip count "
-            "against EXPECTED_SKIPS; the pin is claimed but unenforced (audit G1)"
-        )
+def test_fast_manifest_retains_all_existing_exclusions() -> None:
+    assert len(_ignore_paths()) == 11
+    assert len(_deselect_nodeids()) == 2
+    assert "kayakgen.operations.fast_gate" in _fast_gate_text()
 
 
 def test_in_suite_skip_pin_is_explicit_env_only(

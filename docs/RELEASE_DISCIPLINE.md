@@ -120,8 +120,44 @@ index is unchanged; committing the identical tested content afterward keeps
 the recorded tree identity. Endpoint checks do not detect transient edits
 restored between snapshots, so they do not replace the freeze requirement.
 Renderer `unobserved` is an explicit absence, never proof of a CPU/GPU mode.
+RFC 0082 adds the actual context probe and resource admission described below.
 See [RFC 0084](rfcs/0084-source-bound-full-gate.md) for the receipt schema,
 output ownership and interruption limits.
+
+## Renderer admission for full and pre-push gates (RFC 0082)
+
+Both shell entry points use the same maintained runner and renderer policy.
+`--renderer software` is the default; `KAYAKGEN_GATE_RENDERER` selects the
+same profile when a flag is inconvenient. The software profile fixes Mesa EGL
+settings in the probe and every gate child, then renders a real context. It
+requires Mesa llvmpipe/softpipe capabilities, loaded GL-library evidence and no
+NVIDIA OpenGL mappings. Missing vendor support, failed/crashed probes or
+contradictory observations refuse before pytest or Ruff starts. Verified software
+gates may overlap; this does not establish unlimited CPU/RAM capacity.
+
+`--renderer hardware` preserves the caller's renderer environment and holds
+`~/.cache/kayakgen-release-gate.lock` across its actual probe and all check
+commands. The supported hardware profile currently requires observed NVIDIA
+capabilities and corresponding loaded GL libraries. Software fallback refuses.
+The advisory lock coordinates participating gate processes; it does not reserve
+VRAM or stop unrelated GPU workloads. Nested targeted checks should use software
+mode instead of recursively requesting the hardware lock.
+
+Receipts retain requested profile, original/effective renderer environment,
+actual VTK/window/OpenGL identity and capabilities, mapped GL libraries, probe
+exit/duration/stderr, and the hardware lock's policy/path/state when applicable.
+A native probe failure, partial suite or stale running receipt is never a pass.
+The profile is currently Linux-specific (EGL vendor files, `/proc` and `flock`);
+current observations do not establish future driver/dependency compatibility.
+
+The fast subset still runs Ruff before its fixed pytest plan; full release
+verification still runs complete pytest followed by mandatory Ruff. The exact
+11 ignore paths and two deselections now live in `FAST_PYTEST_ARGS` in
+`kayakgen.operations.gate`; manifest tests continue to verify existing paths and
+collectible node IDs, and real caller tests enforce the skip pin. Both plans
+clear inherited `PYTEST_ADDOPTS`; no arbitrary-command or full-entry-point subset
+option is added. Fast receipts use `gate: "fast"` and cannot satisfy a full-gate
+requirement.
 
 The opt-in OpenFOAM smoke is the recommended pre-push gate when a
 change touches CFD, the OpenFOAM adapter, the case templates, or the

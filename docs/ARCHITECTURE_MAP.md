@@ -114,7 +114,9 @@ kayakgen/
 │   ├── pareto.py                Objective gates + RFC 0043/0044 refusal tokens
 │   └── sweep.py                 SweepSpec, CandidateRecord, explicit execution scope
 ├── operations/               # Repository operational checks
-│   └── gate.py                  Fixed full pytest/skip pin then Ruff + optional receipt
+│   ├── gate.py                  Fixed full/fast plans + source-bound receipts
+│   ├── fast_gate.py             Dedicated pre-push plan entry point
+│   └── renderer.py              Real context evidence + software/hardware admission
 ├── services/                 # Application services (no UI/CLI deps)
 │   ├── design.py                hull-state assembly, presets, validity badges
 │   ├── evaluation.py            metrics + independent hydro/resistance view models +
@@ -203,6 +205,12 @@ and successor admission hold the namespace lock. Existing algorithm artifacts,
 manifest authority and derived job index remain separate.
 
 ## Durable artifact types
+
+RFC 0082 extends gate receipts with requested/effective renderer profile, actual
+VTK/OpenGL capabilities and mapped libraries, probe outcomes and hardware-lock
+state. The dedicated fast caller uses `gate: "fast"`; its fixed subset is not
+full release evidence. Renderer imports stay lazy for reusable source/process
+helpers. No evaluator or scientific claim state changes.
 
 RFC 0084 adds an optional `kayakgen-gate-receipt/1` at an explicitly selected
 new path outside source or inside a Git-ignored directory. The maintained

@@ -488,7 +488,15 @@ controls and all physical calibration gates remain separately evidence-gated.
 
 | Work | Disposition | Evidence / remaining scope |
 | --- | --- | --- |
-| KAYGEN-21 / RFC 0084 | completed-history | Full pytest and skip pin followed by mandatory Ruff; optional persistent candidate-bound receipts. Actual renderer probe/scheduling remains KAYGEN-19. |
+| KAYGEN-21 / RFC 0084 | completed-history | Full pytest and skip pin followed by mandatory Ruff; optional persistent candidate-bound receipts. Actual renderer probe/scheduling is implemented by KAYGEN-19 / RFC 0082. |
 
 Future-Striatum-Batches: the canonical full-gate order and receipt work is
 implemented; no separate campaign wrapper or test-coverage reduction is queued.
+
+## Renderer-policy follow-up disposition
+
+KAYGEN-19 / RFC 0082 adds shared actual-renderer admission to full and fast gates.
+Verified Mesa software runs may overlap; NVIDIA hardware runs hold the existing
+host lock. Real context/library and caller/concurrency controls protect the
+policy. Future-Striatum-Batches: no duplicate gate runner or rendering-test
+reduction is queued. Other platforms/drivers require new capability evidence.

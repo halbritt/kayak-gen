@@ -21,10 +21,20 @@ import time
 import uuid
 
 SCHEMA_VERSION = "kayakgen-gate-receipt/1"
-RENDERER_ENV_KEYS = (
-    "LIBGL_ALWAYS_SOFTWARE",
-    "__EGL_VENDOR_LIBRARY_FILENAMES",
-    "VTK_DEFAULT_OPENGL_WINDOW",
+FAST_PYTEST_ARGS = (
+    "--ignore=tests/test_web_browser.py",
+    "--ignore=tests/test_generative_jobs_subprocess.py",
+    "--ignore=tests/test_cfd_jobs.py",
+    "--ignore=tests/test_generated_closed_body_hardening.py",
+    "--ignore=tests/test_design_report.py",
+    "--ignore=tests/test_generated_closed_body.py",
+    "--ignore=tests/test_sweep.py",
+    "--ignore=tests/test_active_search_nested_keys.py",
+    "--ignore=tests/test_web_layout.py",
+    "--ignore=tests/test_generative_jobs_manager.py",
+    "--ignore=tests/test_compare.py",
+    "--deselect=tests/test_cli.py::test_cfd_fixture_run_and_status_keep_raw_warning_visible",
+    "--deselect=tests/test_web.py::test_cfd_routes_fixture_command_success_remains_raw_unvalidated",
 )
 SUMMARY = re.compile(r"^\d+ (?:passed|failed|skipped|errors?|deselected)(?:, .+)? in [\d.]+s")
 
@@ -95,9 +105,11 @@ def source_snapshot(root: Path) -> dict[str, object]:
 
 def renderer_evidence() -> dict[str, object]:
     """Keep declarations distinct from an actual rendering observation."""
+    from kayakgen.operations.renderer import RENDERER_ENV_KEYS
+
     return {
         "declared": {name: os.environ.get(name) for name in RENDERER_ENV_KEYS},
-        "actual": {"status": "unobserved", "reason": "gate did not perform a renderer probe"},
+        "actual": {"status": "unobserved", "reason": "renderer probe has not completed"},
     }
 
 
@@ -185,7 +197,9 @@ def _terminate_owned(command: subprocess.Popen[str]) -> None:
         command.wait(timeout=5)
 
 
-def _commands() -> list[dict[str, object]]:
+def _commands(kind: str = "full") -> list[dict[str, object]]:
+    pytest = ("pytest", ["pytest", "-q", *(FAST_PYTEST_ARGS if kind == "fast" else ())])
+    ruff = ("ruff", ["ruff", "check", "kayakgen", "tests"])
     return [
         {
             "name": name,
@@ -196,17 +210,14 @@ def _commands() -> list[dict[str, object]]:
             "finished_at": None,
             "duration_seconds": 0.0,
         }
-        for name, args in (
-            ("pytest", ["pytest", "-q"]),
-            ("ruff", ["ruff", "check", "kayakgen", "tests"]),
-        )
+        for name, args in ((pytest, ruff) if kind == "full" else (ruff, pytest))
     ]
 
 
-def _new_receipt(root: Path, run_id: str) -> dict[str, object]:
+def _new_receipt(root: Path, run_id: str, kind: str = "full") -> dict[str, object]:
     return {
         "schema_version": SCHEMA_VERSION,
-        "gate": "full",
+        "gate": kind,
         "run_id": run_id,
         "status": "running",
         "exit_code": None,
@@ -227,9 +238,9 @@ def _new_receipt(root: Path, run_id: str) -> dict[str, object]:
             "base_prefix": sys.base_prefix,
         },
         "renderer": renderer_evidence(),
-        "commands": _commands(),
+        "commands": _commands(kind),
         "environment_policy": {
-            "pytest_addopts": "cleared_for_full_gate",
+            "pytest_addopts": f"cleared_for_{kind}_gate",
             "inherited_pytest_addopts_present": bool(os.environ.get("PYTEST_ADDOPTS")),
         },
         "repository": str(root),
@@ -252,7 +263,7 @@ def _run_command(
     start = time.monotonic()
     command.update(status="running", started_at=_now())
     _write_receipt(path, receipt)
-    print(f"[full-gate] {' '.join(command['argv'])}", flush=True)
+    print(f"[{receipt['gate']}-gate] {' '.join(command['argv'])}", flush=True)
     env = {
         **os.environ,
         "KAYAKGEN_ENFORCE_SKIP_PIN": "1",
@@ -260,6 +271,11 @@ def _run_command(
     }
     # Environment-only selectors must not quietly narrow the complete gate.
     env.pop("PYTEST_ADDOPTS", None)
+    for name, setting in receipt["renderer"]["effective"].items():
+        if setting is None:
+            env.pop(name, None)
+        else:
+            env[name] = setting
     log = _command_log(path, receipt["run_id"], command["name"])
     command["log_path"] = log.name if log is not None else None
     process = None
@@ -310,24 +326,24 @@ def _run_command(
 
 
 def _run_checks(root: Path, receipt: dict[str, object], path: Path | None) -> int:
-    pytest, ruff = receipt["commands"]
-    code = _run_command(root, pytest, receipt, path)
-    summary = pytest.get("summary")
-    if summary is not None:
-        skipped = re.search(r"(?:^|, )(\d+) skipped", summary)
-        receipt["observed_skips"] = int(skipped.group(1)) if skipped else 0
-    if code != 0:
-        receipt["failure_reasons"].append("pytest_failed")
-        return code if code > 0 else 128 - code
-    if summary is None or receipt["observed_skips"] != receipt["expected_skips"]:
-        receipt["failure_reasons"].append(
-            "pytest_summary_missing" if summary is None else "skip_count_mismatch"
-        )
-        return 1
-    code = _run_command(root, ruff, receipt, path)
-    if code != 0:
-        receipt["failure_reasons"].append("ruff_failed")
-    return code if code >= 0 else 128 - code
+    for command in receipt["commands"]:
+        code = _run_command(root, command, receipt, path)
+        if command["name"] == "pytest":
+            summary = command.get("summary")
+            if summary is not None:
+                skipped = re.search(r"(?:^|, )(\d+) skipped", summary)
+                receipt["observed_skips"] = int(skipped.group(1)) if skipped else 0
+        if code != 0:
+            receipt["failure_reasons"].append(command["name"] + "_failed")
+            return code if code > 0 else 128 - code
+        if command["name"] == "pytest" and (
+            summary is None or receipt["observed_skips"] != receipt["expected_skips"]
+        ):
+            receipt["failure_reasons"].append(
+                "pytest_summary_missing" if summary is None else "skip_count_mismatch"
+            )
+            return 1
+    return 0
 
 
 def _finish_source(root: Path, receipt: dict[str, object]) -> None:
@@ -359,20 +375,31 @@ def _finalize(
     return code
 
 
-def run_gate(receipt_path: Path | None = None) -> int:
+def run_gate(
+    receipt_path: Path | None = None, renderer: str = "software", *, gate_kind: str = "full"
+) -> int:
+    from kayakgen.operations.renderer import rendering_profile
+
+    if gate_kind not in {"full", "fast"}:
+        raise ValueError("gate kind must be the fixed full or fast plan")
     root = Path(
         subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
     ).resolve()
     run_id = str(uuid.uuid4())
     path = _prepare_receipt(root, receipt_path, run_id)
-    receipt = _new_receipt(root, run_id)
+    receipt = _new_receipt(root, run_id, gate_kind)
     started = time.monotonic()
     code = 1
     with _interrupt_signals():
         try:
             receipt["source_before"] = source_snapshot(root)
             _write_receipt(path, receipt)
-            code = _run_checks(root, receipt, path)
+            with rendering_profile(renderer, receipt["renderer"]):
+                actual = receipt["renderer"]["actual"]
+                print(f"[{gate_kind}-gate] renderer {renderer}: {actual['window_class']} / "
+                      f"{actual['opengl_vendor']} / {actual['opengl_renderer']}", flush=True)
+                _write_receipt(path, receipt)
+                code = _run_checks(root, receipt, path)
         except GateInterrupted as exc:
             receipt["failure_reasons"].append(f"interrupted_signal_{exc.signum}")
             receipt["status"] = "interrupted"
@@ -391,26 +418,39 @@ def run_gate(receipt_path: Path | None = None) -> int:
                 receipt["status"] = "interrupted"
                 code = _finalize(root, receipt, path, 128 + exc.signum, started)
     print(
-        f"[full-gate] {receipt['status']}: {receipt['observed_skips']} skipped, expected {receipt['expected_skips']}",
+        f"[{gate_kind}-gate] {receipt['status']}: {receipt['observed_skips']} skipped, expected {receipt['expected_skips']}",
         flush=True,
     )
     return code
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+def argument_parser(description: str) -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--receipt",
         type=Path,
         default=os.environ.get("KAYAKGEN_GATE_RECEIPT"),
         help="New receipt path outside source or in a Git-ignored directory.",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--renderer", choices=("software", "hardware"),
+        default=os.environ.get("KAYAKGEN_GATE_RENDERER", "software"),
+        help="Verified Mesa software (default) or hardware under the shared host lock.",
+    )
+    return parser
+
+
+def gate_entry(kind: str, description: str) -> int:
+    args = argument_parser(description).parse_args()
     try:
-        return run_gate(args.receipt)
+        return run_gate(args.receipt, args.renderer, gate_kind=kind)
     except (OSError, ValueError, subprocess.CalledProcessError) as exc:
-        print(f"[full-gate] error: {exc}", file=sys.stderr)
+        print(f"[{kind}-gate] error: {exc}", file=sys.stderr)
         return 1
+
+
+def main() -> int:
+    return gate_entry("full", __doc__)
 
 
 if __name__ == "__main__":
