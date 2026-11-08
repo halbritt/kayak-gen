@@ -6,54 +6,59 @@ compatibility, not numerical equivalence of different resistance methods.
 
 from __future__ import annotations
 
-import importlib
 import json
 from pathlib import Path
 
 import pytest
+from evaluator_guard import forbid_evaluator_calls
 from pydantic import ValidationError
 
 from kayakgen.eval.contract import EvaluationContext, EvaluationResult
 from kayakgen.model.hull import Hull
 
 
+# Evaluators a saved-result parser must never run. Shared with the guard's own
+# order regressions in test_evaluator_guard.py.
+PARSER_FORBIDDEN_EVALUATORS = {
+    "kayakgen.eval.hydrostatics": ["evaluate"],
+    "kayakgen.eval.resistance": [
+        "resistance_curve",
+        "evaluate_resistance",
+        "wave_resistance_michell",
+        "wetted_surface",
+    ],
+    "kayakgen.eval.numerical_resistance": ["assess_resistance"],
+    "kayakgen.eval.michell_quadrature": ["wave_from_grid"],
+    "kayakgen.eval.immersed_geometry": ["evaluate_immersed", "immersed_geometry"],
+    "kayakgen.eval.stability.operating_equilibrium": ["evaluate_fixed_body_equilibrium"],
+    "kayakgen.services.evaluation": [
+        "evaluate_with_context",
+        "evaluate_hydrostatics",
+        "resistance_curve",
+        "evaluate_resistance",
+        "evaluate_equilibrium_stability",
+    ],
+}
+# Modules that import the forbidden functions by name. The guard preloads them
+# (with the target modules) before installing stubs so none keeps a stub alias.
+PARSER_GUARD_CONSUMERS = (
+    "kayakgen.eval",
+    "kayakgen.eval.stability.initial",
+    "kayakgen.eval.stability.load_case",
+    "kayakgen.eval.stability.trim_equilibrium",
+    "kayakgen.services.sensitivity",
+    "kayakgen.services.design_report",
+)
+
+
 @pytest.fixture(autouse=True)
-def forbid_evaluator_rerun(monkeypatch):
-    calls = []
-    targets = {
-        "kayakgen.eval.hydrostatics": ["evaluate"],
-        "kayakgen.eval.resistance": [
-            "resistance_curve",
-            "evaluate_resistance",
-            "wave_resistance_michell",
-            "wetted_surface",
-        ],
-        "kayakgen.eval.numerical_resistance": ["assess_resistance"],
-        "kayakgen.eval.michell_quadrature": ["wave_from_grid"],
-        "kayakgen.eval.immersed_geometry": ["evaluate_immersed", "immersed_geometry"],
-        "kayakgen.eval.stability.operating_equilibrium": ["evaluate_fixed_body_equilibrium"],
-        "kayakgen.services.evaluation": [
-            "evaluate_with_context",
-            "evaluate_hydrostatics",
-            "resistance_curve",
-            "evaluate_resistance",
-            "evaluate_equilibrium_stability",
-        ],
-    }
-    # Import the full dependency graph before patching. Otherwise a later import
-    # can retain a forbidden alias after monkeypatch restores its source module.
-    modules = {name: importlib.import_module(name) for name in targets}
-    for module_name, names in targets.items():
-        module = modules[module_name]
-        for name in names:
-
-            def forbidden(*args, _name=module_name + "." + name, **kwargs):
-                calls.append(_name)
-                raise AssertionError("parser reran evaluator: " + _name)
-
-            monkeypatch.setattr(module, name, forbidden)
-    yield
-    assert calls == []
+def forbid_evaluator_rerun():
+    with forbid_evaluator_calls(
+        PARSER_FORBIDDEN_EVALUATORS, consumers=PARSER_GUARD_CONSUMERS
+    ) as guard:
+        yield
+    # Strict: stub calls are recorded even when pydantic wraps the AssertionError.
+    assert guard.calls == []
 
 
 def payload(context_method: str | None, curve_method: str | None, *, assessed: bool = False):

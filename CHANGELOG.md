@@ -23,6 +23,13 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   silently narrow the full check; external-interpreter worktrees remain
   supported. Actual renderer absence is reported explicitly.
 
+- RFC 0073 / KAYGEN-22: evaluator no-rerun test guards share
+  `tests/evaluator_guard.py`. It preloads by-name consumers before stubbing,
+  keeps the strict no-evaluator assertion, and reports and repairs stub aliases
+  captured during the guard. Order regressions run the parser guard and real
+  operating-equilibrium consumers in both file orders. Test-only; no evaluator,
+  schema or claim change.
+
 - RFC 0069 / KAYGEN-9 follow-up: standalone binary STL headers carry the
   full source Hull record SHA-256, metres and part name. Existing triangle
   payloads and normal STL parser compatibility remain unchanged.
