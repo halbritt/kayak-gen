@@ -122,7 +122,7 @@ kayakgen/
 │   ├── identity.py              RFC 0049 design_hash / record_hash / run_hash
 │   ├── artifact_store.py        RFC 0049 FilesystemArtifactStore + SqliteIndex
 │   ├── sensitivity.py           RFC 0052 SensitivityRequest + compute_sensitivity
-│   ├── build_export.py          RFC 0051 7 builder-artifact writers + manifest
+│   ├── build_export.py          RFC 0051/0069 geometry-capability writers + staged bundle manifest
 │   ├── calibration_artifacts.py RFC 0054 residual-plot SVG writer
 │   ├── design_report.py         RFC 0055 HTML render + optional weasyprint PDF
 │   └── design_report_templates/ jinja2 templates for RFC 0055
@@ -172,7 +172,7 @@ The `cli/` directory carries seven sibling modules used by `main.py`:
 | `kayakgen target-draft ... --draft N --report-only` | load mismatch at a fixed draft | `TargetDraftMismatchReport` |
 | `kayakgen target-trim <hull> --load <load>` | draft + trim for a longitudinal-CG load | StabilityResult JSON |
 | `kayakgen migrate-geometry <hull>` | v1 lofted → v2 distribution sibling | `<name>.v2.json` |
-| `kayakgen build-export <hull>` | builder artifacts (RFC 0051; `[builder]` extras) | offsets CSV + 2 DXF + 4 SVG + manifest |
+| `kayakgen build-export <hull>` | builder artifacts (RFC 0051/0069; `[builder]` extras); new/empty destination | offsets CSV + 2 DXF + 4 SVG + manifest, staged as a complete bundle |
 | `kayakgen sensitivity <hull>` | local finite-difference Jacobian | `<out>.sensitivity.json` |
 | `kayakgen design-report <hull>` | self-contained HTML (+ optional PDF) | `report.html` (+ `report.pdf` with `[report]` extras) |
 | `kayakgen runs list/query/reindex` | cross-run index (RFC 0049) | reads `~/.local/share/kayakgen/index.sqlite` |

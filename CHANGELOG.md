@@ -13,6 +13,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   record and content hashes remain unchanged; old ambiguous v2 evidence is
   not automatically reaccepted. New calibration campaigns use design identity.
 
+- RFC 0069 / KAYGEN-9: `generate` and builder exports consume shared geometry
+  capabilities for both lofted and all admitted v2 families. Builder bundles
+  preflight dependencies and publish from staging into a new/empty directory;
+  failed writes preserve prior files and cannot leave a stale completion manifest.
+
 - RFC 0067 / KAYGEN-3: manifest-backed sweep/search/CFD outputs preserve run
   identity and expected hashes across index reconstruction. Same-basename runs
   remain distinct; reindex reports incomplete legacy provenance explicitly.

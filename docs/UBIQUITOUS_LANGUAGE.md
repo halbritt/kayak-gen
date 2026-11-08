@@ -179,3 +179,7 @@ run_hash it differs between separate output histories with identical inputs. Reo
 a history preserves its ID.
 **Provenance completeness** (`provenance_complete`) means recorded expected-hash
 coverage, not candidate/job completion or scientific validation.
+
+**SectionExportGeometry** (RFC 0069): the existing closed-section and
+waterline/keel/deck-curve capability consumed by builder writers. Lofted and
+distribution_v2 geometry both satisfy it; it is not a separate geometry model.

@@ -21,13 +21,15 @@ import hashlib
 import io
 import json
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path
-from typing import Sequence
+from tempfile import TemporaryDirectory
+from typing import Protocol, Sequence, runtime_checkable
 
 import numpy as np
 
 from kayakgen import __version__ as KAYAKGEN_VERSION
-from kayakgen.model.geometry import LoftedHullGeometry
+from kayakgen.model.geometry import PartType
 from kayakgen.model.hull import Hull
 
 DEFAULT_N_STATIONS = 32
@@ -71,11 +73,8 @@ ARTIFACT_KINDS: tuple[str, ...] = (
 
 
 def _hull_hash(hull: Hull) -> str:
-    """Return the stable hull SHA-256 (RFC 0049 ``record_hash`` once landed)."""
-    # ``Hull.hash`` is the current accessor. RFC 0049 will rename this to
-    # ``record_hash``; when that lands this function will pick up the new
-    # name without callers needing to change.
-    return hull.hash()
+    """Bind exported bytes to the full serialized Hull record."""
+    return hull.record_hash()
 
 
 def _header_lines(hull: Hull, *, comment_prefix: str) -> list[str]:
@@ -95,27 +94,37 @@ def _station_xs(hull: Hull, n_stations: int) -> np.ndarray:
     return np.linspace(-hull.length_m / 2.0, hull.length_m / 2.0, n_stations)
 
 
-def _geom(hull: Hull) -> LoftedHullGeometry:
-    """Return the lofted geometry implementation for ``hull``."""
+@runtime_checkable
+class SectionExportGeometry(Protocol):
+    """Geometry capabilities needed by the existing section and curve writers."""
+
+    def section_for_closed_body(self, x: float, part: PartType) -> np.ndarray: ...
+
+    def waterplane(self, n: int = 200) -> np.ndarray: ...
+
+    def keel_line(self, n: int = 200) -> np.ndarray: ...
+
+    def deck_centreline(self, n: int = 200) -> np.ndarray: ...
+
+
+def _geom(hull: Hull) -> SectionExportGeometry:
     geom = hull.to_geometry()
-    # ``to_geometry`` returns a ``HullGeometry`` ABC; in practice the only
-    # implementation today is ``LoftedHullGeometry``. The narrower type
-    # gives us ``section_for_closed_body``.
-    if not isinstance(geom, LoftedHullGeometry):  # pragma: no cover - defensive
-        raise TypeError(f"unsupported geometry implementation: {type(geom).__name__}")
+    if not isinstance(geom, SectionExportGeometry):
+        raise TypeError(
+            f"geometry lacks closed-section export capability: {type(geom).__name__}"
+        )
     return geom
 
 
-def _section_yz(geom: LoftedHullGeometry, x: float, part: str) -> np.ndarray:
-    """Return the (y, z) ring for ``part`` at station ``x``."""
-    return geom.section_for_closed_body(x, part)  # type: ignore[arg-type]
+def _section_yz(geom: SectionExportGeometry, x: float, part: PartType) -> np.ndarray:
+    return geom.section_for_closed_body(x, part)
 
 
 # ---------------------------------------------------------------------------
 # Per-station scalar helpers (offsets table + writer-side reuse).
 
 
-def _half_breadth_at_waterline_m(geom: LoftedHullGeometry, x: float) -> float:
+def _half_breadth_at_waterline_m(geom: SectionExportGeometry, x: float) -> float:
     """Half-breadth (Y, metres) at the design waterline for station ``x``.
 
     The hull section ring places its maximum ``|y|`` at the waterline
@@ -128,7 +137,7 @@ def _half_breadth_at_waterline_m(geom: LoftedHullGeometry, x: float) -> float:
     return float(np.max(np.abs(pts[:, 0])))
 
 
-def _keel_z_m(geom: LoftedHullGeometry, x: float) -> float:
+def _keel_z_m(geom: SectionExportGeometry, x: float) -> float:
     """Keel-line Z (metres, negative below WL) for station ``x``."""
     pts = _section_yz(geom, x, "hull")
     if len(pts) == 0:
@@ -136,7 +145,7 @@ def _keel_z_m(geom: LoftedHullGeometry, x: float) -> float:
     return float(np.min(pts[:, 1]))
 
 
-def _sheer_z_m(geom: LoftedHullGeometry, x: float) -> float:
+def _sheer_z_m(geom: SectionExportGeometry, x: float) -> float:
     """Sheer Z (metres) for station ``x``.
 
     The lofted geometry meets the deck at the design waterline, so the
@@ -151,7 +160,7 @@ def _sheer_z_m(geom: LoftedHullGeometry, x: float) -> float:
     return float(np.max(pts[:, 1]))
 
 
-def _deck_centreline_z_m(geom: LoftedHullGeometry, x: float) -> float:
+def _deck_centreline_z_m(geom: SectionExportGeometry, x: float) -> float:
     """Deck-centreline Z (metres) for station ``x``."""
     deck_pts = _section_yz(geom, x, "deck")
     if len(deck_pts) == 0:
@@ -469,7 +478,12 @@ def write_station_molds_dxf(
     doc = _new_dxf_doc(hull)
     msp = doc.modelspace()
 
-    cell_width_mm = hull.beam_oa_m * MM_PER_M + 200.0
+    section_width_m = max(
+        float(np.ptp(_section_yz(geom, float(x), part)[:, 0]))
+        for x in xs
+        for part in ("hull", "deck")
+    )
+    cell_width_mm = max(hull.beam_oa_m, section_width_m) * MM_PER_M + 200.0
     for index, x in enumerate(xs):
         layer = _station_layer_name(float(x))
         if layer not in doc.layers:
@@ -512,7 +526,7 @@ def write_station_molds_dxf(
             )
 
         # Labelled 100 mm scale bar below the section.
-        bar_y = (-hull.draft_m * MM_PER_M) - 60.0
+        bar_y = min(-hull.draft_m, _keel_z_m(geom, float(x))) * MM_PER_M - 60.0
         msp.add_line(
             (cell_origin_x - 50.0, bar_y),
             (cell_origin_x + 50.0, bar_y),
@@ -547,15 +561,30 @@ def write_build_export(
 ) -> Path:
     """Write every build-export artifact for ``hull`` under ``out_dir``.
 
-    Creates ``out_dir`` if needed, runs each writer in turn, and writes a
-    ``manifest.json`` enumerating every artifact with its SHA-256 and
-    byte size. Returns the manifest path.
+    The destination must be absent or empty. A complete bundle is written
+    in a sibling staging directory and published by directory replacement;
+    failed exports leave the destination untouched. The manifest enumerates
+    every artifact with its SHA-256 and byte size.
     """
     if spec is None:
         spec = BuildExportSpec()
-    out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    _station_xs(hull, spec.n_stations)
+    _geom(hull)
+    import_module("ezdxf")
+    out_dir = Path(out_dir).absolute()
+    if out_dir == Path.cwd():
+        raise ValueError("build-export cannot replace the current working directory")
+    if out_dir.exists() and (not out_dir.is_dir() or any(out_dir.iterdir())):
+        raise FileExistsError(f"build-export requires a new or empty directory: {out_dir}")
+    out_dir.parent.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(dir=out_dir.parent, prefix=f".{out_dir.name}-") as temporary:
+        staging = Path(temporary)
+        _write_build_bundle(hull, staging, spec)
+        staging.replace(out_dir)
+    return out_dir / "manifest.json"
 
+
+def _write_build_bundle(hull: Hull, out_dir: Path, spec: BuildExportSpec) -> None:
     artifacts: list[tuple[str, Path]] = [
         ("offsets_csv", write_offsets_csv(hull, out_dir / "offsets.csv", n_stations=spec.n_stations)),
         ("sections_dxf", write_sections_dxf(hull, out_dir / "sections.dxf", n_stations=spec.n_stations)),
@@ -591,4 +620,3 @@ def write_build_export(
     }
     manifest_path = out_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    return manifest_path

@@ -109,7 +109,11 @@ Write open hull and deck STL inspection surfaces from a hull JSON:
 kayakgen generate hull.json --stl-out build/example
 ```
 
-Without `--stl-out`, the prefix is the hull path without `.json`.
+Without `--stl-out`, the prefix is the hull path without `.json`. Both
+`lofted` and `distribution_v2` geometry are supported, including every admitted
+v2 section family. STL coordinates are metres; the hull and deck remain
+separate open inspection surfaces. A serialization failure preserves any
+previous file at that part's destination (RFC 0069).
 
 ### `evaluate`
 
@@ -562,7 +566,7 @@ Write builder-oriented artifacts (RFC 0051; requires
 
 ```bash
 kayakgen build-export hull.json --out build/builder
-kayakgen build-export hull.json --out build/builder --n-stations 48
+kayakgen build-export hull.json --out build/builder-48 --n-stations 48
 ```
 
 Produces seven artifacts under `--out`: `offsets.csv`, `sections.dxf`,
@@ -572,6 +576,16 @@ Produces seven artifacts under `--out`: `offsets.csv`, `sections.dxf`,
 hull SHA-256 and the kayakgen version pin. Output is deterministic
 modulo CAD-library save timestamps (the DXF determinism check
 compares parsed entities, not raw bytes).
+
+Both geometry kinds and all admitted v2 section families are supported
+(RFC 0069). Mold spacing and scale bars account for the sampled section
+width and depth, including v2 shapes wider or deeper than legacy scalars. CSV uses metres; DXF and SVG use millimetres. The destination
+must be new or empty and separate from the current working directory.
+An existing nonempty directory is refused unchanged.
+Select a new destination for another export. The complete seven-file set
+and manifest are staged together before publication; a failed write leaves
+no partially published bundle. These artifacts do not establish structural
+or manufacturing fitness.
 
 ### `sensitivity`
 
