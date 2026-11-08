@@ -1349,3 +1349,12 @@ web analysis retains its context/result; the desktop Python adapter accepts
 edit requires a new matching context. The default live desktop path retains its
 actual cheap settings in `last_evaluation_context`; it does not claim a solved
 load equilibrium.
+
+## Installed local releases (RFC 0078)
+
+Install the built wheel with the needed extras (`web`, `report`, `builder`,
+and optionally `desktop`); it includes the runtime templates. Keep a release
+virtualenv separate from an editable checkout. Run `kayakgen --help`, render
+a report, and prepare an OpenFOAM case from that installed environment before
+switching a local service. Bind the web workspace to loopback; D023's public
+hosted-demo deferral remains in force.

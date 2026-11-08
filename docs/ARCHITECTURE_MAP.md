@@ -414,3 +414,7 @@ RFC 0073: eval.contract.EvaluationContext is an immutable value object embedded 
 RFC 0069 standalone binary STL headers bind each surface to its full Hull
 record SHA-256, metre coordinates and part name; triangle payloads retain the
 legacy format. Existing recorded artifacts are not rewritten on read.
+
+RFC 0078 packages `services/design_report_templates/*.j2` and the OpenFOAM
+`templates/*.template` resources inside wheels. Local deployment uses an
+isolated release virtualenv; runtime imports resolve to installed files.

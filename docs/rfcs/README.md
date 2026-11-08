@@ -16,6 +16,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | --- | --- | --- |
 | [0072](0072-numerical-evidence-admission.md) | landed conservative numerical status and admission | Numerical evidence and resistance objective admission |
 | [0073](0073-evaluation-context.md) | landed shared context and selected-result reporting | Immutable evaluation context and selected-result reports |
+| [0078](0078-installed-runtime-templates.md) | landed installed runtime templates | Installed runtime templates |
 | [0001](0001-template.md) | template | RFC template — copy for new RFCs |
 | [0002](0002-gui-usability.md) | landed | GUI usability improvements |
 | [0003](0003-layout-and-station-view.md) | landed | Window layout and station-view slider |

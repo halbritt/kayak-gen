@@ -58,6 +58,10 @@ kayakgen = "kayakgen.cli.main:app"
 include = ["kayakgen*"]
 exclude = ["tests*", ".venv*"]
 
+[tool.setuptools.package-data]
+"kayakgen.services" = ["design_report_templates/*.j2"]
+"kayakgen.eval.cfd.openfoam_v2512_interfoam" = ["templates/*.template"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"

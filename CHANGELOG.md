@@ -12,6 +12,9 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   full source Hull record SHA-256, metres and part name. Existing triangle
   payloads and normal STL parser compatibility remain unchanged.
 
+- RFC 0078: wheels include the design-report and OpenFOAM runtime templates,
+  so installed packages can render reports and case dictionaries.
+
 - RFC 0068 / KAYGEN-6: v2 physical identity now binds its complete nested
   distribution spec with the explicit `distribution_v2_v2:` scheme. Lofted,
   record and content hashes remain unchanged; old ambiguous v2 evidence is
