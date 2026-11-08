@@ -1274,3 +1274,14 @@ Updated: 2026-05-17
   publish attempt saw inactive leases, confirming the research jobs were
   already completed. Panel jobs are now claimable across Claude, Codex, and
   Gemini.
+
+## 2026-11-08 — RFC 0080 installed runtime lifecycle
+
+Added reusable installed idle controls and read-only persistent-service
+observation. The runtime entry/readiness inspection observed the existing
+owner service on its stable release path with timeout zero/server mode,
+`Restart=always` and `KillMode=process`; no owner unit or current-release link
+was modified. Real socket controls demonstrate that a live process losing its
+listener must fail after-idle readiness. Owned transient units and inactive
+installed stages supply further acceptance evidence outside the repository;
+the full release gate remains required before landing.

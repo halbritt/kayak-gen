@@ -164,3 +164,6 @@ physical validation remain outside this operational acceptance scope.
 Semantic preflight tooling (RFC 0081) selects existing shared-input contract
 checks before a candidate freeze and records partial evidence against its actual
 source. Complete release gates and physical-validation requirements remain separate.
+
+RFC 0080 separately adds installed idle controls and read-only local persistent
+runtime observation with an explicit idle interval and process-owned readiness.

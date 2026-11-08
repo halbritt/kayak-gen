@@ -517,6 +517,7 @@ existing context, recorded-method, numerical-admission and presentation tests.
 The retained operating oracle supplies no-rerun consumer controls. This completes
 the preflight tooling slice; a passing receipt does not complete a release gate
 or discharge physical calibration. New consumers require routing review.
+
 ## Renderer-policy follow-up disposition
 
 KAYGEN-19 / RFC 0082 adds shared actual-renderer admission to full and fast gates.
@@ -524,3 +525,11 @@ Verified Mesa software runs may overlap; NVIDIA hardware runs hold the existing
 host lock. Real context/library and caller/concurrency controls protect the
 policy. Future-Striatum-Batches: no duplicate gate runner or rendering-test
 reduction is queued. Other platforms/drivers require new capability evidence.
+
+## RFC 0080 runtime lifecycle disposition
+
+KAYGEN-17 / R2 adds installed backend controls and explicit-duration, read-only
+persistent service acceptance. It preserves timeout zero/server mode, stable
+paths, detached jobs, `Restart=always` and `KillMode=process`. Actual process and
+HTTP lifetime matter separately from startup. Deployment changes, another
+service manager/backend and physical validation remain separate work.

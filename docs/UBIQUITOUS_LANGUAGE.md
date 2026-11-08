@@ -267,8 +267,17 @@ and retained consumer oracles run before a full source freeze. The work packet
 names producers, consumers and shared values. Its source-bound result is partial
 verification evidence; `not_applicable` means no group was selected, and every
 outcome continues to require the complete release gate.
+
 **Gate renderer profile** (RFC 0082): operational admission for a real observed
 VTK/OpenGL context and its resource policy. `software` requires Mesa CPU rendering
 without NVIDIA OpenGL mappings; `hardware` requires supported NVIDIA rendering
 under the shared host lock. It is distinct from a numerical evaluator, hull
 readiness or physical validation.
+
+## Runtime lifecycle acceptance
+
+**Runtime lifecycle acceptance** records one installed service's observed
+process continuity, effective settings and readiness over an explicit idle
+interval. A **transient idle control** intentionally exits on a positive idle
+timeout; that valid control does not imply persistent-deployment acceptance.
+Neither term changes scientific accepted uses or managed-job ownership.

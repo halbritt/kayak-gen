@@ -29,6 +29,7 @@ kayakgen/
 │   ├── renderer.py              actual context evidence + renderer resource policy
 │   ├── release.py               immutable source → wheel → inactive installed verification
 │   ├── release_*.py             manifests, staging, byte audit and actual installed workflows
+│   ├── runtime*.py              installed idle controls + read-only service lifetime
 │   └── semantic_preflight.py    selected shared-input regressions + partial evidence
 ├── cli/                      # Typer subcommands; thin glue
 │   ├── main.py                  init / generate / evaluate / mesh-check
@@ -534,3 +535,13 @@ built wheel, `stage/{constraints.txt,dependencies.lock,runtime.lock,environment/
 `stage-receipt.json`, `verification-request.json`,
 `workflows/verification-receipt.json`, command logs/receipts and
 `release-receipt.json`. Failed attempts retain the same paths reached so far.
+
+## Installed runtime lifecycle (RFC 0080 / D066)
+
+`operations.runtime` owns installed lifecycle orchestration and retained
+`runtime-receipt.json`. `runtime_probe` reuses `release_audit` and exercises the
+actual installed Trame/aiohttp backend. `runtime_service` reads systemd and
+process identity, replays the installed parser, and checks PID-owned loopback
+HTTP readiness before and after the selected traffic-free idle interval. These
+modules do not mutate a service. Detached job execution and ownership remain in
+the existing generative manager, runner and lease protocol.

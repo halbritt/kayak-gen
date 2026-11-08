@@ -1675,3 +1675,39 @@ Every result states `evidence_scope="semantic_preflight"`,
 `scientific_claim_promotion=false`. After reviewing the preflight, freeze the
 candidate and still run the required complete pytest suite followed by Ruff.
 A numerical admission or preflight pass supplies no physical-validation claim.
+
+## Installed runtime lifecycle verification (RFC 0080)
+
+After the maintained release command creates an inactive installed stage, run
+the lifecycle command with that stage's interpreter and verification request:
+
+```sh
+/absolute/release/stage/environment/bin/python -I -B \
+  -m kayakgen.operations.runtime \
+  --release-request /absolute/release/verification-request.json \
+  --out /absolute/new-runtime-attempt \
+  --unit kayakgen.service --observe-seconds 30 \
+  --readiness-url http://127.0.0.1:8093/
+```
+
+The interval is an explicit operator choice; 30 seconds is an example. The
+earlier campaign's 315 seconds is evidence for that deployment. The command
+reads the selected user unit without changing it. It checks the installed
+entry point and effective parser settings, then records PID/start/boot,
+invocation and automatic restart count. HTTP readiness must belong to that
+process before and after an idle interval with no probe traffic or WebSocket
+clients. Redirects are accepted as readiness without being followed.
+
+Persistent acceptance requires timeout zero/server mode, `Restart=always`,
+`KillMode=process`, a stable installed path and detached jobs. A replacement
+process is a restart even when it is healthy. Loss of readiness after idle
+also refuses acceptance. Backend versions and bytes must match the separately
+exercised installed controls.
+
+Omit all three service options to run backend controls only. The positive
+timeout control is expected to exit cleanly, and is valid for transient use;
+the timeout-zero control survives until explicit cleanup. Controls alone
+leave `persistent_deployment_accepted=false`. Evidence is written to a new
+external directory as `runtime-receipt.json`, per-control JSON and logs;
+failed attempts remain available. See RFC 0080 for the supported Linux,
+systemd, console-wrapper and aiohttp scope.

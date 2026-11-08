@@ -18,6 +18,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 | [0082](0082-verified-gate-renderers.md) | landed verified full/fast renderer admission | Actual Mesa software evidence and coordinated NVIDIA hardware gates |
 | [0084](0084-source-bound-full-gate.md) | landed full pytest then Ruff + persistent receipts | Fixed full-check sequence and actual candidate source identity |
 | [0079](0079-completion-admission.md) | landed terminal audit and declared receipt admission | Guard completion actions with terminal audits and source-bound evidence |
+| [0080](0080-installed-runtime-lifecycle.md) | landed installed runtime lifecycle acceptance | Installed idle controls and read-only persistent service lifetime |
 | [0077](0077-resistance-quadrature-policy.md) | landed exact linear depth + explicit interval screening policy | Correct depth quadrature and measured resistance screening uncertainty |
 | [0072](0072-numerical-evidence-admission.md) | landed conservative numerical status and admission | Numerical evidence and resistance objective admission |
 | [0073](0073-evaluation-context.md) | landed shared context and selected-result reporting | Immutable evaluation context and selected-result reports |
