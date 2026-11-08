@@ -25,8 +25,13 @@ import sys
 import time
 from pathlib import Path
 
+from kayakgen.services.generative_job_ownership import (
+    JobOwnershipError, begin_attempt, locked_job, protocol_is_current, record_running, runner_lease, save_attempt_state,
+)
+
 from kayakgen.services.generative_jobs import (
     CANCEL_FLAG_FILENAME,
+    _hash_spec_payload,
     GenerativeJobError,
     GenerativeJobProgress,
     JobState,
@@ -110,7 +115,31 @@ class _FileBackedSink:
         return self._cancel_flag.exists()
 
 
-def _run(jobs_root: Path, job_id: str, *, resume: bool) -> int:
+def _run(
+    jobs_root: Path, job_id: str, *, resume: bool,
+    inherited_ownership: tuple[str, int] | None = None,
+) -> int:
+    job_dir = jobs_root / job_id
+    if not protocol_is_current(job_dir):
+        raise JobOwnershipError("legacy job namespace has no ownership proof")
+    if inherited_ownership is not None:
+        attempt_id, ownership_fd = inherited_ownership
+        with runner_lease(job_dir, attempt_id, ownership_fd):
+            return _run_owned(jobs_root, job_id, resume=resume)
+    # Direct entry is allowed only for a newly marked queued job, before
+    # any attempt exists. Existing attempts must use manager admission.
+    with locked_job(job_dir) as lease:
+        job = read_job_from_dir(jobs_root, job_id)
+        if job.attempt_id is not None or job.state != "queued" or resume:
+            raise JobOwnershipError("existing attempt requires ownership-aware manager admission")
+        token = begin_attempt(lease)
+        job = job.model_copy(update={"attempt_id": token})
+        persist_job_to_dir(jobs_root, job)
+        record_running(lease)
+        return _run_owned(jobs_root, job_id, resume=resume)
+
+
+def _run_owned(jobs_root: Path, job_id: str, *, resume: bool) -> int:
     job_dir = jobs_root / job_id
     if not (job_dir / "spec.json").exists():
         sys.stderr.write(
@@ -120,6 +149,9 @@ def _run(jobs_root: Path, job_id: str, *, resume: bool) -> int:
 
     spec_payload = json.loads((job_dir / "spec.json").read_text())
     job = read_job_from_dir(jobs_root, job_id)
+    cancel_flag = job_dir / CANCEL_FLAG_FILENAME
+    if cancel_flag.exists():
+        job = job.model_copy(update={"cancellation_requested_at": cancel_flag.stat().st_mtime})
     started_at = job.started_at if (resume and job.started_at is not None) else float(time.time())
     running = job.model_copy(
         update={
@@ -135,13 +167,15 @@ def _run(jobs_root: Path, job_id: str, *, resume: bool) -> int:
         )
     persist_job_to_dir(jobs_root, running)
     append_log_to_file(
-        jobs_root, job_id, f"job {job_id} state=running resume={resume} subprocess"
+        jobs_root, job_id, f"job {job_id} attempt={running.attempt_id} state=running resume={resume} subprocess"
     )
 
     output_dir = Path(running.output_dir)
     sink = _FileBackedSink(jobs_root=jobs_root, job_id=job_id)
     error: GenerativeJobError | None = None
     try:
+        if _hash_spec_payload(spec_payload) != running.spec_hash:
+            raise ValueError("persisted spec differs from the admitted job request")
         if running.job_kind == "search":
             from kayakgen.search.active.runner import run_search
             from kayakgen.search.active.spec import SearchSpec
@@ -172,8 +206,13 @@ def _run(jobs_root: Path, job_id: str, *, resume: bool) -> int:
     else:
         terminal_state = "succeeded"
 
-    final = read_job_from_dir(jobs_root, job_id).model_copy(
+    current = read_job_from_dir(jobs_root, job_id)
+    cancellation_time = current.cancellation_requested_at
+    if sink.should_cancel():
+        cancellation_time = (job_dir / CANCEL_FLAG_FILENAME).stat().st_mtime
+    final = current.model_copy(
         update={
+            "cancellation_requested_at": cancellation_time,
             "state": terminal_state,
             "completed_at": float(time.time()),
             "error": error,
@@ -181,10 +220,11 @@ def _run(jobs_root: Path, job_id: str, *, resume: bool) -> int:
         }
     )
     persist_job_to_dir(jobs_root, final)
+    save_attempt_state(job_dir, final.model_dump(mode="json"))
     append_log_to_file(
         jobs_root,
         job_id,
-        f"job {job_id} state={terminal_state}"
+        f"job {job_id} attempt={final.attempt_id} state={terminal_state}"
         + (f" error={error.kind}" if error else ""),
     )
 
@@ -213,11 +253,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="resume from a previously persisted state.json checkpoint",
     )
+    parser.add_argument("--attempt-id")
+    parser.add_argument("--ownership-fd", type=int)
     args = parser.parse_args(argv)
+    if (args.attempt_id is None) != (args.ownership_fd is None):
+        parser.error("attempt identity and ownership descriptor must be supplied together")
+    inherited = None if args.attempt_id is None else (args.attempt_id, args.ownership_fd)
     return _run(
         Path(args.jobs_root).expanduser().resolve(),
         args.job_id,
         resume=bool(args.resume),
+        inherited_ownership=inherited,
     )
 
 

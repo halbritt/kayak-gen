@@ -34,6 +34,12 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from kayakgen.services.generative_job_ownership import (
+    PROTOCOL_FILE, JobLease, JobOwnerBusy, JobOwnershipError, assert_current_attempt,
+    begin_attempt, locked_job, mark_subprocess_job, owner_state, protocol_is_current, record_launch_failure,
+    record_spawned, save_attempt_state,
+)
+
 JobKind = Literal["sweep", "search"]
 
 CFDInLoopEvaluatorStatus = Literal["opt_in_only", "first_class"]
@@ -165,6 +171,7 @@ class GenerativeJob(BaseModel):
     log_tail_ref: str
     resumable_from_checkpoint: bool = False
     forked_from: str | None = None
+    attempt_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
 
 
 class GenerativeJobSummary(BaseModel):
@@ -370,6 +377,7 @@ def persist_job_to_dir(
 
     import os as _os
 
+    assert_current_attempt(jobs_root / job.job_id, job.attempt_id)
     path = jobs_root / job.job_id / "job.json"
     tmp_path = path.with_suffix(".json.tmp")
     tmp_path.write_text(canonical_job_json(job) + "\n")
@@ -629,6 +637,8 @@ class InProcessGenerativeJobManager:
         return list_jobs_in_dir(self.jobs_root, state=state, job_kind=job_kind)
 
     def cancel(self, job_id: str) -> GenerativeJob:
+        if (self.jobs_root / job_id / PROTOCOL_FILE).exists() or job_id not in self._threads:
+            return SubprocessGenerativeJobManager(jobs_root=self.jobs_root).cancel(job_id)
         event = self._cancel_events.get(job_id)
         if event is not None:
             event.set()
@@ -642,25 +652,24 @@ class InProcessGenerativeJobManager:
         return job
 
     def resume(self, job_id: str) -> GenerativeJob:
-        job = self.get(job_id)
-        if job.state not in ("resumable", "failed", "cancelled"):
-            raise ValueError(
-                f"job_id={job_id} state={job.state!r} is not resumable"
-            )
-        cancel_event = threading.Event()
         with self._global_lock:
-            self._cancel_events[job_id] = cancel_event
+            job = self.get(job_id)
+            if (self.jobs_root / job_id / PROTOCOL_FILE).exists():
+                raise JobOwnershipError("subprocess job must resume through its ownership-aware manager")
+            prior = self._threads.get(job_id)
+            if prior is None or prior.is_alive():
+                raise JobOwnershipError("prior thread ownership is live or unknown; automatic takeover refused")
+            if job.state not in ("resumable", "failed", "cancelled"):
+                raise ValueError(f"job_id={job_id} state={job.state!r} is not resumable")
+            self._cancel_events[job_id] = threading.Event()
             self._job_locks.setdefault(job_id, threading.Lock())
-        thread = threading.Thread(
-            target=self._run_job,
-            name=f"generative-job-{job_id}",
-            kwargs={"job_id": job_id, "resume": True},
-            daemon=False,
-        )
-        with self._global_lock:
+            thread = threading.Thread(
+                target=self._run_job, name=f"generative-job-{job_id}",
+                kwargs={"job_id": job_id, "resume": True}, daemon=False,
+            )
             self._threads[job_id] = thread
-        thread.start()
-        return self.get(job_id)
+            thread.start()
+            return self.get(job_id)
 
     def tail_log(self, job_id: str, *, since_byte: int = 0) -> tuple[str, int]:
         return tail_log_file(self.jobs_root, job_id, since_byte=since_byte)
@@ -847,12 +856,11 @@ class SubprocessGenerativeJobManager:
     The child polls the flag between candidate emissions and shuts down
     cleanly to ``state="resumable"`` when it sees the file.
 
-    Crash survival: if the child is ``SIGKILL``'d, the parent's
-    :meth:`get` detects that the process handle is no longer alive and
-    transitions the stale ``running`` state to ``resumable`` on disk so
-    subsequent :meth:`resume` calls work. Re-resume spawns a fresh
-    child with ``--resume`` and the runner reuses the persisted
-    ``state.json`` checkpoint.
+    The runner inherits and holds a local ownership lock until its final
+    publication. Fresh managers can observe/cancel it without a process
+    handle. Recovery requires an unlocked job and proven dead process
+    identity; missing evidence stays unknown. Each successor gets a new
+    attempt token, and stale publishers cannot write job state.
     """
 
     def __init__(
@@ -884,34 +892,47 @@ class SubprocessGenerativeJobManager:
             self.jobs_root, spec_payload=spec_payload, job_kind=job_kind
         )
         persist_job_to_dir(self.jobs_root, job, index=self._index)
+        mark_subprocess_job(self.jobs_root / job.job_id)
         self._spawn(job.job_id, resume=False)
         return job
 
     def get(self, job_id: str) -> GenerativeJob:
         job = read_job_from_dir(self.jobs_root, job_id)
-        # Crash-survival: if the on-disk state says "running" but the
-        # child process is no longer alive, reconcile to "resumable".
-        if job.state == "running" and not self._is_alive(job_id):
-            reconciled = job.model_copy(
-                update={
-                    "state": "resumable",
-                    "resumable_from_checkpoint": True,
-                    "completed_at": job.completed_at or float(time.time()),
-                    "error": job.error
-                    or GenerativeJobError(
-                        kind="internal_error",
-                        message="subprocess exited without writing terminal state",
-                    ),
-                }
-            )
-            persist_job_to_dir(self.jobs_root, reconciled, index=self._index)
-            append_log_to_file(
-                self.jobs_root,
-                job_id,
-                f"job {job_id} state=resumable reconciled subprocess_crash",
-            )
-            return reconciled
-        return job
+        if job.state not in ("queued", "running"):
+            return job
+        if job.attempt_id is None or not protocol_is_current(self.jobs_root / job_id):
+            return self._unknown_owner(job)
+        try:
+            with locked_job(self.jobs_root / job_id) as lease:
+                job = read_job_from_dir(self.jobs_root, job_id)
+                lease.attempt_id = job.attempt_id
+                return self._reconcile_dead_owner(job)
+        except JobOwnerBusy:
+            return read_job_from_dir(self.jobs_root, job_id)
+
+    @staticmethod
+    def _unknown_owner(job: GenerativeJob) -> GenerativeJob:
+        return job.model_copy(update={"error": GenerativeJobError(
+            kind="internal_error",
+            message="ownership unknown; automatic replacement refused; retain the job and reconcile its prior owner",
+        )})
+
+    def _reconcile_dead_owner(self, job: GenerativeJob) -> GenerativeJob:
+        if job.state not in ("queued", "running"):
+            return job
+        if owner_state(self.jobs_root / job.job_id, job.attempt_id) != "dead":
+            return self._unknown_owner(job)
+        reconciled = job.model_copy(update={
+            "state": "resumable", "resumable_from_checkpoint": True,
+            "completed_at": job.completed_at or float(time.time()),
+            "error": GenerativeJobError(
+                kind="internal_error", message="owned subprocess exited without terminal state",
+            ),
+        })
+        persist_job_to_dir(self.jobs_root, reconciled, index=self._index)
+        save_attempt_state(self.jobs_root / job.job_id, reconciled.model_dump(mode="json"))
+        append_log_to_file(self.jobs_root, job.job_id, "state=resumable reconciled proven-dead owner")
+        return reconciled
 
     def list(
         self,
@@ -934,29 +955,16 @@ class SubprocessGenerativeJobManager:
         )
 
     def cancel(self, job_id: str) -> GenerativeJob:
+        job = read_job_from_dir(self.jobs_root, job_id)
         cancel_flag = self.jobs_root / job_id / CANCEL_FLAG_FILENAME
         cancel_flag.touch()
-        job = read_job_from_dir(self.jobs_root, job_id)
-        if job.cancellation_requested_at is None:
-            job = job.model_copy(
-                update={"cancellation_requested_at": float(time.time())}
-            )
-            persist_job_to_dir(self.jobs_root, job, index=self._index)
-        return job
+        # Only the runner writes its job state while owning the lock. The
+        # request timestamp is derived from the flag and persisted by it.
+        return job.model_copy(update={
+            "cancellation_requested_at": job.cancellation_requested_at or cancel_flag.stat().st_mtime,
+        })
 
     def resume(self, job_id: str) -> GenerativeJob:
-        job = self.get(job_id)  # reconcile crashed state first
-        if job.state not in ("resumable", "failed", "cancelled"):
-            raise ValueError(
-                f"job_id={job_id} state={job.state!r} is not resumable"
-            )
-        # Clear any leftover cancel flag from the previous run.
-        cancel_flag = self.jobs_root / job_id / CANCEL_FLAG_FILENAME
-        if cancel_flag.exists():
-            try:
-                cancel_flag.unlink()
-            except OSError:  # pragma: no cover
-                pass
         self._spawn(job_id, resume=True)
         return self.get(job_id)
 
@@ -977,33 +985,76 @@ class SubprocessGenerativeJobManager:
     # -- internal ------------------------------------------------------------
 
     def _spawn(self, job_id: str, *, resume: bool) -> None:
+        job_dir = self.jobs_root / job_id
+        if not protocol_is_current(job_dir):
+            raise JobOwnershipError("legacy or unsupported job ownership unknown; automatic execution refused")
+        with locked_job(job_dir) as lease:
+            job = read_job_from_dir(self.jobs_root, job_id)
+            lease.attempt_id = job.attempt_id
+            if resume:
+                job = self._require_resumable(job)
+            elif job.attempt_id is not None:
+                raise JobOwnershipError("a new start cannot overwrite an existing attempt")
+            prepared = self._prepare_attempt(job, lease, resume=resume)
+            self._launch_attempt(prepared, lease, resume=resume)
+
+    def _require_resumable(self, job: GenerativeJob) -> GenerativeJob:
+        if job.attempt_id is None:
+            raise JobOwnershipError("legacy job ownership unknown; automatic resume refused")
+        job = self._reconcile_dead_owner(job)
+        if job.state not in ("resumable", "failed", "cancelled"):
+            raise JobOwnershipError(f"job_id={job.job_id} state={job.state!r} is not resumable")
+        if owner_state(self.jobs_root / job.job_id, job.attempt_id) != "dead":
+            raise JobOwnershipError("prior owner is live or unknown; automatic resume refused")
+        return job
+
+    def _prepare_attempt(self, job: GenerativeJob, lease: JobLease, *, resume: bool) -> GenerativeJob:
+        spec = json.loads((lease.job_dir / "spec.json").read_text())
+        if _hash_spec_payload(spec) != job.spec_hash:
+            raise JobOwnershipError("persisted spec differs from the admitted job request")
+        attempt_id = begin_attempt(lease)
+        if resume:
+            (lease.job_dir / CANCEL_FLAG_FILENAME).unlink(missing_ok=True)
+        prepared = job.model_copy(update={
+            "attempt_id": attempt_id, "state": "queued", "completed_at": None,
+            "cancellation_requested_at": None, "error": None,
+            "resumable_from_checkpoint": False,
+        })
+        persist_job_to_dir(self.jobs_root, prepared, index=self._index)
+        append_log_to_file(self.jobs_root, job.job_id, f"attempt={attempt_id} admitted resume={resume}")
+        return prepared
+
+    def _launch_attempt(self, job: GenerativeJob, lease: JobLease, *, resume: bool) -> None:
         import subprocess as _subprocess
 
-        argv: list[str] = [
-            self._python,
-            "-m",
-            "kayakgen.services.generative_jobs_runner",
-            job_id,
-            str(self.jobs_root),
-        ]
+        argv = [self._python, "-m", "kayakgen.services.generative_jobs_runner",
+                job.job_id, str(self.jobs_root), "--attempt-id", job.attempt_id,
+                "--ownership-fd", str(lease.fd)]
         if resume:
             argv.append("--resume")
-        proc = _subprocess.Popen(
-            argv,
-            stdout=_subprocess.DEVNULL,
-            stderr=_subprocess.DEVNULL,
-            cwd=str(self.jobs_root),
-            start_new_session=True,
-        )
+        try:
+            proc = _subprocess.Popen(
+                argv, stdout=_subprocess.DEVNULL, stderr=_subprocess.DEVNULL,
+                cwd=str(self.jobs_root), start_new_session=True, pass_fds=(lease.fd,),
+            )
+        except OSError:
+            record_launch_failure(lease)
+            failed = job.model_copy(update={
+                "state": "failed", "completed_at": float(time.time()),
+                "error": GenerativeJobError(kind="internal_error", message="subprocess launch failed"),
+            })
+            persist_job_to_dir(self.jobs_root, failed, index=self._index)
+            save_attempt_state(lease.job_dir, failed.model_dump(mode="json"))
+            raise
+        record_spawned(lease, proc.pid, exited=proc.poll() is not None)
         with self._global_lock:
-            self._processes[job_id] = proc
+            self._processes[job.job_id] = proc
 
     def _is_alive(self, job_id: str) -> bool:
         proc = self._processes.get(job_id)
         if proc is None:
-            # No process handle: either the job was started by a previous
-            # parent and we don't know its PID, or it never spawned. The
-            # safe assumption is "not alive" so reconciliation kicks in.
+            # Local-handle observation only; durable ownership decisions
+            # use the runner lock and process identity, never this map.
             return False
         return proc.poll() is None
 

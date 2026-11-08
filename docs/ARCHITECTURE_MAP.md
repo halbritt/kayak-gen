@@ -187,6 +187,18 @@ The `cli/` directory carries seven sibling modules used by `main.py`:
 | `kayakgen stability residual-plot` | RFC 0058 stage-3 placeholder SVG residual plot for a stability fit | SVG file |
 | `kayakgen evaluate ... --turning [--turning-heel-deg N]` | opt-in turning + edged-waterline metrics (RFC 0053) | adds `turning_metrics` to JSON |
 
+## Local job ownership
+
+`services/generative_job_ownership.py` (RFC 0075) enforces the local Linux
+subprocess namespace: `ownership-protocol.json`, runner-held `ownership.lock`,
+current `owner.json`, and
+`attempts/<token>/{admitting,starting,running,launch_failed,job}.json`.
+Managed `GenerativeJob.attempt_id` identifies the writer; missing legacy data
+remains unknown. The process identity includes host, boot and start ticks.
+State publication requires the current lease/token; proven-dead reconciliation
+and successor admission hold the namespace lock. Existing algorithm artifacts,
+manifest authority and derived job index remain separate.
+
 ## Durable artifact types
 
 - **Hull JSON**: `kayakgen.model.hull.Hull` record. Stable schema; SHA-256

@@ -23,6 +23,14 @@ claim/readiness/source-use literal exposed in code is documented here.
 | **Versioned v2 physical identity** | `distribution_v2_v2:<sha256>` returned by `Hull.design_hash()` for length and the complete nested v2 spec. The scheme prefix is part of identity and must not be stripped or matched by suffix. Lofted physical identities remain their existing bare SHA-256 values. |
 | **Legacy design hash** | `Hull.legacy_design_hash()` reproduces the pre-RFC-0068 scalar-only algorithm. Useful for historical lookup; incomplete for v2 shape and never sufficient to reaccept a fit or assert current physical equivalence. |
 
+## Generative execution ownership
+
+| Term | Definition |
+| --- | --- |
+| **Job attempt** | RFC 0075 execution of an admitted GenerativeJob, identified by `attempt_id`; a successor gets a new token and preserves prior attempt metadata. |
+| **Ownership lease** | The same-host OS lock held by the admitting manager and inherited into the actual runner until its final publication. A job-state write also needs its current token. |
+| **Unknown ownership** | Missing, malformed, foreign-host or legacy ownership evidence. It does not prove a dead owner and cannot authorize automatic replacement. |
+
 ## Geometry
 
 | Term | Definition |

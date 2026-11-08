@@ -19,6 +19,7 @@ from kayakgen.services.generative_jobs import (
     persist_job_to_dir,
 )
 from kayakgen.services.generative_jobs_runner import _run as run_subprocess_entry
+from kayakgen.services.generative_job_ownership import mark_subprocess_job
 
 
 def _sweep_payload(values: list[float] | None = None) -> dict[str, object]:
@@ -228,6 +229,7 @@ def test_subprocess_runner_cancel_flag_requires_resumable_and_cleans_flag(
         }
     )
     persist_job_to_dir(tmp_path, job)
+    mark_subprocess_job(tmp_path / job.job_id)
     cancel_flag = tmp_path / job.job_id / CANCEL_FLAG_FILENAME
     cancel_flag.touch()
 

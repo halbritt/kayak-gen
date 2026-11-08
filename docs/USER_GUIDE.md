@@ -732,6 +732,33 @@ timestamps. The job artifacts live under
 `~/.local/share/kayakgen/generative_jobs/` by default; override that root for
 the web app with `KAYAKGEN_GENERATIVE_JOBS_ROOT`.
 
+### Managed subprocess job ownership (RFC 0075)
+
+The local subprocess backend requires Linux process identity and POSIX locks.
+A runner holds `ownership.lock` throughout its execution, including final writes.
+`owner.json` records its attempt, host, boot, PID and process start identity;
+`attempts/<id>/` retains admission/worker metadata and final/reconciled job state.
+The current `job.json` carries `attempt_id`. A fresh manager observes/cancels the
+worker without having its original process handle. Cooperative cancellation is
+acknowledged through the durable flag; the worker persists the timestamp.
+
+A successor requires a free lock and proven dead owner. Missing, malformed,
+foreign-host or legacy evidence gives an ownership-unknown diagnostic and blocks
+automatic resume. Switching to the in-process manager cannot take over a managed
+subprocess job or an unknown prior thread. In-process resume stays with its
+original manager after that manager has observed its old thread terminate. A changed `spec.json` is refused before another attempt starts.
+Keep job directories on a local same-host filesystem. Other platforms can use
+in-process operation, whose lifecycle guarantees remain separate.
+
+Drain legacy workers before upgrading. Old namespaces remain inspectable but
+are not automatically adopted. Retain uncertain jobs and reconcile their old
+owner before explicitly creating new work. Never delete an active lock, write
+raw CLI outputs into an active managed job, strip attempt metadata, or run old
+and new managers against the same active namespace. After new writes, rollback
+requires draining owned work and a compatible reader or forward repair while
+preserving attempt history. Cancellation is checked between candidates; an
+individual evaluator has no newly promised fixed cancellation latency.
+
 ### `calibration`
 
 Calibration-campaign ingest, acceptance, and artifact tooling

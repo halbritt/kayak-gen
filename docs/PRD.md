@@ -68,6 +68,12 @@ This section describes current behavior, not the whole roadmap.
 - **Staged command lifetime.** Streamed local solver stages enforce their command timeout while draining output, terminate the owned command group on expiry, and retain a bounded returned output tail with complete selected disk logs (RFC 0071). This is a command execution bound, not a numerical-convergence or whole-job guarantee.
 
 - **Retained CFD attempts.** Repeated full-input preparation and terminal execution preserve prior results. `cfd prepare --new-attempt` (also the web create body's `new_attempt`) publishes a distinct retained history; input conflicts, incomplete preparation and active local writers refuse explicitly (RFC 0070).
+
+- **Local subprocess ownership.** Managed generative jobs on Linux hold an
+  OS lease in the actual runner, retain attempt/process evidence, and permit
+  successors only after proven-dead reconciliation (RFC 0075). Unknown or legacy
+  ownership refuses automatic resume. In-process operation remains available
+  separately; no cross-host or fixed cancellation-latency guarantee is implied.
 - **Installation and local operation.** The Python package and CLI run locally; deployment and packaging work continues through RFC-backed slices. Optional extras: `desktop`, `web`, `browser`, `builder`, `calibration`, `report`, `dev`.
 
 ## Roadmap And Deferrals

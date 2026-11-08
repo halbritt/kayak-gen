@@ -45,6 +45,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   rigid sinkage/trim pose, with actual-keel reference and explicit infeasible
   load bounds. No-pose legacy evaluations retain their existing behavior.
 
+- RFC 0075 / KAYGEN-10: subprocess jobs retain a runner-held ownership lock
+  across manager restarts. Proven-dead recovery, per-attempt identity/history
+  and fenced state publication prevent duplicate resume and stale writes.
+  Legacy or unknown ownership refuses automatic replacement.
+
 - RFC 0067 / KAYGEN-3: manifest-backed sweep/search/CFD outputs preserve run
   identity and expected hashes across index reconstruction. Same-basename runs
   remain distinct; reindex reports incomplete legacy provenance explicitly.

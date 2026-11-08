@@ -7,6 +7,11 @@ inputs and an explicit scheme, with unchanged lofted/record/content identity and
 no historical evidence reacceptance. This closes the identity slice; evaluation
 context, numerical admission and operating-state work remain independently tracked.
 
+RFC 0075 / KAYGEN-10 landed local Linux subprocess ownership: runner-held
+leases, per-attempt process evidence, fenced state writes and proven-dead
+recovery. Legacy namespaces require operator reconciliation; this adds no
+cross-host backend or unconditional cancellation deadline.
+
 This roadmap is the contributor-facing reconciliation point for the current
 RFC index, the older deferred workflow queue, and the workflow 0048 successor
 RFC backlog. The RFC index remains authoritative for RFC status. The PRD and
