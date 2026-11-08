@@ -126,3 +126,4 @@ What is *not* on this list, and why:
 ## Numerical status and diagnostic results
 
 Resistance estimates carry numerical quality separately from physical claims. Unassessed finite output is diagnostic and cannot drive a ranked resistance frontier even with exploratory opt-in. Measuring a method-specific adequate policy remains separate from physical calibration.
+RFC 0073 binds explicit evaluation inputs to saved results and renders selected results in reports. Default compatibility computations disclose their assumptions; old missing context remains unknown.

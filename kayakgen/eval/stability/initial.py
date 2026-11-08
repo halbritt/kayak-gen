@@ -7,7 +7,7 @@ attempting a sinkage or trim solve.
 from __future__ import annotations
 
 from kayakgen.eval.contract import LoadCase, StabilityResult
-from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
+from kayakgen.eval.hydrostatics import Hydrostatics, evaluate as evaluate_hydrostatics
 from kayakgen.eval.stability.load_case import _gm0_for_load_case
 from kayakgen.model.hull import Hull
 
@@ -15,12 +15,14 @@ from kayakgen.model.hull import Hull
 def evaluate_initial_stability(
     hull: Hull,
     load_case: LoadCase | None = None,
+    *,
+    hydrostatics: Hydrostatics | None = None,
 ) -> StabilityResult:
     """Evaluate design-waterline initial GM for ``hull`` and ``load_case``."""
     load_case = load_case or LoadCase()
     if load_case.total_mass_kg <= 0:
         raise ValueError("load case total mass must be positive")
-    hydro = evaluate_hydrostatics(hull)
+    hydro = hydrostatics if hydrostatics is not None else evaluate_hydrostatics(hull)
     kg_above_keel_m = (
         load_case.load_kg_above_keel_m_for_draft(hull.draft_m)
         if load_case.uses_longitudinal_components

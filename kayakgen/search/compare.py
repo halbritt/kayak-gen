@@ -418,6 +418,8 @@ def _candidate_summary(root: Path, record: CandidateRecord) -> CandidateSummary:
     evaluation = _load_evaluation(root, record)
     if evaluation is not None and not design_validity.findings:
         design_validity = evaluation.design_validity
+    if evaluation is not None:
+        provenance["evaluation_context_hash"] = evaluation.context_hash
     resistance_claim = None
     if evaluation is not None and evaluation.resistance is not None:
         resistance = evaluation.resistance

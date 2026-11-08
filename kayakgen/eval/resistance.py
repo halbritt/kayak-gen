@@ -51,6 +51,7 @@ from kayakgen.eval.contract import ResistanceCurve, ResistanceMetadata
 from kayakgen.model.hull import Hull
 from kayakgen.model.operating_state import OperatingPose
 
+NUMERICAL_METHOD_VERSION = "michell_trapezoid_v1"
 GRAVITY_M_S2 = 9.80665
 SEAWATER_DENSITY_KG_M3 = 1025.0
 SEAWATER_KINEMATIC_VISCOSITY_M2_S = 1.19e-6  # 15 °C

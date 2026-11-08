@@ -15,9 +15,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from kayakgen.eval.contract import (
     EvaluationResult,
+    EvaluationContext,
     LoadCase,
-    ResistanceCurve,
     ResistanceMetadata,
+    ResistanceCurve,
     StabilityResult,
 )
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
@@ -59,13 +60,20 @@ _CFD_STATUS_LINE_ALIASES: tuple[str, ...] = ("cfd_status_lines",)
 def metrics_from_state(state: dict[str, Any], stations: int = 60) -> dict[str, Any]:
     """Single-shot read model: hydrostatics + at-speed resistance."""
     hull = hull_from_web_state(state)
-    h = evaluate_hydrostatics(hull, stations=stations)
     target_kt = float(state.get("target_speed_kt", 3.5))
-    V_ms = target_kt * KNOTS_TO_MS
-    r = evaluate_resistance(
-        hull, V_ms, Sw=h.wetted_surface_m2, n_stations=400, n_depths=20, n_theta=30
-    )
-    resistance_claim = ResistanceMetadata()
+    if state.get("evaluation_context") is not None or state.get("load_case") is not None:
+        result = evaluation_for_state(state)
+        h, curve = result.hydrostatics, result.resistance
+        index = min(range(len(curve.V_knots)), key=lambda i: abs(curve.V_knots[i]-target_kt))
+        r = {key: getattr(curve, key)[index] for key in ("Fn", "Rv_N", "Rw_N", "Rt_N")}
+        resistance_claim = curve.metadata
+    else:
+        h = evaluate_hydrostatics(hull, stations=stations)
+        r = evaluate_resistance(
+            hull, target_kt*KNOTS_TO_MS, Sw=h.wetted_surface_m2,
+            n_stations=400, n_depths=20, n_theta=30,
+        )
+        resistance_claim = ResistanceMetadata()
     advisory = design_advisory(
         hull,
         cp=h.Cp_actual,
@@ -95,9 +103,10 @@ def metrics_from_state(state: dict[str, Any], stations: int = 60) -> dict[str, A
     }
 
 
-def hydrostatics_view_model(hull: Hull) -> dict[str, Any]:
+def hydrostatics_view_model(hull: Hull, *, hydro=None) -> dict[str, Any]:
     """Compute hydrostatics and advisories independently of resistance."""
-    hydro = evaluate_hydrostatics(hull, stations=60)
+    if hydro is None:
+        hydro = evaluate_hydrostatics(hull, stations=60)
     advisory = design_advisory(
         hull,
         cp=hydro.Cp_actual,
@@ -111,7 +120,7 @@ def hydrostatics_view_model(hull: Hull) -> dict[str, Any]:
         _row("displacement", f"{hydro.displaced_mass_kg:.1f}"),
         _row("wetted_surface", f"{hydro.wetted_surface_m2:.3f}"),
         _row("waterplane_area", f"{hydro.waterplane_area_m2:.3f}"),
-        _row("gm0", f"{hydro.GM0_m:.3f}"),
+        _row("gm0", "unavailable" if hydro.GM0_m is None else f"{hydro.GM0_m:.3f}"),
         _row("cp_actual", f"{hydro.Cp_actual:.3f}"),
         _row("cm_actual", f"{hydro.Cm_actual:.3f}"),
         _row("l_over_bwl", f"{advisory.l_over_bwl:.2f}"),
@@ -126,14 +135,16 @@ def hydrostatics_view_model(hull: Hull) -> dict[str, Any]:
 def analysis_view_model(state: dict[str, Any]) -> dict[str, Any]:
     """Build unit-labeled analysis rows with the fixed five-speed curve."""
     hull = hull_from_web_state(state)
-    hydro_model = hydrostatics_view_model(hull)
-    resistance = resistance_curve(
-        hull,
-        V_knots=np.array(DISPLAY_CURVE_SPEEDS_KT, dtype=float),
-        n_stations=400,
-        n_depths=20,
-        n_theta=30,
-    )
+    if state.get("evaluation_context") is not None or state.get("load_case") is not None:
+        result = evaluation_for_state(state)
+        hydro_model = hydrostatics_view_model(hull, hydro=result.hydrostatics)
+        resistance = result.resistance
+    else:
+        hydro_model = hydrostatics_view_model(hull)
+        resistance = resistance_curve(
+            hull, V_knots=np.array(DISPLAY_CURVE_SPEEDS_KT, dtype=float),
+            n_stations=400, n_depths=20, n_theta=30,
+        )
     resistance_rows = [
         {
             "speed_kt": speed,
@@ -180,6 +191,7 @@ def resistance_table_for_hull(
     target_speed_kt: float,
     *,
     target_tolerance_kt: float = 0.05,
+    resistance: ResistanceCurve | None = None,
 ) -> dict[str, Any]:
     """Resistance table rows with a focused target-speed row.
 
@@ -195,13 +207,14 @@ def resistance_table_for_hull(
         speeds.append(target_speed_kt)
     speeds = sorted(speeds)
 
-    resistance = resistance_curve(
-        hull,
-        V_knots=np.array(speeds, dtype=float),
-        n_stations=400,
-        n_depths=20,
-        n_theta=30,
-    )
+    if resistance is None:
+        resistance = resistance_curve(
+            hull,
+            V_knots=np.array(speeds, dtype=float),
+            n_stations=400,
+            n_depths=20,
+            n_theta=30,
+        )
     rows = []
     for speed, fn, rv, rw, rt in zip(
         resistance.V_knots,
@@ -540,27 +553,18 @@ def mesh_diagnostics_rows_from_state(
 
 
 def evaluation_for_state(state: dict[str, Any]) -> EvaluationResult:
-    """Run all evaluators on the state — used by the REST `/api/evaluate` route."""
+    """Evaluate REST inputs with a retained, validated context snapshot."""
     hull = hull_from_web_state(state)
-    h = evaluate_hydrostatics(hull)
-
-    rc: ResistanceCurve | None
-    try:
-        rc = resistance_curve(hull)
-    except Exception:
-        rc = None
-    design_validity = evaluate_design_validity(
-        hull,
-        cp=h.Cp_actual,
-        displaced_mass_kg=h.displaced_mass_kg,
-        surface=("web",),
-    )
-    return EvaluationResult(
-        hull_hash=hull.hash(),
-        hydrostatics=h,
-        resistance=rc,
-        design_validity=design_validity,
-    )
+    raw_context = state.get("evaluation_context")
+    if raw_context is not None:
+        context = EvaluationContext.model_validate(raw_context)
+    else:
+        settings: dict[str, Any] = {}
+        if state.get("load_case") is not None:
+            settings = {"load_case": LoadCase.model_validate(state["load_case"]),
+                        "input_origin": "supplied", "equilibrium": True}
+        context = EvaluationContext.for_hull(hull, **settings)
+    return evaluate_with_context(hull, context)
 
 
 def evaluation_payload(state: dict[str, Any]) -> dict[str, Any]:
@@ -668,19 +672,14 @@ class TargetDraftMismatchReport(BaseModel):
 def solve_target_draft(hull: Hull, load_case: LoadCase) -> StabilityResult:
     """Solve upright sinkage for the given load (no longitudinal trim).
 
-    Wraps :func:`evaluate_equilibrium_stability` with a load case stripped
-    of explicit longitudinal components so the centered sinkage-only
-    solver path is used even if the caller supplied a component list. The
-    returned :class:`StabilityResult` carries the solved equilibrium
-    draft, residuals, iterations, and the buoyancy/load summary fields
-    populated by the underlying solver.
+    Explicit components retain their mass and vertical CG on the fixed-body
+    path; moment balance is deliberately not solved by this operation.
+    Compact legacy lofted loads preserve their historical target-draft path.
     """
-    upright_load = (
-        load_case.model_copy(update={"components": []})
-        if load_case.uses_longitudinal_components
-        else load_case
-    )
-    return evaluate_equilibrium_stability(hull, upright_load)
+    if hull.geometry_kind == "distribution_v2" or load_case.uses_longitudinal_components:
+        from kayakgen.eval.stability.operating_equilibrium import evaluate_fixed_body_equilibrium
+        return evaluate_fixed_body_equilibrium(hull, load_case, solve_trim=False)
+    return evaluate_equilibrium_stability(hull, load_case)
 
 
 def solve_target_trim(hull: Hull, load_case: LoadCase) -> StabilityResult:
@@ -692,6 +691,9 @@ def solve_target_trim(hull: Hull, load_case: LoadCase) -> StabilityResult:
     trim solver receives a non-empty components list; the result will
     converge near zero trim in that case.
     """
+    if hull.geometry_kind == "distribution_v2":
+        from kayakgen.eval.stability.operating_equilibrium import evaluate_fixed_body_equilibrium
+        return evaluate_fixed_body_equilibrium(hull, load_case, solve_trim=True)
     if load_case.uses_longitudinal_components:
         trim_load = load_case
     else:
@@ -751,8 +753,17 @@ def target_draft_load_mismatch(
     if load_case.total_mass_kg <= 0:
         raise ValueError("load case total mass must be positive")
 
-    hull_at_draft = hull.model_copy(update={"draft_m": draft_m})
-    hydro = evaluate_hydrostatics(hull_at_draft)
+    if hull.geometry_kind == "distribution_v2":
+        from kayakgen.model.operating_state import OperatingPose
+        from kayakgen.eval.immersed_geometry import immersed_geometry
+        reference = immersed_geometry(hull, OperatingPose()).reference_draft_m()
+        hydro = evaluate_hydrostatics(
+            hull, pose=OperatingPose(sinkage_m=draft_m-reference),
+            density_kg_m3=load_case.seawater_density_kg_m3,
+        )
+    else:
+        hull_at_draft = hull.model_copy(update={"draft_m": draft_m})
+        hydro = evaluate_hydrostatics(hull_at_draft)
     actual_mass = float(hydro.displaced_volume_m3 * load_case.seawater_density_kg_m3)
     expected_mass = float(load_case.total_mass_kg)
     mismatch_kg = actual_mass - expected_mass
@@ -802,3 +813,95 @@ def _cfd_status_from_state(state: dict[str, Any]) -> str:
             if text.startswith("Status:"):
                 return text.split(":", 1)[1].strip() or "unavailable"
     return "unavailable"
+
+
+def evaluate_with_context(
+    hull: Hull,
+    context: "EvaluationContext",
+    *,
+    include_resistance: bool = True,
+) -> EvaluationResult:
+    """Evaluate with one input snapshot and one realized operating pose."""
+    from kayakgen.eval.contract import LoadCase
+    from kayakgen.eval.resistance import NUMERICAL_METHOD_VERSION
+    from kayakgen.eval.stability import evaluate_initial_stability
+
+    if (
+        hull.record_hash() != context.hull_record_hash
+        or hull.design_hash() != context.hull_design_hash
+        or hull.geometry_kind != context.geometry_kind
+    ):
+        raise ValueError("evaluation hull does not match requested context")
+    if include_resistance and dict(context.evaluator_versions).get("resistance") != NUMERICAL_METHOD_VERSION:
+        raise ValueError("requested numerical method version is unavailable; create a new context")
+    if dict(context.evaluator_versions).get("hydrostatics") != "mesh_integral_v1":
+        raise ValueError("requested hydrostatics version is unavailable; create a new context")
+    load = LoadCase.model_validate(context.load_case.model_dump(mode="json"))
+    pose = None
+    if context.equilibrium:
+        from kayakgen.eval.stability.operating_equilibrium import (
+            OperatingEquilibriumOptions, evaluate_fixed_body_equilibrium,
+        )
+        stability = evaluate_fixed_body_equilibrium(
+            hull, load, solve_trim=load.uses_longitudinal_components,
+            options=OperatingEquilibriumOptions(
+                tolerance_kg=context.equilibrium_tolerance_kg,
+                moment_tolerance_kg_m=context.moment_tolerance_kg_m,
+                max_iterations=context.equilibrium_max_iterations,
+                max_trim_angle_deg=context.max_trim_angle_deg,
+                stations=context.hydrostatic_stations,
+            ),
+        )
+        if stability.status != "converged":
+            raise ValueError(
+                f"requested load equilibrium did not converge: load={load.total_mass_kg:g} kg; "
+                f"displacement={stability.displaced_mass_kg:g} kg; {stability.warnings}"
+            )
+        from kayakgen.model.operating_state import OperatingPose
+        pose = OperatingPose(sinkage_m=stability.sinkage_m or 0.0,
+                             trim_angle_deg=stability.trim_angle_deg or 0.0)
+        context = context.model_copy(update={"sinkage_m": pose.sinkage_m,
+                                             "trim_angle_deg": pose.trim_angle_deg})
+    else:
+        stability = None
+        if context.sinkage_m or context.trim_angle_deg or hull.geometry_kind == "distribution_v2":
+            from kayakgen.model.operating_state import OperatingPose
+            pose = OperatingPose(sinkage_m=context.sinkage_m, trim_angle_deg=context.trim_angle_deg)
+    pose_args = {"pose": pose} if pose is not None else {}
+    hydro = evaluate_hydrostatics(hull, stations=context.hydrostatic_stations,
+                                 density_kg_m3=load.seawater_density_kg_m3, **pose_args)
+    if not context.equilibrium:
+        if pose is None:
+            stability = evaluate_initial_stability(hull, load, hydrostatics=hydro)
+        else:
+            from kayakgen.eval.immersed_geometry import immersed_geometry
+            import math
+            reference = immersed_geometry(hull, pose).reference_draft_m()
+            draft = reference + pose.sinkage_m
+            if draft <= 0:
+                raise ValueError("operating waterplane is below the midship keel")
+            kg = load.load_kg_above_keel_m_for_draft(draft)
+            lcg = load.load_lcg_m_for_draft(draft)
+            angle = math.radians(pose.trim_angle_deg)
+            gm_correction = (.25 - kg) * math.cos(angle) + lcg * math.sin(angle)
+            stability = StabilityResult(
+                load_case=load, method="fixed_operating_pose", status="computed",
+                initial_GM0_m=None if hydro.GM0_m is None else hydro.GM0_m + gm_correction,
+                load_mass_kg=load.total_mass_kg, displaced_mass_kg=hydro.displaced_mass_kg,
+                displacement_error_kg=hydro.displaced_mass_kg-load.total_mass_kg,
+                sinkage_m=pose.sinkage_m, trim_angle_deg=pose.trim_angle_deg,
+                warnings=["fixed_operating_pose_not_equilibrium_solved"],
+            )
+    curve = resistance_curve(
+        hull, V_knots=np.asarray(context.speeds_knots), n_stations=context.n_stations,
+        n_depths=context.n_depths, n_theta=context.n_theta,
+        rho=load.seawater_density_kg_m3, nu=context.kinematic_viscosity_m2_s, **pose_args,
+        **({"numerical_relative_tolerance": context.numerical_relative_tolerance}
+           if context.numerical_relative_tolerance is not None else {}),
+    ) if include_resistance else None
+    validity = evaluate_design_validity(
+        hull, cp=hydro.Cp_actual, displaced_mass_kg=hydro.displaced_mass_kg,
+    )
+    return EvaluationResult(hull_hash=hull.record_hash(), context=context,
+                            hydrostatics=hydro, stability=stability, resistance=curve,
+                            design_validity=validity)

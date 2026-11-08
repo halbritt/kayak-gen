@@ -20,6 +20,8 @@ from __future__ import annotations
 import base64
 import hashlib
 import io
+
+import numpy as np
 import json
 import re
 from datetime import datetime, timezone
@@ -40,6 +42,7 @@ from kayakgen.eval.stability import (
     evaluate_equilibrium_stability,
     evaluate_initial_stability,
 )
+from kayakgen.eval.contract import EvaluationResult
 from kayakgen.model.hull import Hull
 from kayakgen.search.compare import build_comparison_report
 
@@ -112,6 +115,7 @@ class DesignReportRequest(BaseModel):
     html_out: Path
     pdf_out: Path | None = None
     from_run: Path | None = None
+    evaluation_path: Path | None = None
 
 
 class DesignReportResult(BaseModel):
@@ -134,6 +138,7 @@ def render_design_report(
     pdf_out: Path | None = None,
     hull_source_path: Path | None = None,
     timestamp: datetime | None = None,
+    evaluation: "EvaluationResult | None" = None,
 ) -> DesignReportResult:
     """Render an RFC 0055 design report and write it to ``html_out``.
 
@@ -158,6 +163,11 @@ def render_design_report(
             "install via `pip install 'kayakgen[report]'`"
         ) from exc
 
+    if evaluation is not None:
+        if evaluation.hull_hash != hull.record_hash():
+            raise ValueError("selected evaluation does not match report hull")
+        # Revalidate snapshots even if callers modified a mutable result object.
+        evaluation = EvaluationResult.model_validate(evaluation.model_dump(mode="json"))
     html_out = Path(html_out)
     pdf_out_path = Path(pdf_out) if pdf_out is not None else None
 
@@ -168,6 +178,7 @@ def render_design_report(
         from_run=from_run,
         hull_source_path=hull_source_path,
         timestamp=timestamp,
+        evaluation=evaluation,
     )
     section_ids = [section["id"] for section in context["sections"]]
 
@@ -221,11 +232,26 @@ def _assemble_context(
     from_run: Path | None,
     hull_source_path: Path | None,
     timestamp: datetime,
+    evaluation: "EvaluationResult | None" = None,
 ) -> dict[str, Any]:
     sections: list[dict[str, Any]] = []
     artifacts: list[dict[str, str]] = []
 
     header = _section_header(hull, hull_source_path, timestamp)
+    if evaluation is not None:
+        header["context_hash"] = evaluation.context_hash or "unknown (legacy evaluation)"
+        header["evaluation_context"] = (
+            evaluation.context.model_dump_json(indent=2) if evaluation.context else "unknown"
+        )
+        header["load_total_mass_kg"] = (
+            evaluation.context.load_case.total_mass_kg if evaluation.context else None
+        )
+    else:
+        from kayakgen.eval.contract import EvaluationContext
+        default_context = EvaluationContext.for_hull(hull, hydrostatic_stations=150)
+        header["context_hash"] = default_context.fingerprint() + " (fresh legacy-default evaluation)"
+        header["evaluation_context"] = default_context.model_dump_json(indent=2)
+        header["load_total_mass_kg"] = LoadCase().total_mass_kg
     sections.append(header)
 
     parameters = _section_parameters(hull)
@@ -234,25 +260,45 @@ def _assemble_context(
     rendered_views = _section_rendered_views(hull)
     sections.append(rendered_views)
 
-    hydro = evaluate_hydrostatics(hull)
-    hydrostatics = _section_hydrostatics(hydro)
-    sections.append(hydrostatics)
-
-    load_case = LoadCase()
-    initial_stability = evaluate_initial_stability(hull, load_case)
-    equilibrium = evaluate_equilibrium_stability(hull, load_case)
-    high_angle_block = _safe_high_angle(hull, load_case)
-    stability = _section_stability(initial_stability, equilibrium, high_angle_block)
-    sections.append(stability)
-
-    resistance = resistance_curve(hull)
-    resistance_section = _section_resistance(resistance)
-    sections.append(resistance_section)
-
-    mesh_section = _section_mesh(hull)
+    hydro = evaluation.hydrostatics if evaluation is not None else evaluate_hydrostatics(hull)
+    sections.append(_section_hydrostatics(hydro))
+    if evaluation is None:
+        load_case = LoadCase()
+        initial_stability = evaluate_initial_stability(hull, load_case)
+        equilibrium = evaluate_equilibrium_stability(hull, load_case)
+        high_angle_block = _safe_high_angle(hull, load_case)
+        resistance = resistance_curve(hull)
+        mesh_section = _section_mesh(hull)
+    else:
+        stored = evaluation.stability
+        is_initial = stored is not None and stored.method == "design_waterline_initial"
+        initial_stability = stored if is_initial else None
+        equilibrium = stored if not is_initial else None
+        curve = stored.gz_curve if stored is not None else None
+        high_angle_block = None if curve is None else {
+            "available": curve.status == "computed", "result_semantics": curve.result_semantics,
+            "body_profile": curve.body_type, "warnings": curve.warnings,
+            "assumptions": curve.assumptions, "heel_grid_deg": curve.heel_grid_deg,
+            "summary": {"max_gz_m": curve.max_gz_m,
+                        "heel_at_max_gz_deg": curve.heel_at_max_gz_deg},
+        }
+        resistance = evaluation.resistance
+        mesh_section = {"id": "mesh", "title": "Mesh and readiness", "parts": [],
+                        "notice": "Mesh diagnostics were not recorded in the selected evaluation."}
+    sections.append(_section_stability(initial_stability, equilibrium, high_angle_block))
+    if resistance is None:
+        sections.append({"id": "resistance", "title": "Resistance", "rows": [],
+                         "claim_state": "not_recorded", "accepted_uses": [], "warnings": [],
+                         "notice": "Resistance was not recorded in the selected evaluation."})
+    else:
+        sections.append(_section_resistance(resistance))
     sections.append(mesh_section)
 
-    comparison = _section_comparison(hull, from_run)
+    comparison = _section_comparison(
+        hull, from_run,
+        context_hash=evaluation.context_hash if evaluation is not None else None,
+        require_context=evaluation is not None,
+    )
     sections.append(comparison)
 
     if hull_source_path is not None:
@@ -280,11 +326,8 @@ def _section_header(
         "title": "Header",
         "hull_name": hull.name or "untitled",
         "record_hash": hull.hash(),
-        # RFC 0049 reserves a separate ``Hull.design_hash()``. Until that
-        # lands, the record hash is the only stable identifier. Tag the
-        # second slot honestly so the report reads correctly.
-        "design_hash": hull.hash(),
-        "design_hash_note": "record_hash mirrored; RFC 0049 design_hash() pending",
+        "design_hash": hull.design_hash(),
+        "design_hash_note": "physical identity; distinct from the full record hash",
         "kayakgen_version": _kayakgen_version(),
         "timestamp_iso": timestamp.isoformat(),
         "hull_source": str(hull_source_path) if hull_source_path else None,
@@ -317,8 +360,8 @@ def _section_rendered_views(hull: Hull) -> dict[str, Any]:
         "preview_alt": "hull plus deck 3D preview (uncalibrated_geometry view)",
         "preview_png_base64": preview_png,
         "notice": (
-            "Embedded preview is a small PNG snapshot of the generated "
-            "hull plus deck closed body; not a rendered photograph."
+            "Embedded preview uses the physical proportions of the generated "
+            "hull and deck inspection surfaces."
         ),
     }
 
@@ -370,7 +413,9 @@ def _section_stability(
     return section
 
 
-def _stability_rows(result: Any) -> dict[str, Any]:
+def _stability_rows(result: Any) -> dict[str, Any] | None:
+    if result is None:
+        return None
     return {
         "method": result.method,
         "status": result.status,
@@ -440,7 +485,10 @@ def _section_mesh(hull: Hull) -> dict[str, Any]:
     return {"id": "mesh", "title": "Mesh and readiness", "parts": parts}
 
 
-def _section_comparison(hull: Hull, from_run: Path | None) -> dict[str, Any]:
+def _section_comparison(
+    hull: Hull, from_run: Path | None, *, context_hash: str | None = None,
+    require_context: bool = False,
+) -> dict[str, Any]:
     if from_run is None:
         return {
             "id": "comparison",
@@ -474,7 +522,12 @@ def _section_comparison(hull: Hull, from_run: Path | None) -> dict[str, Any]:
     target_hash = hull.hash()
     match = None
     for summary in report.candidate_summaries:
-        if summary.hull_hash == target_hash:
+        if summary.hull_hash == target_hash and (
+            not require_context or (
+                context_hash is not None
+                and summary.provenance.get("evaluation_context_hash") == context_hash
+            )
+        ):
             match = summary
             break
 
@@ -484,8 +537,9 @@ def _section_comparison(hull: Hull, from_run: Path | None) -> dict[str, Any]:
             "title": "Comparison position",
             "available": False,
             "notice": (
-                "This hull was not in the referenced run "
-                f"({run_dir}); no comparison position to report."
+                ("No matching evaluation context in the referenced run "
+                 if require_context else "This hull was not in the referenced run ")
+                + f"({run_dir}); no comparison position to report."
             ),
             "run_name": report.run_name,
             "candidates_total": len(report.candidate_summaries),
@@ -651,6 +705,9 @@ def _render_preview_png(hull: Hull) -> str:
     try:
         geom = hull.to_geometry()
         vertices, faces = geom.mesh("hull")
+        deck_vertices, deck_faces = geom.mesh("deck")
+        faces = np.concatenate((faces, deck_faces + len(vertices)))
+        vertices = np.concatenate((vertices, deck_vertices))
     except Exception:
         return _BLANK_PNG_BASE64
 
@@ -666,6 +723,8 @@ def _render_preview_png(hull: Hull) -> str:
             [vertices[:, 1].min(), vertices[:, 1].max()],
             [vertices[:, 2].min(), vertices[:, 2].max()],
         )
+        ax.set_box_aspect(np.maximum(np.ptp(vertices, axis=0), 1e-9))
+        ax.view_init(elev=20, azim=-60)
         ax.set_axis_off()
         buf = io.BytesIO()
         fig.savefig(buf, format="png", bbox_inches="tight", transparent=True)

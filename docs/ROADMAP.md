@@ -457,3 +457,5 @@ Landed conservative numerical status and objective admission (KAYGEN-7). Method-
 | Work | Disposition | Evidence / remaining scope |
 | --- | --- | --- |
 | KAYGEN-11 / RFC 0070 | completed-history | Full-input CFD prepare replay, retained explicit attempts, local one-writer admission and staged publication. No distributed or power-loss guarantee. |
+
+RFC 0073 / KAYGEN-8: immutable evaluation context and selected-result reporting implemented; acceptance includes matched-load fixed-body integration (KAYGEN-14) and independent numerical admission (KAYGEN-15).

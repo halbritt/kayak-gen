@@ -19,9 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 from kayakgen.eval.contract import EvaluationResult
 from kayakgen.eval.high_angle_gz import build_high_angle_gz_block
 from kayakgen.eval.contract import LoadCase
-from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
-from kayakgen.eval.resistance import resistance_curve
-from kayakgen.eval.stability import DEFAULT_GZ_HEEL_GRID_DEG, evaluate_equilibrium_stability, evaluate_initial_stability
+from kayakgen.eval.stability import DEFAULT_GZ_HEEL_GRID_DEG
 from kayakgen.eval.turning import evaluate_turning_metrics
 from kayakgen.eval.sweep_artifacts import (
     HighAngleGzArtifact,
@@ -79,6 +77,13 @@ class EvaluatorOptions(BaseModel):
     stability_load_case: dict[str, Any] = Field(default_factory=dict)
     stability_tolerance_kg: float = Field(default=1.0, gt=0)
     stability_moment_tolerance_kg_m: float | None = Field(default=None, gt=0)
+    water_density_kg_m3: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    kinematic_viscosity_m2_s: float = Field(default=1.19e-6, gt=0, allow_inf_nan=False)
+    hydrostatic_stations: int = Field(default=150, ge=3)
+    n_stations: int = Field(default=600, ge=3)
+    n_depths: int = Field(default=25, ge=3)
+    n_theta: int = Field(default=40, ge=3)
+    speeds_knots: tuple[float, ...] = tuple(1 + .25*i for i in range(21))
     mesh_diagnostics: bool = False
     stl: bool = False
     high_angle_gz: bool = False
@@ -352,33 +357,37 @@ def _evaluate_candidate(
     hull_path = candidates_dir / f"{candidate_key}.hull.json"
     eval_path = candidates_dir / f"{candidate_key}.eval.json"
 
-    hydro = evaluate_hydrostatics(hull)
-    design_validity = evaluate_design_validity(
-        hull,
-        cp=hydro.Cp_actual,
-        displaced_mass_kg=hydro.displaced_mass_kg,
-        surface=("sweep",),
+    from kayakgen.eval.contract import EvaluationContext
+    from kayakgen.services.evaluation import evaluate_with_context
+    supplied_load = dict(spec.evaluators.stability_load_case)
+    if spec.evaluators.water_density_kg_m3 is not None:
+        supplied_load["seawater_density_kg_m3"] = spec.evaluators.water_density_kg_m3
+    load_case = LoadCase.model_validate(supplied_load)
+    context = EvaluationContext.for_hull(
+        hull, load_case=load_case,
+        input_origin="supplied" if supplied_load else "legacy_default",
+        equilibrium=spec.evaluators.stability and spec.evaluators.stability_equilibrium,
+        equilibrium_tolerance_kg=spec.evaluators.stability_tolerance_kg,
+        moment_tolerance_kg_m=spec.evaluators.stability_moment_tolerance_kg_m,
+        n_stations=spec.evaluators.n_stations, n_depths=spec.evaluators.n_depths,
+        n_theta=spec.evaluators.n_theta, speeds_knots=spec.evaluators.speeds_knots,
+        hydrostatic_stations=spec.evaluators.hydrostatic_stations,
+        kinematic_viscosity_m2_s=spec.evaluators.kinematic_viscosity_m2_s,
     )
-    resistance = resistance_curve(hull) if spec.evaluators.resistance else None
-    stability = None
-    if spec.evaluators.stability:
-        load_case = LoadCase.model_validate(spec.evaluators.stability_load_case)
-        stability = (
-            evaluate_equilibrium_stability(
-                hull,
-                load_case,
-                tolerance_kg=spec.evaluators.stability_tolerance_kg,
-                moment_tolerance_kg_m=spec.evaluators.stability_moment_tolerance_kg_m,
-            )
-            if spec.evaluators.stability_equilibrium
-            else evaluate_initial_stability(hull, load_case)
-        )
+    computed = evaluate_with_context(hull, context, include_resistance=spec.evaluators.resistance)
+    hydro = computed.hydrostatics
+    resistance = computed.resistance
+    stability = computed.stability if spec.evaluators.stability else None
+    design_validity = evaluate_design_validity(
+        hull, cp=hydro.Cp_actual, displaced_mass_kg=hydro.displaced_mass_kg, surface=("sweep",),
+    )
     turning = None
     if spec.evaluators.turning_metrics:
         turning = evaluate_turning_metrics(
             hull, heel_deg=spec.evaluators.turning_metrics_heel_deg
         )
     evaluation = EvaluationResult(
+        context=computed.context,
         hull_hash=hull.hash(),
         hydrostatics=hydro,
         resistance=resistance,
@@ -433,11 +442,7 @@ def _evaluate_candidate(
             if spec.evaluators.high_angle_gz_heel_grid_deg is not None
             else [float(angle) for angle in DEFAULT_GZ_HEEL_GRID_DEG]
         )
-        gz_load_case = (
-            LoadCase.model_validate(spec.evaluators.stability_load_case)
-            if spec.evaluators.stability_load_case
-            else LoadCase()
-        )
+        gz_load_case = load_case
         block = build_high_angle_gz_block(hull, gz_load_case, heel_grid_deg=heel_grid)
         candidate_dir = candidates_dir / candidate_key
         high_angle_gz_artifact = write_candidate_high_angle_gz(block, candidate_dir, out)

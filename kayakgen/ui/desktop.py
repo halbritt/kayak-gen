@@ -33,6 +33,7 @@ import numpy as np
 from matplotlib.gridspec import GridSpec
 from PyQt6.QtCore import QTimer
 
+from kayakgen.eval.contract import EvaluationContext
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import KNOTS_TO_MS, evaluate_resistance
 from kayakgen.model.advisory import design_advisory
@@ -417,7 +418,20 @@ class KayakGUI:
         # the STL exporter and CFD will see. Stations reduced from the
         # default 150 to 60 here so the per-slider call stays under ~30 ms.
         hull = self._hull_from_params()
-        h = evaluate_hydrostatics(hull, stations=60)
+        context = getattr(self, "evaluation_context", None)
+        evaluation = None
+        if context is not None:
+            from kayakgen.services.evaluation import evaluate_with_context
+            evaluation = evaluate_with_context(hull, context)
+            self.last_evaluation = evaluation
+            self.last_evaluation_context = evaluation.context
+            h = evaluation.hydrostatics
+        else:
+            self.last_evaluation_context = EvaluationContext.for_hull(
+                hull, speeds_knots=(float(self.params["target_speed_kt"]),),
+                n_stations=40, n_depths=12, n_theta=20, hydrostatic_stations=60,
+            )
+            h = evaluate_hydrostatics(hull, stations=60)
         advisory = design_advisory(
             hull,
             cp=h.Cp_actual,
@@ -435,14 +449,18 @@ class KayakGUI:
         # Coarser station/depth/theta grids on the live path so the call
         # stays under ~30 ms per slider tick. RFC 0005 budgets <100 ms for
         # the full curve; this is a single-speed evaluation.
-        r = evaluate_resistance(
-            hull,
-            V_ms,
-            Sw=h.wetted_surface_m2,
-            n_stations=40,
-            n_depths=12,
-            n_theta=20,
-        )
+        displayed_speed = float(self.params["target_speed_kt"])
+        if evaluation is None:
+            r = evaluate_resistance(
+                hull, V_ms, Sw=h.wetted_surface_m2,
+                n_stations=40, n_depths=12, n_theta=20,
+            )
+        else:
+            curve = evaluation.resistance
+            index = min(range(len(curve.V_knots)),
+                        key=lambda i: abs(curve.V_knots[i] - displayed_speed))
+            displayed_speed = curve.V_knots[index]
+            r = {key: getattr(curve, key)[index] for key in ("Fn", "Rv_N", "Rw_N", "Rt_N")}
         txt = (
             f"Class        {klass}\n"
             f"Displacement {h.displaced_mass_kg:6.1f} kg\n"
@@ -450,14 +468,20 @@ class KayakGUI:
             f"Waterplane   {h.waterplane_area_m2:6.3f} m²\n"
             f"Cp / Cm      {h.Cp_actual:.3f} / {h.Cm_actual:.3f}\n"
             f"L/B_wl       {advisory.l_over_bwl:6.2f}\n"
-            f"At {self.params['target_speed_kt']:.1f} kt (Fn {r['Fn']:.2f}):\n"
+            f"At {displayed_speed:.1f} kt (Fn {r['Fn']:.2f}):\n"
             f"  Viscous   {r['Rv_N']:6.1f} N\n"
             f"  Wave      {r['Rw_N']:6.1f} N\n"
             f"  Total     {r['Rt_N']:6.1f} N"
         )
         if advisory.warnings:
             txt += "\nAdvisory    " + "\n            ".join(advisory.warnings)
+        txt += f"\nInputs      {self.last_evaluation_context.input_origin}"
         self.metrics_text.set_text(txt)
+
+    def set_evaluation_context(self, context: EvaluationContext | None) -> None:
+        """Use an explicit immutable input snapshot for subsequent metrics."""
+        self.evaluation_context = context
+        self._refresh_metrics()
 
     def _track_slider(self, key: str) -> None:
         self._last_slider_key = key

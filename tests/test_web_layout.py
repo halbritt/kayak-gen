@@ -363,6 +363,8 @@ def test_state_snapshot_schema_preserves_current_and_legacy_alias_keys() -> None
         UNSUPPORTED_HULL_EDITING_VISIBLE_KEY,
         "name",
         "target_speed_kt",
+        "evaluation_context",
+        "load_case",
         "class_preset",
         "mesh_package_ref",
         "cfd_mesh_package_ref",

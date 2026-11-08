@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+import hashlib
+import json
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -409,6 +411,87 @@ class LoadCase(BaseModel):
         )
 
 
+class LoadComponentSnapshot(LongitudinalLoadComponent):
+    """Immutable component owned by an evaluation input snapshot."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
+
+
+class LoadCaseSnapshot(LoadCase):
+    """Deeply immutable load data; mutable caller records remain independent."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
+    components: tuple[LoadComponentSnapshot, ...] = ()
+
+
+class EvaluationContext(BaseModel):
+    """Exact, immutable physical and numerical inputs to one evaluation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
+
+    schema_version: Literal["1"] = "1"
+    hull_record_hash: str
+    hull_design_hash: str
+    geometry_kind: str
+    input_origin: Literal["supplied", "legacy_default"] = "legacy_default"
+    load_supplied_fields: tuple[str, ...] = ()
+    load_case: LoadCaseSnapshot = Field(default_factory=LoadCaseSnapshot)
+    speeds_knots: tuple[float, ...] = tuple(1.0 + .25 * i for i in range(21))
+    kinematic_viscosity_m2_s: float = Field(default=1.19e-6, gt=0)
+    hydrostatic_stations: int = Field(default=60, ge=3)
+    n_stations: int = Field(default=600, ge=3)
+    n_depths: int = Field(default=25, ge=3)
+    n_theta: int = Field(default=40, ge=3)
+    numerical_relative_tolerance: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    equilibrium: bool = False
+    equilibrium_tolerance_kg: float = Field(default=1.0, gt=0)
+    moment_tolerance_kg_m: float | None = Field(default=None, gt=0)
+    equilibrium_max_iterations: int = Field(default=60, ge=1)
+    max_trim_angle_deg: float = Field(default=8.0, gt=0, lt=90)
+    sinkage_m: float = 0.0
+    trim_angle_deg: float = 0.0
+    evaluator_versions: tuple[tuple[str, str], ...] = ()
+
+    @field_validator("load_case", mode="before")
+    @classmethod
+    def _snapshot_load(cls, value: Any) -> Any:
+        return value.model_dump(mode="json") if isinstance(value, LoadCase) else value
+
+    @field_validator("speeds_knots")
+    @classmethod
+    def _physical_speeds(cls, speeds: tuple[float, ...]) -> tuple[float, ...]:
+        if not speeds or any(speed <= 0 for speed in speeds):
+            raise ValueError("speed grid must contain positive speeds")
+        return speeds
+
+    @classmethod
+    def for_hull(cls, hull: Any, **settings: Any) -> "EvaluationContext":
+        from kayakgen.eval.resistance import NUMERICAL_METHOD_VERSION
+        load = settings.get("load_case")
+        if load is not None:
+            settings.setdefault("input_origin", "supplied")
+            load = load if isinstance(load, LoadCase) else LoadCase.model_validate(load)
+            paths = list(sorted(load.model_fields_set))
+            paths.extend(f"components.{i}.{name}"
+                         for i, component in enumerate(load.components)
+                         for name in sorted(component.model_fields_set))
+            settings.setdefault("load_supplied_fields", tuple(paths))
+        settings.setdefault("evaluator_versions", (
+            ("hydrostatics", "mesh_integral_v1"),
+            ("resistance", NUMERICAL_METHOD_VERSION),
+        ))
+        return cls(
+            hull_record_hash=hull.record_hash(),
+            hull_design_hash=hull.design_hash(),
+            geometry_kind=hull.geometry_kind,
+            **settings,
+        )
+
+    def fingerprint(self) -> str:
+        payload = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(payload.encode()).hexdigest()
+
+
 class StabilityResult(BaseModel):
     """Initial-stability read model; high-angle GZ remains explicitly reserved."""
 
@@ -417,6 +500,7 @@ class StabilityResult(BaseModel):
     load_case: LoadCase = Field(default_factory=LoadCase)
     method: Literal[
         "design_waterline_initial",
+        "fixed_operating_pose",
         "equilibrium_sinkage",
         "equilibrium_trim",
     ] = "design_waterline_initial"
@@ -475,7 +559,7 @@ class ConvergenceFlag(BaseModel):
 def _flags_from_stability(stability: StabilityResult) -> list[ConvergenceFlag]:
     """Derive convergence flags from a stability result's iteration metadata."""
     flags: list[ConvergenceFlag] = []
-    if stability.method == "design_waterline_initial":
+    if stability.method in ("design_waterline_initial", "fixed_operating_pose"):
         return flags
 
     iterations = stability.equilibrium_iterations
@@ -553,6 +637,8 @@ class EvaluationResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     hull_hash: str
+    context: EvaluationContext | None = None
+    context_hash: str | None = None
     hydrostatics: Hydrostatics
     resistance: ResistanceCurve | None = None
     stability: StabilityResult | None = None
@@ -561,6 +647,35 @@ class EvaluationResult(BaseModel):
     timings_ms: dict[str, float] = Field(default_factory=dict)
     design_validity: DesignValidityReport = Field(default_factory=DesignValidityReport)
     convergence: list[ConvergenceFlag] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _bind_context(self) -> "EvaluationResult":
+        if self.context is not None:
+            if self.hull_hash != self.context.hull_record_hash:
+                raise ValueError("evaluation hull and context do not match")
+            expected = self.context.fingerprint()
+            if self.context_hash is not None and self.context_hash != expected:
+                raise ValueError("evaluation context fingerprint does not match")
+            self.context_hash = expected
+            if self.stability is not None:
+                if (self.stability.load_case.model_dump(mode="json") != self.context.load_case.model_dump(mode="json")
+                    or self.stability.load_mass_kg != self.context.load_case.total_mass_kg):
+                    raise ValueError("stability load does not match evaluation context")
+            if self.resistance is not None:
+                curve = self.resistance
+                if tuple(curve.V_knots) != self.context.speeds_knots:
+                    raise ValueError("resistance speed grid does not match evaluation context")
+                expected_grid = {key: getattr(self.context, key)
+                                 for key in ("n_stations", "n_depths", "n_theta")}
+                if curve.metadata.quadrature != expected_grid:
+                    raise ValueError("resistance quadrature does not match evaluation context")
+                constants = curve.metadata.constants
+                if (constants.get("seawater_density_kg_m3") != self.context.load_case.seawater_density_kg_m3
+                    or constants.get("seawater_kinematic_viscosity_m2_s") != self.context.kinematic_viscosity_m2_s):
+                    raise ValueError("resistance fluid does not match evaluation context")
+        elif self.context_hash is not None:
+            raise ValueError("evaluation context fingerprint requires its context")
+        return self
 
     @model_validator(mode="after")
     def _populate_convergence(self) -> "EvaluationResult":

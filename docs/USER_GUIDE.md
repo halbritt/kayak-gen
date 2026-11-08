@@ -1324,3 +1324,27 @@ provisional directory for diagnosis, without publishing an executable job.
 Before updating or reverting active CFD job handling, stop admissions and drain
 owned legacy writers. The OS lock is a local protocol, not cross-host ownership
 or a power-loss guarantee. Existing historical jobs remain readable.
+
+## Explicit evaluation inputs (RFC 0073)
+
+Use `kayakgen evaluate hull.json --load-case load.json --out loaded.eval.json`
+to request load equilibrium. For exact speed, fluid and numerical settings,
+create an `EvaluationContext.for_hull(hull, ...)` JSON and pass `--context`.
+The result contains its immutable inputs, actual solved pose and fingerprint.
+Supplied load-field paths distinguish explicit fields from recorded defaults.
+The requested quadrature is passed to the evaluator, rather than merely
+copied into metadata. Numerical adequacy remains a separate result.
+
+Render it with `kayakgen design-report hull.json --evaluation loaded.eval.json
+--out report.html`. This reads saved numerical values; absent sections stay
+unavailable. `design-report --load-case load.json` explicitly computes and saves
+a sibling `.eval.json`. A hull-only report uses labelled legacy defaults. Old
+records without input context remain unknown. Reports distinguish full-record
+and physical design hashes. A run comparison must match evaluation context.
+
+REST `POST /api/evaluate` accepts `evaluation_context` or `load_case`. Explicit
+web analysis retains its context/result; the desktop Python adapter accepts
+`gui.set_evaluation_context(context)` and exposes `gui.last_evaluation`. A hull
+edit requires a new matching context. The default live desktop path retains its
+actual cheap settings in `last_evaluation_context`; it does not claim a solved
+load equilibrium.

@@ -208,3 +208,5 @@ admission/recovery refusals, not solver success or scientific validation.
 **OperatingPose** (RFC 0074): immutable sinkage and trim of a fixed physical
 Hull. Sinkage is its body-frame waterplane intercept; positive trim is
 stern-down. Pose changes evaluation state, not the Hull shape.
+
+**Evaluation context** (RFC 0073): immutable actual load, environment, method, grid, speed and operating-pose inputs bound to one full hull record. **Context fingerprint**: canonical SHA-256 of that snapshot; old missing context is unknown, rather than reconstructed from defaults.

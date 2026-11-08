@@ -317,3 +317,4 @@ SPEC changes must respect these:
 ## Numerical evidence invariant
 
 A completed finite resistance calculation without numerical assessment is unknown. Resistance dominance/frontier/search selection requires distinct resolution evidence under a declared policy, even in explicit exploratory mode. Legacy convergence literals alone are insufficient; raw results remain viewable.
+RFC 0073 invariant: a contextual result binds its full hull record, speed/grid/fluid inputs and immutable load snapshot. Saved-result report rendering executes no numerical evaluator. No default load may silently replace a selected result.

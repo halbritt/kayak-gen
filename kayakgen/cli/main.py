@@ -87,6 +87,10 @@ def evaluate(
     hull_path: Path = typer.Argument(..., exists=True, dir_okay=False),
     out: Path | None = typer.Option(None, "--out", help="Where to write the EvaluationResult JSON; default is <hull>.eval.json."),
     skip_resistance: bool = typer.Option(False, "--skip-resistance", help="Skip the Michell+ITTC sweep (faster)."),
+    context_path: Path | None = typer.Option(None, "--context", exists=True, dir_okay=False,
+        help="Exact EvaluationContext JSON; numerical settings and load are retained."),
+    load_case_path: Path | None = typer.Option(None, "--load-case", exists=True, dir_okay=False,
+        help="Explicit load JSON; solve the fixed-body operating state."),
     turning: bool = typer.Option(
         False,
         "--turning",
@@ -103,6 +107,36 @@ def evaluate(
 ) -> None:
     """Run all available evaluators on a hull and write the EvaluationResult."""
     hull = load_hull(hull_path)
+    from kayakgen.eval.contract import EvaluationContext, LoadCase
+    from kayakgen.services.evaluation import evaluate_with_context
+    if context_path is not None and load_case_path is not None:
+        typer.echo("Choose --context or --load-case, not both.", err=True)
+        raise typer.Exit(code=2)
+    if turning and (context_path is not None or load_case_path is not None):
+        typer.echo("--turning with explicit operating context is not yet supported", err=True)
+        raise typer.Exit(code=2)
+    try:
+        context = (
+            EvaluationContext.model_validate_json(context_path.read_text()) if context_path is not None
+            else EvaluationContext.for_hull(
+                hull, **({"load_case": LoadCase.model_validate_json(load_case_path.read_text()),
+                          "input_origin": "supplied", "equilibrium": True}
+                         if load_case_path is not None else {"hydrostatic_stations": 150})
+            )
+        )
+    except (ValueError, OSError) as exc:
+        typer.echo(f"evaluation input failed: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    if context_path is not None or load_case_path is not None:
+        try:
+            result = evaluate_with_context(hull, context, include_resistance=not skip_resistance)
+        except ValueError as exc:
+            typer.echo(f"evaluation refused: {exc}", err=True)
+            raise typer.Exit(code=1) from exc
+        out_path = out if out is not None else hull_path.with_suffix(".eval.json")
+        save_evaluation(result, out_path)
+        typer.echo(f"wrote {out_path}")
+        return
     hydrostatics = evaluate_hydrostatics(hull)
     resistance = None if skip_resistance else resistance_curve(hull)
     design_validity = evaluate_design_validity(
@@ -120,6 +154,7 @@ def evaluate(
             raise typer.Exit(code=1) from exc
     result = EvaluationResult(
         hull_hash=hull.hash(),
+        context=context,
         hydrostatics=hydrostatics,
         resistance=resistance,
         design_validity=design_validity,

@@ -18,6 +18,7 @@ class OperatingEquilibriumOptions:
     moment_tolerance_kg_m: float | None = None
     max_iterations: int = 60
     max_trim_angle_deg: float = 8.0
+    stations: int | None = None
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.tolerance_kg) or self.tolerance_kg <= 0:
@@ -28,6 +29,8 @@ class OperatingEquilibriumOptions:
             raise ValueError("moment tolerance must be finite and positive")
         if self.max_iterations < 1 or not 0 < self.max_trim_angle_deg < 90:
             raise ValueError("equilibrium iterations/trim bounds are invalid")
+        if self.stations is not None and (not isinstance(self.stations, int) or self.stations < 3):
+            raise ValueError("equilibrium stations must be an integer of at least three")
 
 
 @dataclass(frozen=True)
@@ -66,7 +69,9 @@ def _solve_sinkage(problem: _Problem, trim: float) -> _SinkageState:
     low, high = float(relative_z.min()) - 1e-9, float(relative_z.max()) + 1e-9
     target = problem.load.total_mass_kg
     def hydro_at(sinkage: float) -> Hydrostatics:
-        return evaluate_immersed(problem.hull, OperatingPose(sinkage, trim), density_kg_m3=problem.load.seawater_density_kg_m3)
+        return evaluate_immersed(problem.hull, OperatingPose(sinkage, trim),
+                                 stations=problem.options.stations,
+                                 density_kg_m3=problem.load.seawater_density_kg_m3)
 
     hydro = hydro_at(high)
     if not 0 < target < hydro.displaced_mass_kg:
@@ -122,7 +127,8 @@ def _result(problem: _Problem, solution: _Solution, solve_trim: bool) -> Stabili
     state, trim = solution.state, solution.trim_deg
     warnings = ["fixed_body_operating_pose_v1", "operating_world_frame_centroids", "high_angle_gz_not_implemented"]
     if not solve_trim:
-        warnings.append("trim_assumed_zero_centered_load")
+        warnings.append("trim_assumed_zero_no_moment_balance" if problem.load.uses_longitudinal_components
+                        else "trim_assumed_zero_centered_load")
     if solution.converged:
         warnings.append("equilibrium_trim_solved" if solve_trim else "equilibrium_sinkage_solved")
     else:
@@ -164,7 +170,9 @@ def evaluate_fixed_body_equilibrium(
     """Solve sinkage and optional trim without editing the physical hull."""
     if load_case.total_mass_kg <= 0:
         raise ValueError("load case total mass must be positive")
-    problem = _Problem(hull, load_case, options or OperatingEquilibriumOptions(), immersed_geometry(hull, OperatingPose()))
+    options = options or OperatingEquilibriumOptions()
+    problem = _Problem(hull, load_case, options,
+                       immersed_geometry(hull, OperatingPose(), stations=options.stations))
     initial = _solve_sinkage(problem, 0.)
     solution = _solve_trim(problem, initial) if solve_trim and initial.converged else _Solution(initial, 0., initial.converged, initial.iterations)
     return _result(problem, solution, solve_trim)

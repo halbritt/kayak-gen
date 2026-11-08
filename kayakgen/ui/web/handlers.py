@@ -15,6 +15,7 @@ from kayakgen.services.evaluation import (
     hydro_rows_from_model,
     hydrostatics_view_model,
     resistance_table_for_hull,
+    evaluation_for_state,
 )
 from kayakgen.ui.web.controllers import (
     CfdWebError,
@@ -142,8 +143,13 @@ class HandlersMixin:
 
     def _refresh_analysis(self) -> None:
         state = self._state_snapshot()
+        evaluation = None
         try:
             hull = hull_from_web_state(state)
+            if state.get("evaluation_context") is not None or state.get("load_case") is not None:
+                evaluation = evaluation_for_state(state)
+                self.state.evaluation_result = evaluation.model_dump(mode="json")
+                self.state.evaluation_context_hash = evaluation.context_hash
         except Exception as exc:
             payload = validation_error_payload(exc)
             messages = [f"{d['field']}: {d['message']}" for d in payload.get("details", [])]
@@ -153,7 +159,8 @@ class HandlersMixin:
             self.state.resistance_table_html = _pre_html(["Resistance unavailable", *messages])
             return
         try:
-            hydro_model = hydrostatics_view_model(hull)
+            hydro_model = (hydrostatics_view_model(hull, hydro=evaluation.hydrostatics)
+                           if evaluation is not None else hydrostatics_view_model(hull))
             self.state.analysis_lines = hydro_lines_from_model(hydro_model)
             self.state.hydro_table_rows = hydro_rows_from_model(hydro_model)
         except Exception as exc:
@@ -163,7 +170,10 @@ class HandlersMixin:
             self.state.analysis_lines = ["Analysis unavailable", *messages]
             self.state.hydro_table_rows = [{"label": "Error", "value": m} for m in messages]
         try:
-            model = resistance_table_for_hull(hull, float(state.get("target_speed_kt", 3.5)))
+            model = resistance_table_for_hull(
+                hull, float(state.get("target_speed_kt", 3.5)),
+                **({"resistance": evaluation.resistance} if evaluation is not None else {}),
+            )
         except Exception as exc:
             payload = validation_error_payload(exc)
             details = payload.get("details", [])

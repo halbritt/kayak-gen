@@ -36,6 +36,14 @@ def design_report_command(
             "`kayakgen[report]` extras group."
         ),
     ),
+    evaluation_path: Path | None = typer.Option(
+        None, "--evaluation", exists=True, dir_okay=False,
+        help="Render a saved evaluation without recomputing numerical results.",
+    ),
+    load_case_path: Path | None = typer.Option(
+        None, "--load-case", exists=True, dir_okay=False,
+        help="Explicitly evaluate this load, save a sibling evaluation and render it.",
+    ),
     from_run: Path | None = typer.Option(
         None,
         "--from-run",
@@ -62,7 +70,26 @@ def design_report_command(
         )
         raise typer.Exit(code=1) from exc
 
-    hull = load_hull(hull_path)
+    if evaluation_path is not None and load_case_path is not None:
+        typer.echo("Choose --evaluation or --load-case, not both.", err=True)
+        raise typer.Exit(code=2)
+    try:
+        hull = load_hull(hull_path)
+        evaluation = None
+        if evaluation_path is not None:
+            from kayakgen.eval.contract import EvaluationResult
+            evaluation = EvaluationResult.model_validate_json(evaluation_path.read_text())
+        elif load_case_path is not None:
+            from kayakgen.eval.contract import EvaluationContext, LoadCase
+            from kayakgen.services.evaluation import evaluate_with_context
+            from kayakgen.io.json import save_evaluation
+            load = LoadCase.model_validate_json(load_case_path.read_text())
+            context = EvaluationContext.for_hull(hull, load_case=load, input_origin="supplied", equilibrium=True)
+            evaluation = evaluate_with_context(hull, context)
+            save_evaluation(evaluation, out.with_suffix(".eval.json"))
+    except (ValueError, OSError) as exc:
+        typer.echo(f"design-report input failed: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
     pdf_out = out.with_suffix(".pdf") if pdf else None
     try:
         result = render_design_report(
@@ -71,11 +98,12 @@ def design_report_command(
             html_out=out,
             pdf_out=pdf_out,
             hull_source_path=hull_path,
+            evaluation=evaluation,
         )
     except ReportForbiddenCopyError as exc:
         typer.echo(f"design-report refused: {exc}", err=True)
         raise typer.Exit(code=1) from exc
-    except RuntimeError as exc:
+    except (RuntimeError, ValueError) as exc:
         typer.echo(f"design-report failed: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 

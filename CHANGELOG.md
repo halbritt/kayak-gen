@@ -22,6 +22,7 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   convergence. Resistance quality defaults to unknown; exploratory search and
   comparison retain diagnostics but require separate numerical evidence for
   ranked frontiers. Physical claim and display-only gates remain unchanged.
+- RFC 0073 / KAYGEN-8: evaluation results retain immutable load, fluid, method, grid and operating-pose inputs. Reports can render a selected saved result without numerical recomputation; explicit new loads are recorded separately. Web/desktop adapters preserve supplied contexts.
 
 - RFC 0071 / KAYGEN-13: staged streamed commands enforce a monotonic deadline
   while consuming output, terminate their owned process group on expiry, and

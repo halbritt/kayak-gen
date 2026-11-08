@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }}</title>
   <style>
     body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
@@ -17,7 +18,15 @@
     .notice { background: #f8f4e3; padding: 0.4rem 0.6rem; border-left: 3px solid #c9a227;
               font-size: 13px; }
     .preview { text-align: center; }
-    .preview img { max-width: 480px; height: auto; }
+    .preview img { width: 480px; max-width: 100%; height: auto; }
+    .scroll-table { max-width: 100%; overflow-x: auto; }
+    #parameters table { table-layout: fixed; }
+    #parameters th:nth-child(1) { width: 24%; }
+    #parameters th:nth-child(2) { width: 48%; }
+    #parameters th:nth-child(3) { width: 8%; }
+    #parameters th:nth-child(4) { width: 20%; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+    td, code { overflow-wrap: anywhere; }
     .warning-list li { font-size: 13px; }
     .small { font-size: 12px; color: #555; }
     code { background: #f4f4f4; padding: 1px 4px; border-radius: 2px; font-size: 12px; }
@@ -35,6 +44,9 @@
       <tr><th>record_hash</th><td><code>{{ section.record_hash }}</code></td></tr>
       <tr><th>design_hash</th><td><code>{{ section.design_hash }}</code>
         <span class="small">({{ section.design_hash_note }})</span></td></tr>
+      <tr><th>evaluation context hash</th><td><code>{{ section.context_hash }}</code></td></tr>
+      {% if section.load_total_mass_kg is not none %}<tr><th>context total load</th><td>{{ "%.9f"|format(section.load_total_mass_kg) }} kg</td></tr>{% endif %}
+      <tr><th>evaluation inputs</th><td><details><summary>Input record</summary><pre>{{ section.evaluation_context }}</pre></details></td></tr>
       <tr><th>kayakgen version</th><td>{{ section.kayakgen_version }}</td></tr>
       <tr><th>generated</th><td>{{ section.timestamp_iso }}</td></tr>
       {% if section.hull_source %}
@@ -52,7 +64,7 @@
     {% for row in section.rows %}
       <tr>
         <td><code>{{ row.name }}</code></td>
-        <td>{{ row.value }}</td>
+        <td>{% if row.value|length > 180 %}<details><summary>Full parameter value</summary><pre>{{ row.value }}</pre></details>{% else %}{{ row.value }}{% endif %}</td>
         <td>{{ row.unit }}</td>
         <td>{{ row.source }}</td>
       </tr>
@@ -89,6 +101,7 @@
 <section id="{{ section.id }}">
   <h2>Stability</h2>
   <h3>Upright (design waterline initial)</h3>
+  {% if section.initial %}
   <table>
     <tbody>
       <tr><th>method</th><td><code>{{ section.initial.method }}</code></td></tr>
@@ -99,7 +112,9 @@
       <tr><th>initial GM0</th><td>{% if section.initial.initial_GM0_m is not none %}{{ "%.4f"|format(section.initial.initial_GM0_m) }} m{% else %}n/a{% endif %}</td></tr>
     </tbody>
   </table>
+  {% else %}<p>Initial stability was not recorded.</p>{% endif %}
   <h3>Equilibrium (trim)</h3>
+  {% if section.equilibrium %}
   <table>
     <tbody>
       <tr><th>method</th><td><code>{{ section.equilibrium.method }}</code></td></tr>
@@ -109,6 +124,7 @@
       <tr><th>displacement error</th><td>{{ "%.2f"|format(section.equilibrium.displacement_error_kg) }} kg</td></tr>
     </tbody>
   </table>
+  {% else %}<p>Equilibrium stability was not recorded.</p>{% endif %}
   {% if section.high_angle %}
   <h3>High-angle GZ (display-only)</h3>
   <p class="notice">
@@ -178,6 +194,8 @@
 {% elif section.id == "mesh" %}
 <section id="{{ section.id }}">
   <h2>Mesh and readiness</h2>
+  {% if section.parts %}
+  <div class="scroll-table" tabindex="0" role="region" aria-label="Mesh diagnostics table">
   <table>
     <thead>
       <tr><th>Part</th><th>Readiness</th><th>Boundary edges (welded/raw)</th>
@@ -201,6 +219,8 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
+  {% else %}<p>{{ section.notice }}</p>{% endif %}
 </section>
 {% elif section.id == "comparison" %}
 <section id="{{ section.id }}">

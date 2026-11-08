@@ -77,6 +77,8 @@ WEB_STATE_SCHEMA = WebStateSchema(
         UNSUPPORTED_HULL_EDITING_VISIBLE_KEY,
         "name",
         "target_speed_kt",
+        "evaluation_context",
+        "load_case",
         "class_preset",
         *MESH_PACKAGE_REF_ALIASES,
         *CFD_STATUS_ALIASES,
