@@ -483,3 +483,12 @@ shared sweep evaluation service and carries operating comparison conditions to
 comparison/search outputs. The physical operating projection and its independent
 34-case oracle close the context/admission integration slice; broader numerical
 controls and all physical calibration gates remain separately evidence-gated.
+
+## Release-gate follow-up disposition
+
+| Work | Disposition | Evidence / remaining scope |
+| --- | --- | --- |
+| KAYGEN-21 / RFC 0084 | completed-history | Full pytest and skip pin followed by mandatory Ruff; optional persistent candidate-bound receipts. Actual renderer probe/scheduling remains KAYGEN-19. |
+
+Future-Striatum-Batches: the canonical full-gate order and receipt work is
+implemented; no separate campaign wrapper or test-coverage reduction is queued.

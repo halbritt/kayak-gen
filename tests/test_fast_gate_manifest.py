@@ -4,8 +4,9 @@ The fast gate's ignore/deselect lists are load-bearing gate logic with no
 other test: a renamed test file silently turns ``--ignore`` into a no-op,
 and a renamed test function makes ``--deselect`` select nothing. These
 tests pin the manifest against the repo so that rot fails loudly, and pin
-the presence of the skip-count enforcement (audit G1) in both gate
-scripts so it cannot silently regress back to claimed-but-absent.
+the fast script's skip-count enforcement (audit G1). The full entry point
+delegates to the maintained runner; its skip pin and command sequence are
+exercised with real processes in test_full_gate_receipts.py.
 """
 
 from __future__ import annotations
@@ -20,7 +21,6 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FAST_GATE = REPO_ROOT / "scripts" / "fast-gate.sh"
-FULL_GATE = REPO_ROOT / "scripts" / "full-gate.sh"
 
 
 def _fast_gate_text() -> str:
@@ -70,11 +70,11 @@ def test_every_deselect_nodeid_still_collects() -> None:
         )
 
 
-def test_both_gate_scripts_contain_the_skip_count_pin() -> None:
+def test_fast_gate_script_contains_the_skip_count_pin() -> None:
     # Audit G1: the skip pin was once claimed in the commit subject and
     # the release doc while nothing enforced it. Pin its presence — the
     # named expected count and the comparison that refuses the run.
-    for script in (FAST_GATE, FULL_GATE):
+    for script in (FAST_GATE,):
         assert script.is_file(), f"{script.name} missing from scripts/"
         text = script.read_text(encoding="utf-8")
         assert "EXPECTED_SKIPS=4" in text, (

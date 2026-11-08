@@ -127,6 +127,11 @@ claim state. The literal set lives across `MeshPackageManifest.readiness_level`,
 
 ## Identity and persistence
 
+| Term | Definition |
+| --- | --- |
+| **Gate Receipt** | RFC 0084 `kayakgen-gate-receipt/1`: one full verification invocation, its ordered commands, source identity, environment observations, skip pin and terminal outcome. Passing is evidence, not task-completion authority. |
+| **Candidate Source Snapshot** | RFC 0084 actual nonignored working content captured as a copied-index Git tree and raw path/mode/content fingerprint. Includes staged/dirty/untracked candidates; HEAD is diagnostic and a later unchanged commit preserves the tree identity. |
+
 `kayakgen.services.artifact_store` owns the content-addressed mirror,
 run manifests and SQLite read model beside the canonical run-directory
 layout (RFCs 0049, 0066 and 0067). Canonical domain records stay compatible;

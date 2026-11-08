@@ -14,6 +14,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 
 | RFC | Status | Topic |
 | --- | --- | --- |
+| [0084](0084-source-bound-full-gate.md) | landed full pytest then Ruff + persistent receipts | Fixed full-check sequence and actual candidate source identity |
 | [0077](0077-resistance-quadrature-policy.md) | landed exact linear depth + explicit interval screening policy | Correct depth quadrature and measured resistance screening uncertainty |
 | [0072](0072-numerical-evidence-admission.md) | landed conservative numerical status and admission | Numerical evidence and resistance objective admission |
 | [0073](0073-evaluation-context.md) | landed shared context and selected-result reporting | Immutable evaluation context and selected-result reports |

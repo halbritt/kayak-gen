@@ -8,6 +8,13 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Fixed
 
+- RFC 0084 / KAYGEN-21: the canonical full gate runs complete pytest and
+  its skip pin before mandatory Ruff. Optional persistent JSON receipts bind
+  actual staged/dirty candidate content, preserve failure/interruption
+  outcomes and refuse changed source. Inherited `PYTEST_ADDOPTS` cannot
+  silently narrow the full check; external-interpreter worktrees remain
+  supported. Actual renderer absence is reported explicitly.
+
 - RFC 0069 / KAYGEN-9 follow-up: standalone binary STL headers carry the
   full source Hull record SHA-256, metres and part name. Existing triangle
   payloads and normal STL parser compatibility remain unchanged.

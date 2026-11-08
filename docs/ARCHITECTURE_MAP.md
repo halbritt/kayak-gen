@@ -113,6 +113,8 @@ kayakgen/
 │   ├── objectives.py            OBJECTIVE_METADATA registry
 │   ├── pareto.py                Objective gates + RFC 0043/0044 refusal tokens
 │   └── sweep.py                 SweepSpec, CandidateRecord, explicit execution scope
+├── operations/               # Repository operational checks
+│   └── gate.py                  Fixed full pytest/skip pin then Ruff + optional receipt
 ├── services/                 # Application services (no UI/CLI deps)
 │   ├── design.py                hull-state assembly, presets, validity badges
 │   ├── evaluation.py            metrics + independent hydro/resistance view models +
@@ -201,6 +203,15 @@ and successor admission hold the namespace lock. Existing algorithm artifacts,
 manifest authority and derived job index remain separate.
 
 ## Durable artifact types
+
+RFC 0084 adds an optional `kayakgen-gate-receipt/1` at an explicitly selected
+new path outside source or inside a Git-ignored directory. The maintained
+`python -m kayakgen.operations.gate --receipt PATH` entry point is called by
+`scripts/full-gate.sh`. It records candidate source trees/raw fingerprints,
+interpreter, renderer declarations and observation status, ordered command
+durations/exits, skip pin and terminal result; per-command diagnostic logs
+live beside it. It is verification evidence, with no task or scientific
+acceptance authority. See [the contract](rfcs/0084-source-bound-full-gate.md).
 
 - **Hull JSON**: `kayakgen.model.hull.Hull` record. Stable schema; SHA-256
   via `Hull.hash()` (alias for `Hull.record_hash()` per RFC 0049);

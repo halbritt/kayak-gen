@@ -31,6 +31,16 @@ python -m pip install -e '.[dev]'          # tests, linting, type checking
 
 After install, `kayakgen --help` should show the command list.
 
+For source changes, the release check is `scripts/full-gate.sh`: complete
+pytest, its documented skip pin, then Ruff. A worktree can use
+`KAYAKGEN_PY=/path/to/supported/venv/bin/python`. To retain an outcome, add
+`--receipt /outside/source/full-gate.json` (a new path), or set
+`KAYAKGEN_GATE_RECEIPT`. Keep the source frozen while it runs. The receipt
+identifies staged/dirty content as well as HEAD and distinguishes passed,
+failed and interrupted runs. Inherited `PYTEST_ADDOPTS` is cleared for this
+full check. See [release discipline](RELEASE_DISCIPLINE.md) and
+[the receipt contract](rfcs/0084-source-bound-full-gate.md).
+
 ## Quick Start
 
 Create a default hull, generate STL surfaces, evaluate hydrostatics plus raw
