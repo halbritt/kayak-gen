@@ -1579,3 +1579,33 @@ inputs. Hashes identify consumed bytes without authenticating them. Validation
 does not lock files through execution; callers own later changes, action
 deadlines, atomicity and resulting state. A later invocation may run the action
 again. Admission does not certify the whole task or change scientific claim states.
+
+## Verify an installed release
+
+Use the maintained release command with an immutable Git commit or tree and an
+operator-supplied file of exact dependency pins:
+
+```bash
+python -m kayakgen.operations.release --repo /path/to/kayak-gen --source COMMIT \
+  --constraints /path/to/exact-pins.txt --out /path/outside-checkouts/new-attempt
+```
+
+The command requires uv, Python, the pinned desktop/web/builder dependencies,
+Jinja2 and an actual OpenFOAM-v2512 installation. Override its bashrc with
+`--bashrc`. It creates a new inactive environment; the directory must not already
+exist, and failed attempts remain inspectable. `release-receipt.json` identifies
+the source tree, wheel and stage; `workflows/verification-receipt.json` records
+installed origins, files, resources, selected evaluation, guarded HTML report,
+export readback and real bounded legacy-fixture CFD. Command logs and receipts
+record failures. No live service or current symlink changes.
+
+Supply both `--hull /path/hull.json --context /path/context.json` to evaluate actual
+owner inputs. Context is an existing `EvaluationContext` JSON matching the hull;
+load, fluid, speeds, equilibrium settings and declared numerical budget are not
+replaced. Originals and snapshots must retain their input hashes. A declared
+numerical budget must pass; failed diagnostics remain in the attempt. Without
+these flags the command uses an explicitly labelled generated analytical smoke
+control. Its report and exports exercise installation; its separate CFD fixture
+is not owner-hull CFD or physical validation. HTML works without WeasyPrint/PDF.
+The worker forces software Mesa rendering and uses an isolated artifact index.
+See RFC 0083 for the reusable runtime audit seam and precise scope.

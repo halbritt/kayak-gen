@@ -154,3 +154,9 @@ Operational completion tooling (RFC 0079) gates an explicitly supplied action on
 a successful terminal audit and declared source-bound receipt predicates. Its
 local admission result does not grant authorization, certify an overall release
 or promote any scientific claim/readiness state.
+
+RFC 0083 adds maintained local installed-release acceptance: immutable source and
+wheel byte identity, pinned dependencies, actual selected HTML report and export
+workflows, and bounded real legacy-fixture OpenFOAM smoke. It stages an inactive
+environment only. HTML does not require the optional PDF extra; owner-hull CFD and
+physical validation remain outside this operational acceptance scope.

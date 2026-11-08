@@ -4,6 +4,18 @@ Updated: 2026-05-17
 
 ## Current State
 
+- 2026-11-08 / RFC 0083 / KAYGEN-20: promoted the exercised release recipes into
+  `python -m kayakgen.operations.release`. The first source-bound external stage
+  (`4633960e08dde68cd1f60c26077902b6732a919e`) passed exact source/wheel/installed
+  bytes, 68 resolved pinned dependencies, resource rendering, selected analytical
+  evaluation/persist/reload, guarded HTML with zero evaluator reruns and CLI
+  export readback. Actual OpenFOAM-2512 preflight and the bounded legacy-fixture
+  meshing/interFoam job passed; CFD stays `raw_unvalidated` with empty accepted
+  uses. Evidence is under the external followups-20261108/KAYGEN-20 campaign.
+  No live service, current link, owner release or input changed. Final source
+  pytest/Ruff and repeated maintained command evidence accompany integration;
+  runtime lifecycle and deployment remain separately authorized operations.
+
 - 2026-05-15T18:00Z checkpoint: Striatum runner reported broken; operator
   authorized a cowboy session to land remaining `docs/BACKLOG_EXECUTION_PLAN.md`
   batches directly. Work fans out through parallel Agent sub-sessions (one per

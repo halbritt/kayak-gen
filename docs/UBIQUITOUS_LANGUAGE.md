@@ -252,3 +252,12 @@ global hull-domain or service-idle requirements.
 requirements/receipt bytes, expected source and checked selectors. It permits
 one action call per invocation after a terminal successful audit; it does not
 authenticate evidence or certify the action's resulting external state.
+
+## Release verification
+
+A **source manifest** records the immutable Git tree and expected Python/resource
+file hashes derived from that tree's package-data declaration. A **release
+receipt** records build, inactive installation and installed workflow evidence;
+it does not promote scientific claim or readiness states. A **generated smoke
+control** is an explicit installation exercise used when no owner hull/context
+pair is supplied; it is not an owner design or physical reference measurement.

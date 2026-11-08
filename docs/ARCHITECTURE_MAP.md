@@ -24,7 +24,9 @@ identity and run manifests retain their existing authority.
 kayakgen/
 ├── operations/               # Operational checks; separate from hull claim gates
 │   ├── completion.py            terminal audit + declared receipts → one action
-│   └── gate.py                  fixed full pytest/skip pin then Ruff + optional receipt
+│   ├── gate.py                  fixed full pytest/skip pin then Ruff + optional receipt
+│   ├── release.py               immutable source → wheel → inactive installed verification
+│   └── release_*.py             manifests, staging, byte audit and actual installed workflows
 ├── cli/                      # Typer subcommands; thin glue
 │   ├── main.py                  init / generate / evaluate / mesh-check
 │   │                            / mesh-package / mesh-evidence / stability
@@ -501,3 +503,21 @@ numerical quality; compare and active-search reported frontiers preserve it in
 per-metric provenance. `search.numerical_intervals.operating_inputs_compatible`
 provides the public warning check without executing an evaluator. This adds no
 analytic request lifecycle or new ownership engine.
+
+## Maintained release acceptance (RFC 0083 / D069)
+
+`kayakgen/operations/release.py` owns the public module command, immutable export,
+wheel build and inactive stage. `release_manifest.py` derives expected package
+files/resources from the selected source and verifies wheel RECORD/content;
+`release_stage.py` resolves pinned/hash-locked dependencies and records external
+commands. `release_audit.py` provides read-only installed byte/origin checks for
+runtime probes. `release_verify.py`, `release_workflows.py` and
+`release_openfoam.py` execute installed analytical/report/export and real bounded
+legacy-fixture solver workflows. Installed workers run module entry points with
+`-I -B`, never copied verifier scripts.
+
+Durable evidence in a new external attempt: `source-manifest.json`, source export,
+built wheel, `stage/{constraints.txt,dependencies.lock,runtime.lock,environment/}`,
+`stage-receipt.json`, `verification-request.json`,
+`workflows/verification-receipt.json`, command logs/receipts and
+`release-receipt.json`. Failed attempts retain the same paths reached so far.
