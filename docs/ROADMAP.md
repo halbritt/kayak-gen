@@ -483,3 +483,11 @@ shared sweep evaluation service and carries operating comparison conditions to
 comparison/search outputs. The physical operating projection and its independent
 34-case oracle close the context/admission integration slice; broader numerical
 controls and all physical calibration gates remain separately evidence-gated.
+
+## RFC 0083 release tooling disposition
+
+KAYGEN-20 / R5 lands the maintained immutable-source → wheel → inactive installed
+environment → actual installed workflow acceptance command. This replaces the
+campaign-specific staging checklist as the reusable entry point. Runtime service
+lifecycle checks and deployment authority remain separate follow-up work; there
+is no public demo, owner CFD or physical claim expansion.

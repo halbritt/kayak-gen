@@ -149,3 +149,9 @@ RFC0077 operating comparison requires the same physical load/CG, fluid, speeds
 and operating intent before resistance can establish a strict winner. Numerical
 refinement remains independent; reported intervals do not cover operating pose
 solver error. Incompatible conditions stay visible with an explicit warning.
+
+RFC 0083 adds maintained local installed-release acceptance: immutable source and
+wheel byte identity, pinned dependencies, actual selected HTML report and export
+workflows, and bounded real legacy-fixture OpenFOAM smoke. It stages an inactive
+environment only. HTML does not require the optional PDF extra; owner-hull CFD and
+physical validation remain outside this operational acceptance scope.

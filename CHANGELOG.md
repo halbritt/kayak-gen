@@ -6,6 +6,14 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ## Unreleased
 
+### Added
+
+- RFC 0083 / KAYGEN-20: maintained `python -m kayakgen.operations.release`
+  builds an immutable source snapshot, stages a noneditable wheel and verifies
+  installed bytes plus actual HTML/report/export and bounded real CFD workflows.
+  Supplied hull/context inputs remain unchanged; absent inputs use a labelled
+  smoke control. Expected resources derive from source, and HTML requires no PDF extra.
+
 ### Fixed
 
 - RFC 0069 / KAYGEN-9 follow-up: standalone binary STL headers carry the

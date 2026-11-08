@@ -102,3 +102,5 @@ supported policy and validated retained bounds. Historical generic assertions
 remain readable diagnostics. RFC0077 comparison also requires common physical
 operating inputs, preserving component requests and solved-pose solver settings;
 resistance refinement grids/budgets are not physical operating differences.
+
+| D069 | accepted | RFC 0083: maintain one source-bound installed-release command with a manifest-derived byte audit and actual installed workflows. | Campaign scripts used fixed resource counts and private paths; checkout tests could miss installation defects. | New inactive external stages, exact pins/hash locks, isolated installed module entry points, paired owner inputs or labelled smoke, real bounded legacy-fixture CFD; HTML needs no PDF extra. No service or claim expansion. | Revisit for another build backend, authenticated release manifests or a separately authorized runtime deployment interface. |

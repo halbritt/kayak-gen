@@ -237,3 +237,12 @@ are distinct from hull identity, labels, origins and resistance refinement.
 Solved operating settings remain comparable requirements because resistance
 uncertainty does not bound pose-solver error. The public warning token is
 `incompatible_operating_inputs`.
+
+## Release verification
+
+A **source manifest** records the immutable Git tree and expected Python/resource
+file hashes derived from that tree's package-data declaration. A **release
+receipt** records build, inactive installation and installed workflow evidence;
+it does not promote scientific claim or readiness states. A **generated smoke
+control** is an explicit installation exercise used when no owner hull/context
+pair is supplied; it is not an owner design or physical reference measurement.
