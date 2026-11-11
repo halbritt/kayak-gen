@@ -14,6 +14,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 
 | RFC | Status | Topic |
 | --- | --- | --- |
+| [0088](0088-v2-topsides.md) | landed optional topsides record | Above-waterline hull sides and flare for `distribution_v2` hulls |
 | [0081](0081-semantic-preflight.md) | landed selected semantic preflight | Source-bound shared-input contract checks before full release gates |
 | [0082](0082-verified-gate-renderers.md) | landed verified full/fast renderer admission | Actual Mesa software evidence and coordinated NVIDIA hardware gates |
 | [0086](0086-citation-closure.md) | landed phase/packet-bound citation closure | Bind doctrine citations to the phase and packet that served them |

@@ -26,7 +26,7 @@ from __future__ import annotations
 from typing import Annotated, Literal, Union
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
 
 CrossSectionFamily = Literal[
@@ -175,6 +175,68 @@ def sample_distribution(
     return distribution.sample(xi)
 
 
+SHEER_BEAM_RATIO_MAX = 1.5
+SHEER_HEIGHT_FRAC_MIN = 0.05
+SHEER_HEIGHT_FRAC_MAX = 0.95
+_TOPSIDES_VALIDATION_XI = np.linspace(-1.0, 1.0, 201)
+
+
+def _sample_scalar_or_longitudinal(
+    value: "float | LongitudinalDistribution", xi: float | np.ndarray
+) -> np.ndarray:
+    xi_arr = np.atleast_1d(np.asarray(xi, dtype=float))
+    if isinstance(value, (int, float)):
+        return np.full(xi_arr.shape, float(value))
+    return np.asarray(value.sample(xi_arr), dtype=float)
+
+
+class TopsidesSpec(BaseModel):
+    """Above-waterline hull sides between the design waterline and the sheer.
+
+    Without this record the V2 deck meets the hull on the design
+    waterline, so the body has no reserve of breadth above the water.
+    With it, each station carries a topside strip from the waterline
+    edge up to the sheer, and the deck spans sheer to sheer.
+
+    ``sheer_beam_ratio`` is the sheer half-breadth divided by the local
+    waterline half-breadth (1 = wall-sided, above 1 = flared). A ratio
+    keeps the flare proportional to the local breadth so it vanishes at
+    pointed ends. ``sheer_height_frac`` is the sheer height above the
+    design waterline divided by the local deck freeboard. Both accept a
+    scalar or a :class:`LongitudinalDistribution`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    sheer_beam_ratio: Union[float, LongitudinalDistribution] = 1.0
+    sheer_height_frac: Union[float, LongitudinalDistribution] = 0.6
+
+    @model_validator(mode="after")
+    def _check_ranges(self) -> "TopsidesSpec":
+        ratio = _sample_scalar_or_longitudinal(self.sheer_beam_ratio, _TOPSIDES_VALIDATION_XI)
+        frac = _sample_scalar_or_longitudinal(self.sheer_height_frac, _TOPSIDES_VALIDATION_XI)
+        if not (np.isfinite(ratio).all() and np.isfinite(frac).all()):
+            raise ValueError("topsides values must be finite")
+        if ratio.min() < 1.0 or ratio.max() > SHEER_BEAM_RATIO_MAX:
+            raise ValueError(
+                f"sheer_beam_ratio must stay within [1, {SHEER_BEAM_RATIO_MAX}] along the hull"
+            )
+        if frac.min() < SHEER_HEIGHT_FRAC_MIN or frac.max() > SHEER_HEIGHT_FRAC_MAX:
+            raise ValueError(
+                "sheer_height_frac must stay within "
+                f"[{SHEER_HEIGHT_FRAC_MIN}, {SHEER_HEIGHT_FRAC_MAX}] along the hull"
+            )
+        return self
+
+    def sample_sheer_beam_ratio(self, xi: float) -> float:
+        value = float(_sample_scalar_or_longitudinal(self.sheer_beam_ratio, xi)[0])
+        return float(min(max(value, 1.0), SHEER_BEAM_RATIO_MAX))
+
+    def sample_sheer_height_frac(self, xi: float) -> float:
+        value = float(_sample_scalar_or_longitudinal(self.sheer_height_frac, xi)[0])
+        return float(min(max(value, SHEER_HEIGHT_FRAC_MIN), SHEER_HEIGHT_FRAC_MAX))
+
+
 class DistributionV2Spec(BaseModel):
     """Explicit-distribution geometry payload (RFC 0048).
 
@@ -193,6 +255,9 @@ class DistributionV2Spec(BaseModel):
 
     ``multi_chine_count`` parametrizes the ``multi_chine`` family's
     chine count (range 2-4). It is ignored by the other five families.
+
+    ``topsides`` (RFC 0088) is optional. When unset the deck meets the
+    hull on the design waterline, exactly as before the field existed.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -216,3 +281,15 @@ class DistributionV2Spec(BaseModel):
     bow_flare_deg: float = 0.0
 
     multi_chine_count: int = Field(default=2, ge=2, le=4)
+
+    # RFC 0088. Omitted from serialized output while unset so every
+    # record and design identity written before the field existed stays
+    # byte-stable.
+    topsides: TopsidesSpec | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_topsides(self, handler):  # type: ignore[no-untyped-def]
+        data = handler(self)
+        if self.topsides is None and isinstance(data, dict):
+            data.pop("topsides", None)
+        return data

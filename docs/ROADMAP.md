@@ -543,6 +543,14 @@ originals and cite a verified closure from another phase. Future-Striatum-Batche
 doctrine corpus/index/classifier changes and automatic task acceptance remain
 outside this operational tooling slice.
 
+## RFC 0088 v2 topsides disposition
+
+Optional `distribution_v2.topsides` adds wall-sided or flared sides between
+the waterline and the sheer on the canonical body. Existing hulls are
+byte-stable. Future-Striatum-Batches: tumblehome, knuckled sheer, lofted
+topsides, preset search variables for the sheer ratio and measured GZ
+validation are not part of this slice.
+
 ## RFC 0087 ledger finalization disposition
 
 KAYGEN-24 / R9 provides a receipt-applicability view and a proposed finalized

@@ -124,6 +124,24 @@ methods (advisory-only on >1% displaced volume / Aw / LCB drift, or
 values on a v2 hull. Use `kayakgen migrate-geometry` to produce a
 v2 sibling from an existing lofted hull.
 
+A v2 hull may add `distribution_v2.topsides` (RFC 0088) to carry hull
+sides above the waterline:
+
+```json
+"topsides": {"sheer_beam_ratio": 1.1, "sheer_height_frac": 0.6}
+```
+
+`sheer_beam_ratio` is the sheer half-breadth divided by the local
+waterline half-breadth (1 to 1.5; 1 is wall-sided). `sheer_height_frac`
+is the sheer height divided by the local deck freeboard (0.05 to 0.95).
+Either may be a longitudinal distribution. Without the record the deck
+meets the hull on the design waterline, so the hull cannot gain breadth
+as it heels. Topsides change heeled and sunk results (equilibrium,
+high-angle GZ) and the closed body; they do not change upright
+hydrostatics or resistance at the design waterline. Omitting the record
+leaves an existing hull's identity unchanged; adding it changes the
+identity.
+
 ## CLI Commands
 
 ### `init`

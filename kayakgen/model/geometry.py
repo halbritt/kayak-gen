@@ -786,12 +786,34 @@ class DistributionV2Geometry(HullGeometry):
         freeboard = self._deck_height_at(x)
         half_b_safe = max(half_b, 1e-4)
         freeboard_safe = max(freeboard, 1e-4)
-        ys = np.linspace(0.0, half_b_safe, self.num_points)
-        rel = ys / half_b_safe
         # Use bow_flare to bias deck arch on the forward half.
         flare = float(np.radians(self.spec.bow_flare_deg)) if x < 0.0 else 0.0
-        z = freeboard_safe * (1.0 - rel ** (4.0 + 6.0 * flare))
-        return np.column_stack((ys, z))
+        exponent = 4.0 + 6.0 * flare
+        topsides = self.spec.topsides
+        if topsides is None:
+            ys = np.linspace(0.0, half_b_safe, self.num_points)
+            rel = ys / half_b_safe
+            z = freeboard_safe * (1.0 - rel**exponent)
+            return np.column_stack((ys, z))
+
+        # RFC 0088: the upper arc runs centreline -> sheer over the deck,
+        # then sheer -> waterline edge down the topside strip. The total
+        # point count and both endpoints match the no-topsides arc.
+        xi = self._xi_for_x(x)
+        sheer_half_b = half_b_safe * topsides.sample_sheer_beam_ratio(xi)
+        sheer_z = freeboard_safe * topsides.sample_sheer_height_frac(xi)
+        n_topside = max(2, self.num_points // 4)
+        n_deck = self.num_points - n_topside
+        deck_y = np.linspace(0.0, sheer_half_b, n_deck)
+        deck_z = sheer_z + (freeboard_safe - sheer_z) * (1.0 - (deck_y / sheer_half_b) ** exponent)
+        # Parabolic flare: vertical at the waterline, so the strip is
+        # tangent-continuous with the round and shallow-arch hull arcs.
+        s = np.linspace(1.0, 0.0, n_topside + 1)[1:]
+        side_y = half_b_safe + (sheer_half_b - half_b_safe) * s**2
+        side_z = sheer_z * s
+        return np.column_stack(
+            (np.concatenate((deck_y, side_y)), np.concatenate((deck_z, side_z)))
+        )
 
     def _mirror_for_part(self, quarter: np.ndarray, part: PartType) -> np.ndarray:
         """Mirror a quarter section (port → starboard, like LoftedHullGeometry)."""
@@ -882,6 +904,30 @@ class DistributionV2Geometry(HullGeometry):
         xs = np.linspace(-self.L / 2.0, self.L / 2.0, n)
         zs = np.array([self._deck_height_at(float(x)) for x in xs])
         return np.column_stack((xs, zs))
+
+    def sheer_line(self, n: int = 200) -> np.ndarray:
+        """Sheer line as ``(x, half_breadth, z)`` rows (RFC 0088).
+
+        Without topsides the sheer is the design-waterline edge.
+        """
+
+        xs = np.linspace(-self.L / 2.0, self.L / 2.0, n)
+        rows = []
+        topsides = self.spec.topsides
+        for x in xs:
+            half_b = self._half_breadth_at(float(x))
+            if topsides is None:
+                rows.append((float(x), half_b, 0.0))
+                continue
+            xi = self._xi_for_x(float(x))
+            rows.append(
+                (
+                    float(x),
+                    half_b * topsides.sample_sheer_beam_ratio(xi),
+                    self._deck_height_at(float(x)) * topsides.sample_sheer_height_frac(xi),
+                )
+            )
+        return np.asarray(rows, dtype=float)
 
     def section_area(self, x: float) -> float:
         pts = self.section(x, "hull")

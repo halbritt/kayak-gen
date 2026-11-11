@@ -8,6 +8,15 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- RFC 0088: `distribution_v2` hulls accept an optional `topsides` record
+  (`sheer_beam_ratio`, `sheer_height_frac`; scalar or longitudinal
+  distribution) that adds wall-sided or flared hull sides between the design
+  waterline and the sheer. The generated closed body, equilibrium hydrostatics,
+  high-angle GZ and section exports use it; upright hydrostatics and
+  design-waterline resistance are unchanged. Hulls without the record keep
+  their geometry, serialized bytes and identities. Not included: lofted
+  geometry, tumblehome, and any physical validation of GZ values.
+
 - RFC 0080 / KAYGEN-17: installed runtime lifecycle verification exercises real
   idle controls and optionally observes a persistent local service. Acceptance
   requires effective timeout-zero/server policy, stable process identity and

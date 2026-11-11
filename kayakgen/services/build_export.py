@@ -153,10 +153,18 @@ def _sheer_z_m(geom: SectionExportGeometry, x: float) -> float:
     drops to the keel curve at the exact plumb-stem endpoints. We
     report the maximum z attained by the hull section ring, which
     reduces to 0 in the body and to the local stem-tip z at endpoints.
+
+    A geometry with topsides (RFC 0088) carries its widest point above
+    the waterline on the upper ring; the sheer is that point.
     """
     pts = _section_yz(geom, x, "hull")
     if len(pts) == 0:
         return 0.0
+    upper = _section_yz(geom, x, "deck")
+    if len(upper):
+        widest = int(np.argmax(np.abs(upper[:, 0])))
+        if abs(upper[widest, 0]) > float(np.max(np.abs(pts[:, 0]))) + 1e-9:
+            return float(upper[widest, 1])
     return float(np.max(pts[:, 1]))
 
 
