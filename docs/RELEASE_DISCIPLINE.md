@@ -124,6 +124,13 @@ RFC 0082 adds the actual context probe and resource admission described below.
 See [RFC 0084](rfcs/0084-source-bound-full-gate.md) for the receipt schema,
 output ownership and interruption limits.
 
+Both gate entry points and `tests/conftest.py` remove Git's repository-local
+environment variables before any check runs. Git exports `GIT_DIR` to hooks in
+a linked worktree, and a fixture repository created under it would otherwise
+be the real repository. Do not reintroduce those variables into a check's
+environment; pass an explicit `GIT_INDEX_FILE` only to a single Git command, as
+the source snapshot does.
+
 ## Renderer admission for full and pre-push gates (RFC 0082)
 
 Both shell entry points use the same maintained runner and renderer policy.

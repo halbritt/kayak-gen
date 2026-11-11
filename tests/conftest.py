@@ -12,6 +12,12 @@ from typing import Literal
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from kayakgen.operations.git_env import scrub_git_local_env  # noqa: E402
+
+# Tests build throwaway Git repositories. Under a Git hook the inherited
+# GIT_DIR / GIT_INDEX_FILE would point every one of them at the real repo.
+scrub_git_local_env()
+
 
 def pytest_addoption(parser):
     parser.addoption(

@@ -20,6 +20,8 @@ import tempfile
 import time
 import uuid
 
+from kayakgen.operations.git_env import scrub_git_local_env
+
 SCHEMA_VERSION = "kayakgen-gate-receipt/1"
 FAST_PYTEST_ARGS = (
     "--ignore=tests/test_web_browser.py",
@@ -442,6 +444,9 @@ def argument_parser(description: str) -> argparse.ArgumentParser:
 
 def gate_entry(kind: str, description: str) -> int:
     args = argument_parser(description).parse_args()
+    # A pre-push hook in a linked worktree exports GIT_DIR; inherited by the
+    # checks, it redirects every fixture repository onto the real one.
+    scrub_git_local_env()
     try:
         return run_gate(args.receipt, args.renderer, gate_kind=kind)
     except (OSError, ValueError, subprocess.CalledProcessError) as exc:

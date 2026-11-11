@@ -48,6 +48,14 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Fixed
 
+- The full and pre-push gates, and any pytest session, now remove Git's
+  repository-local environment (`GIT_DIR`, `GIT_INDEX_FILE` and the rest of
+  `git rev-parse --local-env-vars`) before running checks. A pre-push hook in a
+  linked worktree exports `GIT_DIR`; tests that build throwaway repositories
+  inherited it and initialized, staged and committed into the real repository
+  (setting `core.bare` and adding a `fixture` commit to the pushed branch).
+  `kayakgen.operations.git_env`; `tests/test_git_env_isolation.py`.
+
 - RFC 0084 / KAYGEN-21 acceptance correction: two default-refusal CFD tests
   explicitly disable their local-run opt-in for that test only. A complete
   opt-in run can therefore exercise both refusal controls and the enabled
