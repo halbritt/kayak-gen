@@ -48,6 +48,17 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Fixed
 
+- `multi_chine` sections no longer carry a notch next to the keel and the
+  waterline edge. The chine-smoothing pass averaged with zero padding, pulling
+  the points beside each end toward the origin; it now extends the arc by point
+  reflection. Hydrostatics of `multi_chine` hulls shift slightly as a result.
+
+- RFC 0088 topsides no longer put a knuckle on the waterline. The strip left
+  the waterline vertically, but only `shallow_arch` sections are vertical
+  there; `round` sections arrive at 35-50 degrees, which showed as a chine
+  along the waterline. The strip now leaves along the hull arc's own tangent
+  for every section family. Hulls without `topsides` are unchanged.
+
 - The full and pre-push gates, and any pytest session, now remove Git's
   repository-local environment (`GIT_DIR`, `GIT_INDEX_FILE` and the rest of
   `git rev-parse --local-env-vars`) before running checks. A pre-push hook in a

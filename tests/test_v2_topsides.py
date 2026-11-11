@@ -190,3 +190,54 @@ def test_offsets_export_reports_sheer_above_waterline(tmp_path: Path) -> None:
     flared = _with_topsides(base)
     expected = FRAC * flared.to_geometry()._deck_height_at(0.0)
     assert sheer_column(flared, "flared.csv")[2] == pytest.approx(expected, abs=1e-6)
+
+
+@pytest.mark.parametrize(
+    "family", ["round", "shallow_arch", "shallow_v", "deep_v", "hard_chine", "multi_chine"]
+)
+def test_topside_strip_leaves_waterline_along_hull_tangent(family: str) -> None:
+    """No knuckle on the waterline: the strip continues the hull arc's direction."""
+
+    payload = _base().model_dump()
+    payload["distribution_v2"]["cross_section_family"] = family
+    payload["distribution_v2"]["topsides"] = {"sheer_beam_ratio": 1.2, "sheer_height_frac": FRAC}
+    geometry = Hull.model_validate(payload).to_geometry()
+    geometry.num_points = 400
+
+    def direction(start: np.ndarray, end: np.ndarray) -> float:
+        return float(np.degrees(np.arctan2(end[1] - start[1], end[0] - start[0])))
+
+    for x in (-2.2, -1.0, 0.3, 1.4, 2.4):
+        hull_arc = geometry._hull_quarter_section(x)
+        upper = geometry._deck_quarter_section(x)
+        tangent_y, tangent_z = geometry._hull_waterline_tangent(x)
+        expected = float(np.degrees(np.arctan2(tangent_z, tangent_y)))
+        np.testing.assert_allclose(upper[-1], hull_arc[-1], atol=1e-12)
+        assert direction(upper[-1], upper[-2]) == pytest.approx(expected, abs=2.0)
+        widest = int(np.argmax(upper[:, 0]))
+        strip = upper[widest:]
+        assert np.all(np.diff(strip[:, 1]) < 0)
+        assert np.all(np.diff(strip[:, 0]) <= 1e-12)
+
+
+def test_waterline_tangent_is_independent_of_section_resolution() -> None:
+    hull = _with_topsides(_base())
+    coarse, fine = hull.to_geometry(), hull.to_geometry()
+    coarse.num_points, fine.num_points = 12, 200
+    assert coarse._hull_waterline_tangent(0.4) == fine._hull_waterline_tangent(0.4)
+
+
+@pytest.mark.parametrize("chine_count", [2, 3, 4])
+@pytest.mark.parametrize("points", [12, 40, 200])
+def test_multi_chine_arc_has_no_notch_at_its_ends(chine_count: int, points: int) -> None:
+    """Breadth and height increase monotonically from keel to waterline edge."""
+
+    payload = _base().model_dump()
+    payload["distribution_v2"]["cross_section_family"] = "multi_chine"
+    payload["distribution_v2"]["multi_chine_count"] = chine_count
+    geometry = Hull.model_validate(payload).to_geometry()
+    for x in (-2.2, -1.0, 0.0, 1.4, 2.4):
+        arc = geometry._hull_quarter_section(x, points)
+        assert len(arc) == points
+        assert np.all(np.diff(arc[:, 0]) >= -1e-12)
+        assert np.all(np.diff(arc[:, 1]) >= -1e-12)

@@ -636,8 +636,19 @@ def _section_multi_chine(
         window = max(3, int(round(chine_radius * 1000.0)))
         window = min(window, 5)
         kernel = np.ones(window) / window
-        ys_smooth = np.convolve(ys_arr, kernel, mode="same")
-        zs_smooth = np.convolve(zs_arr, kernel, mode="same")
+        # Extend each end by point reflection before averaging. A plain
+        # ``mode="same"`` pads with zeros, which dragged the points next
+        # to the keel and the waterline edge toward the origin and left
+        # a notch in the section at both ends.
+        half = window // 2
+
+        def _smooth(values: np.ndarray) -> np.ndarray:
+            head = 2.0 * values[0] - values[half:0:-1]
+            tail = 2.0 * values[-1] - values[-2 : -half - 2 : -1]
+            return np.convolve(np.concatenate((head, values, tail)), kernel, mode="valid")
+
+        ys_smooth = _smooth(ys_arr)
+        zs_smooth = _smooth(zs_arr)
         # Preserve endpoints exactly.
         ys_smooth[0] = ys_arr[0]
         ys_smooth[-1] = ys_arr[-1]
@@ -727,8 +738,10 @@ class DistributionV2Geometry(HullGeometry):
 
     # ----- canonical body construction -----
 
-    def _hull_quarter_section(self, x: float) -> np.ndarray:
+    def _hull_quarter_section(self, x: float, num_points: int | None = None) -> np.ndarray:
         """Sample the starboard-quarter hull arc at ``x`` (Nx2 y/z)."""
+
+        n_points = self.num_points if num_points is None else num_points
 
         family: CrossSectionFamily = self.spec.cross_section_family
         half_b = self._half_breadth_at(x)
@@ -748,12 +761,12 @@ class DistributionV2Geometry(HullGeometry):
 
         sampler = _CROSS_SECTION_FAMILIES[family]
         if family in ("round", "shallow_arch"):
-            arc = sampler(half_b_safe, draft_safe, self.num_points, deadrise_rad=deadrise_rad)
+            arc = sampler(half_b_safe, draft_safe, n_points, deadrise_rad=deadrise_rad)
         elif family in ("shallow_v", "deep_v", "hard_chine"):
             arc = sampler(
                 half_b_safe,
                 draft_safe,
-                self.num_points,
+                n_points,
                 deadrise_rad=deadrise_rad,
                 chine_radius=chine_radius,
             )
@@ -761,7 +774,7 @@ class DistributionV2Geometry(HullGeometry):
             arc = sampler(
                 half_b_safe,
                 draft_safe,
-                self.num_points,
+                n_points,
                 deadrise_rad=deadrise_rad,
                 chine_radius=chine_radius,
                 chine_count=self.spec.multi_chine_count,
@@ -806,14 +819,51 @@ class DistributionV2Geometry(HullGeometry):
         n_deck = self.num_points - n_topside
         deck_y = np.linspace(0.0, sheer_half_b, n_deck)
         deck_z = sheer_z + (freeboard_safe - sheer_z) * (1.0 - (deck_y / sheer_half_b) ** exponent)
-        # Parabolic flare: vertical at the waterline, so the strip is
-        # tangent-continuous with the round and shallow-arch hull arcs.
+        # The strip is a quadratic Bezier that leaves the waterline edge
+        # along the hull arc's own tangent there, so the join is fair for
+        # every section family instead of a knuckle on the waterline. The
+        # control point runs along that tangent until it reaches the
+        # sheer breadth or half the sheer height, whichever comes first;
+        # the curve then stays inside both, so the sheer is the widest
+        # point and height rises monotonically.
+        tangent_y, tangent_z = self._hull_waterline_tangent(x)
+        flare = sheer_half_b - half_b_safe
+        reach_height = 0.5 * sheer_z / tangent_z if tangent_z > 1e-9 else np.inf
+        reach_breadth = flare / tangent_y if tangent_y > 1e-9 else np.inf
+        reach = min(reach_height, reach_breadth)
+        control_y = half_b_safe + reach * tangent_y
+        control_z = reach * tangent_z
         s = np.linspace(1.0, 0.0, n_topside + 1)[1:]
-        side_y = half_b_safe + (sheer_half_b - half_b_safe) * s**2
-        side_z = sheer_z * s
+        side_y = (
+            (1.0 - s) ** 2 * half_b_safe + 2.0 * s * (1.0 - s) * control_y + s**2 * sheer_half_b
+        )
+        side_z = 2.0 * s * (1.0 - s) * control_z + s**2 * sheer_z
+        side_y[-1] = half_b_safe
+        side_z[-1] = 0.0
         return np.column_stack(
             (np.concatenate((deck_y, side_y)), np.concatenate((deck_z, side_z)))
         )
+
+    _TANGENT_SAMPLES = 400
+
+    def _hull_waterline_tangent(self, x: float) -> tuple[float, float]:
+        """Unit (y, z) direction of the hull arc as it reaches the waterline edge.
+
+        Sampled at a fixed fine resolution so the result does not depend
+        on the mesh's section point count. Clamped to the outward-upward
+        quadrant; a degenerate arc reads as vertical.
+        """
+
+        arc = self._hull_quarter_section(x, self._TANGENT_SAMPLES)
+        edge = arc[-1]
+        span = float(max(np.ptp(arc[:, 0]), np.ptp(arc[:, 1]), 1e-12))
+        for point in arc[-2::-1]:
+            step_y = max(float(edge[0] - point[0]), 0.0)
+            step_z = max(float(edge[1] - point[1]), 0.0)
+            norm = float(np.hypot(step_y, step_z))
+            if norm > 1e-6 * span:
+                return step_y / norm, step_z / norm
+        return 0.0, 1.0
 
     def _mirror_for_part(self, quarter: np.ndarray, part: PartType) -> np.ndarray:
         """Mirror a quarter section (port → starboard, like LoftedHullGeometry)."""

@@ -58,8 +58,17 @@ out-of-range, non-finite and unknown fields are refused.
 
 With topsides set, the upper ring at each station runs centreline to
 sheer over the deck, then sheer to the waterline edge down the topside
-strip. The strip is `y = b + (r - 1) b s^2`, `z = h s` for `s` in
-[0, 1], vertical at the waterline. The deck keeps its existing arch
+strip. The strip is a quadratic Bezier from the waterline edge to the
+sheer. Its control point lies on the hull arc's own tangent at the
+waterline, as far along as the sheer breadth or half the sheer height,
+whichever is reached first. The strip therefore continues the hull
+section without a knuckle on the waterline for every section family,
+the sheer is the widest point, and height rises monotonically. (The
+first landing used a parabola that left the waterline vertically. Only
+`shallow_arch` is vertical there; `round` meets the waterline at about
+35-50 degrees, and the result was a visible chine along the waterline.)
+A ratio of 1 on a family that is not vertical at the waterline keeps
+the knuckle: a wall-sided strip cannot follow an outward tangent. The deck keeps its existing arch
 exponent between the sheer and the crown. The ring keeps its point
 count and its three anchor points (both waterline edges and the crown),
 so meshing and the closed-body builder are unchanged. The lower ring is
@@ -91,6 +100,8 @@ when that point is wider than the waterline.
   for all six section families.
 - Righting arm at 20 and 30 degrees orders no-topsides < wall-sided <
   flared on the same hull and load.
+- The strip's direction at the waterline matches the hull arc's within
+  2 degrees for all six section families.
 - Out-of-range scalars and distributions are refused.
 - Tests: `tests/test_v2_topsides.py`.
 
