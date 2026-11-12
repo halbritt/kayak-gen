@@ -101,6 +101,13 @@ Read it before landing any change that touches a public CLI command,
 a Pydantic schema, a claim/readiness literal, or any of the docs in
 the architecture-map list.
 
+## Running tests
+
+`mise tasks ls` lists the test tasks: `mise run test -- <paths>` for
+focused pytest, `mise run lint`, `mise run test:fast` and
+`mise run test:full` for the two gates. They wrap the commands in
+`docs/RELEASE_DISCIPLINE.md`, which stays the authority.
+
 ## Project conventions visible in `git log`
 
 - New design docs land as RFCs in `docs/rfcs/NNNN-slug.md`. Commit

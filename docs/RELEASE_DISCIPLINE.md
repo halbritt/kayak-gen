@@ -90,6 +90,30 @@ Every commit must pass, in this order:
 4. **Co-author attribution** on any commit an agent participated
    in: `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>`.
 
+### Running tests with mise
+
+`mise.toml` names the test entry points. Each task wraps a command
+described in this document and adds nothing to its meaning:
+
+```bash
+mise tasks ls                                      # what exists
+mise run test -- tests/test_form_metrics.py -k class   # focused pytest; a selector is required
+mise run lint                                      # Ruff over kayakgen and tests
+mise run test:fast                                 # scripts/fast-gate.sh, the pre-push check
+mise run test:full                                 # scripts/full-gate.sh, the release gate
+mise run test:full -- --receipt /outside/source/full-gate.json
+```
+
+The two gate tasks run through the host's shared `host:exec` task, which
+waits for host capacity, enforces a deadline (30 min fast, 60 min full)
+and stops every process the gate started. Exit 124 or 137 with a
+`timeout:` line, 143, or 75 from `host:exec` is a host condition, not a
+test failure. `scripts/test-python.sh` picks the interpreter:
+`KAYAKGEN_PY`, then this worktree's `.venv`, then the primary
+checkout's `.venv`, so a linked worktree needs no setup. The scripts
+still work when called directly, and the pre-push hook still calls
+`scripts/fast-gate.sh`.
+
 Requirements 1 and 2 have a mechanical form: `scripts/full-gate.sh`
 runs the full suite, **enforces** the skip count, then runs Ruff — it
 exports `KAYAKGEN_ENFORCE_SKIP_PIN=1` so `tests/conftest.py` also

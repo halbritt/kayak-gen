@@ -32,7 +32,9 @@ python -m pip install -e '.[dev]'          # tests, linting, type checking
 After install, `kayakgen --help` should show the command list.
 
 For source changes, the release check is `scripts/full-gate.sh`: complete
-pytest, its documented skip pin, then Ruff. A worktree can use
+pytest, its documented skip pin, then Ruff. With mise installed,
+`mise run test:full` runs the same gate and `mise run test -- <paths>`
+runs focused tests; `mise tasks ls` lists the tasks. A worktree can use
 `KAYAKGEN_PY=/path/to/supported/venv/bin/python`. To retain an outcome, add
 `--receipt /outside/source/full-gate.json` (a new path), or set
 `KAYAKGEN_GATE_RECEIPT`. Keep the source frozen while it runs. The receipt

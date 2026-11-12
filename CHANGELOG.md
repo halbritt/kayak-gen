@@ -8,6 +8,10 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- `mise.toml` test tasks: `test` (focused pytest, selector required), `lint`,
+  `test:fast` and `test:full` (the existing gate scripts, run through the
+  host's `host:exec` for a deadline and child cleanup). `scripts/test-python.sh`
+  finds the interpreter, including from a linked worktree.
 - RFC 0089 stage 4: the `form_metrics` block reports section knuckles, the
   corner where hull meets topside (`waterline_knuckle_max_deg`) and the
   sharpest corner above it at the topside and deck edge

@@ -1,0 +1,19 @@
+# Test entry points for mise. The gate scripts remain the authority
+# (docs/RELEASE_DISCIPLINE.md); these tasks only wrap them.
+# The interpreter is chosen by scripts/test-python.sh.
+
+[tasks.test]
+description = "Focused pytest; pass paths or -k after --, e.g. mise run test -- tests/test_form_metrics.py"
+run = '''bash -c '[ "$#" -gt 0 ] || { echo "test: pass a selector after --; use test:fast or test:full for a gate" >&2; exit 2; }; exec "$(scripts/test-python.sh)" -m pytest -q "$@"' test'''
+
+[tasks."test:fast"]
+description = "Fast gate (Ruff + fixed pytest subset, about 10 min); the pre-push check"
+run = '''bash -c 'KAYAKGEN_PY="$(scripts/test-python.sh)" exec mise run host:exec --timeout 30m --weight 2 -- scripts/fast-gate.sh "$@"' test:fast'''
+
+[tasks."test:full"]
+description = "Full release gate (complete pytest, skip pin, Ruff; about 20 min); accepts --receipt PATH"
+run = '''bash -c 'KAYAKGEN_PY="$(scripts/test-python.sh)" exec mise run host:exec --timeout 60m --weight 2 -- scripts/full-gate.sh "$@"' test:full'''
+
+[tasks.lint]
+description = "Ruff over kayakgen and tests"
+run = '''bash -c 'exec "$(scripts/test-python.sh)" -m ruff check kayakgen tests "$@"' lint'''
