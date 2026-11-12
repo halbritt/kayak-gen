@@ -1,6 +1,6 @@
 # RFC 0089: Section fullness, form metrics and multi-load righting arms
 
-Status: landed stages 1 to 3 (section exponent, form metrics, load-case GZ table; tumblehome, sheer plan, deck crown, search admission; foot room)
+Status: landed stages 1 to 4 (section exponent, form metrics, load-case GZ table; tumblehome, sheer plan, deck crown, search admission; foot room; section knuckles)
 Date: 2026-11-11
 Context: RFC 0048 (`distribution_v2`), RFC 0088 (topsides), RFC 0043
 (high-angle GZ), RFC 0053 (turning metrics), RFC 0049/0068 (identity);
@@ -350,6 +350,57 @@ Tests: `tests/test_rfc0089_foot_room.py`.
 
 Still open: knee room, a seat position that is not the section-area
 centroid by default, and shell thickness.
+
+## Stage 4: section knuckles
+
+A deck search with the stage 2 controls, a righting-arm floor and the
+stage 3 foot-room floor returned decks with a hard corner at the deck
+edge along the aft half: a low sheer on a flared topside, with a square
+deck rising steeply from it. The flared shoulder just above the
+waterline adds righting arm, so the search trades a fair deck edge for
+paddle clearance. The plan outline stays fair, and nothing in the tool
+measured the sections.
+
+`FormMetrics` gains a knuckle measure, always computed with the block.
+The turn at a point of a half section is the angle between the chord
+from `knuckle_probe_m` (default 0.002) before it and the chord to
+`knuckle_probe_m` after it, along the outline. A sharp corner reads its
+full angle at any probe length; a curve of radius `r` reads about
+`knuckle_probe_m / r` radians.
+
+- `waterline_knuckle_max_deg` and `waterline_knuckle_x_m`: the largest
+  turn at the joint of the hull ring and the deck ring, and its station.
+  With topsides the joint is the design waterline; without, the gunwale.
+- `upper_knuckle_max_deg`, `upper_knuckle_x_m` and
+  `upper_knuckle_height_m`: the largest turn above the joint (topside
+  and deck edge), its station and its height over the design waterline.
+  The deck centreline is left out, so a ridged deck is not a knuckle.
+
+Both are taken at stations within `knuckle_span_xi` (default 0.9) of the
+half length either side of the middle, because the end sections are too
+narrow to read. The outline is the generated polyline, so a turn is not
+read finer than its point spacing: on a fair section the reading is the
+polyline's own turn per point, a few degrees.
+
+Sweeps report `form.upper_knuckle_max_deg` and
+`form.waterline_knuckle_max_deg`. These are constraint keys for any
+search and objectives (direction min) only under the exploratory
+opt-in. The probe and span are arguments of `evaluate_form_metrics`
+and not sweep or CLI options.
+
+The knuckle fields are optional in the schema, so a `form_metrics`
+block written by stages 1 to 3 still loads. A block computed now
+carries them, so its bytes differ from one computed before stage 4.
+
+The measure reports and constrains; it does not change the geometry. A
+hull whose bottom meets a vertical topside at an angle has a waterline
+knuckle that no topside variable removes, and a multi-chine or hard
+chine below the waterline is not counted.
+
+Tests: `tests/test_rfc0089_knuckle.py`.
+
+Still open: a deck edge that is round by construction, a knuckle
+measure below the waterline, and probe and span as sweep options.
 
 ## Domain Modeling
 

@@ -10,7 +10,10 @@ Two geometric measures a designer otherwise takes by hand:
 * paddle clearance, the overall beam of hull and deck in a zone forward
   of a reference station, where the blade enters the water;
 * foot room, the largest centred box that fits between hull and deck at
-  the foot station, measured on the outer surface.
+  the foot station, measured on the outer surface;
+* knuckles, the corner in the sections where hull meets topside at the
+  design waterline and the sharpest corner above it, which a fair
+  topside and deck edge keep small.
 
 Like turning metrics (RFC 0053) this evaluator reads only the
 :class:`Hull` geometry and calls no other evaluator. The bow is at
@@ -32,6 +35,8 @@ DEFAULT_CATCH_UPPER_HEIGHT_M = 0.10
 DEFAULT_FOOT_STATION_FORWARD_M = 1.0
 DEFAULT_FOOT_BOX_WIDTH_M = 0.30
 DEFAULT_FOOT_BOX_HEIGHT_M = 0.30
+DEFAULT_KNUCKLE_PROBE_M = 0.002
+DEFAULT_KNUCKLE_SPAN_XI = 0.9
 _FOOT_BOX_SAMPLES = 41
 _STATIONS = 401
 
@@ -57,6 +62,22 @@ class FormMetrics(BaseModel):
     outer surface: shell thickness, a seat, pedals and a cockpit are not
     modelled. The foot fields are ``None`` in blocks written before they
     existed.
+
+    Knuckles are corners in the section outline. The turn at a point is
+    the angle between the chord from ``knuckle_probe_m`` before it and
+    the chord to ``knuckle_probe_m`` after it, along the outline, so a
+    sharp corner reads its full angle and a curve of radius ``r`` reads
+    about ``knuckle_probe_m / r`` radians. ``waterline_knuckle_max_deg``
+    is the largest turn at the joint of the hull ring and the deck ring,
+    which is the design waterline when the hull has topsides and the
+    gunwale when it has none. ``upper_knuckle_max_deg`` is the largest
+    turn above that joint: the topside and the deck edge, leaving out
+    the deck centreline. Both are taken at stations within
+    ``knuckle_span_xi`` of the half length either side of the middle,
+    and each has the station where it occurs. The outline is the
+    generated polyline, so a turn is never read finer than its point
+    spacing. The knuckle fields are ``None`` in blocks written before
+    they existed.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -83,6 +104,13 @@ class FormMetrics(BaseModel):
     foot_clear_width_m: float | None = Field(default=None, ge=0.0)
     foot_station_beam_m: float | None = Field(default=None, ge=0.0)
     foot_station_depth_m: float | None = Field(default=None, ge=0.0)
+    knuckle_probe_m: float | None = Field(default=None, gt=0.0)
+    knuckle_span_xi: float | None = Field(default=None, gt=0.0, le=1.0)
+    waterline_knuckle_max_deg: float | None = Field(default=None, ge=0.0, le=180.0)
+    waterline_knuckle_x_m: float | None = None
+    upper_knuckle_max_deg: float | None = Field(default=None, ge=0.0, le=180.0)
+    upper_knuckle_x_m: float | None = None
+    upper_knuckle_height_m: float | None = None
     method: Literal["section_envelope_v1"] = "section_envelope_v1"
     notes: list[str] = Field(default_factory=list)
 
@@ -181,6 +209,61 @@ def _crossing_x(x_in: float, v_in: float, x_out: float, v_out: float) -> float:
     return x_in + (x_out - x_in) * v_in / (v_in - v_out)
 
 
+def _section_knuckles(
+    hull_ring: np.ndarray, deck_ring: np.ndarray, probe: float
+) -> tuple[float, float, float]:
+    """Turn of one half section at the hull-to-deck joint and the sharpest turn above it.
+
+    Returns ``(joint_deg, upper_deg, upper_height_m)``. The half outline
+    runs from the keel up the hull ring to the joint and on along the
+    deck ring to the centreline. The turn at a point is the angle between
+    the chord from ``probe`` before it and the chord to ``probe`` after
+    it, along the outline. "Above" starts ``probe`` past the joint and
+    stops ``probe`` short of the centreline, which leaves out the
+    centreline ridge.
+    """
+
+    if hull_ring.shape[0] < 3 or deck_ring.shape[0] < 3:
+        return 0.0, 0.0, 0.0
+    lower = hull_ring[hull_ring.shape[0] // 2 :]
+    upper = deck_ring[deck_ring.shape[0] // 2 :][::-1]
+
+    def clean(points: np.ndarray) -> np.ndarray:
+        steps = np.linalg.norm(np.diff(points, axis=0), axis=1)
+        return points[np.concatenate(([True], steps > 1e-12))]
+
+    lower, upper = clean(lower), clean(upper)
+    if lower.shape[0] < 2 or upper.shape[0] < 2:
+        return 0.0, 0.0, 0.0
+    outline = np.vstack((lower, upper[1:]))
+    arc = np.concatenate(([0.0], np.cumsum(np.linalg.norm(np.diff(outline, axis=0), axis=1))))
+    joint = float(arc[lower.shape[0] - 1])
+    end = float(arc[-1])
+
+    def point(s: np.ndarray) -> np.ndarray:
+        return np.column_stack((np.interp(s, arc, outline[:, 0]), np.interp(s, arc, outline[:, 1])))
+
+    def turn_at(s: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        here = point(s)
+        before = here - point(s - probe)
+        after = point(s + probe) - here
+        cross = before[:, 0] * after[:, 1] - before[:, 1] * after[:, 0]
+        dot = (before * after).sum(axis=1)
+        return np.degrees(np.abs(np.arctan2(cross, dot))), here[:, 1]
+
+    joint_deg = 0.0
+    if joint >= probe and end - joint >= probe:
+        joint_deg = float(turn_at(np.array([joint]))[0][0])
+    start, stop = joint + probe, end - probe
+    if stop <= start:
+        return joint_deg, 0.0, 0.0
+    count = max(int(np.ceil((stop - start) / (probe / 4.0))), 1) + 1
+    at = np.unique(np.concatenate((np.linspace(start, stop, count), arc[(arc >= start) & (arc <= stop)])))
+    turn, height = turn_at(at)
+    worst = int(np.argmax(turn))
+    return joint_deg, float(turn[worst]), float(height[worst])
+
+
 def evaluate_form_metrics(
     hull: Hull,
     *,
@@ -191,6 +274,8 @@ def evaluate_form_metrics(
     foot_station_forward_m: float = DEFAULT_FOOT_STATION_FORWARD_M,
     foot_box_width_m: float = DEFAULT_FOOT_BOX_WIDTH_M,
     foot_box_height_m: float = DEFAULT_FOOT_BOX_HEIGHT_M,
+    knuckle_probe_m: float = DEFAULT_KNUCKLE_PROBE_M,
+    knuckle_span_xi: float = DEFAULT_KNUCKLE_SPAN_XI,
 ) -> FormMetrics:
     """Compute :class:`FormMetrics` for ``hull``."""
 
@@ -206,6 +291,10 @@ def evaluate_form_metrics(
     for name, value in (("foot_box_width_m", foot_box_width_m), ("foot_box_height_m", foot_box_height_m)):
         if not np.isfinite(value) or value <= 0.0:
             raise ValueError(f"{name} must be positive and finite")
+    if not np.isfinite(knuckle_probe_m) or knuckle_probe_m <= 0.0:
+        raise ValueError("knuckle_probe_m must be positive and finite")
+    if not np.isfinite(knuckle_span_xi) or not 0.0 < knuckle_span_xi <= 1.0:
+        raise ValueError("knuckle_span_xi must be in (0, 1]")
     half_length = hull.length_m / 2.0
     if reference_station_x_m is not None and not -half_length <= reference_station_x_m <= half_length:
         raise ValueError("reference_station_x_m must lie within the hull length")
@@ -280,6 +369,17 @@ def evaluate_form_metrics(
         (float(np.abs(ring[:, 0]).max()) for ring in foot_rings if ring.shape[0]), default=0.0
     )
 
+    joint_deg, joint_x = 0.0, 0.0
+    knuckle_deg, knuckle_x, knuckle_z = 0.0, 0.0, 0.0
+    for x, h, d in zip(xs, hull_rings, deck_rings):
+        if abs(float(x)) > knuckle_span_xi * half_length:
+            continue
+        at_joint, above, height = _section_knuckles(h, d, float(knuckle_probe_m))
+        if at_joint > joint_deg:
+            joint_deg, joint_x = at_joint, float(x)
+        if above > knuckle_deg:
+            knuckle_deg, knuckle_x, knuckle_z = above, float(x), height
+
     return FormMetrics(
         class_ratio_draft_m=float(class_ratio_draft_m),
         class_waterline_length_m=class_length,
@@ -302,5 +402,12 @@ def evaluate_form_metrics(
         foot_clear_width_m=_box_clear_width(foot_rings, float(foot_box_height_m), foot_beam),
         foot_station_beam_m=foot_beam,
         foot_station_depth_m=_box_clear_height(foot_rings, 0.0),
+        knuckle_probe_m=float(knuckle_probe_m),
+        knuckle_span_xi=float(knuckle_span_xi),
+        waterline_knuckle_max_deg=joint_deg,
+        waterline_knuckle_x_m=joint_x,
+        upper_knuckle_max_deg=knuckle_deg,
+        upper_knuckle_x_m=knuckle_x,
+        upper_knuckle_height_m=knuckle_z,
         notes=notes,
     )

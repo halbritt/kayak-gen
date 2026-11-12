@@ -214,6 +214,15 @@ options are `evaluators.form_metrics_foot_station_forward_m`,
 When you search for a narrower deck, constrain `form.foot_clear_height_m`
 or `form.foot_clear_width_m` so the result still has room for feet.
 
+The block also reports knuckles, the corners in the sections:
+`waterline_knuckle_max_deg` where the hull meets the topside, and
+`upper_knuckle_max_deg` for the sharpest corner above that, at the
+topside and deck edge, each with the station where it occurs. A fair
+section reads a few degrees; a hard corner reads its full angle. A
+search for a narrow deck with a righting-arm floor tends to lower the
+deck edge onto a flared topside, which makes a hard corner there.
+Constrain `form.upper_knuckle_max_deg` to prevent it.
+
 In an active search, `form.*` metrics may be objectives when the spec
 sets `objectives_explicit_exploratory`. Per-load righting arms
 (`load_case_gz.<name>.gz_m_at_<angle>deg`) may be constraints but not

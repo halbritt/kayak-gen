@@ -573,6 +573,12 @@ hull and deck at the foot station), as sweep summary keys and search
 constraints. Future-Striatum-Batches: knee room, shell thickness and a
 modelled seat position are not part of this slice.
 
+Stage 4 landed: section knuckles in the form metrics (corner at the
+hull-to-topside joint and sharpest corner above it), as sweep summary keys
+and search constraints. Future-Striatum-Batches: a deck edge that is round
+by construction and a knuckle measure below the waterline are not part of
+this slice.
+
 ## RFC 0087 ledger finalization disposition
 
 KAYGEN-24 / R9 provides a receipt-applicability view and a proposed finalized

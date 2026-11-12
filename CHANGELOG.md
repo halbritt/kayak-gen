@@ -8,6 +8,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- RFC 0089 stage 4: the `form_metrics` block reports section knuckles, the
+  corner where hull meets topside (`waterline_knuckle_max_deg`) and the
+  sharpest corner above it at the topside and deck edge
+  (`upper_knuckle_max_deg`), each with its station. Sweeps and searches see
+  `form.upper_knuckle_max_deg` and `form.waterline_knuckle_max_deg`, so a
+  deck search can be held to a fair deck edge.
 - RFC 0089 stage 3: the `form_metrics` block reports foot room, the largest
   centred box between hull and deck at a stated station forward of the
   reference station (`foot_clear_height_m`, `foot_clear_width_m`,
