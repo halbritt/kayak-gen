@@ -8,11 +8,11 @@ run = '''bash -c '[ "$#" -gt 0 ] || { echo "test: pass a selector after --; use 
 
 [tasks."test:fast"]
 description = "Fast gate (Ruff + fixed pytest subset, about 10 min); the pre-push check"
-run = '''bash -c 'KAYAKGEN_PY="$(scripts/test-python.sh)" exec mise run host:exec --timeout 30m --weight 2 -- scripts/fast-gate.sh "$@"' test:fast'''
+run = '''bash -c 'KAYAKGEN_PY="$(scripts/test-python.sh)" exec mise run host:exec --timeout 30m -- scripts/fast-gate.sh "$@"' test:fast'''
 
 [tasks."test:full"]
 description = "Full release gate (complete pytest, skip pin, Ruff; about 20 min); accepts --receipt PATH"
-run = '''bash -c 'KAYAKGEN_PY="$(scripts/test-python.sh)" exec mise run host:exec --timeout 60m --weight 2 -- scripts/full-gate.sh "$@"' test:full'''
+run = '''bash -c 'KAYAKGEN_PY="$(scripts/test-python.sh)" exec mise run host:exec --timeout 60m -- scripts/full-gate.sh "$@"' test:full'''
 
 [tasks.lint]
 description = "Ruff over kayakgen and tests"
