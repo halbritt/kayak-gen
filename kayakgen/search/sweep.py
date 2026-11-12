@@ -627,7 +627,9 @@ def _evaluate_candidate(
     if form is not None:
         summary["form.class_length_beam_ratio"] = form.class_length_beam_ratio
         summary["form.class_waterline_beam_m"] = form.class_waterline_beam_m
+        summary["form.class_beam_length_fraction"] = form.class_beam_length_fraction
         summary["form.catch_zone_max_beam_m"] = form.catch_zone_max_beam_m
+        summary["form.catch_zone_max_upper_beam_m"] = form.catch_zone_max_upper_beam_m
         summary["form.beam_at_reference_m"] = form.beam_at_reference_m
     summary.update(load_case_gz_summary)
 

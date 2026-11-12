@@ -164,7 +164,7 @@ def test_flared_topsides_raise_righting_arm_at_heel() -> None:
 @pytest.mark.parametrize(
     "topsides",
     [
-        {"sheer_beam_ratio": 0.95},
+        {"sheer_beam_ratio": 0.55},
         {"sheer_beam_ratio": 1.6},
         {"sheer_beam_ratio": float("nan")},
         {"sheer_height_frac": 0.0},

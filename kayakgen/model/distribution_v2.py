@@ -175,7 +175,13 @@ def sample_distribution(
     return distribution.sample(xi)
 
 
+SHEER_BEAM_RATIO_MIN = 0.6
 SHEER_BEAM_RATIO_MAX = 1.5
+SHEER_PLAN_EXPONENT_MIN = 1.2
+SHEER_PLAN_EXPONENT_MAX = 4.0
+_SHEER_PLAN_VALIDATION_XI = np.linspace(-0.9, 0.9, 181)
+DECK_CROWN_EXPONENT_MIN = 2.0
+DECK_CROWN_EXPONENT_MAX = 12.0
 SECTION_EXPONENT_MIN = 1.5
 SECTION_EXPONENT_MAX = 8.0
 SECTION_EXPONENT_DEFAULT = 2.0
@@ -193,6 +199,40 @@ def _sample_scalar_or_longitudinal(
     return np.asarray(value.sample(xi_arr), dtype=float)
 
 
+class SheerPlan(BaseModel):
+    """The sheer drawn as its own fair outline in plan view (RFC 0089).
+
+    Half-breadth is ``max_half_breadth_m * (1 - u ** n)``, where ``u``
+    runs from 0 at ``max_position_xi`` to 1 at the bow (with
+    ``forward_exponent``) or the stern (with ``aft_exponent``). Each
+    side is monotone and curves one way only, so the outline has no
+    hollow, pinch or flat. A lower exponent gives a finer, straighter
+    end. All four fields are scalars so a search can vary them.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    max_half_breadth_m: float = Field(gt=0.0, le=0.6, allow_inf_nan=False)
+    max_position_xi: float = Field(ge=-0.5, le=0.8, allow_inf_nan=False)
+    forward_exponent: float = Field(
+        ge=SHEER_PLAN_EXPONENT_MIN, le=SHEER_PLAN_EXPONENT_MAX, allow_inf_nan=False
+    )
+    aft_exponent: float = Field(
+        ge=SHEER_PLAN_EXPONENT_MIN, le=SHEER_PLAN_EXPONENT_MAX, allow_inf_nan=False
+    )
+
+    def half_breadth(self, xi: float | np.ndarray) -> np.ndarray:
+        xi_arr = np.clip(np.atleast_1d(np.asarray(xi, dtype=float)), -1.0, 1.0)
+        forward = xi_arr < self.max_position_xi
+        u = np.where(
+            forward,
+            (self.max_position_xi - xi_arr) / (1.0 + self.max_position_xi),
+            (xi_arr - self.max_position_xi) / (1.0 - self.max_position_xi),
+        )
+        exponent = np.where(forward, self.forward_exponent, self.aft_exponent)
+        return self.max_half_breadth_m * (1.0 - np.clip(u, 0.0, 1.0) ** exponent)
+
+
 class TopsidesSpec(BaseModel):
     """Above-waterline hull sides between the design waterline and the sheer.
 
@@ -202,42 +242,97 @@ class TopsidesSpec(BaseModel):
     edge up to the sheer, and the deck spans sheer to sheer.
 
     ``sheer_beam_ratio`` is the sheer half-breadth divided by the local
-    waterline half-breadth (1 = wall-sided, above 1 = flared). A ratio
-    keeps the flare proportional to the local breadth so it vanishes at
-    pointed ends. ``sheer_height_frac`` is the sheer height above the
-    design waterline divided by the local deck freeboard. Both accept a
-    scalar or a :class:`LongitudinalDistribution`.
+    waterline half-breadth (1 = wall-sided, above 1 = flared, below 1 =
+    tumblehome, RFC 0089). A ratio keeps the flare proportional to the
+    local breadth so it vanishes at pointed ends. ``sheer_height_frac``
+    is the sheer height above the design waterline divided by the local
+    deck freeboard. Both accept a scalar or a
+    :class:`LongitudinalDistribution`.
+
+    ``sheer_plan`` (RFC 0089) replaces the ratio with a fair outline of
+    the sheer in plan view; ``sheer_beam_ratio`` must then be left at
+    1. ``deck_crown_exponent`` (RFC 0089) sets how square the deck is
+    between sheer and crown; unset keeps the built-in arch. Both are
+    omitted from serialized output while unset.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     sheer_beam_ratio: Union[float, LongitudinalDistribution] = 1.0
     sheer_height_frac: Union[float, LongitudinalDistribution] = 0.6
+    sheer_plan: SheerPlan | None = None
+    deck_crown_exponent: Union[float, LongitudinalDistribution, None] = None
 
     @model_validator(mode="after")
     def _check_ranges(self) -> "TopsidesSpec":
+        if self.sheer_plan is not None and self.sheer_beam_ratio != 1.0:
+            raise ValueError(
+                "give sheer_plan or sheer_beam_ratio, not both: with a sheer_plan "
+                "leave sheer_beam_ratio at 1"
+            )
         ratio = _sample_scalar_or_longitudinal(self.sheer_beam_ratio, _TOPSIDES_VALIDATION_XI)
         frac = _sample_scalar_or_longitudinal(self.sheer_height_frac, _TOPSIDES_VALIDATION_XI)
         if not (np.isfinite(ratio).all() and np.isfinite(frac).all()):
             raise ValueError("topsides values must be finite")
-        if ratio.min() < 1.0 or ratio.max() > SHEER_BEAM_RATIO_MAX:
+        if ratio.min() < SHEER_BEAM_RATIO_MIN or ratio.max() > SHEER_BEAM_RATIO_MAX:
             raise ValueError(
-                f"sheer_beam_ratio must stay within [1, {SHEER_BEAM_RATIO_MAX}] along the hull"
+                "sheer_beam_ratio must stay within "
+                f"[{SHEER_BEAM_RATIO_MIN}, {SHEER_BEAM_RATIO_MAX}] along the hull"
             )
         if frac.min() < SHEER_HEIGHT_FRAC_MIN or frac.max() > SHEER_HEIGHT_FRAC_MAX:
             raise ValueError(
                 "sheer_height_frac must stay within "
                 f"[{SHEER_HEIGHT_FRAC_MIN}, {SHEER_HEIGHT_FRAC_MAX}] along the hull"
             )
+        if self.deck_crown_exponent is not None:
+            crown = _sample_scalar_or_longitudinal(self.deck_crown_exponent, _TOPSIDES_VALIDATION_XI)
+            if not np.isfinite(crown).all():
+                raise ValueError("deck_crown_exponent must be finite")
+            if crown.min() < DECK_CROWN_EXPONENT_MIN or crown.max() > DECK_CROWN_EXPONENT_MAX:
+                raise ValueError(
+                    "deck_crown_exponent must stay within "
+                    f"[{DECK_CROWN_EXPONENT_MIN}, {DECK_CROWN_EXPONENT_MAX}] along the hull"
+                )
         return self
 
     def sample_sheer_beam_ratio(self, xi: float) -> float:
         value = float(_sample_scalar_or_longitudinal(self.sheer_beam_ratio, xi)[0])
-        return float(min(max(value, 1.0), SHEER_BEAM_RATIO_MAX))
+        return float(min(max(value, SHEER_BEAM_RATIO_MIN), SHEER_BEAM_RATIO_MAX))
+
+    def sheer_half_breadth(self, xi: float, waterline_half_breadth: float) -> float:
+        """Sheer half-breadth at ``xi`` for the local waterline half-breadth.
+
+        With a ``sheer_plan`` the outline is held within the ratio range
+        of the local waterline, which only acts close to the pointed
+        ends; the spec refuses a plan that would need it elsewhere.
+        """
+
+        if self.sheer_plan is None:
+            return float(waterline_half_breadth * self.sample_sheer_beam_ratio(xi))
+        value = float(self.sheer_plan.half_breadth(xi)[0])
+        low = SHEER_BEAM_RATIO_MIN * waterline_half_breadth
+        high = SHEER_BEAM_RATIO_MAX * waterline_half_breadth
+        return float(min(max(value, low), high))
 
     def sample_sheer_height_frac(self, xi: float) -> float:
         value = float(_sample_scalar_or_longitudinal(self.sheer_height_frac, xi)[0])
         return float(min(max(value, SHEER_HEIGHT_FRAC_MIN), SHEER_HEIGHT_FRAC_MAX))
+
+    def sample_deck_crown_exponent(self, xi: float) -> float | None:
+        if self.deck_crown_exponent is None:
+            return None
+        value = float(_sample_scalar_or_longitudinal(self.deck_crown_exponent, xi)[0])
+        return float(min(max(value, DECK_CROWN_EXPONENT_MIN), DECK_CROWN_EXPONENT_MAX))
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_rfc0089_fields(self, handler):  # type: ignore[no-untyped-def]
+        data = handler(self)
+        if isinstance(data, dict):
+            if self.sheer_plan is None:
+                data.pop("sheer_plan", None)
+            if self.deck_crown_exponent is None:
+                data.pop("deck_crown_exponent", None)
+        return data
 
 
 class DistributionV2Spec(BaseModel):
@@ -301,6 +396,27 @@ class DistributionV2Spec(BaseModel):
     # values give a flatter floor and a firmer bilge. Omitted from
     # serialized output while unset, like ``topsides``.
     section_exponent: Union[float, LongitudinalDistribution, None] = None
+
+    @model_validator(mode="after")
+    def _check_sheer_plan_against_waterline(self) -> "DistributionV2Spec":
+        plan = self.topsides.sheer_plan if self.topsides is not None else None
+        if plan is None:
+            return self
+        waterline = np.maximum(
+            np.asarray(self.waterline_half_breadth.sample(_SHEER_PLAN_VALIDATION_XI), dtype=float),
+            0.0,
+        )
+        sheer = plan.half_breadth(_SHEER_PLAN_VALIDATION_XI)
+        low = sheer < SHEER_BEAM_RATIO_MIN * waterline - 1e-12
+        high = sheer > SHEER_BEAM_RATIO_MAX * waterline + 1e-12
+        if low.any() or high.any():
+            where = float(_SHEER_PLAN_VALIDATION_XI[np.flatnonzero(low | high)[0]])
+            raise ValueError(
+                "sheer_plan must stay within "
+                f"[{SHEER_BEAM_RATIO_MIN}, {SHEER_BEAM_RATIO_MAX}] times the waterline "
+                f"half-breadth for |xi| <= 0.9 (first violated at xi = {where:.2f})"
+            )
+        return self
 
     @model_validator(mode="after")
     def _check_section_exponent(self) -> "DistributionV2Spec":

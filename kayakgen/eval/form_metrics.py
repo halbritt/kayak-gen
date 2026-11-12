@@ -5,6 +5,8 @@ Two geometric measures a designer otherwise takes by hand:
 * the race-class length-to-beam ratio, waterline length over waterline
   beam with the hull floating at a stated draft below its lowest keel
   point (the Sound Rowers kayak classes assume 4 in);
+* the same waterline beam as a fraction of overall length, which the
+  USCA kayak classes limit (Sea Kayak: at least 8.5% at 4 in);
 * paddle clearance, the overall beam of hull and deck in a zone forward
   of a reference station, where the blade enters the water.
 
@@ -24,16 +26,22 @@ from kayakgen.model.hull import Hull
 
 DEFAULT_CLASS_RATIO_DRAFT_M = 0.1016
 DEFAULT_CATCH_ZONE_FORWARD_M: tuple[float, float] = (0.6, 1.2)
+DEFAULT_CATCH_UPPER_HEIGHT_M = 0.10
 _STATIONS = 401
 
 
 class FormMetrics(BaseModel):
     """Class ratio and paddle-clearance beams for one hull.
 
-    ``class_length_beam_ratio`` is ``None`` when the stated draft leaves
+    ``class_beam_length_fraction`` is the class waterline beam divided
+    by the overall length. ``class_length_beam_ratio`` is ``None`` when the stated draft leaves
     no waterline (deeper than the body or zero breadth). The reference
     station is the centroid of the design-waterline section areas unless
     the caller supplies one; it stands in for the seat.
+    ``catch_zone_max_upper_beam_m`` counts only the body at or above
+    ``catch_upper_height_m`` over the design waterline, which is what a
+    paddle shaft has to clear; unlike ``catch_zone_max_beam_m`` it falls
+    when the sheer is narrower than the waterline.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -43,10 +51,14 @@ class FormMetrics(BaseModel):
     class_waterline_length_m: float = Field(ge=0.0)
     class_waterline_beam_m: float = Field(ge=0.0)
     class_length_beam_ratio: float | None = None
+    overall_length_m: float = Field(gt=0.0)
+    class_beam_length_fraction: float = Field(ge=0.0)
     reference_station_x_m: float
     reference_station_origin: Literal["section_area_centroid", "supplied"]
     catch_zone_forward_m: tuple[float, float]
     catch_zone_max_beam_m: float = Field(ge=0.0)
+    catch_upper_height_m: float = Field(ge=0.0)
+    catch_zone_max_upper_beam_m: float = Field(ge=0.0)
     beam_at_reference_m: float = Field(ge=0.0)
     max_overall_beam_m: float = Field(ge=0.0)
     method: Literal["section_envelope_v1"] = "section_envelope_v1"
@@ -72,6 +84,16 @@ def _half_breadth_at_height(rings: list[np.ndarray], z: float) -> float:
     return best
 
 
+def _breadth_at_or_above(ring: np.ndarray, z: float) -> float:
+    """Largest ``|y|`` of the ring polyline at heights of ``z`` or more."""
+
+    if ring.shape[0] == 0:
+        return 0.0
+    above = ring[:, 1] >= z
+    best = float(np.abs(ring[above, 0]).max()) if above.any() else 0.0
+    return max(best, _half_breadth_at_height([ring], z))
+
+
 def _crossing_x(x_in: float, v_in: float, x_out: float, v_out: float) -> float:
     """Station where a positive value ``v_in`` reaches zero toward ``x_out``."""
 
@@ -86,6 +108,7 @@ def evaluate_form_metrics(
     class_ratio_draft_m: float = DEFAULT_CLASS_RATIO_DRAFT_M,
     catch_zone_forward_m: tuple[float, float] = DEFAULT_CATCH_ZONE_FORWARD_M,
     reference_station_x_m: float | None = None,
+    catch_upper_height_m: float = DEFAULT_CATCH_UPPER_HEIGHT_M,
 ) -> FormMetrics:
     """Compute :class:`FormMetrics` for ``hull``."""
 
@@ -94,6 +117,8 @@ def evaluate_form_metrics(
     near, far = (float(catch_zone_forward_m[0]), float(catch_zone_forward_m[1]))
     if not (np.isfinite(near) and np.isfinite(far)) or far <= near:
         raise ValueError("catch_zone_forward_m must be an increasing (near, far) pair")
+    if not np.isfinite(catch_upper_height_m) or catch_upper_height_m < 0.0:
+        raise ValueError("catch_upper_height_m must be nonnegative and finite")
     half_length = hull.length_m / 2.0
     if reference_station_x_m is not None and not -half_length <= reference_station_x_m <= half_length:
         raise ValueError("reference_station_x_m must lie within the hull length")
@@ -117,6 +142,8 @@ def evaluate_form_metrics(
             for h, d in zip(hull_rings, deck_rings)
         ]
     )
+
+    upper = 2.0 * np.array([_breadth_at_or_above(d, catch_upper_height_m) for d in deck_rings])
 
     notes: list[str] = []
     wet = np.flatnonzero(class_half > 0.0)
@@ -158,10 +185,14 @@ def evaluate_form_metrics(
         class_waterline_length_m=class_length,
         class_waterline_beam_m=class_beam,
         class_length_beam_ratio=ratio,
+        overall_length_m=float(hull.length_m),
+        class_beam_length_fraction=class_beam / float(hull.length_m),
         reference_station_x_m=reference,
         reference_station_origin=origin,
         catch_zone_forward_m=(near, far),
         catch_zone_max_beam_m=catch_max,
+        catch_upper_height_m=float(catch_upper_height_m),
+        catch_zone_max_upper_beam_m=float(np.interp(zone_xs, xs, upper).max()),
         beam_at_reference_m=float(np.interp(reference, xs, overall)),
         max_overall_beam_m=float(overall.max()),
         notes=notes,

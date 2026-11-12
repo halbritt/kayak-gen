@@ -14,9 +14,9 @@ from kayakgen.eval.claims import (
 )
 from kayakgen.search.pareto import (
     Direction,
-    HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS,
     HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN,
     Objective,
+    is_high_angle_gz_display_only_metric,
 )
 
 ObjectiveRole = Literal[
@@ -219,9 +219,11 @@ OBJECTIVE_METADATA: dict[str, ObjectiveMetadata] = {
         availability_conditions=["high_angle_gz_artifact_present"],
         default_objective_eligible=False,
     ),
-    # RFC 0089 form metrics: display-only geometric measures of the
-    # opt-in FormMetrics evaluator. Candidate summary columns only;
-    # search admission is a separate decision.
+    # RFC 0089 form metrics: geometric measures of the opt-in
+    # FormMetrics evaluator. They are exact for the generated sections
+    # but are not a validated fitness, so a search may rank on them only
+    # under the explicit exploratory opt-in. Any search may use them as
+    # constraints.
     "form.class_length_beam_ratio": ObjectiveMetadata(
         metric="form.class_length_beam_ratio",
         label="Class length-to-beam ratio",
@@ -229,7 +231,7 @@ OBJECTIVE_METADATA: dict[str, ObjectiveMetadata] = {
         direction="max",
         source_evaluator="form",
         availability_rule="present when form metrics evaluator runs",
-        role="display_only",
+        role="explicit_exploratory",
         display_format="{value:.2f}",
         availability_conditions=["form_metrics_evaluator_ran"],
         default_objective_eligible=False,
@@ -241,7 +243,7 @@ OBJECTIVE_METADATA: dict[str, ObjectiveMetadata] = {
         direction="min",
         source_evaluator="form",
         availability_rule="present when form metrics evaluator runs",
-        role="display_only",
+        role="explicit_exploratory",
         display_format="{value:.3f}",
         availability_conditions=["form_metrics_evaluator_ran"],
         default_objective_eligible=False,
@@ -253,7 +255,19 @@ OBJECTIVE_METADATA: dict[str, ObjectiveMetadata] = {
         direction="min",
         source_evaluator="form",
         availability_rule="present when form metrics evaluator runs",
-        role="display_only",
+        role="explicit_exploratory",
+        display_format="{value:.3f}",
+        availability_conditions=["form_metrics_evaluator_ran"],
+        default_objective_eligible=False,
+    ),
+    "form.catch_zone_max_upper_beam_m": ObjectiveMetadata(
+        metric="form.catch_zone_max_upper_beam_m",
+        label="Beam above the waterline in catch zone",
+        unit="m",
+        direction="min",
+        source_evaluator="form",
+        availability_rule="present when form metrics evaluator runs",
+        role="explicit_exploratory",
         display_format="{value:.3f}",
         availability_conditions=["form_metrics_evaluator_ran"],
         default_objective_eligible=False,
@@ -265,8 +279,20 @@ OBJECTIVE_METADATA: dict[str, ObjectiveMetadata] = {
         direction="min",
         source_evaluator="form",
         availability_rule="present when form metrics evaluator runs",
-        role="display_only",
+        role="explicit_exploratory",
         display_format="{value:.3f}",
+        availability_conditions=["form_metrics_evaluator_ran"],
+        default_objective_eligible=False,
+    ),
+    "form.class_beam_length_fraction": ObjectiveMetadata(
+        metric="form.class_beam_length_fraction",
+        label="Class waterline beam over overall length",
+        unit="ratio",
+        direction="min",
+        source_evaluator="form",
+        availability_rule="present when form metrics evaluator runs",
+        role="explicit_exploratory",
+        display_format="{value:.4f}",
         availability_conditions=["form_metrics_evaluator_ran"],
         default_objective_eligible=False,
     ),
@@ -416,7 +442,7 @@ def is_objective_metric_admissible(
 
     # High-angle GZ refusal token always wins (defense in depth even when the
     # metric is not yet registered as a display-only entry).
-    if metric in HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS:
+    if is_high_angle_gz_display_only_metric(metric):
         return False, {
             "code": OBJECTIVE_REJECTION_DISPLAY_ONLY,
             "token": HIGH_ANGLE_GZ_DISPLAY_ONLY_TOKEN,

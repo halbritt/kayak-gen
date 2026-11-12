@@ -8,6 +8,17 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- RFC 0089 stage 2: `topsides.sheer_beam_ratio` may go down to 0.6
+  (tumblehome); `topsides.sheer_plan` draws the sheer as its own fair outline
+  in plan view (`max_half_breadth_m`, `max_position_xi`, `forward_exponent`,
+  `aft_exponent`), so it can be narrow where the paddle enters without a pinch;
+  `topsides.deck_crown_exponent` sets how square the deck is. Form metrics add the beam above a stated height
+  in the catch zone and the class beam as a fraction of overall length (the
+  USCA limit). Form metrics can be search objectives under the explicit
+  exploratory opt-in; per-load righting arms can bound a search as constraints
+  and are refused as objectives. Topsides records without the new fields keep
+  their bytes and identities.
+
 - RFC 0089 stage 1: `distribution_v2` hulls accept an optional
   `section_exponent` (scalar or longitudinal distribution, 1.5 to 8) that sets
   how full the `round` section is below the waterline; unset keeps the previous

@@ -829,11 +829,14 @@ class DistributionV2Geometry(HullGeometry):
         # then sheer -> waterline edge down the topside strip. The total
         # point count and both endpoints match the no-topsides arc.
         xi = self._xi_for_x(x)
-        sheer_half_b = half_b_safe * topsides.sample_sheer_beam_ratio(xi)
+        sheer_half_b = max(topsides.sheer_half_breadth(xi, half_b_safe), 1e-6)
         sheer_z = freeboard_safe * topsides.sample_sheer_height_frac(xi)
         n_topside = max(2, self.num_points // 4)
         n_deck = self.num_points - n_topside
         deck_y = np.linspace(0.0, sheer_half_b, n_deck)
+        crown_exponent = topsides.sample_deck_crown_exponent(xi)
+        if crown_exponent is not None:
+            exponent = crown_exponent
         deck_z = sheer_z + (freeboard_safe - sheer_z) * (1.0 - (deck_y / sheer_half_b) ** exponent)
         # The strip is a quadratic Bezier that leaves the waterline edge
         # along the hull arc's own tangent there, so the join is fair for
@@ -845,7 +848,18 @@ class DistributionV2Geometry(HullGeometry):
         tangent_y, tangent_z = self._hull_waterline_tangent(x)
         flare = sheer_half_b - half_b_safe
         reach_height = 0.5 * sheer_z / tangent_z if tangent_z > 1e-9 else np.inf
-        reach_breadth = flare / tangent_y if tangent_y > 1e-9 else np.inf
+        if flare >= 0.0:
+            reach_breadth = flare / tangent_y if tangent_y > 1e-9 else np.inf
+        else:
+            # Tumblehome (RFC 0089): the strip must turn inward from an
+            # outward tangent. A short reach makes that turn tight, so
+            # the strip bulges past the waterline edge by at most about
+            # 1% of the half-breadth instead of widening the section it
+            # was asked to narrow.
+            bulge = 0.01 * half_b_safe
+            reach_breadth = (
+                float(np.sqrt(bulge * -flare)) / tangent_y if tangent_y > 1e-9 else np.inf
+            )
         reach = min(reach_height, reach_breadth)
         control_y = half_b_safe + reach * tangent_y
         control_z = reach * tangent_z
@@ -989,11 +1003,30 @@ class DistributionV2Geometry(HullGeometry):
             rows.append(
                 (
                     float(x),
-                    half_b * topsides.sample_sheer_beam_ratio(xi),
+                    topsides.sheer_half_breadth(xi, half_b),
                     self._deck_height_at(float(x)) * topsides.sample_sheer_height_frac(xi),
                 )
             )
         return np.asarray(rows, dtype=float)
+
+    def sheer_z_at(self, x: float) -> float | None:
+        """Sheer height at ``x``, or ``None`` when the hull has no topsides."""
+
+        topsides = self.spec.topsides
+        if topsides is None:
+            return None
+        return float(
+            max(self._deck_height_at(x), 1e-4) * topsides.sample_sheer_height_frac(self._xi_for_x(x))
+        )
+
+    def is_tumblehome_at(self, x: float) -> bool:
+        """Whether the sheer at ``x`` is narrower than the waterline."""
+
+        topsides = self.spec.topsides
+        if topsides is None:
+            return False
+        half_b = self._half_breadth_at(x)
+        return bool(topsides.sheer_half_breadth(self._xi_for_x(x), half_b) < half_b)
 
     def section_area(self, x: float) -> float:
         pts = self.section(x, "hull")

@@ -21,7 +21,6 @@ from kayakgen.eval.form_metrics import evaluate_form_metrics
 from kayakgen.eval.high_angle_gz import build_high_angle_gz_block, build_load_case_gz_table
 from kayakgen.eval.hydrostatics import evaluate
 from kayakgen.model.hull import Hull
-from kayakgen.search.objectives import OBJECTIVE_METADATA
 from kayakgen.search.sweep import EvaluatorOptions, SweepSpec, run_sweep
 
 FIXTURE = Path(__file__).parent / "fixtures" / "hulls" / "needle18-v2.json"
@@ -203,17 +202,6 @@ def test_draft_beyond_the_body_reports_no_ratio() -> None:
 def test_form_metrics_refuse_bad_inputs(kwargs: dict[str, object]) -> None:
     with pytest.raises(ValueError):
         evaluate_form_metrics(_base(), **kwargs)  # type: ignore[arg-type]
-
-
-def test_form_metrics_are_display_only() -> None:
-    for metric in (
-        "form.class_length_beam_ratio",
-        "form.class_waterline_beam_m",
-        "form.catch_zone_max_beam_m",
-        "form.beam_at_reference_m",
-    ):
-        assert OBJECTIVE_METADATA[metric].role == "display_only"
-        assert OBJECTIVE_METADATA[metric].default_objective_eligible is False
 
 
 def test_evaluation_result_omits_unset_form_metrics() -> None:

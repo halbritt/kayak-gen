@@ -78,6 +78,23 @@ class HighAngleGzObjectiveRefusedError(ValueError):
         super().__init__(self.reason["detail"])
 
 
+LOAD_CASE_GZ_METRIC_PREFIX = "load_case_gz."
+
+
+def is_high_angle_gz_display_only_metric(metric: str) -> bool:
+    """Whether ``metric`` is a righting-arm value barred from objectives.
+
+    Covers the RFC 0043 single-load mirrors and the RFC 0089 per-load
+    keys (``load_case_gz.<name>.gz_m_at_<angle>deg``). Both are the
+    same unvalidated hydrostatic comparison. They may bound a search as
+    constraints; they may not rank candidates.
+    """
+
+    return metric in HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS or metric.startswith(
+        LOAD_CASE_GZ_METRIC_PREFIX
+    )
+
+
 def ensure_objectives_not_high_angle_gz(objectives: list["Objective"]) -> None:
     """Refuse high-angle GZ display-only metrics as Pareto objectives.
 
@@ -87,7 +104,7 @@ def ensure_objectives_not_high_angle_gz(objectives: list["Objective"]) -> None:
     """
 
     for objective in objectives:
-        if objective.metric in HIGH_ANGLE_GZ_DISPLAY_ONLY_METRICS:
+        if is_high_angle_gz_display_only_metric(objective.metric):
             raise HighAngleGzObjectiveRefusedError(objective.metric)
 
 

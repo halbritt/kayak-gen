@@ -561,6 +561,13 @@ breadth on the topside strip, admission of the new measures as search
 objectives and constraints, default search variables for the new shape
 fields and measured validation are stage 2 and not part of this slice.
 
+Stage 2 landed: tumblehome, a fair scalar sheer plan, a deck crown exponent,
+the shaft-clearance beam, the class beam fraction and search admission
+(form metrics exploratory, per-load righting arms constraint-only).
+Future-Striatum-Batches: knuckled sheer, lofted topsides, preset search
+variables, a cockpit or foot-room model and measured validation are not
+part of this slice.
+
 ## RFC 0087 ledger finalization disposition
 
 KAYGEN-24 / R9 provides a receipt-applicability view and a proposed finalized

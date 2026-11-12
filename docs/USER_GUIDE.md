@@ -167,6 +167,47 @@ These values are geometric and hydrostatic comparisons, not validated
 measurements; a race organiser's tape measure can differ from the
 computed class ratio by several percent.
 
+Topsides can also narrow the hull above the waterline (RFC 0089 stage
+2):
+
+```json
+"topsides": {
+  "sheer_height_frac": 0.5,
+  "sheer_plan": {
+    "max_half_breadth_m": 0.29,
+    "max_position_xi": 0.3,
+    "forward_exponent": 1.8,
+    "aft_exponent": 2.0
+  },
+  "deck_crown_exponent": 8
+}
+```
+
+`sheer_beam_ratio` may be as low as 0.6; below 1 the sheer is narrower
+than the waterline (tumblehome). `sheer_plan` replaces the ratio with
+the sheer drawn as its own smooth outline: widest at `max_position_xi`
+(positive is toward the stern), falling to nothing at each end, with a
+lower exponent giving a finer, straighter end. Put the widest point aft
+and lower the forward exponent to narrow the deck where the paddle
+enters; the outline stays fair, with no pinch. The plan must stay
+between 0.6 and 1.5 times the waterline half-breadth along the hull,
+and cannot be combined with a ratio other than 1.
+`deck_crown_exponent` (2 to 12) makes the deck squarer as it rises.
+Narrowing the sheer lowers the righting arm at heel; check it with the
+load-case table.
+
+The `form_metrics` block reports `catch_zone_max_upper_beam_m`, the
+beam a paddle shaft has to clear (the body 0.10 m or more above the
+waterline), and `class_beam_length_fraction` for the USCA rule (Sea
+Kayak: 0.085 or more with at most 18 ft overall).
+
+In an active search, `form.*` metrics may be objectives when the spec
+sets `objectives_explicit_exploratory`. Per-load righting arms
+(`load_case_gz.<name>.gz_m_at_<angle>deg`) may be constraints but not
+objectives. Nested fields are reached with dotted keys, for example
+`distribution_v2.topsides.sheer_plan.forward_exponent`; the base hull must already
+carry the record.
+
 ## CLI Commands
 
 ### `init`

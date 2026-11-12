@@ -145,6 +145,11 @@ def _keel_z_m(geom: SectionExportGeometry, x: float) -> float:
     return float(np.min(pts[:, 1]))
 
 
+def _is_tumblehome_station(geom: SectionExportGeometry, x: float) -> bool:
+    check = getattr(geom, "is_tumblehome_at", None)
+    return bool(check(x)) if callable(check) else False
+
+
 def _sheer_z_m(geom: SectionExportGeometry, x: float) -> float:
     """Sheer Z (metres) for station ``x``.
 
@@ -160,6 +165,13 @@ def _sheer_z_m(geom: SectionExportGeometry, x: float) -> float:
     pts = _section_yz(geom, x, "hull")
     if len(pts) == 0:
         return 0.0
+    # With tumblehome (RFC 0089) the sheer is narrower than the
+    # waterline, so the widest-point test below cannot find it.
+    sheer_z_at = getattr(geom, "sheer_z_at", None)
+    if callable(sheer_z_at):
+        sheer_z = sheer_z_at(x)
+        if sheer_z is not None and _is_tumblehome_station(geom, x):
+            return float(sheer_z)
     upper = _section_yz(geom, x, "deck")
     if len(upper):
         widest = int(np.argmax(np.abs(upper[:, 0])))
