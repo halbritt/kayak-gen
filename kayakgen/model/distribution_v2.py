@@ -176,6 +176,9 @@ def sample_distribution(
 
 
 SHEER_BEAM_RATIO_MAX = 1.5
+SECTION_EXPONENT_MIN = 1.5
+SECTION_EXPONENT_MAX = 8.0
+SECTION_EXPONENT_DEFAULT = 2.0
 SHEER_HEIGHT_FRAC_MIN = 0.05
 SHEER_HEIGHT_FRAC_MAX = 0.95
 _TOPSIDES_VALIDATION_XI = np.linspace(-1.0, 1.0, 201)
@@ -258,6 +261,10 @@ class DistributionV2Spec(BaseModel):
 
     ``topsides`` (RFC 0088) is optional. When unset the deck meets the
     hull on the design waterline, exactly as before the field existed.
+
+    ``section_exponent`` (RFC 0089) is optional and applies to the
+    ``round`` family only. When unset the section is the parabola it
+    always was.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -287,9 +294,44 @@ class DistributionV2Spec(BaseModel):
     # byte-stable.
     topsides: TopsidesSpec | None = None
 
+    # RFC 0089. Fullness of the ``round`` section below the waterline:
+    # half-breadth ``y`` at depth ``z`` follows
+    # ``z = -draft * (1 - (y / half_breadth) ** section_exponent)``.
+    # 2 is the parabola every earlier record was built with; larger
+    # values give a flatter floor and a firmer bilge. Omitted from
+    # serialized output while unset, like ``topsides``.
+    section_exponent: Union[float, LongitudinalDistribution, None] = None
+
+    @model_validator(mode="after")
+    def _check_section_exponent(self) -> "DistributionV2Spec":
+        if self.section_exponent is None:
+            return self
+        if self.cross_section_family != "round":
+            raise ValueError(
+                "section_exponent applies only to the 'round' cross_section_family"
+            )
+        values = _sample_scalar_or_longitudinal(self.section_exponent, _TOPSIDES_VALIDATION_XI)
+        if not np.isfinite(values).all():
+            raise ValueError("section_exponent must be finite")
+        if values.min() < SECTION_EXPONENT_MIN or values.max() > SECTION_EXPONENT_MAX:
+            raise ValueError(
+                "section_exponent must stay within "
+                f"[{SECTION_EXPONENT_MIN}, {SECTION_EXPONENT_MAX}] along the hull"
+            )
+        return self
+
+    def sample_section_exponent(self, xi: float) -> float:
+        if self.section_exponent is None:
+            return SECTION_EXPONENT_DEFAULT
+        value = float(_sample_scalar_or_longitudinal(self.section_exponent, xi)[0])
+        return float(min(max(value, SECTION_EXPONENT_MIN), SECTION_EXPONENT_MAX))
+
     @model_serializer(mode="wrap")
-    def _omit_unset_topsides(self, handler):  # type: ignore[no-untyped-def]
+    def _omit_unset_optional_records(self, handler):  # type: ignore[no-untyped-def]
         data = handler(self)
-        if self.topsides is None and isinstance(data, dict):
-            data.pop("topsides", None)
+        if isinstance(data, dict):
+            if self.topsides is None:
+                data.pop("topsides", None)
+            if self.section_exponent is None:
+                data.pop("section_exponent", None)
         return data

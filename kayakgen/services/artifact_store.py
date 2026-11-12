@@ -52,6 +52,7 @@ ArtifactKind = Literal[
     "sweep_failures_jsonl",
     "candidate_record",
     "high_angle_gz_artifact",
+    "load_case_gz_artifact",
     "search_run_record",
     "comparison_report",
 ]
@@ -1022,7 +1023,8 @@ class FilesystemArtifactStore:
         if kind.endswith("_json") or kind in ("candidate_record", "cfd_run_record",
                                               "sweep_run_record", "search_run_record",
                                               "comparison_report", "snappy_hex_mesh_evidence",
-                                              "high_angle_gz_artifact"):
+                                              "high_angle_gz_artifact",
+                                              "load_case_gz_artifact"):
             return ".json"
         if kind == "sweep_summary_csv":
             return ".csv"

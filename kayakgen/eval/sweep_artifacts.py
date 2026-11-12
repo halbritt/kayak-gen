@@ -101,3 +101,22 @@ def write_candidate_high_angle_gz(
         bytes=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
     )
+
+
+def write_candidate_load_case_gz(
+    table: dict[str, Any], candidate_dir: Path, out_root: Path
+) -> HighAngleGzArtifact:
+    """Emit ``load_case_gz.json`` (RFC 0089) under ``candidate_dir``.
+
+    ``table`` is the structure produced by
+    :func:`kayakgen.eval.high_angle_gz.build_load_case_gz_table`.
+    """
+    candidate_dir.mkdir(parents=True, exist_ok=True)
+    path = candidate_dir / "load_case_gz.json"
+    write_text_atomic(path, json.dumps(table, indent=2))
+    data = path.read_bytes()
+    return HighAngleGzArtifact(
+        path=str(path.relative_to(out_root)),
+        bytes=len(data),
+        sha256=hashlib.sha256(data).hexdigest(),
+    )

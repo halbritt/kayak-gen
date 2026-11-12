@@ -551,6 +551,16 @@ byte-stable. Future-Striatum-Batches: tumblehome, knuckled sheer, lofted
 topsides, preset search variables for the sheer ratio and measured GZ
 validation are not part of this slice.
 
+## RFC 0089 section fullness and form metrics disposition
+
+Stage 1 landed: optional `distribution_v2.section_exponent` for `round`
+sections, opt-in form metrics (class length-to-beam ratio, catch-zone beam)
+and a per-load righting-arm table in sweeps. Existing hulls, specs and
+records are byte-stable. Future-Striatum-Batches: tumblehome and carried
+breadth on the topside strip, admission of the new measures as search
+objectives and constraints, default search variables for the new shape
+fields and measured validation are stage 2 and not part of this slice.
+
 ## RFC 0087 ledger finalization disposition
 
 KAYGEN-24 / R9 provides a receipt-applicability view and a proposed finalized

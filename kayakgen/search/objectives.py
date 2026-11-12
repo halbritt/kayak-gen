@@ -219,6 +219,57 @@ OBJECTIVE_METADATA: dict[str, ObjectiveMetadata] = {
         availability_conditions=["high_angle_gz_artifact_present"],
         default_objective_eligible=False,
     ),
+    # RFC 0089 form metrics: display-only geometric measures of the
+    # opt-in FormMetrics evaluator. Candidate summary columns only;
+    # search admission is a separate decision.
+    "form.class_length_beam_ratio": ObjectiveMetadata(
+        metric="form.class_length_beam_ratio",
+        label="Class length-to-beam ratio",
+        unit="ratio",
+        direction="max",
+        source_evaluator="form",
+        availability_rule="present when form metrics evaluator runs",
+        role="display_only",
+        display_format="{value:.2f}",
+        availability_conditions=["form_metrics_evaluator_ran"],
+        default_objective_eligible=False,
+    ),
+    "form.class_waterline_beam_m": ObjectiveMetadata(
+        metric="form.class_waterline_beam_m",
+        label="Waterline beam at class draft",
+        unit="m",
+        direction="min",
+        source_evaluator="form",
+        availability_rule="present when form metrics evaluator runs",
+        role="display_only",
+        display_format="{value:.3f}",
+        availability_conditions=["form_metrics_evaluator_ran"],
+        default_objective_eligible=False,
+    ),
+    "form.catch_zone_max_beam_m": ObjectiveMetadata(
+        metric="form.catch_zone_max_beam_m",
+        label="Overall beam in catch zone",
+        unit="m",
+        direction="min",
+        source_evaluator="form",
+        availability_rule="present when form metrics evaluator runs",
+        role="display_only",
+        display_format="{value:.3f}",
+        availability_conditions=["form_metrics_evaluator_ran"],
+        default_objective_eligible=False,
+    ),
+    "form.beam_at_reference_m": ObjectiveMetadata(
+        metric="form.beam_at_reference_m",
+        label="Overall beam at reference station",
+        unit="m",
+        direction="min",
+        source_evaluator="form",
+        availability_rule="present when form metrics evaluator runs",
+        role="display_only",
+        display_format="{value:.3f}",
+        availability_conditions=["form_metrics_evaluator_ran"],
+        default_objective_eligible=False,
+    ),
     # RFC 0053 turning metrics: display-only numeric outputs of the
     # opt-in TurningMetrics evaluator. Surfaced as candidate summary
     # columns but never admissible as Pareto/search objectives — the

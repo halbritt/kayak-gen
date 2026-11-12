@@ -19,6 +19,10 @@ from kayakgen.eval.contract import LoadCase
 from kayakgen.eval.hydrostatics import evaluate as evaluate_hydrostatics
 from kayakgen.eval.resistance import resistance_curve
 from kayakgen.eval.stability import evaluate_equilibrium_stability, evaluate_initial_stability
+from kayakgen.eval.form_metrics import (
+    DEFAULT_CLASS_RATIO_DRAFT_M,
+    evaluate_form_metrics,
+)
 from kayakgen.eval.turning import evaluate_turning_metrics
 from kayakgen.eval.mesh_package import (
     open_wetted_surface_profile,
@@ -104,6 +108,19 @@ def evaluate(
         "--turning-heel-deg",
         help="Heel angle (deg) for --turning; ignored without --turning.",
     ),
+    form_metrics: bool = typer.Option(
+        False,
+        "--form-metrics",
+        help=(
+            "Opt-in (RFC 0089): attach the FormMetrics block (class "
+            "length-to-beam ratio and catch-zone beam). Default output is unchanged."
+        ),
+    ),
+    class_ratio_draft_m: float = typer.Option(
+        DEFAULT_CLASS_RATIO_DRAFT_M,
+        "--class-ratio-draft-m",
+        help="Draft (m) for the class ratio; ignored without --form-metrics.",
+    ),
 ) -> None:
     """Run all available evaluators on a hull and write the EvaluationResult."""
     hull = load_hull(hull_path)
@@ -127,12 +144,21 @@ def evaluate(
     except (ValueError, OSError) as exc:
         typer.echo(f"evaluation input failed: {exc}", err=True)
         raise typer.Exit(code=1) from exc
+    form_block = None
+    if form_metrics:
+        try:
+            form_block = evaluate_form_metrics(hull, class_ratio_draft_m=class_ratio_draft_m)
+        except ValueError as exc:
+            typer.echo(f"evaluate --form-metrics failed: {exc}", err=True)
+            raise typer.Exit(code=1) from exc
     if context_path is not None or load_case_path is not None:
         try:
             result = evaluate_with_context(hull, context, include_resistance=not skip_resistance)
         except ValueError as exc:
             typer.echo(f"evaluation refused: {exc}", err=True)
             raise typer.Exit(code=1) from exc
+        if form_block is not None:
+            result = result.model_copy(update={"form_metrics": form_block})
         out_path = out if out is not None else hull_path.with_suffix(".eval.json")
         save_evaluation(result, out_path)
         typer.echo(f"wrote {out_path}")
@@ -159,6 +185,7 @@ def evaluate(
         resistance=resistance,
         design_validity=design_validity,
         turning_metrics=turning_block,
+        form_metrics=form_block,
     )
     out_path = out if out is not None else hull_path.with_suffix(".eval.json")
     save_evaluation(result, out_path)

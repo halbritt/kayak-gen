@@ -142,6 +142,31 @@ hydrostatics or resistance at the design waterline. Omitting the record
 leaves an existing hull's identity unchanged; adding it changes the
 identity.
 
+A `round` v2 hull may set `distribution_v2.section_exponent` (RFC 0089)
+to change how full the section is below the waterline:
+
+```json
+"section_exponent": 3.5
+```
+
+The section follows `z = -draft * (1 - (y / half_breadth) ** exponent)`.
+2 is the default parabola; larger values give a flatter floor and a
+firmer bilge (1.5 to 8; a longitudinal distribution is accepted). The
+waterline breadth does not change, but displacement does, so re-solve
+the draft for your load after changing it. The field is refused for
+other section families.
+
+`kayakgen evaluate HULL --form-metrics` adds a `form_metrics` block with
+the race-class length-to-beam ratio at a stated draft
+(`--class-ratio-draft-m`, default 0.1016 m) and the overall beam in the
+paddle catch zone, 0.6 to 1.2 m forward of the reference station. In a
+sweep, set `evaluators.form_metrics`. To compare righting arms at
+several loads, give a sweep `evaluators.high_angle_gz_load_cases`, a
+list of named load cases; each candidate writes `load_case_gz.json`.
+These values are geometric and hydrostatic comparisons, not validated
+measurements; a race organiser's tape measure can differ from the
+computed class ratio by several percent.
+
 ## CLI Commands
 
 ### `init`

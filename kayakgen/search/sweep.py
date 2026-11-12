@@ -15,10 +15,22 @@ if TYPE_CHECKING:  # pragma: no cover - import only for type hints
     from kayakgen.services.generative_jobs import GenerativeJobProgressSink
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    model_serializer,
+    model_validator,
+)
 
 from kayakgen.eval.contract import EvaluationResult
-from kayakgen.eval.high_angle_gz import build_high_angle_gz_block
+from kayakgen.eval.form_metrics import (
+    DEFAULT_CATCH_ZONE_FORWARD_M,
+    DEFAULT_CLASS_RATIO_DRAFT_M,
+    evaluate_form_metrics,
+)
+from kayakgen.eval.high_angle_gz import build_high_angle_gz_block, build_load_case_gz_table
 from kayakgen.eval.contract import LoadCase
 from kayakgen.eval.stability import DEFAULT_GZ_HEEL_GRID_DEG
 from kayakgen.eval.turning import evaluate_turning_metrics
@@ -26,6 +38,7 @@ from kayakgen.eval.sweep_artifacts import (
     HighAngleGzArtifact,
     StlArtifactSet,
     write_candidate_high_angle_gz,
+    write_candidate_load_case_gz,
     write_candidate_stl,
 )
 from kayakgen.io.json import write_text_atomic, save_evaluation, save_hull
@@ -97,6 +110,46 @@ class EvaluatorOptions(BaseModel):
     high_angle_gz_heel_grid_deg: list[float] | None = None
     turning_metrics: bool = False
     turning_metrics_heel_deg: float = 8.0
+    # RFC 0089. Each of these is omitted from serialized output while it
+    # holds its default, so specs and records written before the fields
+    # existed keep their bytes and hashes.
+    form_metrics: bool = False
+    form_metrics_class_ratio_draft_m: float = Field(
+        default=DEFAULT_CLASS_RATIO_DRAFT_M, gt=0, allow_inf_nan=False
+    )
+    form_metrics_catch_zone_forward_m: tuple[float, float] = DEFAULT_CATCH_ZONE_FORWARD_M
+    high_angle_gz_load_cases: list[dict[str, Any]] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_rfc0089_options(self) -> "EvaluatorOptions":
+        near, far = self.form_metrics_catch_zone_forward_m
+        if not (np.isfinite(near) and np.isfinite(far)) or far <= near:
+            raise ValueError("form_metrics_catch_zone_forward_m must be an increasing (near, far) pair")
+        names = [LoadCase.model_validate(case).name.strip() for case in self.high_angle_gz_load_cases]
+        if any(not name for name in names):
+            raise ValueError("every high_angle_gz_load_cases entry needs a non-blank name")
+        if len(set(names)) != len(names):
+            raise ValueError("high_angle_gz_load_cases names must be unique")
+        return self
+
+    @model_serializer(mode="wrap")
+    def _omit_default_rfc0089_options(self, handler):  # type: ignore[no-untyped-def]
+        data = handler(self)
+        if isinstance(data, dict):
+            for name in _RFC0089_OPTION_FIELDS:
+                if getattr(self, name) == type(self).model_fields[name].get_default(
+                    call_default_factory=True
+                ):
+                    data.pop(name, None)
+        return data
+
+
+_RFC0089_OPTION_FIELDS: tuple[str, ...] = (
+    "form_metrics",
+    "form_metrics_class_ratio_draft_m",
+    "form_metrics_catch_zone_forward_m",
+    "high_angle_gz_load_cases",
+)
 
 
 class SweepLimits(BaseModel):
@@ -430,6 +483,13 @@ def _evaluate_candidate(
         turning = evaluate_turning_metrics(
             hull, heel_deg=spec.evaluators.turning_metrics_heel_deg
         )
+    form = None
+    if spec.evaluators.form_metrics:
+        form = evaluate_form_metrics(
+            hull,
+            class_ratio_draft_m=spec.evaluators.form_metrics_class_ratio_draft_m,
+            catch_zone_forward_m=spec.evaluators.form_metrics_catch_zone_forward_m,
+        )
     evaluation = EvaluationResult(
         context=computed.context,
         hull_hash=hull.hash(),
@@ -437,6 +497,7 @@ def _evaluate_candidate(
         resistance=resistance,
         stability=stability,
         turning_metrics=turning,
+        form_metrics=form,
         design_validity=design_validity,
     )
     save_hull(hull, hull_path)
@@ -498,6 +559,34 @@ def _evaluate_candidate(
                 candidate_key=candidate_key,
             )
 
+    load_case_gz_summary: dict[str, Any] = {}
+    if spec.evaluators.high_angle_gz_load_cases:
+        heel_grid = (
+            list(spec.evaluators.high_angle_gz_heel_grid_deg)
+            if spec.evaluators.high_angle_gz_heel_grid_deg is not None
+            else [float(angle) for angle in DEFAULT_GZ_HEEL_GRID_DEG]
+        )
+        table = build_load_case_gz_table(
+            hull,
+            [LoadCase.model_validate(case) for case in spec.evaluators.high_angle_gz_load_cases],
+            heel_grid_deg=heel_grid,
+        )
+        load_case_gz_artifact = write_candidate_load_case_gz(
+            table, candidates_dir / candidate_key, out
+        )
+        artifacts["load_case_gz"] = load_case_gz_artifact.path
+        if store is not None:
+            store.put_file(
+                "load_case_gz_artifact",
+                out / load_case_gz_artifact.path,
+                candidate_key=candidate_key,
+            )
+        for entry in table["load_cases"]:
+            for point in entry["high_angle_gz"]["heel_points"]:
+                load_case_gz_summary[
+                    f"load_case_gz.{entry['name']}.gz_m_at_{point['heel_deg']:g}deg"
+                ] = point["gz_m"]
+
     summary = {
         "displaced_mass_kg": hydro.displaced_mass_kg,
         "wetted_surface_m2": hydro.wetted_surface_m2,
@@ -534,6 +623,13 @@ def _evaluate_candidate(
         summary["turning.rocker_weighted_maneuverability_signal"] = (
             turning.rocker_weighted_maneuverability_signal
         )
+
+    if form is not None:
+        summary["form.class_length_beam_ratio"] = form.class_length_beam_ratio
+        summary["form.class_waterline_beam_m"] = form.class_waterline_beam_m
+        summary["form.catch_zone_max_beam_m"] = form.catch_zone_max_beam_m
+        summary["form.beam_at_reference_m"] = form.beam_at_reference_m
+    summary.update(load_case_gz_summary)
 
     return CandidateRecord(
         candidate_index=index,

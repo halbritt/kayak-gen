@@ -8,6 +8,18 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- RFC 0089 stage 1: `distribution_v2` hulls accept an optional
+  `section_exponent` (scalar or longitudinal distribution, 1.5 to 8) that sets
+  how full the `round` section is below the waterline; unset keeps the previous
+  parabola, bytes and identities. New opt-in form metrics report the race-class
+  length-to-beam ratio at a stated draft and the overall beam in the paddle
+  catch zone (`kayakgen evaluate --form-metrics`, sweep
+  `evaluators.form_metrics`). A sweep can also evaluate righting arms under
+  several named loads (`evaluators.high_angle_gz_load_cases`) and writes
+  `load_case_gz.json` per candidate. The new measures are display-only. Not
+  included: tumblehome, search admission, fullness for other section families,
+  and any physical validation.
+
 - RFC 0088: `distribution_v2` hulls accept an optional `topsides` record
   (`sheer_beam_ratio`, `sheer_height_frac`; scalar or longitudinal
   distribution) that adds wall-sided or flared hull sides between the design

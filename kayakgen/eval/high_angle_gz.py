@@ -51,6 +51,7 @@ __all__ = [
     "HIGH_ANGLE_GZ_SURFACE_WARNINGS",
     "parse_heel_grid_deg",
     "build_high_angle_gz_block",
+    "build_load_case_gz_table",
 ]
 
 HIGH_ANGLE_GZ_BODY_PROFILE = "generated_hull_plus_deck_closed_body_v1"
@@ -242,4 +243,46 @@ def build_high_angle_gz_block(
         "summary": _summary_block(curve, heel_grid_deg),
         "assumptions": list(curve.assumptions),
         "warnings": surface_warnings,
+    }
+
+
+def build_load_case_gz_table(
+    hull: Hull,
+    load_cases: Sequence[LoadCase],
+    *,
+    heel_grid_deg: Sequence[float],
+    body_builder=None,
+) -> dict[str, Any]:
+    """Righting-arm blocks for one hull under several named loads (RFC 0089).
+
+    Each entry carries the unchanged :func:`build_high_angle_gz_block`
+    output for its load, so every claim and warning of that block
+    applies per load. Names must be unique and non-blank; they are the
+    keys a reader uses to tell the loads apart.
+    """
+
+    if not load_cases:
+        raise ValueError("load_cases must contain at least one load case")
+    names = [case.name.strip() for case in load_cases]
+    if any(not name for name in names):
+        raise ValueError("every load case needs a non-blank name")
+    if len(set(names)) != len(names):
+        raise ValueError("load case names must be unique")
+    entries = []
+    for name, case in zip(names, load_cases):
+        entries.append(
+            {
+                "name": name,
+                "total_mass_kg": case.total_mass_kg,
+                "load_case": case.model_dump(mode="json"),
+                "high_angle_gz": build_high_angle_gz_block(
+                    hull, case, heel_grid_deg=heel_grid_deg, body_builder=body_builder
+                ),
+            }
+        )
+    return {
+        "schema_version": "1",
+        "result_semantics": HIGH_ANGLE_GZ_RESULT_SEMANTICS,
+        "heel_grid_deg": list(heel_grid_deg),
+        "load_cases": entries,
     }

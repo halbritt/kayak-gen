@@ -46,12 +46,14 @@ def _verify_completed_artifacts(store: "FilesystemArtifactStore", prior: Candida
     kinds: dict[str, "ArtifactKind"] = {
         "hull": "hull_json", "evaluation": "eval_result_json", "mesh_diagnostics": "mesh_quality_json",
         "stl_hull": "hull_stl", "stl_deck": "deck_stl", "high_angle_gz": "high_angle_gz_artifact",
+        "load_case_gz": "load_case_gz_artifact",
     }
     if not {"hull", "evaluation"}.issubset(prior.artifacts):
         raise ValueError("complete candidate lacks required hull/evaluation references")
     requested_artifacts = {
         "stl": {"stl_hull", "stl_deck"}, "mesh_diagnostics": {"mesh_diagnostics"},
         "high_angle_gz": {"high_angle_gz"},
+        "high_angle_gz_load_cases": {"load_case_gz"},
     }
     for option, roles in requested_artifacts.items():
         if prior.evaluator_settings.get(option) and not roles.issubset(prior.artifacts):

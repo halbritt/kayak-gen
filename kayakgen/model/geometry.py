@@ -382,20 +382,28 @@ def _section_round(
     n: int,
     *,
     deadrise_rad: float,
+    exponent: float = 2.0,
 ) -> np.ndarray:
     """Round (sinh-shaped) family: today's default loft sampled by angle.
 
     Parametrization mirrors the lofted family's m=2 fall-back (rounded
     bottom) and lets ``deadrise_rad`` tilt the keel tangent upward,
     matching the "deeper-V" notion at small deadrise.
+
+    ``exponent`` (RFC 0089) sets the fullness: without deadrise the arc
+    is ``z = -draft * (1 - (y / half_breadth) ** exponent)``. Stations
+    keep the breadth spacing of the exponent-2 arc for every exponent,
+    so a full section does not crowd its points into the bilge.
     """
 
     angles = np.linspace(-np.pi / 2.0, 0.0, n)
     t_norm = (angles + np.pi / 2.0) / (np.pi / 2.0)
-    m = 2.0
-    y = half_breadth * (t_norm ** (1.0 / m))
+    y = half_breadth * (t_norm ** (1.0 / 2.0))
     # base z runs from -draft to 0 as t_norm sweeps 0->1
-    z_base = -draft + draft * t_norm
+    if exponent == 2.0:
+        z_base = -draft + draft * t_norm
+    else:
+        z_base = -draft + draft * t_norm ** (exponent / 2.0)
     # deadrise raises the keel above -draft by tan(angle)*y_local
     z = z_base + np.tan(deadrise_rad) * y * (1.0 - t_norm)
     z = np.minimum(z, 0.0)
@@ -760,7 +768,15 @@ class DistributionV2Geometry(HullGeometry):
         draft_safe = max(draft, 1e-4)
 
         sampler = _CROSS_SECTION_FAMILIES[family]
-        if family in ("round", "shallow_arch"):
+        if family == "round":
+            arc = sampler(
+                half_b_safe,
+                draft_safe,
+                n_points,
+                deadrise_rad=deadrise_rad,
+                exponent=self.spec.sample_section_exponent(self._xi_for_x(x)),
+            )
+        elif family == "shallow_arch":
             arc = sampler(half_b_safe, draft_safe, n_points, deadrise_rad=deadrise_rad)
         elif family in ("shallow_v", "deep_v", "hard_chine"):
             arc = sampler(

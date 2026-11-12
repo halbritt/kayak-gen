@@ -7,7 +7,14 @@ import hashlib
 import json
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from kayakgen.eval.claims import (
     ACCEPTED_USE_COMPARATIVE_FILTER,
@@ -19,6 +26,7 @@ from kayakgen.eval.claims import (
     uncalibrated_resistance_warnings,
 )
 from kayakgen.eval.hydrostatics import Hydrostatics
+from kayakgen.eval.form_metrics import FormMetrics
 from kayakgen.eval.turning import TurningMetrics
 from kayakgen.model.validity import DesignValidityReport
 
@@ -851,9 +859,19 @@ class EvaluationResult(BaseModel):
     stability: StabilityResult | None = None
     cfd: CfdResult | None = None
     turning_metrics: TurningMetrics | None = None
+    # RFC 0089. Omitted from serialized output while unset so results
+    # written without the evaluator keep their bytes.
+    form_metrics: FormMetrics | None = None
     timings_ms: dict[str, float] = Field(default_factory=dict)
     design_validity: DesignValidityReport = Field(default_factory=DesignValidityReport)
     convergence: list[ConvergenceFlag] = Field(default_factory=list)
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_form_metrics(self, handler):  # type: ignore[no-untyped-def]
+        data = handler(self)
+        if self.form_metrics is None and isinstance(data, dict):
+            data.pop("form_metrics", None)
+        return data
 
     @model_validator(mode="after")
     def _bind_context(self) -> "EvaluationResult":
