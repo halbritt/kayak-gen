@@ -8,6 +8,13 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
 
 ### Added
 
+- RFC 0089 stage 3: the `form_metrics` block reports foot room, the largest
+  centred box between hull and deck at a stated station forward of the
+  reference station (`foot_clear_height_m`, `foot_clear_width_m`,
+  `foot_station_beam_m`, `foot_station_depth_m`). Sweeps and searches see
+  `form.foot_clear_height_m`, `form.foot_clear_width_m` and
+  `form.foot_station_beam_m`; `kayakgen evaluate --form-metrics` takes
+  `--foot-station-forward-m`, `--foot-box-width-m` and `--foot-box-height-m`.
 - RFC 0089 stage 2: `topsides.sheer_beam_ratio` may go down to 0.6
   (tumblehome); `topsides.sheer_plan` draws the sheer as its own fair outline
   in plan view (`max_half_breadth_m`, `max_position_xi`, `forward_exponent`,

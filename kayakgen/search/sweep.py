@@ -27,6 +27,9 @@ from pydantic import (
 from kayakgen.eval.contract import EvaluationResult
 from kayakgen.eval.form_metrics import (
     DEFAULT_CATCH_ZONE_FORWARD_M,
+    DEFAULT_FOOT_BOX_HEIGHT_M,
+    DEFAULT_FOOT_BOX_WIDTH_M,
+    DEFAULT_FOOT_STATION_FORWARD_M,
     DEFAULT_CLASS_RATIO_DRAFT_M,
     evaluate_form_metrics,
 )
@@ -118,6 +121,15 @@ class EvaluatorOptions(BaseModel):
         default=DEFAULT_CLASS_RATIO_DRAFT_M, gt=0, allow_inf_nan=False
     )
     form_metrics_catch_zone_forward_m: tuple[float, float] = DEFAULT_CATCH_ZONE_FORWARD_M
+    form_metrics_foot_station_forward_m: float = Field(
+        default=DEFAULT_FOOT_STATION_FORWARD_M, ge=0, allow_inf_nan=False
+    )
+    form_metrics_foot_box_width_m: float = Field(
+        default=DEFAULT_FOOT_BOX_WIDTH_M, gt=0, allow_inf_nan=False
+    )
+    form_metrics_foot_box_height_m: float = Field(
+        default=DEFAULT_FOOT_BOX_HEIGHT_M, gt=0, allow_inf_nan=False
+    )
     high_angle_gz_load_cases: list[dict[str, Any]] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -148,6 +160,9 @@ _RFC0089_OPTION_FIELDS: tuple[str, ...] = (
     "form_metrics",
     "form_metrics_class_ratio_draft_m",
     "form_metrics_catch_zone_forward_m",
+    "form_metrics_foot_station_forward_m",
+    "form_metrics_foot_box_width_m",
+    "form_metrics_foot_box_height_m",
     "high_angle_gz_load_cases",
 )
 
@@ -489,6 +504,9 @@ def _evaluate_candidate(
             hull,
             class_ratio_draft_m=spec.evaluators.form_metrics_class_ratio_draft_m,
             catch_zone_forward_m=spec.evaluators.form_metrics_catch_zone_forward_m,
+            foot_station_forward_m=spec.evaluators.form_metrics_foot_station_forward_m,
+            foot_box_width_m=spec.evaluators.form_metrics_foot_box_width_m,
+            foot_box_height_m=spec.evaluators.form_metrics_foot_box_height_m,
         )
     evaluation = EvaluationResult(
         context=computed.context,
@@ -631,6 +649,9 @@ def _evaluate_candidate(
         summary["form.catch_zone_max_beam_m"] = form.catch_zone_max_beam_m
         summary["form.catch_zone_max_upper_beam_m"] = form.catch_zone_max_upper_beam_m
         summary["form.beam_at_reference_m"] = form.beam_at_reference_m
+        summary["form.foot_clear_height_m"] = form.foot_clear_height_m
+        summary["form.foot_clear_width_m"] = form.foot_clear_width_m
+        summary["form.foot_station_beam_m"] = form.foot_station_beam_m
     summary.update(load_case_gz_summary)
 
     return CandidateRecord(

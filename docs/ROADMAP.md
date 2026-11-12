@@ -568,6 +568,11 @@ Future-Striatum-Batches: knuckled sheer, lofted topsides, preset search
 variables, a cockpit or foot-room model and measured validation are not
 part of this slice.
 
+Stage 3 landed: foot room in the form metrics (largest centred box between
+hull and deck at the foot station), as sweep summary keys and search
+constraints. Future-Striatum-Batches: knee room, shell thickness and a
+modelled seat position are not part of this slice.
+
 ## RFC 0087 ledger finalization disposition
 
 KAYGEN-24 / R9 provides a receipt-applicability view and a proposed finalized

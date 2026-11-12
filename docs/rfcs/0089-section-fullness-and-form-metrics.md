@@ -1,6 +1,6 @@
 # RFC 0089: Section fullness, form metrics and multi-load righting arms
 
-Status: landed stages 1 and 2 (section exponent, form metrics, load-case GZ table; tumblehome, sheer plan, deck crown, search admission)
+Status: landed stages 1 to 3 (section exponent, form metrics, load-case GZ table; tumblehome, sheer plan, deck crown, search admission; foot room)
 Date: 2026-11-11
 Context: RFC 0048 (`distribution_v2`), RFC 0088 (topsides), RFC 0043
 (high-angle GZ), RFC 0053 (turning metrics), RFC 0049/0068 (identity);
@@ -302,8 +302,54 @@ bytes and both hashes.
   the existing `sheer_height_frac` and `deck_crown_exponent`
   distributions, but those are not scalar and so not searchable.
 - No default search variables in class presets for the new fields.
-- A cockpit, coaming or deck recess is not modelled, so foot and knee
-  room under a narrowed deck is not checked.
+- A cockpit, coaming or deck recess is not modelled. Stage 3 checks
+  foot room on the outer surface; knee room is still not checked.
+
+## Stage 3: foot room
+
+The stage 2 deck controls narrow and lower the hull where the paddle
+enters, 0.9 to 1.0 m forward of the seat. The paddler's feet and the
+pedals are at about the same station, and nothing measured whether they
+still fit. A search that minimises catch-zone beam with only a
+righting-arm floor is free to return a hull the paddler cannot sit in.
+
+`FormMetrics` gains a foot-room measure, always computed with the
+block:
+
+- `foot_station_forward_m` (default 1.0): the foot station, forward of
+  the reference station.
+- `foot_clear_height_m`: the height of the tallest centred box
+  `foot_box_width_m` wide (default 0.30) that fits between hull and
+  deck at that station. The box floor is the highest hull point under
+  it and its roof the lowest deck point over it.
+- `foot_clear_width_m`: the width of the widest centred box
+  `foot_box_height_m` tall (default 0.30), zero when the section is
+  shallower than the box.
+- `foot_station_beam_m` and `foot_station_depth_m`: overall beam and
+  centreline depth at the station.
+
+The defaults describe no particular paddler. Set the station from leg
+length and the box from shoe size, or take all three from a boat that
+is known to fit. The measure is on the outer surface, so shell
+thickness, pedals and rails come out of it.
+
+Sweeps take `evaluators.form_metrics_foot_station_forward_m`,
+`form_metrics_foot_box_width_m` and `form_metrics_foot_box_height_m`
+(omitted from serialized options at their defaults) and report
+`form.foot_clear_height_m`, `form.foot_clear_width_m` and
+`form.foot_station_beam_m`. These are constraint keys for any search
+and objectives (direction max) only under the exploratory opt-in.
+`kayakgen evaluate --form-metrics` takes `--foot-station-forward-m`,
+`--foot-box-width-m` and `--foot-box-height-m`.
+
+The foot fields are optional in the schema, so a `form_metrics` block
+written by stage 1 or 2 still loads. A block computed now carries them,
+so its bytes differ from one computed before stage 3.
+
+Tests: `tests/test_rfc0089_foot_room.py`.
+
+Still open: knee room, a seat position that is not the section-area
+centroid by default, and shell thickness.
 
 ## Domain Modeling
 

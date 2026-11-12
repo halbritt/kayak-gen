@@ -14,7 +14,7 @@ update `DECISION_LOG.md` and (when behavior changes) `SPEC.md`.
 
 | RFC | Status | Topic |
 | --- | --- | --- |
-| [0089](0089-section-fullness-and-form-metrics.md) | landed stages 1 and 2 | Fuller `round` sections, class ratio and catch-zone beam, righting arms at several loads; tumblehome, fair sheer plan, deck crown, search admission |
+| [0089](0089-section-fullness-and-form-metrics.md) | landed stages 1 to 3 | Fuller `round` sections, class ratio and catch-zone beam, righting arms at several loads; tumblehome, fair sheer plan, deck crown, search admission; foot room |
 | [0088](0088-v2-topsides.md) | landed optional topsides record | Above-waterline hull sides and flare for `distribution_v2` hulls |
 | [0081](0081-semantic-preflight.md) | landed selected semantic preflight | Source-bound shared-input contract checks before full release gates |
 | [0082](0082-verified-gate-renderers.md) | landed verified full/fast renderer admission | Actual Mesa software evidence and coordinated NVIDIA hardware gates |

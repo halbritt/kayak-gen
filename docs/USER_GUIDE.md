@@ -201,6 +201,19 @@ beam a paddle shaft has to clear (the body 0.10 m or more above the
 waterline), and `class_beam_length_fraction` for the USCA rule (Sea
 Kayak: 0.085 or more with at most 18 ft overall).
 
+The block also reports foot room at the station
+`--foot-station-forward-m` (default 1.0 m) forward of the reference
+station: `foot_clear_height_m` is the tallest centred box
+`--foot-box-width-m` wide (default 0.30 m) that fits between hull and
+deck, and `foot_clear_width_m` the widest centred box
+`--foot-box-height-m` tall (default 0.30 m). Set these from your leg
+length and shoe size, or measure a boat that fits you. The measure is on
+the outer surface; allow for the shell and the pedals. In a sweep the
+options are `evaluators.form_metrics_foot_station_forward_m`,
+`form_metrics_foot_box_width_m` and `form_metrics_foot_box_height_m`.
+When you search for a narrower deck, constrain `form.foot_clear_height_m`
+or `form.foot_clear_width_m` so the result still has room for feet.
+
 In an active search, `form.*` metrics may be objectives when the spec
 sets `objectives_explicit_exploratory`. Per-load righting arms
 (`load_case_gz.<name>.gz_m_at_<angle>deg`) may be constraints but not

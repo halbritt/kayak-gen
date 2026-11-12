@@ -21,6 +21,9 @@ from kayakgen.eval.resistance import resistance_curve
 from kayakgen.eval.stability import evaluate_equilibrium_stability, evaluate_initial_stability
 from kayakgen.eval.form_metrics import (
     DEFAULT_CLASS_RATIO_DRAFT_M,
+    DEFAULT_FOOT_BOX_HEIGHT_M,
+    DEFAULT_FOOT_BOX_WIDTH_M,
+    DEFAULT_FOOT_STATION_FORWARD_M,
     evaluate_form_metrics,
 )
 from kayakgen.eval.turning import evaluate_turning_metrics
@@ -121,6 +124,21 @@ def evaluate(
         "--class-ratio-draft-m",
         help="Draft (m) for the class ratio; ignored without --form-metrics.",
     ),
+    foot_station_forward_m: float = typer.Option(
+        DEFAULT_FOOT_STATION_FORWARD_M,
+        "--foot-station-forward-m",
+        help="Foot station (m forward of the reference station); ignored without --form-metrics.",
+    ),
+    foot_box_width_m: float = typer.Option(
+        DEFAULT_FOOT_BOX_WIDTH_M,
+        "--foot-box-width-m",
+        help="Width (m) of the foot box whose clear height is reported.",
+    ),
+    foot_box_height_m: float = typer.Option(
+        DEFAULT_FOOT_BOX_HEIGHT_M,
+        "--foot-box-height-m",
+        help="Height (m) of the foot box whose clear width is reported.",
+    ),
 ) -> None:
     """Run all available evaluators on a hull and write the EvaluationResult."""
     hull = load_hull(hull_path)
@@ -147,7 +165,13 @@ def evaluate(
     form_block = None
     if form_metrics:
         try:
-            form_block = evaluate_form_metrics(hull, class_ratio_draft_m=class_ratio_draft_m)
+            form_block = evaluate_form_metrics(
+                hull,
+                class_ratio_draft_m=class_ratio_draft_m,
+                foot_station_forward_m=foot_station_forward_m,
+                foot_box_width_m=foot_box_width_m,
+                foot_box_height_m=foot_box_height_m,
+            )
         except ValueError as exc:
             typer.echo(f"evaluate --form-metrics failed: {exc}", err=True)
             raise typer.Exit(code=1) from exc
