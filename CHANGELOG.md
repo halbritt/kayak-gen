@@ -12,6 +12,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   `test:fast` and `test:full` (the existing gate scripts, run through the
   host's `host:exec` for a deadline and child cleanup). `scripts/test-python.sh`
   finds the interpreter, including from a linked worktree.
+- RFC 0089 stage 5: `topsides.shoulder_round_m` rounds the deck edge. The
+  side leaves the waterline on the hull's line, takes half the sheer height
+  to turn and blends into the deck, so the upper outline has no corner.
+  The `form_metrics` block adds `upper_hollow_max_deg` for a side that
+  waists inward (`form.upper_hollow_max_deg` in sweeps and searches).
 - RFC 0089 stage 4: the `form_metrics` block reports section knuckles, the
   corner where hull meets topside (`waterline_knuckle_max_deg`) and the
   sharpest corner above it at the topside and deck edge
@@ -85,6 +90,13 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   installed bytes plus actual HTML/report/export and bounded real CFD workflows.
   Supplied hull/context inputs remain unchanged; absent inputs use a labelled
   smoke control. Expected resources derive from source, and HTML requires no PDF extra.
+
+### Changed
+
+- Section knuckles are read on the generator's true outline instead of the
+  79-point mesh ring, which showed a rounded edge and a corner alike as a
+  few facets. Knuckle values of existing hulls change, and a tight bend no
+  longer reads low.
 
 ### Fixed
 

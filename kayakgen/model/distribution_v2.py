@@ -187,6 +187,7 @@ SECTION_EXPONENT_MAX = 8.0
 SECTION_EXPONENT_DEFAULT = 2.0
 SHEER_HEIGHT_FRAC_MIN = 0.05
 SHEER_HEIGHT_FRAC_MAX = 0.95
+SHOULDER_ROUND_MAX_M = 0.2
 _TOPSIDES_VALIDATION_XI = np.linspace(-1.0, 1.0, 201)
 
 
@@ -252,8 +253,18 @@ class TopsidesSpec(BaseModel):
     ``sheer_plan`` (RFC 0089) replaces the ratio with a fair outline of
     the sheer in plan view; ``sheer_beam_ratio`` must then be left at
     1. ``deck_crown_exponent`` (RFC 0089) sets how square the deck is
-    between sheer and crown; unset keeps the built-in arch. Both are
-    omitted from serialized output while unset.
+    between sheer and crown; unset keeps the built-in arch.
+
+    ``shoulder_round_m`` (RFC 0089 stage 5) rounds the deck edge. The
+    side then leaves the waterline on the hull's own line and takes
+    half the sheer height to turn, so it may stand wider than the sheer
+    on the way up, and a blend replaces the outline for this distance
+    either side of the sheer. The upper outline is then one curve with
+    no corner, and the sheer is where that curve is widest. The
+    distance shortens by itself where the section is small.
+
+    The three RFC 0089 fields are omitted from serialized output while
+    unset.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -262,6 +273,9 @@ class TopsidesSpec(BaseModel):
     sheer_height_frac: Union[float, LongitudinalDistribution] = 0.6
     sheer_plan: SheerPlan | None = None
     deck_crown_exponent: Union[float, LongitudinalDistribution, None] = None
+    shoulder_round_m: float | None = Field(
+        default=None, gt=0.0, le=SHOULDER_ROUND_MAX_M, allow_inf_nan=False
+    )
 
     @model_validator(mode="after")
     def _check_ranges(self) -> "TopsidesSpec":
@@ -332,6 +346,8 @@ class TopsidesSpec(BaseModel):
                 data.pop("sheer_plan", None)
             if self.deck_crown_exponent is None:
                 data.pop("deck_crown_exponent", None)
+            if self.shoulder_round_m is None:
+                data.pop("shoulder_round_m", None)
         return data
 
 

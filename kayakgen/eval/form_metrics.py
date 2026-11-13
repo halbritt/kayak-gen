@@ -111,6 +111,8 @@ class FormMetrics(BaseModel):
     upper_knuckle_max_deg: float | None = Field(default=None, ge=0.0, le=180.0)
     upper_knuckle_x_m: float | None = None
     upper_knuckle_height_m: float | None = None
+    upper_hollow_max_deg: float | None = Field(default=None, ge=0.0)
+    upper_hollow_x_m: float | None = None
     method: Literal["section_envelope_v1"] = "section_envelope_v1"
     notes: list[str] = Field(default_factory=list)
 
@@ -212,23 +214,32 @@ def _crossing_x(x_in: float, v_in: float, x_out: float, v_out: float) -> float:
 def _section_knuckles(
     hull_ring: np.ndarray, deck_ring: np.ndarray, probe: float
 ) -> tuple[float, float, float]:
+    """:func:`_outline_knuckles` for one station's mirrored mesh rings."""
+
+    if hull_ring.shape[0] < 3 or deck_ring.shape[0] < 3:
+        return 0.0, 0.0, 0.0
+    return _outline_knuckles(
+        hull_ring[hull_ring.shape[0] // 2 :], deck_ring[deck_ring.shape[0] // 2 :][::-1], probe
+    )
+
+
+def _outline_knuckles(
+    lower: np.ndarray, upper: np.ndarray, probe: float
+) -> tuple[float, float, float]:
     """Turn of one half section at the hull-to-deck joint and the sharpest turn above it.
 
-    Returns ``(joint_deg, upper_deg, upper_height_m)``. The half outline
-    runs from the keel up the hull ring to the joint and on along the
-    deck ring to the centreline. The turn at a point is the angle between
+    Returns ``(joint_deg, upper_deg, upper_height_m)``. ``lower`` runs
+    from the keel to the joint and ``upper`` from the joint to the
+    centreline. The turn at a point is the angle between
     the chord from ``probe`` before it and the chord to ``probe`` after
     it, along the outline. "Above" starts ``probe`` past the joint and
     stops ``probe`` short of the centreline, which leaves out the
     centreline ridge.
     """
 
-    if hull_ring.shape[0] < 3 or deck_ring.shape[0] < 3:
-        return 0.0, 0.0, 0.0
-    lower = hull_ring[hull_ring.shape[0] // 2 :]
-    upper = deck_ring[deck_ring.shape[0] // 2 :][::-1]
-
     def clean(points: np.ndarray) -> np.ndarray:
+        if points.shape[0] < 2:
+            return points
         steps = np.linalg.norm(np.diff(points, axis=0), axis=1)
         return points[np.concatenate(([True], steps > 1e-12))]
 
@@ -262,6 +273,29 @@ def _section_knuckles(
     turn, height = turn_at(at)
     worst = int(np.argmax(turn))
     return joint_deg, float(turn[worst]), float(height[worst])
+
+
+def _outline_hollow(lower: np.ndarray, upper: np.ndarray) -> float:
+    """Degrees the upper half outline turns the wrong way (0 for a convex side and deck).
+
+    Going up the starboard side from the waterline to the centreline, a
+    convex outline turns steadily inboard. Every turn outboard is
+    summed, including one at the joint with the hull, so a waisted side
+    or a deck that dips before its edge reads as the angle it has to
+    recover.
+    """
+
+    if lower.shape[0] < 2 or upper.shape[0] < 2:
+        return 0.0
+    points = np.vstack((lower[-2:-1], upper))
+    steps = np.diff(points, axis=0)
+    steps = steps[np.linalg.norm(steps, axis=1) > 1e-12]
+    if steps.shape[0] < 2:
+        return 0.0
+    cross = steps[:-1, 0] * steps[1:, 1] - steps[:-1, 1] * steps[1:, 0]
+    dot = (steps[:-1] * steps[1:]).sum(axis=1)
+    turn = np.degrees(np.arctan2(cross, dot))
+    return float(-turn[turn < 0.0].sum())
 
 
 def evaluate_form_metrics(
@@ -371,10 +405,26 @@ def evaluate_form_metrics(
 
     joint_deg, joint_x = 0.0, 0.0
     knuckle_deg, knuckle_x, knuckle_z = 0.0, 0.0, 0.0
+    # A mesh ring has too few points to show how tight a bend is: a
+    # rounded edge and a corner both read as a few angled facets. A
+    # geometry that can give the true outline is measured on that.
+    fine_outline = getattr(geom, "half_section_outline", None)
+    hollow_deg, hollow_x = 0.0, 0.0
     for x, h, d in zip(xs, hull_rings, deck_rings):
         if abs(float(x)) > knuckle_span_xi * half_length:
             continue
-        at_joint, above, height = _section_knuckles(h, d, float(knuckle_probe_m))
+        if callable(fine_outline):
+            lower, above_joint = fine_outline(float(x))
+            lower = np.asarray(lower, dtype=float)
+            above_joint = np.asarray(above_joint, dtype=float)
+        elif h.shape[0] >= 3 and d.shape[0] >= 3:
+            lower, above_joint = h[h.shape[0] // 2 :], d[d.shape[0] // 2 :][::-1]
+        else:
+            continue
+        at_joint, above, height = _outline_knuckles(lower, above_joint, float(knuckle_probe_m))
+        hollow = _outline_hollow(lower, above_joint)
+        if hollow > hollow_deg:
+            hollow_deg, hollow_x = hollow, float(x)
         if at_joint > joint_deg:
             joint_deg, joint_x = at_joint, float(x)
         if above > knuckle_deg:
@@ -409,5 +459,7 @@ def evaluate_form_metrics(
         upper_knuckle_max_deg=knuckle_deg,
         upper_knuckle_x_m=knuckle_x,
         upper_knuckle_height_m=knuckle_z,
+        upper_hollow_max_deg=hollow_deg,
+        upper_hollow_x_m=hollow_x,
         notes=notes,
     )

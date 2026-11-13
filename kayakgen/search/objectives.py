@@ -344,6 +344,18 @@ OBJECTIVE_METADATA: dict[str, ObjectiveMetadata] = {
         availability_conditions=["form_metrics_evaluator_ran"],
         default_objective_eligible=False,
     ),
+    "form.upper_hollow_max_deg": ObjectiveMetadata(
+        metric="form.upper_hollow_max_deg",
+        label="Hollow in the side or deck above the waterline",
+        unit="deg",
+        direction="min",
+        source_evaluator="form",
+        availability_rule="present when form metrics evaluator runs",
+        role="explicit_exploratory",
+        display_format="{value:.1f}",
+        availability_conditions=["form_metrics_evaluator_ran"],
+        default_objective_eligible=False,
+    ),
     "form.waterline_knuckle_max_deg": ObjectiveMetadata(
         metric="form.waterline_knuckle_max_deg",
         label="Corner where hull meets topside",

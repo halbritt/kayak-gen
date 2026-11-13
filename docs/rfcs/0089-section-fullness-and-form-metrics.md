@@ -1,6 +1,6 @@
 # RFC 0089: Section fullness, form metrics and multi-load righting arms
 
-Status: landed stages 1 to 4 (section exponent, form metrics, load-case GZ table; tumblehome, sheer plan, deck crown, search admission; foot room; section knuckles)
+Status: landed stages 1 to 5 (section exponent, form metrics, load-case GZ table; tumblehome, sheer plan, deck crown, search admission; foot room; section knuckles; rounded shoulder)
 Date: 2026-11-11
 Context: RFC 0048 (`distribution_v2`), RFC 0088 (topsides), RFC 0043
 (high-angle GZ), RFC 0053 (turning metrics), RFC 0049/0068 (identity);
@@ -399,8 +399,68 @@ chine below the waterline is not counted.
 
 Tests: `tests/test_rfc0089_knuckle.py`.
 
-Still open: a deck edge that is round by construction, a knuckle
-measure below the waterline, and probe and span as sweep options.
+Still open after stage 4: a deck edge that is round by construction
+(stage 5), a knuckle measure below the waterline, and probe and span as
+sweep options.
+
+## Stage 5: rounded shoulder
+
+A search held to an upper knuckle of 25 degrees gave a fair deck edge
+but lost the narrow foredeck: the corner had been paying for the
+righting arm. The same search left a tight bend at the waterline that
+the stage 4 measure under-read. The single topside strip cannot draw a
+side that flares, rounds over and comes back in to the deck.
+
+### Geometry
+
+`TopsidesSpec.shoulder_round_m` (above 0, at most 0.2 m, a scalar,
+omitted from output while unset) rounds the deck edge. With it:
+
+- The strip always takes half the sheer height to turn from the hull's
+  line at the waterline, whatever the sheer breadth. The bend at the
+  waterline is then as gentle as the sheer height allows, and the side
+  may stand wider than the sheer on the way up.
+- The outline for this distance along the side below the sheer and
+  along the deck inboard of it is replaced by a cubic blend that leaves
+  and arrives on the two curves' own directions. The distance tends to
+  the asked value where there is room and shortens smoothly with the
+  section toward the ends.
+- The upper outline is one curve with no corner. The sheer reported by
+  `sheer_line` and the build export is where that curve is widest, or
+  the middle of the blend where nothing above the waterline is wider
+  than the waterline.
+- The mesh ring keeps its point count and end points. Half its points
+  follow length along the outline and half follow its turning.
+
+A hull without the field is unchanged, byte for byte.
+
+### Measures
+
+- Knuckles are now read on the true outline (`half_section_outline`:
+  400 points on the hull arc, 200 on the strip, 400 on the deck, 48 on
+  the blend) instead of the 79-point mesh ring. On the ring a rounded
+  edge and a corner both read as a few angled facets, so a tight bend
+  read low and a search could hide one. Knuckle values of existing
+  hulls change; a geometry without `half_section_outline` is still
+  read on its rings.
+- `upper_hollow_max_deg` and its station: the degrees the upper half
+  outline turns outboard on its way from the waterline to the
+  centreline, summed, including a turn at the joint with the hull. A
+  convex side and deck read 0. Sweeps and searches see
+  `form.upper_hollow_max_deg` (lower is better, exploratory).
+
+The round removes corners; it does not remove a hollow. A narrow sheer
+over a flared hull makes the rounded side waist inward below a square
+deck edge. That is a shape some boats want, so the tool reports it and
+a search constrains it.
+
+Tests: `tests/test_rfc0089_shoulder.py`.
+
+Still open: the `round` hull arc reaches the waterline with a flare of
+`atan(half_breadth / (exponent * draft))` from vertical, which sets how
+far a convex side must stand out; a hull arc that turns up to the
+waterline, a knuckle measure below the waterline, and probe and span as
+sweep options.
 
 ## Domain Modeling
 

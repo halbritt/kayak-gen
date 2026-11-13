@@ -75,21 +75,6 @@ def test_knuckle_fields_are_reported_and_located() -> None:
     assert metrics.upper_knuckle_height_m >= 0.0
 
 
-def test_matches_direct_section_measurement() -> None:
-    hull = _with_topsides(sheer_beam_ratio=1.2, sheer_height_frac=0.3)
-    metrics = evaluate_form_metrics(hull)
-    geom = hull.to_geometry()
-    x = metrics.upper_knuckle_x_m
-    joint, upper, height = _section_knuckles(
-        np.asarray(geom.section(x, "hull"), dtype=float),
-        np.asarray(geom.section(x, "deck"), dtype=float),
-        DEFAULT_KNUCKLE_PROBE_M,
-    )
-    assert upper == pytest.approx(metrics.upper_knuckle_max_deg)
-    assert height == pytest.approx(metrics.upper_knuckle_height_m)
-    assert joint <= metrics.waterline_knuckle_max_deg + 1e-9
-
-
 def test_low_flared_deck_edge_is_a_sharper_knuckle() -> None:
     upright = evaluate_form_metrics(_with_topsides(sheer_beam_ratio=1.0, sheer_height_frac=0.7))
     flared = evaluate_form_metrics(_with_topsides(sheer_beam_ratio=1.2, sheer_height_frac=0.3))

@@ -579,6 +579,13 @@ and search constraints. Future-Striatum-Batches: a deck edge that is round
 by construction and a knuckle measure below the waterline are not part of
 this slice.
 
+Stage 5 landed: `topsides.shoulder_round_m` rounds the deck edge and lets
+the side take half the sheer height to turn at the waterline; knuckles are
+read on the true outline; `form.upper_hollow_max_deg` reports a waisted
+side. Future-Striatum-Batches: a `round` hull arc that turns up to the
+waterline, and a knuckle measure below the waterline, are not part of this
+slice.
+
 ## RFC 0087 ledger finalization disposition
 
 KAYGEN-24 / R9 provides a receipt-applicability view and a proposed finalized

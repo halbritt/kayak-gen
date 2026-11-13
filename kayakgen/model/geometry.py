@@ -18,6 +18,7 @@ open inspection sections via the same public API.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np
@@ -676,6 +677,21 @@ _CROSS_SECTION_FAMILIES = {
 }
 
 
+@dataclass(frozen=True)
+class _TopsideFrame:
+    half_b: float
+    freeboard: float
+    sheer_half_b: float
+    sheer_z: float
+    exponent: float
+    control_y: float
+    control_z: float
+
+
+def _arc_length(points: np.ndarray) -> np.ndarray:
+    return np.concatenate(([0.0], np.cumsum(np.linalg.norm(np.diff(points, axis=0), axis=1))))
+
+
 class DistributionV2Geometry(HullGeometry):
     """Distribution-model strategy implementing RFC 0048.
 
@@ -825,19 +841,47 @@ class DistributionV2Geometry(HullGeometry):
             z = freeboard_safe * (1.0 - rel**exponent)
             return np.column_stack((ys, z))
 
+        if topsides.shoulder_round_m is not None:
+            return self._rounded_upper_quarter(x)
+
         # RFC 0088: the upper arc runs centreline -> sheer over the deck,
         # then sheer -> waterline edge down the topside strip. The total
         # point count and both endpoints match the no-topsides arc.
-        xi = self._xi_for_x(x)
-        sheer_half_b = max(topsides.sheer_half_breadth(xi, half_b_safe), 1e-6)
-        sheer_z = freeboard_safe * topsides.sample_sheer_height_frac(xi)
+        frame = self._topside_frame(x)
+        sheer_half_b, sheer_z = frame.sheer_half_b, frame.sheer_z
         n_topside = max(2, self.num_points // 4)
         n_deck = self.num_points - n_topside
         deck_y = np.linspace(0.0, sheer_half_b, n_deck)
+        deck_z = sheer_z + (freeboard_safe - sheer_z) * (
+            1.0 - (deck_y / sheer_half_b) ** frame.exponent
+        )
+        control_y, control_z = frame.control_y, frame.control_z
+        s = np.linspace(1.0, 0.0, n_topside + 1)[1:]
+        side_y = (
+            (1.0 - s) ** 2 * half_b_safe + 2.0 * s * (1.0 - s) * control_y + s**2 * sheer_half_b
+        )
+        side_z = 2.0 * s * (1.0 - s) * control_z + s**2 * sheer_z
+        side_y[-1] = half_b_safe
+        side_z[-1] = 0.0
+        return np.column_stack(
+            (np.concatenate((deck_y, side_y)), np.concatenate((deck_z, side_z)))
+        )
+
+    def _topside_frame(self, x: float) -> "_TopsideFrame":
+        """Sheer, deck exponent and strip control point at ``x`` (topsides only)."""
+
+        topsides = self.spec.topsides
+        assert topsides is not None
+        half_b_safe = max(self._half_breadth_at(x), 1e-4)
+        freeboard_safe = max(self._deck_height_at(x), 1e-4)
+        flare_rad = float(np.radians(self.spec.bow_flare_deg)) if x < 0.0 else 0.0
+        exponent = 4.0 + 6.0 * flare_rad
+        xi = self._xi_for_x(x)
+        sheer_half_b = max(topsides.sheer_half_breadth(xi, half_b_safe), 1e-6)
+        sheer_z = freeboard_safe * topsides.sample_sheer_height_frac(xi)
         crown_exponent = topsides.sample_deck_crown_exponent(xi)
         if crown_exponent is not None:
             exponent = crown_exponent
-        deck_z = sheer_z + (freeboard_safe - sheer_z) * (1.0 - (deck_y / sheer_half_b) ** exponent)
         # The strip is a quadratic Bezier that leaves the waterline edge
         # along the hull arc's own tangent there, so the join is fair for
         # every section family instead of a knuckle on the waterline. The
@@ -848,7 +892,15 @@ class DistributionV2Geometry(HullGeometry):
         tangent_y, tangent_z = self._hull_waterline_tangent(x)
         flare = sheer_half_b - half_b_safe
         reach_height = 0.5 * sheer_z / tangent_z if tangent_z > 1e-9 else np.inf
-        if flare >= 0.0:
+        if topsides.shoulder_round_m is not None:
+            # Rounded shoulder (RFC 0089 stage 5): the strip always takes
+            # half the sheer height to turn, so the bend at the waterline
+            # is never tighter than the sheer height allows. The strip may
+            # then stand wider than the sheer on the way up. A hull arc
+            # that reaches the waterline flat has no height to follow, so
+            # the reach stops at the sheer height.
+            reach_breadth = sheer_z
+        elif flare >= 0.0:
             reach_breadth = flare / tangent_y if tangent_y > 1e-9 else np.inf
         else:
             # Tumblehome (RFC 0089): the strip must turn inward from an
@@ -861,18 +913,147 @@ class DistributionV2Geometry(HullGeometry):
                 float(np.sqrt(bulge * -flare)) / tangent_y if tangent_y > 1e-9 else np.inf
             )
         reach = min(reach_height, reach_breadth)
-        control_y = half_b_safe + reach * tangent_y
-        control_z = reach * tangent_z
-        s = np.linspace(1.0, 0.0, n_topside + 1)[1:]
-        side_y = (
-            (1.0 - s) ** 2 * half_b_safe + 2.0 * s * (1.0 - s) * control_y + s**2 * sheer_half_b
+        return _TopsideFrame(
+            half_b=half_b_safe,
+            freeboard=freeboard_safe,
+            sheer_half_b=sheer_half_b,
+            sheer_z=sheer_z,
+            exponent=exponent,
+            control_y=half_b_safe + reach * tangent_y,
+            control_z=reach * tangent_z,
         )
-        side_z = 2.0 * s * (1.0 - s) * control_z + s**2 * sheer_z
-        side_y[-1] = half_b_safe
-        side_z[-1] = 0.0
-        return np.column_stack(
-            (np.concatenate((deck_y, side_y)), np.concatenate((deck_z, side_z)))
+
+    _FINE_STRIP_SAMPLES = 200
+    _FINE_DECK_SAMPLES = 400
+    _BLEND_SAMPLES = 48
+
+    def _upper_outline(self, x: float) -> tuple[np.ndarray, np.ndarray]:
+        """Fine upper half outline at ``x``, waterline edge to centreline.
+
+        Returns ``(points, sheer_point)``. The points follow the true
+        curves closely enough to measure a bend on, which the mesh ring
+        does not. ``sheer_point`` is the corner between side and deck,
+        or with a rounded shoulder the middle of the blend.
+        """
+
+        topsides = self.spec.topsides
+        v = np.linspace(0.0, 1.0, self._FINE_DECK_SAMPLES)
+        rel = np.cos(0.5 * np.pi * v)
+        rel[-1] = 0.0
+        if topsides is None:
+            half_b = max(self._half_breadth_at(x), 1e-4)
+            freeboard = max(self._deck_height_at(x), 1e-4)
+            flare = float(np.radians(self.spec.bow_flare_deg)) if x < 0.0 else 0.0
+            deck = np.column_stack((half_b * rel, freeboard * (1.0 - rel ** (4.0 + 6.0 * flare))))
+            return deck, deck[0].copy()
+
+        frame = self._topside_frame(x)
+        edge = np.array([frame.half_b, 0.0])
+        control = np.array([frame.control_y, frame.control_z])
+        sheer = np.array([frame.sheer_half_b, frame.sheer_z])
+        rise = frame.freeboard - frame.sheer_z
+
+        def strip_at(s: np.ndarray) -> np.ndarray:
+            s = np.atleast_1d(s)[:, None]
+            return (1.0 - s) ** 2 * edge + 2.0 * s * (1.0 - s) * control + s**2 * sheer
+
+        def deck_at(r: np.ndarray) -> np.ndarray:
+            r = np.atleast_1d(r)
+            return np.column_stack(
+                (frame.sheer_half_b * r, frame.sheer_z + rise * (1.0 - r**frame.exponent))
+            )
+
+        s = np.linspace(0.0, 1.0, self._FINE_STRIP_SAMPLES)
+        strip = strip_at(s)
+        deck = deck_at(rel)
+        if topsides.shoulder_round_m is None:
+            return np.vstack((strip, deck[1:])), sheer
+
+        strip_arc = _arc_length(strip)
+        deck_arc = _arc_length(deck)
+        strip_len, deck_len = float(strip_arc[-1]), float(deck_arc[-1])
+        # The cut-back tends to the asked distance where there is room
+        # and shrinks smoothly with the section toward the ends.
+        room = 0.9 * strip_len * deck_len / max(strip_len + deck_len, 1e-12)
+        cut = room * float(np.tanh(topsides.shoulder_round_m / max(room, 1e-12)))
+        s_a = float(np.interp(strip_len - cut, strip_arc, s))
+        r_b = float(np.interp(cut, deck_arc, rel))
+        start = strip_at(np.array([s_a]))[0]
+        stop = deck_at(np.array([r_b]))[0]
+        leave = 2.0 * (1.0 - s_a) * (control - edge) + 2.0 * s_a * (sheer - control)
+        arrive = np.array(
+            [-frame.sheer_half_b, rise * frame.exponent * r_b ** (frame.exponent - 1.0)]
         )
+        leave = leave / max(float(np.linalg.norm(leave)), 1e-15)
+        arrive = arrive / max(float(np.linalg.norm(arrive)), 1e-15)
+        turn = float(np.arccos(np.clip(float(leave @ arrive), -1.0, 1.0)))
+        # Handle length of the cubic that best follows a circular arc
+        # through this turn; a third of the chord as the turn vanishes.
+        factor = (
+            (4.0 / 3.0) * np.tan(turn / 4.0) / (2.0 * np.sin(turn / 2.0)) if turn > 1e-6 else 1.0 / 3.0
+        )
+        handle = float(np.linalg.norm(stop - start)) * float(factor)
+        t = np.linspace(0.0, 1.0, self._BLEND_SAMPLES)[:, None]
+        blend = (
+            (1.0 - t) ** 3 * start
+            + 3.0 * t * (1.0 - t) ** 2 * (start + handle * leave)
+            + 3.0 * t**2 * (1.0 - t) * (stop - handle * arrive)
+            + t**3 * stop
+        )
+        points = np.vstack((strip[s < s_a], blend, deck[rel < r_b]))
+        return points, blend[self._BLEND_SAMPLES // 2].copy()
+
+    def _rounded_upper_quarter(self, x: float) -> np.ndarray:
+        """Mesh ring of the rounded upper outline, centreline to waterline edge.
+
+        Half the points follow length along the outline and half follow
+        its turning, so a tight shoulder gets the points it needs.
+        """
+
+        points = self._upper_outline(x)[0][::-1]
+        steps = np.diff(points, axis=0)
+        length = np.concatenate(([0.0], np.cumsum(np.linalg.norm(steps, axis=1))))
+        heading = np.unwrap(np.arctan2(steps[:, 1], steps[:, 0]))
+        turning = np.concatenate(([0.0, 0.0], np.cumsum(np.abs(np.diff(heading)))))
+        weight = length / max(float(length[-1]), 1e-15)
+        if turning[-1] > 1e-12:
+            weight = 0.5 * weight + 0.5 * turning / float(turning[-1])
+        at = np.linspace(0.0, 1.0, self.num_points)
+        ring = np.column_stack(
+            (np.interp(at, weight, points[:, 0]), np.interp(at, weight, points[:, 1]))
+        )
+        ring[0] = points[0]
+        ring[-1] = points[-1]
+        return ring
+
+    def half_section_outline(self, x: float) -> tuple[np.ndarray, np.ndarray]:
+        """Fine starboard half outline at ``x`` as ``(lower, upper)``.
+
+        ``lower`` runs keel to waterline edge and ``upper`` runs from
+        there to the deck centreline. Both follow the true curves much
+        more closely than the mesh ring, for measures of local shape.
+        """
+
+        return self._hull_quarter_section(x, self._TANGENT_SAMPLES), self._upper_outline(x)[0]
+
+    def _sheer_point(self, x: float) -> tuple[float, float]:
+        """Sheer ``(half_breadth, z)`` at ``x`` for a hull with topsides.
+
+        With a rounded shoulder the sheer is where the upper outline is
+        widest, or the middle of the blend when nothing above the
+        waterline is wider than the waterline.
+        """
+
+        topsides = self.spec.topsides
+        assert topsides is not None
+        if topsides.shoulder_round_m is None:
+            frame = self._topside_frame(x)
+            return frame.sheer_half_b, frame.sheer_z
+        points, middle = self._upper_outline(x)
+        widest = int(np.argmax(points[:, 0]))
+        if points[widest, 0] > points[0, 0] + 1e-9:
+            return float(points[widest, 0]), float(points[widest, 1])
+        return float(middle[0]), float(middle[1])
 
     _TANGENT_SAMPLES = 400
 
@@ -999,6 +1180,9 @@ class DistributionV2Geometry(HullGeometry):
             if topsides is None:
                 rows.append((float(x), half_b, 0.0))
                 continue
+            if topsides.shoulder_round_m is not None:
+                rows.append((float(x), *self._sheer_point(float(x))))
+                continue
             xi = self._xi_for_x(float(x))
             rows.append(
                 (
@@ -1015,6 +1199,8 @@ class DistributionV2Geometry(HullGeometry):
         topsides = self.spec.topsides
         if topsides is None:
             return None
+        if topsides.shoulder_round_m is not None:
+            return self._sheer_point(x)[1]
         return float(
             max(self._deck_height_at(x), 1e-4) * topsides.sample_sheer_height_frac(self._xi_for_x(x))
         )
@@ -1026,6 +1212,10 @@ class DistributionV2Geometry(HullGeometry):
         if topsides is None:
             return False
         half_b = self._half_breadth_at(x)
+        if topsides.shoulder_round_m is not None:
+            # A rounded side is tumblehome only where nothing above the
+            # waterline stands wider than the waterline.
+            return bool(float(self._upper_outline(x)[0][:, 0].max()) <= max(half_b, 1e-4) + 1e-9)
         return bool(topsides.sheer_half_breadth(self._xi_for_x(x), half_b) < half_b)
 
     def section_area(self, x: float) -> float:

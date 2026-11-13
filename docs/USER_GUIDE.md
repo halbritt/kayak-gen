@@ -225,6 +225,14 @@ search for a narrow deck with a righting-arm floor tends to lower the
 deck edge onto a flared topside, which makes a hard corner there.
 Constrain `form.upper_knuckle_max_deg` to prevent it.
 
+To round the deck edge by construction, set `topsides.shoulder_round_m`
+(for example 0.03). The side then leaves the waterline on the hull's own
+line, rounds over a shoulder and runs into the deck with no corner. The
+shoulder may stand wider than the sheer you asked for, and with a sheer
+much narrower than the waterline the side waists inward below the deck
+edge. `upper_hollow_max_deg` reports that in degrees (0 for a convex
+side and deck); constrain `form.upper_hollow_max_deg` when you want none.
+
 In an active search, `form.*` metrics may be objectives when the spec
 sets `objectives_explicit_exploratory`. Per-load righting arms
 (`load_case_gz.<name>.gz_m_at_<angle>deg`) may be constraints but not
