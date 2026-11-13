@@ -94,3 +94,30 @@ def test_upright_side_under_a_wall_sided_topside_has_no_waterline_crease() -> No
     assert creased.waterline_knuckle_max_deg > 20.0
     assert fair.waterline_knuckle_max_deg < 3.0
     assert fair.upper_hollow_max_deg < 3.0
+
+
+def test_intermediate_side_exponents_ease_flare_without_waterline_crease() -> None:
+    topsides = {"sheer_beam_ratio": 1.0, "sheer_height_frac": 0.5, "shoulder_round_m": 0.04}
+    flares: list[float] = []
+    for m in (1.0, 1.25, 1.5, 1.75, 2.0):
+        hull = _hull(topsides=topsides, section_side_exponent=m)
+        metrics = evaluate_form_metrics(hull)
+        assert metrics.waterline_knuckle_max_deg < 3.0, f"m={m} creased at waterline"
+        lower, _ = hull.to_geometry().half_section_outline(0.0)
+        dy, dz = lower[-1] - lower[-2]
+        flares.append(float(np.degrees(np.arctan2(dy, dz))))
+    assert flares == sorted(flares, reverse=True)
+    assert flares[0] > 30.0
+    assert flares[-1] < 1.0
+
+
+def test_longitudinal_side_exponent_crossing_one_to_two_has_no_waterline_crease() -> None:
+    hull = _hull(
+        topsides={"sheer_beam_ratio": 1.0, "sheer_height_frac": 0.5, "shoulder_round_m": 0.04},
+        section_side_exponent={
+            "kind": "key_points",
+            "knots": [[-1.0, 2.5], [0.0, 1.5], [1.0, 1.0]],
+        },
+    )
+    metrics = evaluate_form_metrics(hull)
+    assert metrics.waterline_knuckle_max_deg < 3.0

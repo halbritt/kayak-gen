@@ -190,6 +190,28 @@ def test_fast_caller_refuses_a_green_pytest_with_wrong_skip_count(tmp_path):
     assert record["failure_reasons"] == ["skip_count_mismatch"]
 
 
+def test_source_snapshot_detects_same_second_same_size_working_tree_edit(tmp_path: Path) -> None:
+    from kayakgen.operations.gate import source_snapshot
+
+    repo = fixture_repo(tmp_path)
+    tests = repo / "tests/test_fixture.py"
+    past = int(time.time()) - 5
+    os.utime(tests, (past, past))
+    git(repo, "add", "tests/test_fixture.py")
+    os.utime(repo / ".git/index", (past, past))
+    original = tests.read_text()
+    edited = original.replace("range(4)", "range(3)")
+    assert len(edited) == len(original)
+    tests.write_text(edited)
+    os.utime(tests, (past, past))
+
+    snapshot = source_snapshot(repo)
+    assert snapshot["dirty"] is True
+    assert snapshot["tree_sha"] != snapshot["index_tree_sha"]
+    git(repo, "add", "--all")
+    assert snapshot["tree_sha"] == git(repo, "write-tree")
+
+
 @pytest.mark.parametrize("kind", ["full", "fast"])
 def test_renderer_probe_crash_cannot_start_either_gate_plan(tmp_path, kind):
     repo = fixture_repo(tmp_path)

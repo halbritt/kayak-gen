@@ -13,8 +13,9 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   host's `host:exec` for a deadline and child cleanup). `scripts/test-python.sh`
   finds the interpreter, including from a linked worktree.
 - RFC 0089 stage 6: `distribution_v2.section_side_exponent` turns the side
-  of a `round` section up so that it meets the waterline vertically (a
-  U-shaped section). The section is fuller at the same draft.
+  of a `round` section up so that it meets the waterline vertically at 2 and
+  above (a U-shaped section) and eases the flare smoothly between 1 and 2.
+  The section is fuller at the same draft.
 - RFC 0089 stage 5: `topsides.shoulder_round_m` rounds the deck edge. The
   side leaves the waterline on the hull's line, takes half the sheer height
   to turn and blends into the deck, so the upper outline has no corner.
@@ -102,6 +103,27 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   longer reads low.
 
 ### Fixed
+
+- `distribution_v2.section_side_exponent` between 1 and 2 no longer puts an
+  infinite-curvature bend on the waterline. A fractional root
+  `(1 - u) ** (1 / m)` reached vertical with `d²y / dz² ~ (-z) ** (m - 2)`,
+  which read as an 8–19 degree waterline knuckle over a 2 mm probe; the
+  quadratic blend `(2 - m) * (-z / draft) + (m - 1) * (-z / draft) ** 2`
+  eases the flare from stage 1 at 1 into the upright curve at 2 with finite
+  curvature.
+
+- `SqliteIndex` no longer raises `sqlite3.OperationalError: database is
+  locked` when several sweeps or searches share `~/.local/share/kayakgen/index.sqlite`.
+  Write methods acquire `BEGIN IMMEDIATE` under a 60-second busy timeout, and
+  `index_candidates` writes a run's candidate and metric rows in one
+  transaction instead of opening hundreds of back-to-back connections.
+
+- `kayakgen.operations.gate.source_snapshot` no longer records a stale
+  `tree_sha` when a tracked file was edited in place to the same byte length in
+  the same wall-clock second as `.git/index`. Copying the index with
+  `shutil.copyfile` gave the temporary index a newer `mtime` and bypassed Git's
+  racy-git content check, which could later surface as a false `source_changed`
+  gate failure once `.git/index` refreshed.
 
 - `multi_chine` sections no longer carry a notch next to the keel and the
   waterline edge. The chine-smoothing pass averaged with zero padding, pulling

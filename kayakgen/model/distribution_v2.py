@@ -380,10 +380,11 @@ class DistributionV2Spec(BaseModel):
     always was.
 
     ``section_side_exponent`` (RFC 0089 stage 6) is optional and applies
-    to the ``round`` family only. Above 1 the side of the section turns
-    up and meets the waterline vertically, as on a U-shaped section;
-    when unset the side meets the waterline at the angle the parabola
-    or power curve gives it.
+    to the ``round`` family only. At 2 and above the side turns up and
+    meets the waterline vertically, as on a U-shaped section; between 1
+    and 2 a quadratic blend eases the flare down to vertical without a
+    waterline crease; when unset the side meets the waterline at the
+    angle the parabola or power curve gives it.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -422,11 +423,14 @@ class DistributionV2Spec(BaseModel):
     section_exponent: Union[float, LongitudinalDistribution, None] = None
 
     # RFC 0089 stage 6. How the ``round`` section reaches the waterline:
-    # ``z = -draft * (1 - (y / half_breadth) ** section_exponent)
-    # ** (1 / section_side_exponent)``. 1 is the curve above, which meets
-    # the waterline flared. Above 1 the side turns up and meets the
-    # waterline vertically; equal to ``section_exponent`` it is a
-    # superellipse (2 and 2: an ellipse). Omitted while unset.
+    # at 2 and above ``z = -draft * (1 - (y / half_breadth) **
+    # section_exponent) ** (1 / section_side_exponent)``, which meets the
+    # waterline vertically with finite curvature (equal to
+    # ``section_exponent``: a superellipse; 2 and 2: an ellipse). Between
+    # 1 and 2, ``(2 - m) * (-z / draft) + (m - 1) * (-z / draft) ** 2 =
+    # 1 - (y / half_breadth) ** section_exponent`` eases the waterline
+    # flare from the stage 1 curve at 1 down to vertical at 2. Omitted
+    # while unset.
     section_side_exponent: Union[float, LongitudinalDistribution, None] = None
 
     @model_validator(mode="after")

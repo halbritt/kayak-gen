@@ -227,19 +227,29 @@ class SqliteIndex:
 
     #: Bump on schema changes and define how prior expected hashes survive.
     SCHEMA_VERSION = 2
+    #: Default SQLite lock wait so concurrent sweep/search processes do not fail on contention.
+    BUSY_TIMEOUT_S = 60.0
 
-    def __init__(self, path: Path | str | None = None) -> None:
+    def __init__(
+        self,
+        path: Path | str | None = None,
+        *,
+        busy_timeout_s: float = BUSY_TIMEOUT_S,
+    ) -> None:
         self.path = Path(path).expanduser() if path is not None else _default_index_path()
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._busy_timeout_s = float(busy_timeout_s)
         self._initialised = False
 
     @contextmanager
-    def _conn(self) -> Iterator[sqlite3.Connection]:
-        conn = sqlite3.connect(self.path)
+    def _conn(self, *, write: bool = False) -> Iterator[sqlite3.Connection]:
+        conn = sqlite3.connect(self.path, timeout=self._busy_timeout_s)
         conn.row_factory = sqlite3.Row
         try:
             if not self._initialised:
                 self._ensure_schema(conn)
+            if write and not conn.in_transaction:
+                conn.execute("BEGIN IMMEDIATE")
             yield conn
             conn.commit()
             self._initialised = True
@@ -453,9 +463,7 @@ class SqliteIndex:
         created_at: int | None = None,
     ) -> None:
         ts = created_at if created_at is not None else int(time.time())
-        with self._conn() as conn:
-            if not conn.in_transaction:
-                conn.execute("BEGIN IMMEDIATE")
+        with self._conn(write=True) as conn:
             previous = conn.execute("SELECT out_dir FROM runs WHERE run_id = ?", (run_id,)).fetchone()
             if previous is not None:
                 _check_run_location(run_id, previous["out_dir"], Path(out_dir))
@@ -473,6 +481,54 @@ class SqliteIndex:
             values,
         )
 
+    @staticmethod
+    def _write_candidate(
+        conn: sqlite3.Connection,
+        *,
+        run_id: str,
+        candidate_key: str,
+        status: str,
+        hull_design_hash: str | None,
+        hull_record_hash: str | None,
+        created_at: int,
+    ) -> None:
+        conn.execute(
+            """
+            INSERT INTO candidates
+              (run_id, candidate_key, status, hull_design_hash, hull_record_hash, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(run_id, candidate_key) DO UPDATE SET
+              status=excluded.status,
+              hull_design_hash=excluded.hull_design_hash,
+              hull_record_hash=excluded.hull_record_hash,
+              created_at=excluded.created_at
+            """,
+            (run_id, candidate_key, status, hull_design_hash, hull_record_hash, created_at),
+        )
+
+    @staticmethod
+    def _write_metrics(
+        conn: sqlite3.Connection,
+        *,
+        run_id: str,
+        candidate_key: str,
+        metrics: dict[str, float],
+    ) -> None:
+        for name, value in metrics.items():
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                continue
+            conn.execute(
+                """
+                INSERT INTO metrics (run_id, candidate_key, metric_name, metric_value)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(run_id, candidate_key, metric_name) DO UPDATE SET
+                  metric_value=excluded.metric_value
+                """,
+                (run_id, candidate_key, name, numeric),
+            )
+
     def upsert_candidate(
         self,
         *,
@@ -484,19 +540,15 @@ class SqliteIndex:
         created_at: int | None = None,
     ) -> None:
         ts = created_at if created_at is not None else int(time.time())
-        with self._conn() as conn:
-            conn.execute(
-                """
-                INSERT INTO candidates
-                  (run_id, candidate_key, status, hull_design_hash, hull_record_hash, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(run_id, candidate_key) DO UPDATE SET
-                  status=excluded.status,
-                  hull_design_hash=excluded.hull_design_hash,
-                  hull_record_hash=excluded.hull_record_hash,
-                  created_at=excluded.created_at
-                """,
-                (run_id, candidate_key, status, hull_design_hash, hull_record_hash, ts),
+        with self._conn(write=True) as conn:
+            self._write_candidate(
+                conn,
+                run_id=run_id,
+                candidate_key=candidate_key,
+                status=status,
+                hull_design_hash=hull_design_hash,
+                hull_record_hash=hull_record_hash,
+                created_at=ts,
             )
 
     def upsert_metrics(
@@ -508,21 +560,32 @@ class SqliteIndex:
     ) -> None:
         if not metrics:
             return
-        with self._conn() as conn:
-            for name, value in metrics.items():
-                try:
-                    numeric = float(value)
-                except (TypeError, ValueError):
-                    continue
-                conn.execute(
-                    """
-                    INSERT INTO metrics (run_id, candidate_key, metric_name, metric_value)
-                    VALUES (?, ?, ?, ?)
-                    ON CONFLICT(run_id, candidate_key, metric_name) DO UPDATE SET
-                      metric_value=excluded.metric_value
-                    """,
-                    (run_id, candidate_key, name, numeric),
+        with self._conn(write=True) as conn:
+            self._write_metrics(conn, run_id=run_id, candidate_key=candidate_key, metrics=metrics)
+
+    def upsert_candidates(
+        self,
+        *,
+        run_id: str,
+        candidate_rows: Iterable[dict[str, Any]],
+        created_at: int | None = None,
+    ) -> None:
+        ts = created_at if created_at is not None else int(time.time())
+        with self._conn(write=True) as conn:
+            for row in candidate_rows:
+                ck = row["candidate_key"]
+                self._write_candidate(
+                    conn,
+                    run_id=run_id,
+                    candidate_key=ck,
+                    status=row.get("status", "unknown"),
+                    hull_design_hash=row.get("hull_design_hash"),
+                    hull_record_hash=row.get("hull_record_hash"),
+                    created_at=ts,
                 )
+                metrics = row.get("metrics") or {}
+                if metrics:
+                    self._write_metrics(conn, run_id=run_id, candidate_key=ck, metrics=metrics)
 
     def upsert_artifact(
         self,
@@ -536,7 +599,7 @@ class SqliteIndex:
         created_at: int | None = None,
     ) -> None:
         ts = created_at if created_at is not None else int(time.time())
-        with self._conn() as conn:
+        with self._conn(write=True) as conn:
             conn.execute(
                 """
                 INSERT INTO artifacts (artifact_hash, byte_count, created_at)
@@ -552,7 +615,7 @@ class SqliteIndex:
                 )
 
     def insert_event(self, *, run_id: str, event: RunEvent) -> None:
-        with self._conn() as conn:
+        with self._conn(write=True) as conn:
             conn.execute(
                 "INSERT INTO events (run_id, ts, kind, payload) VALUES (?, ?, ?, ?)",
                 (run_id, event.ts, event.kind, json.dumps(event.payload, sort_keys=True)),
@@ -580,7 +643,7 @@ class SqliteIndex:
         """Insert or update a row in the ``generative_jobs`` table (RFC 0057)."""
 
         ts = updated_at if updated_at is not None else int(time.time())
-        with self._conn() as conn:
+        with self._conn(write=True) as conn:
             conn.execute(
                 """
                 INSERT INTO generative_jobs
@@ -681,9 +744,7 @@ class SqliteIndex:
         self, manifest: RunManifest, candidates: list[dict[str, Any]],
         artifact_sizes: dict[str, int],
     ) -> None:
-        with self._conn() as conn:
-            if not conn.in_transaction:
-                conn.execute("BEGIN IMMEDIATE")
+        with self._conn(write=True) as conn:
             previous = conn.execute(
                 "SELECT out_dir FROM runs WHERE run_id = ?", (manifest.run_id,)
             ).fetchone()
@@ -1464,28 +1525,13 @@ def index_candidates(
     candidate_rows: Iterable[dict[str, Any]],
     index: SqliteIndex,
 ) -> None:
-    """Bulk-upsert candidate rows and their metrics.
+    """Bulk-upsert candidate rows and their metrics in a single transaction.
 
     Each row must carry ``candidate_key``, ``status``, optional
     ``hull_design_hash`` / ``hull_record_hash``, and a ``metrics`` dict.
     """
 
-    for row in candidate_rows:
-        ck = row["candidate_key"]
-        index.upsert_candidate(
-            run_id=run_id,
-            candidate_key=ck,
-            status=row.get("status", "unknown"),
-            hull_design_hash=row.get("hull_design_hash"),
-            hull_record_hash=row.get("hull_record_hash"),
-        )
-        metrics = row.get("metrics") or {}
-        if metrics:
-            index.upsert_metrics(
-                run_id=run_id,
-                candidate_key=ck,
-                metrics=metrics,
-            )
+    index.upsert_candidates(run_id=run_id, candidate_rows=candidate_rows)
 
 
 class ReindexResult(BaseModel):

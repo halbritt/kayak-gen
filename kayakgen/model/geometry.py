@@ -398,17 +398,26 @@ def _section_round(
     so a full section does not crowd its points into the bilge.
 
     ``side_exponent`` (RFC 0089 stage 6) turns the side up to the
-    waterline: ``z = -draft * (1 - (y / half_breadth) ** exponent) **
-    (1 / side_exponent)``. The arc then meets the waterline vertically
-    when ``side_exponent`` is above 1, so its points are spaced by an
-    angle that resolves both the floor and the upright side.
+    waterline. At 2 and above ``z = -draft * (1 - (y / half_breadth) **
+    exponent) ** (1 / side_exponent)``, so the arc meets the waterline
+    vertically with finite curvature; between 1 and 2 the quadratic
+    blend ``(2 - side_exponent) * (-z / draft) + (side_exponent - 1) *
+    (-z / draft) ** 2 = 1 - (y / half_breadth) ** exponent`` eases the
+    waterline flare from the stage 1 curve at 1 down to vertical at 2
+    without the infinite waterline curvature of a fractional root.
     """
 
     if side_exponent is not None:
         theta = np.linspace(0.0, np.pi / 2.0, n)
-        rel = np.sin(theta) ** (2.0 / exponent)
+        if side_exponent < 2.0:
+            zeta = np.cos(theta)
+            u = (2.0 - side_exponent) * zeta + (side_exponent - 1.0) * (zeta**2)
+            rel = np.clip(1.0 - u, 0.0, 1.0) ** (1.0 / exponent)
+        else:
+            zeta = np.cos(theta) ** (2.0 / side_exponent)
+            rel = np.sin(theta) ** (2.0 / exponent)
         y = half_breadth * rel
-        z = -draft * np.cos(theta) ** (2.0 / side_exponent)
+        z = -draft * zeta
         z = z + np.tan(deadrise_rad) * y * (1.0 - rel**2)
         z = np.minimum(z, 0.0)
         z[-1] = 0.0

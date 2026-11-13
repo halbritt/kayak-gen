@@ -87,21 +87,28 @@ def source_snapshot(root: Path) -> dict[str, object]:
     )
     with tempfile.TemporaryDirectory(prefix="kayakgen-gate-index-") as temporary:
         copied_index = Path(temporary) / "index"
-        shutil.copyfile(index, copied_index)
+        shutil.copy2(index, copied_index)
+        # Backdate the temporary index so Git's racy-git check content-verifies
+        # same-second, equal-size edits instead of trusting stale stat metadata.
+        os.utime(copied_index, (1, 1))
         env = {**os.environ, "GIT_INDEX_FILE": str(copied_index)}
         index_tree = _git(root, "write-tree", env=env).decode().strip()
         _git(root, "add", "--all", "--", ".", env=env)
         candidate_tree = _git(root, "write-tree", env=env).decode().strip()
     if fingerprint != _file_fingerprint(root):
         raise ValueError("source changed while capturing its snapshot")
+    head_commit = _git(root, "rev-parse", "HEAD").decode().strip()
+    head_tree = _git(root, "rev-parse", "HEAD^{tree}").decode().strip()
     return {
         "tree_sha": candidate_tree,
         "fingerprint_sha256": fingerprint,
-        "head_commit": _git(root, "rev-parse", "HEAD").decode().strip(),
+        "head_commit": head_commit,
         "index_tree_sha": index_tree,
         "dirty": bool(
             _git(root, "--no-optional-locks", "status", "--porcelain", "--untracked-files=all")
-        ),
+        )
+        or candidate_tree != head_tree
+        or index_tree != head_tree,
     }
 
 

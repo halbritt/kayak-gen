@@ -472,20 +472,28 @@ are U-shaped: the side is upright at the waterline.
 
 `DistributionV2Spec.section_side_exponent` (1 to 6, scalar or
 `LongitudinalDistribution`, `round` family only, omitted from output
-while unset) changes the arc to
+while unset) changes how the arc reaches the waterline:
 
-    z = -draft * (1 - (y / half_breadth) ** section_exponent) ** (1 / section_side_exponent)
-
-- 1 is the stage 1 curve. Above 1 the side turns up and meets the
-  waterline vertically. Equal to `section_exponent` the arc is a
-  superellipse; 2 and 2 give an ellipse.
+- At 2 and above,
+  `z = -draft * (1 - (y / half_breadth) ** section_exponent) ** (1 / section_side_exponent)`.
+  The side meets the waterline vertically with finite curvature; equal
+  to `section_exponent` the arc is a superellipse, and 2 and 2 give an
+  ellipse.
+- Between 1 and 2 a fractional root `(1 - u) ** (1 / m)` would meet the
+  waterline vertically with infinite curvature (`d²y / dz² ~ (-z) ** (m - 2)`),
+  leaving a sharp waterline bend over a 2 mm probe. Instead the depth
+  ratio `zeta = -z / draft` satisfies the quadratic blend
+  `(2 - m) * zeta + (m - 1) * zeta ** 2 = 1 - (y / half_breadth) ** section_exponent`:
+  1 is the stage 1 flared curve, values between 1 and 2 scale the
+  waterline flare linearly down to vertical with finite curvature, and 2
+  matches the upright curve above in both shape and ring points.
 - Breadth, keel depth and point count are unchanged. The section is
   fuller, so a hull that must keep its displacement needs less draft.
 - With the field set the ring points are spaced by an angle
-  (`y ~ sin(t) ** (2 / section_exponent)`, `z ~ cos(t) ** (2 /
-  section_side_exponent)`) so both the floor and the upright side are
-  resolved. A hull without the field keeps its breadth spacing and is
-  unchanged, byte for byte.
+  (`zeta = cos(t)` below 2; `y ~ sin(t) ** (2 / section_exponent)`,
+  `z ~ cos(t) ** (2 / section_side_exponent)` at 2 and above) so both
+  the floor and the side are resolved. A hull without the field keeps
+  its breadth spacing and is unchanged, byte for byte.
 - A wall-sided topside over an upright side has no waterline knuckle.
   A sheer wider than the waterline over an upright side makes the side
   flare above the waterline, which `upper_hollow_max_deg` reports.

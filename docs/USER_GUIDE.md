@@ -166,11 +166,13 @@ U-shaped section:
 "section_side_exponent": 2.0
 ```
 
-The section then follows `z = -draft * (1 - (y / half_breadth) **
-exponent) ** (1 / side_exponent)`. Unset or 1 keeps the flared side;
-with both exponents at 2 the section is an ellipse. An upright side
-lets a rounded topside stay narrow above the waterline. The section is
-fuller, so reduce the draft to keep the displacement.
+At 2 and above the section follows `z = -draft * (1 - (y / half_breadth) **
+exponent) ** (1 / side_exponent)` and meets the waterline vertically;
+with both exponents at 2 the section is an ellipse. Unset or 1 keeps the
+flared side, and values between 1 and 2 ease the flare smoothly down to
+vertical without a waterline crease. An upright side lets a rounded
+topside stay narrow above the waterline. The section is fuller, so
+reduce the draft to keep the displacement.
 
 `kayakgen evaluate HULL --form-metrics` adds a `form_metrics` block with
 the race-class length-to-beam ratio at a stated draft
