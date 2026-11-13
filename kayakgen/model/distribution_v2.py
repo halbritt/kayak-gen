@@ -185,6 +185,8 @@ DECK_CROWN_EXPONENT_MAX = 12.0
 SECTION_EXPONENT_MIN = 1.5
 SECTION_EXPONENT_MAX = 8.0
 SECTION_EXPONENT_DEFAULT = 2.0
+SECTION_SIDE_EXPONENT_MIN = 1.0
+SECTION_SIDE_EXPONENT_MAX = 6.0
 SHEER_HEIGHT_FRAC_MIN = 0.05
 SHEER_HEIGHT_FRAC_MAX = 0.95
 SHOULDER_ROUND_MAX_M = 0.2
@@ -376,6 +378,12 @@ class DistributionV2Spec(BaseModel):
     ``section_exponent`` (RFC 0089) is optional and applies to the
     ``round`` family only. When unset the section is the parabola it
     always was.
+
+    ``section_side_exponent`` (RFC 0089 stage 6) is optional and applies
+    to the ``round`` family only. Above 1 the side of the section turns
+    up and meets the waterline vertically, as on a U-shaped section;
+    when unset the side meets the waterline at the angle the parabola
+    or power curve gives it.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -412,6 +420,14 @@ class DistributionV2Spec(BaseModel):
     # values give a flatter floor and a firmer bilge. Omitted from
     # serialized output while unset, like ``topsides``.
     section_exponent: Union[float, LongitudinalDistribution, None] = None
+
+    # RFC 0089 stage 6. How the ``round`` section reaches the waterline:
+    # ``z = -draft * (1 - (y / half_breadth) ** section_exponent)
+    # ** (1 / section_side_exponent)``. 1 is the curve above, which meets
+    # the waterline flared. Above 1 the side turns up and meets the
+    # waterline vertically; equal to ``section_exponent`` it is a
+    # superellipse (2 and 2: an ellipse). Omitted while unset.
+    section_side_exponent: Union[float, LongitudinalDistribution, None] = None
 
     @model_validator(mode="after")
     def _check_sheer_plan_against_waterline(self) -> "DistributionV2Spec":
@@ -452,6 +468,32 @@ class DistributionV2Spec(BaseModel):
             )
         return self
 
+    @model_validator(mode="after")
+    def _check_section_side_exponent(self) -> "DistributionV2Spec":
+        if self.section_side_exponent is None:
+            return self
+        if self.cross_section_family != "round":
+            raise ValueError(
+                "section_side_exponent applies only to the 'round' cross_section_family"
+            )
+        values = _sample_scalar_or_longitudinal(
+            self.section_side_exponent, _TOPSIDES_VALIDATION_XI
+        )
+        if not np.isfinite(values).all():
+            raise ValueError("section_side_exponent must be finite")
+        if values.min() < SECTION_SIDE_EXPONENT_MIN or values.max() > SECTION_SIDE_EXPONENT_MAX:
+            raise ValueError(
+                "section_side_exponent must stay within "
+                f"[{SECTION_SIDE_EXPONENT_MIN}, {SECTION_SIDE_EXPONENT_MAX}] along the hull"
+            )
+        return self
+
+    def sample_section_side_exponent(self, xi: float) -> float | None:
+        if self.section_side_exponent is None:
+            return None
+        value = float(_sample_scalar_or_longitudinal(self.section_side_exponent, xi)[0])
+        return float(min(max(value, SECTION_SIDE_EXPONENT_MIN), SECTION_SIDE_EXPONENT_MAX))
+
     def sample_section_exponent(self, xi: float) -> float:
         if self.section_exponent is None:
             return SECTION_EXPONENT_DEFAULT
@@ -466,4 +508,6 @@ class DistributionV2Spec(BaseModel):
                 data.pop("topsides", None)
             if self.section_exponent is None:
                 data.pop("section_exponent", None)
+            if self.section_side_exponent is None:
+                data.pop("section_side_exponent", None)
         return data

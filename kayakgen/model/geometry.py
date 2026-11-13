@@ -384,6 +384,7 @@ def _section_round(
     *,
     deadrise_rad: float,
     exponent: float = 2.0,
+    side_exponent: float | None = None,
 ) -> np.ndarray:
     """Round (sinh-shaped) family: today's default loft sampled by angle.
 
@@ -395,7 +396,25 @@ def _section_round(
     is ``z = -draft * (1 - (y / half_breadth) ** exponent)``. Stations
     keep the breadth spacing of the exponent-2 arc for every exponent,
     so a full section does not crowd its points into the bilge.
+
+    ``side_exponent`` (RFC 0089 stage 6) turns the side up to the
+    waterline: ``z = -draft * (1 - (y / half_breadth) ** exponent) **
+    (1 / side_exponent)``. The arc then meets the waterline vertically
+    when ``side_exponent`` is above 1, so its points are spaced by an
+    angle that resolves both the floor and the upright side.
     """
+
+    if side_exponent is not None:
+        theta = np.linspace(0.0, np.pi / 2.0, n)
+        rel = np.sin(theta) ** (2.0 / exponent)
+        y = half_breadth * rel
+        z = -draft * np.cos(theta) ** (2.0 / side_exponent)
+        z = z + np.tan(deadrise_rad) * y * (1.0 - rel**2)
+        z = np.minimum(z, 0.0)
+        z[-1] = 0.0
+        y[0] = 0.0
+        y[-1] = half_breadth
+        return np.column_stack((y, z))
 
     angles = np.linspace(-np.pi / 2.0, 0.0, n)
     t_norm = (angles + np.pi / 2.0) / (np.pi / 2.0)
@@ -791,6 +810,7 @@ class DistributionV2Geometry(HullGeometry):
                 n_points,
                 deadrise_rad=deadrise_rad,
                 exponent=self.spec.sample_section_exponent(self._xi_for_x(x)),
+                side_exponent=self.spec.sample_section_side_exponent(self._xi_for_x(x)),
             )
         elif family == "shallow_arch":
             arc = sampler(half_b_safe, draft_safe, n_points, deadrise_rad=deadrise_rad)

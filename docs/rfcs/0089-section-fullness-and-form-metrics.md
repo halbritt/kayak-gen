@@ -1,6 +1,6 @@
 # RFC 0089: Section fullness, form metrics and multi-load righting arms
 
-Status: landed stages 1 to 5 (section exponent, form metrics, load-case GZ table; tumblehome, sheer plan, deck crown, search admission; foot room; section knuckles; rounded shoulder)
+Status: landed stages 1 to 6 (section exponent, form metrics, load-case GZ table; tumblehome, sheer plan, deck crown, search admission; foot room; section knuckles; rounded shoulder; upright section sides)
 Date: 2026-11-11
 Context: RFC 0048 (`distribution_v2`), RFC 0088 (topsides), RFC 0043
 (high-angle GZ), RFC 0053 (turning metrics), RFC 0049/0068 (identity);
@@ -456,11 +456,46 @@ a search constrains it.
 
 Tests: `tests/test_rfc0089_shoulder.py`.
 
-Still open: the `round` hull arc reaches the waterline with a flare of
-`atan(half_breadth / (exponent * draft))` from vertical, which sets how
-far a convex side must stand out; a hull arc that turns up to the
-waterline, a knuckle measure below the waterline, and probe and span as
-sweep options.
+Still open after stage 5: the `round` hull arc reaches the waterline
+with a flare of `atan(half_breadth / (exponent * draft))` from vertical,
+which sets how far a convex side must stand out; a hull arc that turns
+up to the waterline (stage 6), a knuckle measure below the waterline,
+and probe and span as sweep options.
+
+## Stage 6: upright section sides
+
+With the rounded shoulder a deck search gave fair, convex sections and
+more righting arm than the reference boat, but a foredeck 2 to 3 cm
+wider. The `round` arc meets the waterline flared, so a convex side has
+to stand out before it turns in. The reference boat's forward sections
+are U-shaped: the side is upright at the waterline.
+
+`DistributionV2Spec.section_side_exponent` (1 to 6, scalar or
+`LongitudinalDistribution`, `round` family only, omitted from output
+while unset) changes the arc to
+
+    z = -draft * (1 - (y / half_breadth) ** section_exponent) ** (1 / section_side_exponent)
+
+- 1 is the stage 1 curve. Above 1 the side turns up and meets the
+  waterline vertically. Equal to `section_exponent` the arc is a
+  superellipse; 2 and 2 give an ellipse.
+- Breadth, keel depth and point count are unchanged. The section is
+  fuller, so a hull that must keep its displacement needs less draft.
+- With the field set the ring points are spaced by an angle
+  (`y ~ sin(t) ** (2 / section_exponent)`, `z ~ cos(t) ** (2 /
+  section_side_exponent)`) so both the floor and the upright side are
+  resolved. A hull without the field keeps its breadth spacing and is
+  unchanged, byte for byte.
+- A wall-sided topside over an upright side has no waterline knuckle.
+  A sheer wider than the waterline over an upright side makes the side
+  flare above the waterline, which `upper_hollow_max_deg` reports.
+
+Tests: `tests/test_rfc0089_side_exponent.py`.
+
+Still open: hull plan and draft as scalar search variables (a search
+cannot yet vary the waterline outline or hold displacement while it
+varies the section), a knuckle measure below the waterline, and probe
+and span as sweep options.
 
 ## Domain Modeling
 

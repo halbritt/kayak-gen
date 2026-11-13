@@ -586,6 +586,11 @@ side. Future-Striatum-Batches: a `round` hull arc that turns up to the
 waterline, and a knuckle measure below the waterline, are not part of this
 slice.
 
+Stage 6 landed: `section_side_exponent` turns the `round` section side up
+to meet the waterline vertically. Future-Striatum-Batches: scalar search
+variables for the waterline outline and draft, and a search that holds
+displacement, are not part of this slice.
+
 ## RFC 0087 ledger finalization disposition
 
 KAYGEN-24 / R9 provides a receipt-applicability view and a proposed finalized

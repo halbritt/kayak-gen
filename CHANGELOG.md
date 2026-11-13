@@ -12,6 +12,9 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   `test:fast` and `test:full` (the existing gate scripts, run through the
   host's `host:exec` for a deadline and child cleanup). `scripts/test-python.sh`
   finds the interpreter, including from a linked worktree.
+- RFC 0089 stage 6: `distribution_v2.section_side_exponent` turns the side
+  of a `round` section up so that it meets the waterline vertically (a
+  U-shaped section). The section is fuller at the same draft.
 - RFC 0089 stage 5: `topsides.shoulder_round_m` rounds the deck edge. The
   side leaves the waterline on the hull's line, takes half the sheer height
   to turn and blends into the deck, so the upper outline has no corner.

@@ -158,6 +158,20 @@ waterline breadth does not change, but displacement does, so re-solve
 the draft for your load after changing it. The field is refused for
 other section families.
 
+The same hull may set `distribution_v2.section_side_exponent` (1 to 6)
+to turn the side up so that it meets the waterline vertically, as on a
+U-shaped section:
+
+```json
+"section_side_exponent": 2.0
+```
+
+The section then follows `z = -draft * (1 - (y / half_breadth) **
+exponent) ** (1 / side_exponent)`. Unset or 1 keeps the flared side;
+with both exponents at 2 the section is an ellipse. An upright side
+lets a rounded topside stay narrow above the waterline. The section is
+fuller, so reduce the draft to keep the displacement.
+
 `kayakgen evaluate HULL --form-metrics` adds a `form_metrics` block with
 the race-class length-to-beam ratio at a stated draft
 (`--class-ratio-draft-m`, default 0.1016 m) and the overall beam in the
