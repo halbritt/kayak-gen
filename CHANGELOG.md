@@ -12,6 +12,12 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   `test:fast` and `test:full` (the existing gate scripts, run through the
   host's `host:exec` for a deadline and child cleanup). `scripts/test-python.sh`
   finds the interpreter, including from a linked worktree.
+- RFC 0089 stage 7: `LongitudinalDistribution` gains `RampDistribution`
+  (`kind: "ramp"`, scalar `forward`, `aft`, `forward_xi`, `aft_xi`), a
+  monotone `3 * t^2 - 2 * t^3` transition with zero slope at both transition
+  stations and no spline overshoot. Longitudinal `deck_crown_exponent`,
+  `sheer_height_frac`, `section_side_exponent` and `deck_freeboard` profiles
+  can be varied directly by active search via RFC 0063 dotted keys.
 - RFC 0089 stage 6: `distribution_v2.section_side_exponent` turns the side
   of a `round` section up so that it meets the waterline vertically at 2 and
   above (a U-shaped section) and eases the flare smoothly between 1 and 2.

@@ -234,9 +234,9 @@ list; the load-bearing groups:
   `WebHighAngleGzRows`.
 - **Identity + persistence (RFC 0049)**: `ArtifactRef`, `ArtifactKind`,
   `RunEvent`; identity hashes are pure SHA-256 strings, not records.
-- **Geometry V2 (RFC 0048)**: `DistributionV2Spec`,
+- **Geometry V2 (RFC 0048, RFC 0089)**: `DistributionV2Spec`,
   `LongitudinalDistribution` union (`UniformDistribution`,
-  `PolynomialDistribution`, `KeyPointsDistribution`),
+  `PolynomialDistribution`, `KeyPointsDistribution`, `RampDistribution`),
   `CrossSectionFamily`, `V2HydrostaticCrossCheck`.
 - **Target workflows (RFC 0050)**: `TargetDraftMismatchReport`.
 - **Builder exports (RFC 0051)**: `BuildExportSpec`; the seven

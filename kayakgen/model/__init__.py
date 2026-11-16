@@ -8,6 +8,7 @@ from kayakgen.model.distribution_v2 import (
     KeyPointsDistribution,
     LongitudinalDistribution,
     PolynomialDistribution,
+    RampDistribution,
     UniformDistribution,
 )
 from kayakgen.model.geometry import (
@@ -38,6 +39,7 @@ __all__ = [
     "LoftedHullGeometry",
     "LongitudinalDistribution",
     "PolynomialDistribution",
+    "RampDistribution",
     "Range",
     "UniformDistribution",
     "design_advisory",

@@ -591,6 +591,14 @@ to meet the waterline vertically. Future-Striatum-Batches: scalar search
 variables for the waterline outline and draft, and a search that holds
 displacement, are not part of this slice.
 
+Stage 7 landed: `RampDistribution` (`kind: "ramp"`) adds scalar forward/aft
+values and transition stations with a monotone `3 * t^2 - 2 * t^3` blend to
+`LongitudinalDistribution`, making longitudinal `deck_crown_exponent` and
+`sheer_height_frac` searchable via RFC 0063 dotted keys without spline
+overshoot or transverse creases. Future-Striatum-Batches: scalar search
+variables for the waterline outline and draft, and a search that holds
+displacement, are not part of this slice.
+
 ## RFC 0087 ledger finalization disposition
 
 KAYGEN-24 / R9 provides a receipt-applicability view and a proposed finalized

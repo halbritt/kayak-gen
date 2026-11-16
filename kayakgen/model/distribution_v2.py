@@ -5,9 +5,9 @@ points at when ``Hull.geometry_kind == "distribution_v2"``. It declares:
 
 * the :class:`LongitudinalDistribution` discriminated union
   (``UniformDistribution`` / ``PolynomialDistribution`` /
-  ``KeyPointsDistribution``), each parametrized in the normalized
-  longitudinal coordinate ``xi`` ∈ ``[-1, 1]`` (bow at ``-1``, stern at
-  ``+1``);
+  ``KeyPointsDistribution`` / ``RampDistribution``), each parametrized
+  in the normalized longitudinal coordinate ``xi`` ∈ ``[-1, 1]`` (bow at
+  ``-1``, stern at ``+1``);
 * the :class:`CrossSectionFamily` literal naming the six section
   families the V2 loft admits;
 * :class:`DistributionV2Spec`, the top-level value object owned by
@@ -154,8 +154,46 @@ def _cubic_spline_interp(xs: np.ndarray, ys: np.ndarray, query: np.ndarray) -> n
     return ys[idx] + b[idx] * dx + c[idx] * (dx**2) + d[idx] * (dx**3)
 
 
+class RampDistribution(BaseModel):
+    """Monotone C1 smoothstep transition between forward and aft values.
+
+    Holds ``forward`` for ``xi <= forward_xi``, ``aft`` for ``xi >= aft_xi``,
+    and blends between them with ``3 * t^2 - 2 * t^3`` across
+    ``[forward_xi, aft_xi]``. Every field is a scalar so active search
+    (RFC 0063 dotted keys) can vary any of them directly, and sampling is
+    monotone with zero slope at both transition stations so lofted
+    surfaces have no spline overshoot and no transverse slope crease.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["1"] = "1"
+    kind: Literal["ramp"] = "ramp"
+    forward: float = Field(allow_inf_nan=False)
+    aft: float = Field(allow_inf_nan=False)
+    forward_xi: float = Field(default=-0.25, ge=-1.0, le=1.0, allow_inf_nan=False)
+    aft_xi: float = Field(default=0.25, ge=-1.0, le=1.0, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def _validate_station_order(self) -> "RampDistribution":
+        if not self.forward_xi < self.aft_xi:
+            raise ValueError("RampDistribution requires forward_xi < aft_xi")
+        return self
+
+    def sample(self, xi: float | np.ndarray) -> np.ndarray:
+        xi_arr = np.atleast_1d(np.asarray(xi, dtype=float))
+        t = np.clip((xi_arr - self.forward_xi) / (self.aft_xi - self.forward_xi), 0.0, 1.0)
+        blend = (t**2) * (3.0 - 2.0 * t)
+        return float(self.forward) + (float(self.aft) - float(self.forward)) * blend
+
+
 LongitudinalDistribution = Annotated[
-    Union[UniformDistribution, PolynomialDistribution, KeyPointsDistribution],
+    Union[
+        UniformDistribution,
+        PolynomialDistribution,
+        KeyPointsDistribution,
+        RampDistribution,
+    ],
     Field(discriminator="kind"),
 ]
 

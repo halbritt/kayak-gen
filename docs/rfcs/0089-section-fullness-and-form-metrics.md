@@ -1,6 +1,6 @@
 # RFC 0089: Section fullness, form metrics and multi-load righting arms
 
-Status: landed stages 1 to 6 (section exponent, form metrics, load-case GZ table; tumblehome, sheer plan, deck crown, search admission; foot room; section knuckles; rounded shoulder; upright section sides)
+Status: landed stages 1 to 7 (section exponent, form metrics, load-case GZ table; tumblehome, sheer plan, deck crown, search admission; foot room; section knuckles; rounded shoulder; upright section sides; longitudinal ramp)
 Date: 2026-11-11
 Context: RFC 0048 (`distribution_v2`), RFC 0088 (topsides), RFC 0043
 (high-angle GZ), RFC 0053 (turning metrics), RFC 0049/0068 (identity);
@@ -500,6 +500,44 @@ while unset) changes how the arc reaches the waterline:
 
 Tests: `tests/test_rfc0089_side_exponent.py`.
 
+Still open after stage 6: longitudinal deck crown and sheer height are
+not scalar and so not searchable, hull plan and draft as scalar search
+variables, a knuckle measure below the waterline, and probe and span as
+sweep options.
+
+## Stage 7: longitudinal ramp
+
+A single scalar `deck_crown_exponent` across the hull forced the stage 6
+search to choose between foot room and heeled shoulder volume aft on one
+hand and an arched foredeck on the other: values around 7 to 9 cleared
+the foot box and kept the 30 degree righting arm up, while flattening
+the foredeck into a boxy roof. `deck_crown_exponent` and
+`sheer_height_frac` already accepted `LongitudinalDistribution`, but a
+2-knot `key_points` distribution leaves slope kinks at its knots, a 3+
+knot cubic spline can overshoot range bounds during mutation, and neither
+has scalar fields that RFC 0063 dotted search keys can address.
+
+`LongitudinalDistribution` gains `RampDistribution` (`kind: "ramp"`):
+
+- Four scalar fields: `forward`, `aft`, `forward_xi` (default `-0.25`)
+  and `aft_xi` (default `0.25`), with `-1 <= forward_xi < aft_xi <= 1`.
+- Holds `forward` for `xi <= forward_xi`, holds `aft` for `xi >= aft_xi`,
+  and blends between them with `3 * t^2 - 2 * t^3` on
+  `[forward_xi, aft_xi]`, where
+  `t = (xi - forward_xi) / (aft_xi - forward_xi)`.
+- Sampling is monotone, stays within `[min(forward, aft), max(forward, aft)]`
+  everywhere (no spline overshoot against field range bounds), and has
+  zero longitudinal slope at both transition stations so lofted surfaces
+  pick up no transverse crease.
+- Because all four fields are scalars, active search (RFC 0063) can vary
+  `distribution_v2.topsides.deck_crown_exponent.forward` and `.aft` (or
+  the same fields on `sheer_height_frac`, `section_side_exponent`,
+  `deck_freeboard` and the other longitudinal distributions) directly.
+  Existing hulls, sweep specs and search specs are unchanged, byte for
+  byte.
+
+Tests: `tests/test_rfc0089_ramp_crown.py`.
+
 Still open: hull plan and draft as scalar search variables (a search
 cannot yet vary the waterline outline or hold displacement while it
 varies the section), a knuckle measure below the waterline, and probe
@@ -508,6 +546,7 @@ and span as sweep options.
 ## Domain Modeling
 
 `FormMetrics` is a read model beside `TurningMetrics`. `SheerPlan` is a
-value object owned by `TopsidesSpec`. "Section exponent", "class
-ratio", "catch zone", "tumblehome" and "sheer plan" are added to
+value object owned by `TopsidesSpec`; `RampDistribution` joins
+`LongitudinalDistribution`. "Section exponent", "class ratio", "catch
+zone", "tumblehome", "sheer plan" and "ramp distribution" are added to
 `UBIQUITOUS_LANGUAGE.md`.

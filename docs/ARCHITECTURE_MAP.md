@@ -338,7 +338,8 @@ with a `schema_version` literal. JSON round-trip lossless.
 - `CfdRunStage` (RFC Phase 7 staged pipeline)
 - `DistributionV2Spec`, `LongitudinalDistribution` union
   (`UniformDistribution`, `PolynomialDistribution`,
-  `KeyPointsDistribution`), `CrossSectionFamily` (RFC 0048)
+  `KeyPointsDistribution`, `RampDistribution`), `CrossSectionFamily`
+  (RFC 0048, RFC 0089)
 - `TurningMetrics` (RFC 0053)
 - `TargetDraftMismatchReport` (RFC 0050)
 - `SensitivityRequest`, `SensitivityResult`, `ConvergenceFlag`

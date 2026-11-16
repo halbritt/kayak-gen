@@ -211,6 +211,11 @@ enters; the outline stays fair, with no pinch. The plan must stay
 between 0.6 and 1.5 times the waterline half-breadth along the hull,
 and cannot be combined with a ratio other than 1.
 `deck_crown_exponent` (2 to 12) makes the deck squarer as it rises.
+To keep an arched foredeck (for example 2.3) while carrying a flatter,
+fuller rear deck (for example 8.5), use a `"ramp"` longitudinal
+distribution (`forward`, `aft`, `forward_xi`, `aft_xi`); it blends
+monotonically with zero slope at both transition stations, and active
+search can vary `.forward` and `.aft` independently via dotted keys.
 Narrowing the sheer lowers the righting arm at heel; check it with the
 load-case table.
 
