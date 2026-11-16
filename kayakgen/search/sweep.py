@@ -649,12 +649,14 @@ def _evaluate_candidate(
         summary["form.catch_zone_max_beam_m"] = form.catch_zone_max_beam_m
         summary["form.catch_zone_max_upper_beam_m"] = form.catch_zone_max_upper_beam_m
         summary["form.beam_at_reference_m"] = form.beam_at_reference_m
+        summary["form.max_overall_beam_m"] = form.max_overall_beam_m
         summary["form.foot_clear_height_m"] = form.foot_clear_height_m
         summary["form.foot_clear_width_m"] = form.foot_clear_width_m
         summary["form.foot_station_beam_m"] = form.foot_station_beam_m
         summary["form.upper_knuckle_max_deg"] = form.upper_knuckle_max_deg
         summary["form.waterline_knuckle_max_deg"] = form.waterline_knuckle_max_deg
         summary["form.upper_hollow_max_deg"] = form.upper_hollow_max_deg
+        summary["form.plan_hollow_max_deg"] = form.plan_hollow_max_deg
     summary.update(load_case_gz_summary)
 
     return CandidateRecord(

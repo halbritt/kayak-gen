@@ -1,6 +1,6 @@
 # RFC 0089: Section fullness, form metrics and multi-load righting arms
 
-Status: landed stages 1 to 7 (section exponent, form metrics, load-case GZ table; tumblehome, sheer plan, deck crown, search admission; foot room; section knuckles; rounded shoulder; upright section sides; longitudinal ramp)
+Status: landed stages 1 to 8 (section exponent, form metrics, load-case GZ table; tumblehome, sheer plan, deck crown, search admission; foot room; section knuckles; rounded shoulder; upright section sides; longitudinal ramp; plan-outline hollow)
 Date: 2026-11-11
 Context: RFC 0048 (`distribution_v2`), RFC 0088 (topsides), RFC 0043
 (high-angle GZ), RFC 0053 (turning metrics), RFC 0049/0068 (identity);
@@ -537,6 +537,38 @@ has scalar fields that RFC 0063 dotted search keys can address.
   byte.
 
 Tests: `tests/test_rfc0089_ramp_crown.py`.
+
+Still open after stage 7: a short longitudinal transition from an
+upright forward hull (`section_side_exponent >= 2`) to a flared aft hull
+under a rounded shoulder puts an inflection and steep flare step in the
+overall plan outline aft of the catch zone (`sheer_plan` stays convex,
+while the rounded side bulges past it aft), and sweeps did not expose
+`max_overall_beam_m`.
+
+## Stage 8: plan-outline hollow and overall beam
+
+With stages 5 to 7, a search that ramped `section_side_exponent` from
+2.5 forward to 1.0 aft across the cockpit met every section fairness
+bound (`upper_knuckle_max_deg <= 11`, `upper_hollow_max_deg <= 0.1`,
+`waterline_knuckle_max_deg <= 1.5`) while putting a 4 to 6 degree
+concave inflection in the plan-view silhouette just aft of the catch
+zone and widening the rounded aft side to 60 cm even when `sheer_plan`
+asked for 56 to 57 cm. Nothing in `FormMetrics` read fairness in plan
+view, and `max_overall_beam_m` was not exposed to sweeps or searches.
+
+- `FormMetrics` gains optional `plan_hollow_max_deg` and
+  `plan_hollow_x_m`: walking the starboard overall plan outline
+  `(x, 0.5 * overall(x))` from bow to stern within `knuckle_span_xi`,
+  every outboard turn (`d²b / dx² > 0`) is summed in degrees, and
+  `plan_hollow_x_m` records the station of the sharpest outboard turn
+  (`0.0` when the outline is convex). Blocks written by stages 1 to 7
+  still load with `None`.
+- Sweeps and active searches gain `form.plan_hollow_max_deg` and
+  `form.max_overall_beam_m` (both `explicit_exploratory`, direction
+  `min`), so a search can bound or minimise plan-view concavity and true
+  overall beam directly.
+
+Tests: `tests/test_rfc0089_plan_fairness.py`.
 
 Still open: hull plan and draft as scalar search variables (a search
 cannot yet vary the waterline outline or hold displacement while it

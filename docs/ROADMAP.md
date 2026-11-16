@@ -599,6 +599,13 @@ overshoot or transverse creases. Future-Striatum-Batches: scalar search
 variables for the waterline outline and draft, and a search that holds
 displacement, are not part of this slice.
 
+Stage 8 landed: `FormMetrics` adds `plan_hollow_max_deg` and
+`plan_hollow_x_m` for concave inflections in the overall plan silhouette,
+and sweeps/searches expose `form.plan_hollow_max_deg` and
+`form.max_overall_beam_m`. Future-Striatum-Batches: scalar search variables
+for the waterline outline and draft, and a search that holds displacement,
+are not part of this slice.
+
 ## RFC 0087 ledger finalization disposition
 
 KAYGEN-24 / R9 provides a receipt-applicability view and a proposed finalized

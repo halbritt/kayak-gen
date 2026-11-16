@@ -253,6 +253,11 @@ shoulder may stand wider than the sheer you asked for, and with a sheer
 much narrower than the waterline the side waists inward below the deck
 edge. `upper_hollow_max_deg` reports that in degrees (0 for a convex
 side and deck); constrain `form.upper_hollow_max_deg` when you want none.
+When the rounded shoulder bulges aft of a narrow foredeck it can also put
+a concave waist or flare step in plan view and widen the hull past
+`sheer_plan`; `plan_hollow_max_deg` (`form.plan_hollow_max_deg`) reports
+the degrees the overall plan silhouette turns outboard from bow to stern,
+and `form.max_overall_beam_m` bounds the true maximum beam.
 
 In an active search, `form.*` metrics may be objectives when the spec
 sets `objectives_explicit_exploratory`. Per-load righting arms

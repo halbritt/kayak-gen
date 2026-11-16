@@ -12,6 +12,11 @@ workflow landings; detailed review findings remain in `docs/workflows/*/`.
   `test:fast` and `test:full` (the existing gate scripts, run through the
   host's `host:exec` for a deadline and child cleanup). `scripts/test-python.sh`
   finds the interpreter, including from a linked worktree.
+- RFC 0089 stage 8: `FormMetrics` adds `plan_hollow_max_deg` and
+  `plan_hollow_x_m`, summing degrees the starboard overall plan outline turns
+  outboard from bow to stern within `knuckle_span_xi` (`0` for a convex plan
+  silhouette). Sweeps and active searches gain `form.plan_hollow_max_deg` and
+  `form.max_overall_beam_m` (`explicit_exploratory`, direction `min`).
 - RFC 0089 stage 7: `LongitudinalDistribution` gains `RampDistribution`
   (`kind: "ramp"`, scalar `forward`, `aft`, `forward_xi`, `aft_xi`), a
   monotone `3 * t^2 - 2 * t^3` transition with zero slope at both transition

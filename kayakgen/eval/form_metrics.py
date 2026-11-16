@@ -76,8 +76,13 @@ class FormMetrics(BaseModel):
     ``knuckle_span_xi`` of the half length either side of the middle,
     and each has the station where it occurs. The outline is the
     generated polyline, so a turn is never read finer than its point
-    spacing. The knuckle fields are ``None`` in blocks written before
-    they existed.
+    spacing. ``upper_hollow_max_deg`` sums degrees the upper half outline
+    turns outboard from waterline to centreline (0 for a convex side and
+    deck), and ``plan_hollow_max_deg`` sums degrees the starboard overall
+    plan outline turns outboard from bow to stern within
+    ``knuckle_span_xi`` (0 for a convex plan silhouette), with
+    ``plan_hollow_x_m`` at the sharpest outboard turn. The knuckle and
+    hollow fields are ``None`` in blocks written before they existed.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -113,6 +118,8 @@ class FormMetrics(BaseModel):
     upper_knuckle_height_m: float | None = None
     upper_hollow_max_deg: float | None = Field(default=None, ge=0.0)
     upper_hollow_x_m: float | None = None
+    plan_hollow_max_deg: float | None = Field(default=None, ge=0.0)
+    plan_hollow_x_m: float | None = None
     method: Literal["section_envelope_v1"] = "section_envelope_v1"
     notes: list[str] = Field(default_factory=list)
 
@@ -298,6 +305,29 @@ def _outline_hollow(lower: np.ndarray, upper: np.ndarray) -> float:
     return float(-turn[turn < 0.0].sum())
 
 
+def _plan_hollow(
+    xs: np.ndarray, half_breadths: np.ndarray, span_xi: float
+) -> tuple[float, float]:
+    """Degrees the starboard overall plan outline turns outboard from bow to stern (0 for convex)."""
+
+    if xs.shape[0] < 3:
+        return 0.0, 0.0
+    half_length = float(max(abs(xs[0]), abs(xs[-1])))
+    keep = (np.abs(xs) <= span_xi * half_length) & (half_breadths > 1e-6)
+    points = np.column_stack((xs[keep], half_breadths[keep]))
+    if points.shape[0] < 3:
+        return 0.0, 0.0
+    steps = np.diff(points, axis=0)
+    cross = steps[:-1, 0] * steps[1:, 1] - steps[:-1, 1] * steps[1:, 0]
+    dot = (steps[:-1] * steps[1:]).sum(axis=1)
+    turn = np.degrees(np.arctan2(cross, dot))
+    outboard = turn > 1e-7
+    if not outboard.any():
+        return 0.0, 0.0
+    worst = int(np.argmax(turn))
+    return float(turn[outboard].sum()), float(points[1:-1][worst, 0])
+
+
 def evaluate_form_metrics(
     hull: Hull,
     *,
@@ -430,6 +460,8 @@ def evaluate_form_metrics(
         if above > knuckle_deg:
             knuckle_deg, knuckle_x, knuckle_z = above, float(x), height
 
+    plan_hollow_deg, plan_hollow_x = _plan_hollow(xs, 0.5 * overall, float(knuckle_span_xi))
+
     return FormMetrics(
         class_ratio_draft_m=float(class_ratio_draft_m),
         class_waterline_length_m=class_length,
@@ -461,5 +493,7 @@ def evaluate_form_metrics(
         upper_knuckle_height_m=knuckle_z,
         upper_hollow_max_deg=hollow_deg,
         upper_hollow_x_m=hollow_x,
+        plan_hollow_max_deg=plan_hollow_deg,
+        plan_hollow_x_m=plan_hollow_x,
         notes=notes,
     )
