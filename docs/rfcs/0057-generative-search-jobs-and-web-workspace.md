@@ -335,9 +335,7 @@ existing per-candidate records.
 
 ## Open Questions
 
-All open questions are resolved by the stage-4 operator interview captured
-in `docs/workflows/0054-rfc-0057-stage-4-ui-polish/STAGE_4_DECISIONS.md`.
-Summary of the resolutions:
+Stage 4 resolved the following questions.
 
 - **Default manager for `kayakgen serve`** — Subprocess by default; the
   `--jobs-in-process` flag is the explicit in-process opt-in (deviates from
@@ -361,8 +359,7 @@ Summary of the resolutions:
   gate any real-solver execution; this surface only collects the form's
   acknowledgement. Stage 4.
 
-Additional stage-4 decisions (also captured in
-`STAGE_4_DECISIONS.md`):
+The form and frontier view also follow these interaction rules.
 
 - Live admissibility filtering in the objective picklist; display-only
   metrics never appear; non-admissible objectives surface inline

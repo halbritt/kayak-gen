@@ -4,9 +4,6 @@ Status: landed
 Date: 2026-05-22
 Context:
 [`RFC 0057`](0057-generative-search-jobs-and-web-workspace.md),
-[`RFC 0059`](0059-three-lane-code-and-doc-audit-workflow.md),
-[`docs/audits/2026-05-22-code-doc-audit/operator-adoption/FINDINGS.md`](../audits/2026-05-22-code-doc-audit/operator-adoption/FINDINGS.md)
-finding AUD-O-003,
 [`kayakgen/ui/web/generate_spec_form.py`](../../kayakgen/ui/web/generate_spec_form.py),
 [`kayakgen/ui/desktop.py`](../../kayakgen/ui/desktop.py),
 [`kayakgen/search/objectives.py`](../../kayakgen/search/objectives.py)
@@ -301,17 +298,10 @@ In `kayakgen/ui/web/generate_spec_form.py`:
   greyed out?" tooltip on objectives that fail the admissibility gate?
   Defer to a successor.
 
-## Implementation Path
+## Implementation
 
-- Step 1 — Land this RFC as `proposed` and add its row to
-  `docs/rfcs/README.md`.
-- Step 2 — Scaffold `docs/workflows/0033-web-generate-panel-labels/`
-  with the standard workflow.json + RUNBOOK + prompts + roles shape.
-- Step 3 — Drive workflow 0033: land `parameter_metadata.py`, wire the
-  form, write the regression test, and verify byte-stable submission.
-- Step 4 — Promote this RFC to `landed` once Step 3 is complete. Add a
-  `CHANGELOG.md ### Added` entry referencing AUD-O-003 and the workflow
-  run.
+The Generate form looks up the published parameter and objective labels.
+Regression tests cover the rendered labels and the submission payload.
 
 ## Domain Modeling
 

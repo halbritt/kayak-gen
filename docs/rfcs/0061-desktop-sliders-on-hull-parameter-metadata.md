@@ -5,8 +5,6 @@ Date: 2026-05-22
 Context:
 [`RFC 0060`](0060-web-generate-panel-form-labels-and-tooltips.md),
 [`D043`](../DECISION_LOG.md) (HullParameterMetadata presentation-layer pattern),
-[`AUD-O-003`](../audits/2026-05-22-code-doc-audit/operator-adoption/FINDINGS.md)
-follow-up,
 [`kayakgen/ui/desktop.py`](../../kayakgen/ui/desktop.py)
 `SLIDERS` table,
 [`kayakgen/ui/gui_params.py`](../../kayakgen/ui/gui_params.py)
@@ -320,19 +318,10 @@ acceptance criteria).
   in the same RFC? Recommended: no, it is not on the active import
   path; flag for a future consolidation RFC.
 
-## Implementation Path
+## Implementation
 
-- Step 1 — Land this RFC as `proposed` and add its row to
-  `docs/rfcs/README.md`.
-- Step 2 — Scaffold `docs/workflows/0034-desktop-sliders-on-registry/`
-  mirroring `docs/workflows/0033-web-generate-panel-labels/` (single
-  implement -> review pair, lane diversity: claude / gemini).
-- Step 3 — Drive workflow 0034: land §1, §2, §3, §4, §5; verify the
-  desktop GUI renders correctly with `kayakgen view` (manual smoke,
-  not a CI gate since the desktop GUI is not headless-testable here).
-- Step 4 — Promote this RFC to `landed`; update D043's "Revisit" cell
-  to cite this RFC as the closed follow-up; add a `CHANGELOG.md
-  ### Changed` entry.
+The desktop sliders use canonical hull keys, registry labels, and a separate
+range table. The slider-label regression tests cover the rendered controls.
 
 ## Domain Modeling
 

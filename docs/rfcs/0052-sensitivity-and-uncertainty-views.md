@@ -2,8 +2,7 @@
 
 Status: landed kayakgen sensitivity + ConvergenceFlag + pairwise-noise advisory
 Date: 2026-05-16
-Context: Phase 8 item 3 of
-`ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. Today's evaluator
+Context: Today's evaluator
 outputs are point values: one displacement, one GM₀, one resistance
 curve. Designers asking "how much would GM₀ change if I bumped beam
 by 5 mm?" must run a sweep and inspect the rows by hand.

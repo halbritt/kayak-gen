@@ -11,8 +11,6 @@ registry under `kayakgen/ui/parameter_metadata.py`),
 registry + sibling `VIEW_PARAMETER_METADATA`),
 [`D043`](../DECISION_LOG.md) (the accepted "presentation-layer registry
 per surface family" pattern),
-[`AUD-O-005`](../audits/2026-05-25-code-doc-audit/operator-adoption/FINDINGS.md)
-(2026-05-25 release_candidate audit, batch R3),
 [`kayakgen/services/evaluation.py`](../../kayakgen/services/evaluation.py)
 `analysis_view_model::hydro_rows` and `hydro_rows_from_state`,
 [`kayakgen/ui/parameter_metadata.py`](../../kayakgen/ui/parameter_metadata.py)
@@ -246,9 +244,6 @@ Add `tests/test_hydrostatics_row_metadata.py` mirroring the
 - `tests/test_hydrostatics_row_metadata.py` lands and pins the
   registry contract.
 - `docs/rfcs/README.md` gains a 0062 row after 0061.
-- The audit finding `AUD-O-005` is marked closed in the next audit
-  cycle (the audit FINDINGS file itself stays read-only per
-  `docs/audits/2026-05-25-code-doc-audit/REMEDIATION_PLAN.md` R3).
 
 ## Open Questions
 
@@ -271,17 +266,10 @@ listed for the record but explicitly out of scope:
 Each successor RFC, if pursued, would be a separate audit follow-up
 landing one surface at a time.
 
-## Implementation Path
+## Implementation
 
-- Step 1 — Workflow `0038-hydrostatics-row-metadata-registry` lands
-  this RFC, the registry, the evaluation wiring, the test, and the
-  README row in one commit (status `landed` from the outset; the
-  implementation lands together with the RFC).
-- Step 2 — The 2026-05-25 audit follow-up artifact
-  `docs/audits/2026-05-25-code-doc-audit/follow-ups/0038/PATCH_SUMMARY.md`
-  records the exact files changed and confirms the verification
-  suite passes.
-- Step 3 — A successor audit cycle marks `AUD-O-005` closed.
+The Hydro tab looks up labels and units in the metadata registry.
+The registry contract is exercised by `tests/test_hydrostatics_row_metadata.py`.
 
 ## Domain Modeling
 
