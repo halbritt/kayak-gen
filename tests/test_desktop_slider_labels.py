@@ -1,20 +1,7 @@
-"""Render-verification tests for the desktop matplotlib slider labels.
+"""Verify the labels rendered on desktop hull-parameter sliders.
 
-Closes audit finding ``AUD-O-010`` from
-``docs/audits/2026-05-23-code-doc-audit/operator-adoption/FINDINGS.md``
-(workflow 0035). RFC 0061 wires ``label_with_unit(key)`` into the
-``KayakGUI.SLIDERS`` tuple but no existing test inspects the actual
-matplotlib ``Slider(label=...)`` argument on the constructed widget.
-``tests/test_desktop_layout.py`` already asserts label equality as part
-of its geometry / non-overlap checks, but the audit asked for a
-dedicated render-verification file traceable to AUD-O-010 — kept
-separate so a future layout-test reshuffle cannot silently drop the
-label-rendering coverage.
-
-The test constructs a ``KayakGUI()`` headlessly (matplotlib Agg
-backend, ``plt.show`` patched out) and reads
-``gui.sliders[key].label.get_text()`` directly off each constructed
-``matplotlib.widgets.Slider`` widget.
+These tests construct a headless ``KayakGUI`` and compare each Matplotlib
+slider label with the units and text from the parameter registry.
 """
 
 from __future__ import annotations

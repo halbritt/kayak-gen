@@ -224,8 +224,7 @@ def _generated_section_points(
 ) -> np.ndarray:
     """Return the closed-body section ring at ``x``.
 
-    Per Phase 2 step 4 of ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md``
-    the closed-body builder consumes the public
+    The closed-body builder uses the public
     :meth:`HullGeometry.section_for_closed_body` entry point. Geometries
     that pre-date the method fall back to their open :meth:`section`
     surface; the result will not honor exact plumb-stem endpoint

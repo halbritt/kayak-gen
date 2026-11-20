@@ -19,11 +19,7 @@ All output stays ``unvalidated_hydrostatic_comparison`` and carries the RFC
 ``sealed_body_assumption``. These are emitted by the surface; the
 evaluator-level warning set is preserved and merged in as well.
 
-Phase 2 of ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`` moved this
-module from ``kayakgen.cli`` to ``kayakgen.eval`` so that the search and
-sweep layers (and any future evaluator-side consumer) no longer reach into
-the CLI layer for read-model assembly. ``kayakgen.cli.high_angle_gz`` now
-re-exports these names as a thin compatibility shim.
+``kayakgen.cli.high_angle_gz`` re-exports these names for existing callers.
 """
 
 from __future__ import annotations

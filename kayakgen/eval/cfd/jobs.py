@@ -3,12 +3,7 @@
 This module records solver-dispatch state only. It does not validate or
 calibrate solver physics, and every result record is marked raw/unvalidated.
 
-Phase 3A of ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`` split the
-historical 2,600-line implementation into focused sibling modules under
-``kayakgen.eval.cfd``. This module now re-exports every public name from
-those siblings so existing ``from kayakgen.eval.cfd.jobs import ...``
-imports continue to work byte-stably. New code should prefer the
-canonical homes:
+This module re-exports the public names from the following CFD modules:
 
 - contracts → :mod:`kayakgen.eval.cfd.records`
 - built-in profiles → :mod:`kayakgen.eval.cfd.profiles`

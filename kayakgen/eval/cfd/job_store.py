@@ -5,9 +5,6 @@ Provides ``prepare_cfd_job`` / ``prepare_local_job`` /  ``run_cfd_job`` /
 adapter (run records, JSON serialization, log capture, deterministic
 timestamps, command-output text shaping, mesh package + job manifest
 loaders, and the adapter dispatch table).
-
-Split out from the historical ``kayakgen.eval.cfd.jobs`` per Phase 3A
-of ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md``.
 """
 
 from __future__ import annotations

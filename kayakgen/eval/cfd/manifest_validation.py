@@ -1,9 +1,7 @@
 """Mesh package and watertight handoff validation for CFD dispatch.
 
 Helpers that gate a ``SolverProfile`` + ``MeshPackageManifest`` pair before
-preparing a CFD job. Split out from the historical
-``kayakgen.eval.cfd.jobs`` per Phase 3A of
-``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md``.
+preparing a CFD job.
 """
 
 from __future__ import annotations

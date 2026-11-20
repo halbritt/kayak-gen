@@ -6,9 +6,6 @@ hover-for-description tooltips for the raw hull-JSON parameters
 truth that the presentation layer consults; the form's submitted JSON
 payload continues to use the original parameter names (the registry
 keys), so this module is purely additive on the wire.
-
-Closes audit finding `AUD-O-003` from
-`docs/audits/2026-05-22-code-doc-audit/operator-adoption/FINDINGS.md`.
 """
 
 from __future__ import annotations

@@ -1,9 +1,6 @@
 """Backwards-compatibility shim for the high-angle GZ read-model builder.
 
-The real implementation moved to ``kayakgen.eval.high_angle_gz`` as part of
-Phase 2 of ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md``. Importers can
-continue to use ``kayakgen.cli.high_angle_gz``; new callers should target
-``kayakgen.eval.high_angle_gz`` directly.
+New callers can import the builder from ``kayakgen.eval.high_angle_gz``.
 
 This module exposes the original public names verbatim and re-exports
 ``generated_hull_plus_deck_body`` so the existing

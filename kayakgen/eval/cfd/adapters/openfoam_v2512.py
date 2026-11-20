@@ -5,9 +5,6 @@ Houses the OpenFOAM adapter, its deterministic case contracts
 ``CfdOpenFoamCommandSpec``, ``CfdOpenFoamRawResult``), the
 ``_attempt_real_succeeded_path`` machinery, and the
 ``resolve_real_solver_execution_opt_in`` opt-in resolver.
-
-Split out from the historical ``kayakgen.eval.cfd.jobs`` per Phase 3A
-of ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md``.
 """
 
 from __future__ import annotations

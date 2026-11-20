@@ -14,14 +14,8 @@ hydro tuple ``(label, value, unit)`` come from the evaluator; only the
 emitted by ``hydro_rows_from_state`` is byte-stable across the refactor
 (pinned by ``tests/test_hydrostatics_row_metadata.py``).
 
-Closes audit finding ``AUD-O-005`` from
-``docs/audits/2026-05-25-code-doc-audit/operator-adoption/FINDINGS.md``.
-
-Workflow 0062 (P0-BOUNDARY-FIX, audit R0): relocated here from
-``kayakgen/ui/hydrostatics_metadata.py`` so ``kayakgen.services.evaluation``
-can consume it without violating the ``services -> ui`` import boundary
-(``tests/test_services_boundaries.py``). The old module remains as a
-re-export shim; existing UI imports keep working unchanged.
+``kayakgen.services.evaluation`` imports this registry directly.
+``kayakgen.ui.hydrostatics_metadata`` re-exports it for UI callers.
 """
 
 from __future__ import annotations

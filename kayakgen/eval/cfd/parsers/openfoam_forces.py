@@ -1,8 +1,4 @@
-"""OpenFOAM v2512 ``forces`` function-object ``force.dat`` parser.
-
-Split out from the historical ``kayakgen.eval.cfd.jobs`` per Phase 3A
-of ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md``.
-"""
+"""OpenFOAM v2512 ``forces`` function-object ``force.dat`` parser."""
 
 from __future__ import annotations
 

@@ -1,9 +1,7 @@
 """OpenFOAM provenance probe contract and helpers.
 
 Hosts the ``OpenFoamProvenanceProbe`` model and the
-``probe_openfoam_provenance`` runner. Split out from the historical
-``kayakgen.eval.cfd.jobs`` per Phase 3A of
-``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md``.
+``probe_openfoam_provenance`` runner.
 
 ``kayakgen.eval.evidence.openfoam`` continues to re-export
 ``OpenFoamProvenanceProbe`` for neutral-import callers; this module is now
