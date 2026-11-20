@@ -6,7 +6,7 @@ schema is strict: unknown keys are rejected so that typos do not
 silently disable opt-ins.
 
 The persistent setting is one of three opt-in mechanisms for the
-``openfoam-v2512-interfoam-local`` succeeded path; see RFC 0046 for the
+``openfoam-interfoam-local`` succeeded path; see RFC 0046 for the
 precedence rules.
 """
 

@@ -76,10 +76,11 @@ def _passing_check_mesh() -> CheckMeshSummary:
 def _fully_bound_evidence(
     hull: Hull,
     *,
+    stations: int = 8,
     body_ref_hash: str | None = None,
     artifact_checksums: dict[str, str] | None = None,
 ) -> SnappyHexMeshEvidence:
-    body = generated_hull_plus_deck_body(hull, stations=8)
+    body = generated_hull_plus_deck_body(hull, stations=stations)
     scaffolds = default_snappy_hex_mesh_dict_scaffold(body)
     dict_hashes = compute_dict_hashes(scaffolds)
     resolved_hash = body_ref_hash if body_ref_hash is not None else closed_body_content_sha256(body)
@@ -269,3 +270,39 @@ def test_default_mesh_package_invocation_unchanged_when_bind_evidence_absent(
     assert manifest_a.readiness.level != "cfd_ready"
     assert manifest_a.volume_mesh_diagnostic is None
     assert manifest_a.readiness_authority == "surface_diagnostics"
+
+@pytest.mark.parametrize("stations", [8, 12])
+def test_cli_bound_mesh_with_recorded_files_can_prepare_a_job(tmp_path, stations):
+    from typer.testing import CliRunner
+    from kayakgen.cli.main import app
+    from kayakgen.eval.snappy_hex_mesh import POLYMESH_FILES
+    from kayakgen.io.json import save_hull
+
+    hull = Hull()
+    hull_path = tmp_path / "hull.json"
+    save_hull(hull, hull_path)
+    source = tmp_path / "polyMesh"
+    source.mkdir()
+    hashes = {}
+    for name in POLYMESH_FILES:
+        payload = f"test mesh file {name}".encode()
+        (source / name).write_bytes(payload)
+        hashes[name] = hashlib.sha256(payload).hexdigest()
+    evidence = _fully_bound_evidence(hull, stations=stations, artifact_checksums=hashes)
+    path = tmp_path / "evidence.json"
+    path.write_text(evidence.model_dump_json())
+    package = tmp_path / "package"
+    args = ["mesh-package", str(hull_path), "--out", str(package), "--solver-profile",
+            "watertight-solid", "--bind-evidence", str(path)]
+    if stations != 12:
+        args.extend(["--stations", str(stations)])
+    runner = CliRunner()
+    done = runner.invoke(app, args)
+    assert done.exit_code == 0, done.output
+    prepare = runner.invoke(app, ["cfd", "prepare", "--mesh-package", str(package),
+        "--out", str(tmp_path / "jobs"), "--solver-profile", "openfoam-interfoam-local",
+        "--speed-mps", "2"])
+    assert prepare.exit_code == 0, prepare.output
+    (source / "points").unlink()
+    refused = runner.invoke(app, args)
+    assert refused.exit_code != 0 and "polymesh_artifact_drift" in refused.output

@@ -48,12 +48,13 @@ def test_openfoam_case_template_version_constant_is_locked() -> None:
 def test_openfoam_profile_reports_required_mesh_profile_and_case_template() -> None:
     """The profile contract surfaces the locked mesh profile + case template."""
     profile = openfoam_v2512_interfoam_local_profile()
-    by_name = solver_profile_by_name(OPENFOAM_PROFILE_NAME)
-    assert profile == by_name
+    assert profile == solver_profile_by_name("openfoam-v2512-interfoam-local")
+    generic = solver_profile_by_name(OPENFOAM_PROFILE_NAME)
+    assert generic.required_solver_version is None
     assert profile.required_mesh_profile == "watertight_solid_resistance_v1"
     assert profile.case_template_version == OPENFOAM_CASE_TEMPLATE_VERSION
     assert profile.required_solver_version == OPENFOAM_REQUIRED_VERSION
-    assert profile.solver_name == OPENFOAM_SOLVER_NAME
+    assert generic.solver_name == OPENFOAM_SOLVER_NAME
     assert profile.expected_raw_outputs == [OPENFOAM_FORCE_DAT_OUTPUT]
     assert profile.required_mesh_readiness == "cfd_ready"
     assert profile.adapter_name == "openfoam_local"
@@ -138,6 +139,28 @@ def test_provenance_probe_rejects_when_no_channel_reports_required_token() -> No
     assert accepted is False
     assert reason is not None
     assert "v2512" in reason
+
+
+def test_release_pin_uses_solver_banner_and_build():
+    from kayakgen.eval.cfd.provenance import application_probe
+
+    banner = "Usage: interFoam [OPTIONS]\nUsing: OpenFOAM-2606 (2606)\nBuild: _abc123-20260618"
+    probe = application_probe(banner)
+    assert probe.release == "v2606"
+    assert probe.build == "_abc123-20260618"
+    assert probe.matches_required("2606") == (True, None)
+    assert not probe.matches_required("v2512")[0]
+    assert not probe.matches_required("26060")[0]
+    assert not application_probe(banner.replace("(2606)", "(2512)")).matches_required()[0]
+    assert not probe.model_copy(update={"api": "2512"}).matches_required()[0]
+
+
+def test_archived_provenance_requires_the_actual_solver_banner():
+    summary = "OpenFOAM-v2512 application=interFoam"
+    probe = OpenFoamProvenanceProbe(application=summary, api="2512", raw={"application": summary})
+    assert not probe.matches_required()[0]
+    actual = probe.model_copy(update={"raw": {"application": summary + "\nUsing: OpenFOAM-2512 (2512)"}})
+    assert actual.matches_required("v2512") == (True, None)
 
 
 # ---------------------------------------------------------------------------

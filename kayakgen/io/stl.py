@@ -28,3 +28,15 @@ def write_stl(hull: Hull, part: PartType, path: str | Path) -> None:
         with temporary_path.open("r+b") as artifact:
             artifact.write(header)
         temporary_path.replace(destination)
+
+
+def write_closed_body_stl(body, path: Path) -> None:
+    """Export the same generated closed body used to identify a bound mesh."""
+    triangles = [np.asarray(part.vertices)[np.asarray(part.faces, dtype=int)] for part in body.parts]
+    vectors = np.concatenate(triangles)
+    mesh = numpy_stl_mesh.Mesh(np.zeros(len(vectors), dtype=numpy_stl_mesh.Mesh.dtype))
+    mesh.vectors[:] = vectors
+    mesh.save(str(path), mode=Mode.BINARY)
+    # numpy-stl puts its write time in the header. Prepared jobs hash their inputs.
+    with path.open("r+b") as stream:
+        stream.write(b"kayakgen generated closed body".ljust(80, b" "))

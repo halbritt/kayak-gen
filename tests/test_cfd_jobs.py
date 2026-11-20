@@ -242,19 +242,21 @@ def test_fixture_local_command_profile_contract_is_listed() -> None:
     assert profile.accepted_uses == []
 
 
-def test_openfoam_v2512_interfoam_profile_contract_is_listed() -> None:
+def test_openfoam_interfoam_profile_contract_is_listed() -> None:
     profile = solver_profile_by_name(OPENFOAM_PROFILE_NAME)
 
     assert OPENFOAM_PROFILE_NAME in solver_profile_names()
-    assert solver_profile_by_name("openfoam_v2512_interfoam_local_v1") == profile
-    assert openfoam_v2512_interfoam_local_profile() == profile
+    legacy = openfoam_v2512_interfoam_local_profile()
+    assert solver_profile_by_name("openfoam_v2512_interfoam_local_v1") == legacy
+    assert solver_profile_by_name("openfoam-v2512-interfoam-local") == legacy
+    assert legacy.required_solver_version == "v2512"
     assert profile.name == OPENFOAM_PROFILE_NAME
     assert profile.required_mesh_readiness == "cfd_ready"
     assert profile.required_mesh_profile == "watertight_solid_resistance_v1"
     assert profile.adapter_name == "openfoam_local"
-    assert profile.solver_name == "OpenFOAM.com OpenFOAM-v2512 interFoam"
-    assert profile.solver_version_command == ["foamVersion"]
-    assert profile.required_solver_version == "v2512"
+    assert profile.solver_name == "OpenFOAM.com interFoam"
+    assert profile.solver_version_command == ["interFoam", "-help"]
+    assert profile.required_solver_version is None
     assert profile.case_template_version == OPENFOAM_CASE_TEMPLATE_VERSION
     assert profile.expected_raw_outputs == [OPENFOAM_FORCE_DAT_OUTPUT]
     assert profile.timeout_seconds is not None
@@ -360,7 +362,7 @@ def test_openfoam_prepare_writes_deterministic_case_files(tmp_path: Path) -> Non
 
     command_spec = json.loads(first_case_files["case/openfoam/kayakgen-command.json"])
     assert command_spec["command"] == first.solver_profile.command_template
-    assert command_spec["version_command"] == ["foamVersion"]
+    assert command_spec["version_command"] == ["interFoam", "-help"]
     assert command_spec["expected_raw_outputs"] == [OPENFOAM_FORCE_DAT_OUTPUT]
     assert command_spec["result_semantics"] == "raw_unvalidated"
     assert "application interFoam;" in first_case_files["case/openfoam/system/controlDict"]
@@ -1050,6 +1052,47 @@ def test_fixture_malformed_raw_output_persists_failed_record(tmp_path: Path) -> 
     assert load_run_record(job.job_dir / "run.json") == record
 
 
+@pytest.mark.parametrize("change_build", [False, True])
+def test_selected_installation_supplies_both_probe_and_solver(tmp_path, monkeypatch, change_build):
+    import shlex
+
+    job = _prepare_openfoam_job(tmp_path)
+    selected = tmp_path / "selected installation"
+    selected.mkdir()
+    (selected / "etc").mkdir()
+    bashrc = selected / "etc/bashrc"
+    bashrc.write_text("export PATH=" + shlex.quote(str(selected)) + ':"$PATH"\n')
+    monkeypatch.setenv("KAYAKGEN_OPENFOAM_BASHRC", str(bashrc))
+    monkeypatch.setenv("WM_PROJECT_DIR", str(tmp_path / "other-installation"))
+    monkeypatch.setenv("KAYAKGEN_OPENFOAM_LOCAL_RUN", "1")
+    build = selected / "build"
+    build.write_text("first")
+    solver = selected / "interFoam"
+    solver.write_text(
+        "#!/bin/sh\n"
+        'if [ "$1" = -help ]; then\n'
+        "  echo 'Using: OpenFOAM-2606 (2606)'\n"
+        f'  echo Build: "$(cat {shlex.quote(str(build))})"\n'
+        "  exit 0\n"
+        "fi\n"
+        'cd "$2" || exit 1\n'
+        'mkdir -p postProcessing/forces/0\n'
+        f'cp {shlex.quote(str(OPENFOAM_FORCE_FIXTURE))} postProcessing/forces/0/force.dat\n'
+        + (f"echo changed > {shlex.quote(str(build))}\n" if change_build else "")
+    )
+    solver.chmod(0o755)
+    record = run_cfd_job(job.job_dir)
+    if change_build:
+        assert record.status == "failed" and record.error_kind == "version_mismatch"
+    else:
+        assert record.status == "succeeded", record.error_message
+        assert record.raw_records["solver_release"] == "v2606"
+        assert record.raw_records["solver_build"] == "first"
+        assert record.solver_execution_audit.bashrc_path == str(bashrc)
+        assert record.solver_execution_audit.provenance_summary["solver_release"] == "v2606"
+        assert record.claim_state == "raw_unvalidated" and record.accepted_uses == []
+
+
 def test_openfoam_missing_version_command_persists_unavailable_record(
     tmp_path: Path,
 ) -> None:
@@ -1089,7 +1132,7 @@ def test_openfoam_version_mismatch_persists_unavailable_record(tmp_path: Path) -
 
     assert record.status == "unavailable"
     assert record.error_kind == "version_mismatch"
-    assert "required 'v2512'" in (record.error_message or "")
+    assert "predates supported v2512" in (record.error_message or "")
     assert record.raw_records["solver_version"] == "OpenFOAM-v2306"
     assert record.result_semantics == "raw_unvalidated"
     assert load_run_record(job.job_dir / "run.json") == record
@@ -1143,17 +1186,13 @@ def test_openfoam_solver_timeout_persists_failed_record(tmp_path: Path) -> None:
     job = _prepare_openfoam_job(tmp_path)
     job = prepare_profile_attempt(
         job,
-        solver_version_command=[
-            sys.executable,
-            "-c",
-            "print('OpenFOAM-v2512')",
-        ],
+        solver_version_command=["printf", "OpenFOAM-v2512\n"],
         command_template=[
             sys.executable,
             "-c",
-            "import time; time.sleep(1)",
+            "import time; time.sleep(10)",
         ],
-        timeout_seconds=0.05,
+        timeout_seconds=1,
     )
 
     record = run_cfd_job(job.job_dir)

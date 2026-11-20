@@ -97,6 +97,7 @@ and its evidence requirements are in the [roadmap](../ROADMAP.md).
 | [0087](0087-ledger-current-acceptance.md) | landed receipt-applicability ledger view and proposed finalization | Current ledger acceptance versus historical pending flags |
 | [0088](0088-v2-topsides.md) | landed optional topsides record | Above-waterline hull sides and flare for `distribution_v2` hulls |
 | [0089](0089-section-fullness-and-form-metrics.md) | landed stages 1 to 8 | Fuller `round` sections, class ratio and catch-zone beam, righting arms at several loads; tumblehome, fair sheer plan, deck crown, search admission; foot room; section knuckles; rounded shoulder; upright section sides; longitudinal ramp; plan-outline hollow |
+| [0090](0090-openfoam-release-provenance.md) | landed per-run OpenFOAM release provenance | Local installation selection and evidence on v2512 and v2606 |
 
 ## Template
 

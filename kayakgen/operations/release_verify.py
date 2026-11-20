@@ -28,7 +28,8 @@ def verify(request: dict, receipt: dict) -> None:
     receipt['analytical'], hull, source = analytical_workflow(out / 'analytical', request['inputs'])
     receipt['surface_exports'] = surface_exports(out, hull, source)
     receipt['builder_exports'] = builder_exports(out, hull, source)
-    args = SimpleNamespace(bashrc=Path(request['bashrc']), step_timeout=request['step_timeout'],
+    args = SimpleNamespace(required_release=receipt['solver_preflight']['solver_release'],
+                           bashrc=Path(request['bashrc']), step_timeout=request['step_timeout'],
                            manifest=Path(request['manifest']), manifest_sha256=request['manifest_sha256'])
     receipt['cfd'] = cfd_workflow(out / 'cfd', args)
     receipt['installed_after'] = audit_installed(manifest, wheel, request['dependencies'])

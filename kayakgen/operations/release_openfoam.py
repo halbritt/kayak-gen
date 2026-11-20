@@ -5,7 +5,6 @@ import argparse
 from dataclasses import asdict
 import json
 from pathlib import Path
-import re
 import sys
 import traceback
 
@@ -20,39 +19,32 @@ def version_command(bashrc: Path) -> list[str]:
     return ['bash', '--noprofile', '--norc', '-c',
             'kayakgen_foam_bashrc="$1"; shift; '
             'source "$kayakgen_foam_bashrc" >/dev/null 2>&1 '
-            "&& set -o pipefail && interFoam -help | sed -n '/^Using:/p'",
+            "&& set -o pipefail && interFoam -help | sed -n '/^Using:/p; /^Build:/p'",
             'installed-foam-version', str(bashrc)]
 
 
 def version_preflight(out: Path, bashrc: Path) -> dict:
-    from kayakgen.eval.cfd.jobs import OPENFOAM_REQUIRED_VERSION, probe_openfoam_provenance
-    from kayakgen.eval.cfd.openfoam_v2512_interfoam.runner import (
-        OpenFoamProbeBashrcRunner, probe_commands_for_bashrc_runner)
+    from kayakgen.eval.cfd.provenance import openfoam_release
+    from kayakgen.eval.cfd.openfoam_v2512_interfoam.runner import probe_bashrc_release
     command = run_logged(version_command(bashrc), out / 'solver-version.log',
                          timeout_s=30, env=clean_environment())
     banner = (out / 'solver-version.log').read_text()
-    require(re.search(r'^Using: OpenFOAM-2512(?:\s|$)', banner, re.MULTILINE) is not None,
-            'Actual interFoam help did not produce the required OpenFOAM-2512 banner')
-    probe = probe_openfoam_provenance(runner=OpenFoamProbeBashrcRunner(bashrc=bashrc),
-                                    commands=probe_commands_for_bashrc_runner())
-    accepted, reason = probe.matches_required(OPENFOAM_REQUIRED_VERSION)
-    record = {'command': command, 'actual_banner': banner, 'provenance': probe.model_dump(mode='json'),
-              'accepted': accepted, 'reason': reason}
+    release = openfoam_release(banner)
+    require(release is not None, 'Actual interFoam help did not identify an OpenCFD release')
+    probe = probe_bashrc_release(bashrc)
+    accepted, reason = probe.matches_required(release)
+    record = {'command': command, 'actual_banner': banner, 'solver_release': release,
+              'provenance': probe.model_dump(mode='json'), 'accepted': accepted, 'reason': reason}
     write_json(out / 'solver-preflight.json', record)
     require(accepted, 'Actual typed OpenFOAM provenance refused: ' + str(reason))
     return record
 
 
 def write_closed_stl(path: Path, hull) -> None:
-    import numpy as np
-    from stl import Mode, mesh as stl_mesh
     from kayakgen.eval.closed_volume import generated_hull_plus_deck_body
-    body = generated_hull_plus_deck_body(hull, stations=8)
-    triangles = [np.asarray(part.vertices)[np.asarray(part.faces, dtype=int)] for part in body.parts]
-    vectors = np.concatenate(triangles)
-    mesh = stl_mesh.Mesh(np.zeros(len(vectors), dtype=stl_mesh.Mesh.dtype))
-    mesh.vectors[:] = vectors
-    mesh.save(str(path), mode=Mode.BINARY)
+    from kayakgen.io.stl import write_closed_body_stl
+
+    write_closed_body_stl(generated_hull_plus_deck_body(hull, stations=8), path)
 
 
 def case_spec(stl: Path):
@@ -90,6 +82,11 @@ def execute_pipeline(args, receipt: dict) -> None:
     from kayakgen.eval.cfd.openfoam_v2512_interfoam import (
         render_case, run_meshing_stage, run_solver_stage)
     from kayakgen.eval.cfd.jobs import parse_openfoam_force_dat
+    from kayakgen.eval.cfd.openfoam_v2512_interfoam.runner import probe_bashrc_release
+    probe = probe_bashrc_release(args.bashrc)
+    accepted, reason = probe.matches_required(args.required_release)
+    require(accepted, f'Staged solver release mismatch: {reason}')
+    receipt.update(solver_release=probe.release, solver_build=probe.build)
     spec = case_spec(args.stl.absolute())
     receipt['case_spec'] = spec.model_dump(mode='json')
     render_case(spec, args.case, stage='meshing')
@@ -102,6 +99,9 @@ def execute_pipeline(args, receipt: dict) -> None:
     receipt['solver'] = asdict(solved)
     require(solved.succeeded and solved.force_dat_path is not None,
             'Real OpenFOAM solve failed: ' + str(solved.failure_reason))
+    final_probe = probe_bashrc_release(args.bashrc)
+    require((final_probe.release, final_probe.build) == (probe.release, probe.build),
+            'OpenFOAM installation changed during staged execution')
     forces = parse_openfoam_force_dat(solved.force_dat_path)
     require(forces.sample_count >= 1, 'Real solver produced no force samples')
     receipt.update(force_result=forces.model_dump(mode='json'),
@@ -111,7 +111,7 @@ def execute_pipeline(args, receipt: dict) -> None:
 def pipeline(args) -> int:
     args.case = args.case.absolute()
     args.case.mkdir(parents=True, exist_ok=True)
-    receipt = {'started_at': utc_now(), 'status': 'running', 'semantics': 'real OpenFOAM-v2512'}
+    receipt = {'started_at': utc_now(), 'status': 'running', 'semantics': 'real OpenCFD interFoam'}
     try:
         manifest = read_manifest(args.manifest, args.manifest_sha256)
         receipt['modules_before'] = module_audit(manifest)
@@ -142,12 +142,13 @@ def prepare_fixture(out: Path, args):
         hull, mesh_dir, stations=8, closed_body_stations=8, include_fixture_volume_mesh=True)
     write_closed_stl(stl, hull)
     profile = solver_profile_by_name(OPENFOAM_PROFILE_NAME).model_copy(update={
-        'name': 'installed-release-openfoam-v2512-smoke', 'allow_real_solver_execution': True,
-        'required_solver_version': '2512', 'timeout_seconds': 6 * args.step_timeout + 60,
+        'name': 'installed-release-openfoam-smoke', 'allow_real_solver_execution': True,
+        'required_solver_version': args.required_release, 'timeout_seconds': 6 * args.step_timeout + 60,
         'solver_version_command': version_command(args.bashrc),
         'command_template': [sys.executable, '-I', '-B', '-m',
             'kayakgen.operations.release_openfoam', '--case', 'case/openfoam', '--stl', str(stl),
             '--bashrc', str(args.bashrc), '--step-timeout', str(args.step_timeout),
+            '--required-release', args.required_release,
             '--manifest', str(args.manifest), '--manifest-sha256', args.manifest_sha256]})
     job = prepare_local_job(mesh_dir, out / 'jobs', profile, speed_mps=2.,
                             seawater_density_kg_m3=1000., kinematic_viscosity_m2_s=1.09e-6)
@@ -185,6 +186,7 @@ def main() -> int:
     for name in ('case', 'stl', 'bashrc', 'manifest'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--manifest-sha256', required=True)
+    parser.add_argument('--required-release', required=True)
     parser.add_argument('--step-timeout', type=float, required=True)
     return pipeline(parser.parse_args())
 

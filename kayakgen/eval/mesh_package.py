@@ -32,7 +32,10 @@ from kayakgen.eval.volume_mesh import (
     fixture_volume_mesh_artifact,
     fixture_volume_mesh_diagnostic,
     sha256_file,
+    sha256_json,
 )
+
+DEFAULT_HANDOFF_BODY_STATIONS = 12
 
 PackagePart = Literal["hull", "deck"]
 ReadinessAuthority = Literal[
@@ -243,8 +246,12 @@ def _augment_manifest_with_bound_diagnostic(
 
     body = generated_hull_plus_deck_body(
         hull,
-        stations=stations if stations is not None else 12,
+        stations=stations if stations is not None else DEFAULT_HANDOFF_BODY_STATIONS,
     )
+    from kayakgen.eval.snappy_hex_mesh import closed_body_content_sha256
+
+    if bound_diagnostic.body_ref != closed_body_content_sha256(body):
+        raise ValueError("Bound volume mesh evidence belongs to a different closed body")
     closed_diagnostics = diagnose_closed_volume_body(body)
     closed_ref = "closed-volume-diagnostic.json"
     closed_path = out / closed_ref
@@ -258,6 +265,11 @@ def _augment_manifest_with_bound_diagnostic(
         update={
             "body_ref": closed_diagnostics.body_id,
             "source_hull_hash": closed_diagnostics.source_hull_hash or "",
+            "deterministic_inputs": {**bound_diagnostic.deterministic_inputs,
+                                     "closed_body_stations": str(stations or DEFAULT_HANDOFF_BODY_STATIONS)},
+            "closed_volume_diagnostic_hash": closed_hash,
+            "self_intersection_diagnostic_hash": closed_hash,
+            "closed_volume_tolerances_hash": sha256_json(closed_diagnostics.policy.tolerances),
         }
     )
     volume_mesh_diagnostic_ref = "volume-mesh-diagnostic.json"
@@ -567,7 +579,7 @@ def write_watertight_volume_mesh_handoff_package(
     out_dir: str | Path,
     *,
     stations: int | None = None,
-    closed_body_stations: int = 12,
+    closed_body_stations: int = DEFAULT_HANDOFF_BODY_STATIONS,
     include_fixture_volume_mesh: bool = False,
 ) -> MeshPackageManifest:
     """Write a watertight-profile package with explicit RFC 0023 evidence.

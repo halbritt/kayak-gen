@@ -104,6 +104,12 @@ Release notes for the kayakgen CLI, desktop and web frontends, and Python packag
 
 ### Changed
 
+- The `openfoam-interfoam-local` profile supports OpenCFD v2606 and records
+  the selected solver release and build. `mesh-evidence` records its mesher
+  release. Bound mesh packages retain the verified mesh files so the stock
+  local profile can run `setFields` and `interFoam`. The historical v2512
+  profile remains available for pinned jobs.
+
 - Removed the retired Striatum workflows, prompts, review files, and generated
   build copies. The research notes link to the original thesis and background
   dataset. The Python package ships the public README as its description and

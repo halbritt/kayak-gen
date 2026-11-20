@@ -3,8 +3,7 @@
 These tests do not invoke OpenFOAM binaries. They verify that the
 ``mesh-evidence`` subcommand refuses to run without the
 ``KAYAKGEN_OPENFOAM_LOCAL_RUN=1`` env knob and refuses even with the
-env knob set when ``is_openfoam_available()`` returns False (e.g. the
-toolchain is not on PATH).
+env knob set when the selected installation is unavailable.
 """
 
 from __future__ import annotations
@@ -55,12 +54,8 @@ def test_mesh_evidence_cli_refuses_when_openfoam_not_available(
 ) -> None:
     """With env knob but no toolchain, the command refuses with a structured code."""
     monkeypatch.setenv(OPENFOAM_LOCAL_RUN_ENV_VAR, "1")
-    # Force ``is_openfoam_available`` to return False so the test never
-    # tries to source a real bashrc or call interFoam.
-    monkeypatch.setattr(
-        "kayakgen.eval.cfd.openfoam_v2512_interfoam.runner.is_openfoam_available",
-        lambda *_args, **_kwargs: False,
-    )
+    # Select a missing installation even when the host has a real solver.
+    monkeypatch.setenv("KAYAKGEN_OPENFOAM_BASHRC", str(tmp_path / "missing"))
 
     runner = CliRunner()
     out_dir = tmp_path / "evidence"
@@ -71,5 +66,5 @@ def test_mesh_evidence_cli_refuses_when_openfoam_not_available(
 
     assert result.exit_code != 0
     assert "openfoam_toolchain_unavailable" in result.output
-    assert "OpenFOAM-v2512" in result.output
+    assert "OpenCFD OpenFOAM" in result.output
     assert not (out_dir / "evidence.json").exists()

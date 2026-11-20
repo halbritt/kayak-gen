@@ -1,4 +1,4 @@
-"""Deterministic ``snappyHexMesh`` evidence-harness contract for OpenFOAM-v2512.
+"""Deterministic ``snappyHexMesh`` evidence-harness contract for OpenCFD OpenFOAM.
 
 This module encodes the workflow 0052 D011 decision to select
 ``openfoam-v2512-snappyhexmesh-watertight-v1`` as the first production
@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Literal
 
@@ -39,6 +41,7 @@ from kayakgen.eval.volume_mesh import (
     VolumeMeshDiagnostic,
     VolumeMeshReadiness,
     VolumeMeshReason,
+    sha256_file,
     sha256_json,
 )
 
@@ -50,8 +53,10 @@ MeshEvidenceBindCode = Literal[
     "evidence_translation_failed",
 ]
 
+POLYMESH_FILES = ("points", "faces", "owner", "neighbour", "boundary")
 SNAPPYHEXMESH_CASE_TEMPLATE_VERSION = "openfoam-v2512-snappyhexmesh-watertight-v1"
 SNAPPYHEXMESH_BODY_PROFILE = "generated_hull_plus_deck_closed_body_v1"
+# Historical v2512 identifiers for clients reading archived evidence.
 SNAPPYHEXMESH_REQUIRED_VERSION = "v2512"
 SNAPPYHEXMESH_MESHER_NAME = "openfoam-v2512-snappyhexmesh"
 SNAPPYHEXMESH_MESHER_VERSION = SNAPPYHEXMESH_CASE_TEMPLATE_VERSION
@@ -79,7 +84,7 @@ SnappyHexMeshDispatchBlocker = Literal[
     "missing_check_mesh",
     "missing_artifact_checksums",
     "missing_openfoam_provenance",
-    "openfoam_provenance_not_v2512",
+    "openfoam_release_mismatch",
     "check_mesh_failed",
 ]
 
@@ -146,6 +151,8 @@ class SnappyHexMeshEvidence(BaseModel):
     check_mesh: CheckMeshSummary | None = None
     artifact_checksums: dict[str, str] = Field(default_factory=dict)
     openfoam_provenance: OpenFoamProvenanceProbe | None = None
+    # Version 1 records without an explicit pin were produced under v2512.
+    solver_release: str | None = "v2512"
     dispatch_state: SnappyHexMeshDispatchState = "pending_evidence"
     dispatch_blocker_codes: list[str] = Field(default_factory=list)
 
@@ -162,6 +169,10 @@ class SnappyHexMeshEvidence(BaseModel):
             artifact_checksums=self.artifact_checksums,
             openfoam_provenance=self.openfoam_provenance,
         )
+        if self.openfoam_provenance and (
+            not self.solver_release or not self.openfoam_provenance.matches_required(self.solver_release)[0]
+        ):
+            missing.append("openfoam_release_mismatch")
         if missing:
             raise ValueError(
                 "evidence_recorded snappyHexMesh evidence has blocking gate(s): "
@@ -369,7 +380,7 @@ def build_snappy_hex_mesh_evidence(
     check_mesh: CheckMeshSummary | None,
     artifact_checksums: dict[str, str] | None,
     openfoam_provenance: OpenFoamProvenanceProbe | None,
-    required_version: str = SNAPPYHEXMESH_REQUIRED_VERSION,
+    required_version: str | None = None,
 ) -> SnappyHexMeshEvidence:
     """Build an evidence record, rejecting any missing dispatch gate."""
 
@@ -395,7 +406,7 @@ def build_snappy_hex_mesh_evidence(
     if openfoam_provenance is not None and not blockers:
         accepted, _reason = openfoam_provenance.matches_required(required_version)
         if not accepted:
-            blockers.append("openfoam_provenance_not_v2512")
+            blockers.append("openfoam_release_mismatch")
 
     dispatch_state: SnappyHexMeshDispatchState = (
         "evidence_recorded" if not blockers else "pending_evidence"
@@ -409,6 +420,7 @@ def build_snappy_hex_mesh_evidence(
         check_mesh=check_mesh,
         artifact_checksums=normalized_artifacts,
         openfoam_provenance=openfoam_provenance,
+        solver_release=openfoam_provenance.release if openfoam_provenance else None,
         dispatch_state=dispatch_state,
         dispatch_blocker_codes=list(blockers),
     )
@@ -466,9 +478,9 @@ def snappy_hex_mesh_volume_mesh_diagnostic(
     if not evidence.openfoam_provenance:
         return None
     accepted, _reason = evidence.openfoam_provenance.matches_required(
-        SNAPPYHEXMESH_REQUIRED_VERSION
+        evidence.solver_release
     )
-    if not accepted:
+    if not accepted or not evidence.solver_release:
         return None
     if not evidence.patch_metadata:
         return None
@@ -501,9 +513,10 @@ def snappy_hex_mesh_volume_mesh_diagnostic(
     output_artifacts: dict[str, VolumeMeshArtifactRef] = {}
     for name, sha256 in sorted(evidence.artifact_checksums.items()):
         output_artifacts[name] = VolumeMeshArtifactRef(
-            ref=f"{name}",
+            ref=f"polyMesh/{name}" if name in POLYMESH_FILES else name,
             sha256=sha256,
-            artifact_role="volume_mesh" if name == "volume_mesh" else "case_metadata",
+            artifact_role="volume_mesh" if name in (*POLYMESH_FILES, "volume_mesh") else "case_metadata",
+            media_type="application/octet-stream" if name in POLYMESH_FILES else "application/json",
         )
     if not output_artifacts:
         return None
@@ -537,8 +550,8 @@ def snappy_hex_mesh_volume_mesh_diagnostic(
         closed_volume_diagnostic_hash=evidence.body_ref_hash,
         self_intersection_diagnostic_hash=evidence.body_ref_hash,
         closed_volume_tolerances_hash=evidence.body_ref_hash,
-        mesher_name=SNAPPYHEXMESH_MESHER_NAME,
-        mesher_version=SNAPPYHEXMESH_MESHER_VERSION,
+        mesher_name=f"openfoam-{evidence.solver_release}-snappyhexmesh",
+        mesher_version=evidence.solver_release,
         mesher_config_digest=config_digest,
         deterministic_inputs=deterministic_inputs,
         output_artifacts=output_artifacts,
@@ -627,6 +640,28 @@ def closed_body_content_sha256(body: ClosedVolumeBody) -> str:
     return sha256_json(payload)
 
 
+def copy_bound_polymesh(evidence: SnappyHexMeshEvidence, source: Path, package: Path) -> None:
+    """Snapshot the five mesh files and verify their bytes before publishing references."""
+    if set(evidence.artifact_checksums) != set(POLYMESH_FILES):
+        raise MeshEvidenceBindError(code="polymesh_artifact_drift",
+                                    message="Expected the five recorded OpenFOAM polyMesh files")
+    package.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=package) as temporary:
+        staged = Path(temporary)
+        for name in POLYMESH_FILES:
+            if not (source / name).is_file():
+                raise MeshEvidenceBindError(code="polymesh_artifact_drift",
+                                            message=f"Missing polyMesh file {name}")
+            shutil.copyfile(source / name, staged / name)
+            if sha256_file(staged / name) != evidence.artifact_checksums[name]:
+                raise MeshEvidenceBindError(code="polymesh_artifact_drift",
+                                            message=f"Checksum mismatch for polyMesh file {name}")
+        destination = package / "polyMesh"
+        destination.mkdir(exist_ok=True)
+        for name in POLYMESH_FILES:
+            (staged / name).replace(destination / name)
+
+
 def _recompute_polymesh_checksums(
     polymesh_dir: Path,
     artifact_names: list[str],
@@ -704,7 +739,7 @@ def bind_evidence_to_mesh_package(
         # case-metadata or volume_mesh placeholder names are ignored when
         # they are not present on disk.
         candidate_names = [
-            name for name in recorded if (polymesh_dir / name).is_file()
+            name for name in POLYMESH_FILES if name in recorded and (polymesh_dir / name).is_file()
         ]
         if not candidate_names:
             raise MeshEvidenceBindError(

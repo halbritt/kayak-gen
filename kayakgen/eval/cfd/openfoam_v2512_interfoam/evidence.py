@@ -5,7 +5,7 @@ After ``snappyHexMesh -overwrite`` finishes, the produced
 plus the rendered ``system/<dict>`` files are hashed and packaged into
 the existing evidence record. The evidence record is then ready for
 the watertight-handoff readiness gate or any downstream consumer that
-expects fully-bound v2512 evidence.
+expects fully bound evidence from the selected OpenCFD release.
 """
 
 from __future__ import annotations
@@ -18,9 +18,9 @@ from kayakgen.eval.cfd.jobs import OpenFoamProvenanceProbe
 from kayakgen.eval.cfd.openfoam_v2512_interfoam.case_render import OpenFoamCaseSpec
 from kayakgen.eval.cfd.openfoam_v2512_interfoam.runner import MeshingResult
 from kayakgen.eval.snappy_hex_mesh import (
+    POLYMESH_FILES,
     REQUIRED_DICT_KEYS,
     SNAPPYHEXMESH_BODY_PROFILE,
-    SNAPPYHEXMESH_REQUIRED_VERSION,
     SnappyHexMeshEvidence,
     SnappyHexMeshPatchEntry,
     build_snappy_hex_mesh_evidence,
@@ -107,7 +107,7 @@ def _poly_mesh_artifact_checksums(case_dir: Path) -> dict[str, str]:
     if not poly.is_dir():
         raise FileNotFoundError(f"polyMesh directory missing: {poly}")
     checksums: dict[str, str] = {}
-    for name in ("points", "faces", "owner", "neighbour", "boundary"):
+    for name in POLYMESH_FILES:
         candidate = poly / name
         if candidate.is_file():
             checksums[name] = sha256_of_path(candidate)
@@ -139,7 +139,7 @@ def build_snappy_hex_mesh_evidence_from_case(
     *,
     body_ref_hash: str | None = None,
     body_profile: str = SNAPPYHEXMESH_BODY_PROFILE,
-    required_version: str = SNAPPYHEXMESH_REQUIRED_VERSION,
+    required_version: str | None = None,
 ) -> SnappyHexMeshEvidence:
     """Bundle case-on-disk hashes, checkMesh, patches, and provenance into one record.
 

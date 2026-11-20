@@ -1,11 +1,7 @@
-"""OpenFOAM-v2512 interFoam real-execution pipeline package.
+"""OpenCFD interFoam case rendering, execution and mesh evidence.
 
-This package implements the workflow 0052 D012 closure path: a real,
-end-to-end OpenFOAM-v2512 case renderer, runner, and evidence collector
-that produces ``CfdRunRecord(status="succeeded", claim_state="raw_unvalidated")``
-output. The behaviour is opt-in: the default ``OpenFoamLocalAdapter``
-behaviour remains byte-equal to the historical
-``solver_success_blocked`` skeleton when the opt-in env knob is not set.
+The package retains its original import path and case dictionary identifiers.
+The selected installation supplies the solver release for each run.
 
 The package contents are:
 

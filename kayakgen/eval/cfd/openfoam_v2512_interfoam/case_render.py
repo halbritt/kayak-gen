@@ -25,7 +25,10 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from string import Template
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from kayakgen.eval.cfd.records import PreparedSolverCase
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
@@ -335,6 +338,45 @@ def render_case(
         tri_surface_dir=tri_surface_dir,
         hull_stl_path=tri_surface_dir / "hull.stl",
     )
+
+
+def render_bound_case(case: PreparedSolverCase, case_root: Path) -> None:
+    """Render a solve case around the verified native polyMesh from the handoff."""
+    from tempfile import TemporaryDirectory
+    from kayakgen.eval.mesh_package import DEFAULT_HANDOFF_BODY_STATIONS
+    from kayakgen.eval.closed_volume import generated_hull_plus_deck_body
+    from kayakgen.eval.volume_mesh import VolumeMeshDiagnostic, sha256_file
+    from kayakgen.eval.snappy_hex_mesh import POLYMESH_FILES, closed_body_content_sha256
+    from kayakgen.io.json import load_hull
+    from kayakgen.io.stl import write_closed_body_stl
+
+    manifest = case.mesh_manifest
+    mesh_dir = (case.job_dir / case.job_spec.mesh_package_ref).resolve()
+    diagnostic = VolumeMeshDiagnostic.model_validate_json((mesh_dir / manifest.volume_mesh_diagnostic).read_text())
+    stations = int(diagnostic.deterministic_inputs.get("closed_body_stations", DEFAULT_HANDOFF_BODY_STATIONS))
+    body = generated_hull_plus_deck_body(load_hull(mesh_dir / manifest.hull_json), stations=stations)
+    if closed_body_content_sha256(body) != diagnostic.deterministic_inputs["body_ref_hash"]:
+        raise ValueError("Solver body differs from the recorded mesh evidence")
+    with TemporaryDirectory(dir=case_root) as temporary:
+        stl = Path(temporary) / "hull.stl"
+        write_closed_body_stl(body, stl)
+        spec = OpenFoamCaseSpec(
+            hull_stl_path=stl, domain_bounds=domain_bounds_from_stl(stl),
+            inlet_speed_ms=case.job_spec.speed_mps, waterline_z_m=body.waterline_z_m,
+            water_rho_kg_m3=case.job_spec.seawater_density_kg_m3,
+            rho_inf_kg_m3=case.job_spec.seawater_density_kg_m3,
+            water_nu_m2_s=case.job_spec.kinematic_viscosity_m2_s,
+        )
+        render_case(spec, case_root, stage="meshing")
+        render_case(spec, case_root, stage="solve")
+    target = case_root / "constant/polyMesh"
+    target.mkdir(exist_ok=True)
+    for name in POLYMESH_FILES:
+        artifact = diagnostic.output_artifacts[name]
+        shutil.copyfile(mesh_dir / artifact.ref, target / name)
+        if sha256_file(target / name) != artifact.sha256:
+            raise ValueError(f"Mesh file {name} changed while preparing the solver case")
+    shutil.copytree(case_root / "0.orig", case_root / "0", dirs_exist_ok=True)
 
 
 __all__ = [

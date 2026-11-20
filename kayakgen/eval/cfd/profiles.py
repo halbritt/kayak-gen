@@ -17,8 +17,9 @@ CFD_FIXTURE_RESULTS_WARNING = (
 )
 FIXTURE_CASE_TEMPLATE_VERSION = "fixture-local-command-v1"
 FIXTURE_RAW_OUTPUT = "raw-result.json"
-OPENFOAM_PROFILE_NAME = "openfoam-v2512-interfoam-local"
-OPENFOAM_SOLVER_NAME = "OpenFOAM.com OpenFOAM-v2512 interFoam"
+OPENFOAM_PROFILE_NAME = "openfoam-interfoam-local"
+LEGACY_OPENFOAM_PROFILE_NAME = "openfoam-v2512-interfoam-local"
+OPENFOAM_SOLVER_NAME = "OpenFOAM.com interFoam"
 OPENFOAM_REQUIRED_VERSION = "v2512"
 OPENFOAM_CASE_TEMPLATE_VERSION = "openfoam-v2512-interfoam-dtchull-v1"
 OPENFOAM_CASE_ROOT = "case/openfoam"
@@ -38,7 +39,7 @@ OPENFOAM_SUCCESS_BLOCKED_WARNING = (
 )
 OPENFOAM_LOCAL_RUN_ENV_VAR = "KAYAKGEN_OPENFOAM_LOCAL_RUN"
 OPENFOAM_SUCCEEDED_RAW_UNVALIDATED_WARNING = (
-    "OpenFOAM-v2512 interFoam run completed; raw output is unvalidated and not "
+    "OpenFOAM interFoam run completed; raw output is unvalidated and not "
     "calibrated for any design-fitness use."
 )
 
@@ -102,8 +103,8 @@ def fixture_local_command_profile() -> SolverProfile:
     )
 
 
-def openfoam_v2512_interfoam_local_profile() -> SolverProfile:
-    """Return the first external-solver skeleton profile selected by D004."""
+def openfoam_interfoam_local_profile() -> SolverProfile:
+    """Discover the selected OpenCFD installation when the job runs."""
     return SolverProfile(
         name=OPENFOAM_PROFILE_NAME,
         required_mesh_readiness="cfd_ready",
@@ -114,8 +115,7 @@ def openfoam_v2512_interfoam_local_profile() -> SolverProfile:
             OPENFOAM_CASE_ROOT,
         ],
         solver_name=OPENFOAM_SOLVER_NAME,
-        solver_version_command=["foamVersion"],
-        required_solver_version=OPENFOAM_REQUIRED_VERSION,
+        solver_version_command=["interFoam", "-help"],
         case_template_version=OPENFOAM_CASE_TEMPLATE_VERSION,
         supported_platforms=[
             "Linux primary local install",
@@ -126,7 +126,7 @@ def openfoam_v2512_interfoam_local_profile() -> SolverProfile:
         supported_fluid_model="local incompressible two-phase water/air interFoam skeleton",
         expected_raw_outputs=[OPENFOAM_FORCE_DAT_OUTPUT],
         install_notes=(
-            "Requires OpenFOAM.com OpenFOAM-v2512 on PATH; required CI uses "
+            "Requires a supported OpenFOAM.com interFoam installation; required CI uses "
             "fake commands and parser fixtures instead of an installed solver."
         ),
         known_limitations=[
@@ -140,12 +140,22 @@ def openfoam_v2512_interfoam_local_profile() -> SolverProfile:
     )
 
 
+def openfoam_v2512_interfoam_local_profile() -> SolverProfile:
+    """Keep the explicit historical profile pinned for existing callers."""
+    return openfoam_interfoam_local_profile().model_copy(update={
+        "name": LEGACY_OPENFOAM_PROFILE_NAME,
+        "solver_name": "OpenFOAM.com OpenFOAM-v2512 interFoam",
+        "required_solver_version": OPENFOAM_REQUIRED_VERSION,
+    })
+
+
 def _solver_profiles() -> dict[str, SolverProfile]:
     profiles = (
         unavailable_open_surface_profile(),
         unavailable_watertight_solid_profile(),
         mock_failing_local_command_profile(),
         fixture_local_command_profile(),
+        openfoam_interfoam_local_profile(),
         openfoam_v2512_interfoam_local_profile(),
     )
     return {profile.name: profile for profile in profiles}
@@ -158,7 +168,7 @@ def _solver_profile_by_name(name: str) -> SolverProfile:
         "unavailable_watertight_solid_v1": "unavailable-watertight-solid",
         "mock_failing_local_command_v1": "mock-failing-local-command",
         "fixture_local_command_v1": "fixture-local-command",
-        "openfoam_v2512_interfoam_local_v1": OPENFOAM_PROFILE_NAME,
+        "openfoam_v2512_interfoam_local_v1": LEGACY_OPENFOAM_PROFILE_NAME,
     }
     name = aliases.get(name, name)
     try:
@@ -208,6 +218,7 @@ __all__ = [
     "OPENFOAM_SUCCESS_BLOCKED_WARNING",
     "fixture_local_command_profile",
     "mock_failing_local_command_profile",
+    "openfoam_interfoam_local_profile",
     "openfoam_v2512_interfoam_local_profile",
     "solver_profile_by_name",
     "solver_profile_names",

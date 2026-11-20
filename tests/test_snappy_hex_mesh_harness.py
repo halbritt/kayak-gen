@@ -197,7 +197,24 @@ def test_evidence_rejects_non_v2512_provenance_when_otherwise_bound() -> None:
     )
     evidence = build_snappy_hex_mesh_evidence(**kwargs)  # type: ignore[arg-type]
     assert evidence.dispatch_state == "pending_evidence"
-    assert "openfoam_provenance_not_v2512" in evidence.dispatch_blocker_codes
+    assert "openfoam_release_mismatch" in evidence.dispatch_blocker_codes
+
+
+def test_recorded_evidence_binds_the_observed_release_and_reads_legacy_records():
+    inputs = _fully_bound_evidence_kwargs(_hull_body())
+    old = build_snappy_hex_mesh_evidence(**inputs).model_dump(exclude={"solver_release"})
+    assert SnappyHexMeshEvidence.model_validate(old).solver_release == "v2512"
+
+    inputs["openfoam_provenance"] = OpenFoamProvenanceProbe(application="Using: OpenFOAM-2606 (2606)")
+    evidence = build_snappy_hex_mesh_evidence(**inputs)
+    assert evidence.dispatch_state == "evidence_recorded"
+    assert evidence.solver_release == "v2606"
+    diagnostic = snappy_hex_mesh_volume_mesh_diagnostic(evidence)
+    assert diagnostic.mesher_version == "v2606"
+    assert diagnostic.mesher_name == "openfoam-v2606-snappyhexmesh"
+    with pytest.raises(ValueError, match="openfoam_release_mismatch"):
+        SnappyHexMeshEvidence.model_validate({**evidence.model_dump(), "solver_release": "v2512"})
+    assert build_snappy_hex_mesh_evidence(**inputs, required_version="v2512").dispatch_state == "pending_evidence"
 
 
 def test_evidence_rejects_missing_body_ref_hash() -> None:

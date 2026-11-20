@@ -445,6 +445,11 @@ Enforced by `tests/test_import_boundaries.py` and
 
 ## Streamed subprocess lifetime (RFC 0071)
 
+The local OpenFOAM profile selects one installation for each run. Its probe
+reads the release and build from `interFoam -help`. Mesh evidence stores the
+observed release, and raw CFD output and the execution audit identify the solver.
+The version in the case-template identifier describes the dictionary format.
+
 `eval/cfd/openfoam_v2512_interfoam/runner.py` drains nonblocking output under a
 monotonic per-command deadline. Each streamed command owns a process group;
 timeout terminates that group and reaps the leader. Returned output is a bounded

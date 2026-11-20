@@ -1,4 +1,4 @@
-"""OpenFOAM.com v2512 ``interFoam`` skeleton adapter.
+"""OpenFOAM.com ``interFoam`` skeleton adapter.
 
 Houses the OpenFOAM adapter, its deterministic case contracts
 (``CfdOpenFoamMeshSummary``, ``CfdOpenFoamCaseInput``,
@@ -15,7 +15,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -45,12 +45,11 @@ from kayakgen.eval.cfd.profiles import (
     OPENFOAM_LOCAL_RUN_ENV_VAR,
     OPENFOAM_LOG_LIMIT_BYTES,
     OPENFOAM_RAW_RESULT,
-    OPENFOAM_REQUIRED_VERSION,
     OPENFOAM_SOLVER_NAME,
     OPENFOAM_SUCCEEDED_RAW_UNVALIDATED_WARNING,
     OPENFOAM_SUCCESS_BLOCKED_WARNING,
 )
-from kayakgen.eval.cfd.provenance import _first_nonempty_line
+from kayakgen.eval.cfd.provenance import OpenFoamProvenanceProbe, application_probe
 from kayakgen.eval.cfd.records import (
     CfdDispatchError,
     CfdRunRecord,
@@ -88,7 +87,7 @@ class CfdOpenFoamMeshSummary(BaseModel):
 
 
 class CfdOpenFoamCaseInput(BaseModel):
-    """Deterministic metadata for the OpenFOAM v2512 interFoam skeleton case."""
+    """Deterministic metadata for the OpenFOAM interFoam skeleton case."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -99,7 +98,7 @@ class CfdOpenFoamCaseInput(BaseModel):
     job_id: str
     solver_profile: str
     solver_name: str
-    required_solver_version: str
+    required_solver_version: str | None = None
     speed_mps: float = Field(gt=0)
     seawater_density_kg_m3: float = Field(gt=0)
     kinematic_viscosity_m2_s: float = Field(gt=0)
@@ -137,6 +136,8 @@ class CfdOpenFoamRawResult(RawUnvalidatedClaimFields):
     job_id: str
     solver_name: str
     solver_version: str
+    solver_release: str | None = None
+    solver_build: str | None = None
     case_template_version: Literal["openfoam-v2512-interfoam-dtchull-v1"] = (
         OPENFOAM_CASE_TEMPLATE_VERSION
     )
@@ -180,71 +181,37 @@ def _clear_openfoam_run_outputs(case: PreparedSolverCase) -> None:
             path.unlink()
 
 
-def _openfoam_succeeded_path_enabled() -> bool:
-    """Return True when the operator has opted into the real succeeded path.
+def _uses_bound_mesh(case: PreparedSolverCase) -> bool:
+    from kayakgen.eval.snappy_hex_mesh import POLYMESH_FILES
 
-    Both the ``KAYAKGEN_OPENFOAM_LOCAL_RUN=1`` env var and a real
-    OpenFOAM-v2512 install (probed via the bashrc-sourced runner) must
-    be present. Tests that do not set the env var see byte-equal
-    historical ``solver_success_blocked`` behavior.
-    """
-
-    if os.environ.get(OPENFOAM_LOCAL_RUN_ENV_VAR) != "1":
-        return False
-    try:
-        from kayakgen.eval.cfd.openfoam_v2512_interfoam.runner import (
-            is_openfoam_available,
-        )
-    except ImportError:
-        return False
-    try:
-        return bool(is_openfoam_available())
-    except Exception:  # pragma: no cover - defensive
-        return False
+    return (case.solver_profile.command_template == ["interFoam", "-case", OPENFOAM_CASE_ROOT]
+            and set(case.mesh_manifest.volume_mesh_artifacts) == set(POLYMESH_FILES))
 
 
-def _resolve_openfoam_bashrc_path() -> str:
-    """Return a string representation of the OpenFOAM bashrc path used by the runner.
-
-    Falls back to the runner's default when neither the env override nor
-    a real install is present. The returned string is only used for the
-    audit trail; it is not opened by this function.
-    """
-    try:
-        from kayakgen.eval.cfd.openfoam_v2512_interfoam.runner import (
-            OPENFOAM_BASHRC,
-            OPENFOAM_BASHRC_ENV_VAR,
-        )
-    except ImportError:
-        return ""
-    override = os.environ.get(OPENFOAM_BASHRC_ENV_VAR)
-    if override:
-        return override
-    return str(OPENFOAM_BASHRC)
+def _selected_command(command: list[str], bashrc: Path, *, initialize_fields: bool = False) -> list[str]:
+    """Use one sourced installation for both the built-in probe and solver."""
+    if command[:1] != ["interFoam"]:
+        return command
+    setup = 'setup=$1; shift; source "$setup" "" >/dev/null || exit $?; '
+    if initialize_fields:
+        setup += 'setFields "${@:2}" || exit $?; '
+    return ["bash", "-c", setup + 'exec "$@"', "openfoam", str(bashrc), *command]
 
 
 def _build_solver_execution_audit(
     *,
-    case: PreparedSolverCase,
-    version: str | None,
+    probe: OpenFoamProvenanceProbe,
     solve_seconds: float,
-    mesh_seconds: float = 0.0,
-    provenance_summary: dict[str, Any] | None = None,
+    bashrc: Path,
 ) -> SolverExecutionAudit:
-    """Build the audit block emitted alongside a real succeeded record.
-
-    ``mesh_seconds`` defaults to ``0.0`` because the adapter executes a
-    single solver command rather than a staged mesh + solve pipeline;
-    callers that wrap the staged runner can pass real timings.
-    """
-    summary: dict[str, Any] = dict(provenance_summary or {})
-    if version and "solver_version" not in summary:
-        summary["solver_version"] = version
+    """Record the installation used by this dispatch and its solver timing."""
+    summary = {"solver_version": probe.application, "solver_release": probe.release,
+               "solver_build": probe.build}
     return SolverExecutionAudit(
-        bashrc_path=_resolve_openfoam_bashrc_path(),
+        bashrc_path=str(bashrc),
         provenance_summary=summary,
         case_template_version=OPENFOAM_CASE_TEMPLATE_VERSION,
-        mesh_seconds=mesh_seconds,
+        mesh_seconds=0.0,
         solve_seconds=solve_seconds,
     )
 
@@ -422,8 +389,8 @@ def _openfoam_readme() -> str:
 
 
 def _probe_openfoam_version(
-    case: PreparedSolverCase,
-) -> tuple[str | None, dict[str, str], SolverRawResult | None]:
+    case: PreparedSolverCase, bashrc: Path,
+) -> tuple[OpenFoamProvenanceProbe | None, dict[str, str], SolverRawResult | None]:
     version_command = list(case.solver_profile.solver_version_command)
     if not version_command:
         return (
@@ -440,7 +407,7 @@ def _probe_openfoam_version(
 
     try:
         completed = subprocess.run(
-            version_command,
+            _selected_command(version_command, bashrc),
             cwd=case.job_dir,
             capture_output=True,
             check=False,
@@ -508,10 +475,11 @@ def _probe_openfoam_version(
     version_text = "\n".join(
         part for part in (completed.stdout.strip(), completed.stderr.strip()) if part
     )
-    version = _first_nonempty_line(version_text)
+    probe = application_probe(version_text)
+    version = probe.application
     if completed.returncode != 0:
         return (
-            version,
+            probe,
             logs,
             SolverRawResult(
                 status="unavailable",
@@ -530,16 +498,15 @@ def _probe_openfoam_version(
         )
 
     required = case.solver_profile.required_solver_version
-    if required and required not in version_text:
+    accepted, reason = probe.matches_required(required)
+    if not accepted:
         return (
-            version,
+            probe,
             logs,
             SolverRawResult(
                 status="unavailable",
                 error_kind="version_mismatch",
-                error_message=(
-                    f"OpenFOAM version output did not include required {required!r}"
-                ),
+                error_message=reason,
                 logs=logs,
                 raw_records={
                     "version_command": version_command,
@@ -550,7 +517,7 @@ def _probe_openfoam_version(
             ),
         )
 
-    return version, logs, None
+    return probe, logs, None
 
 
 def _utc_stage_now() -> str:
@@ -586,7 +553,7 @@ def _emit_stage(
 
 
 class OpenFoamLocalAdapter:
-    """OpenFOAM.com v2512 interFoam skeleton adapter.
+    """OpenFOAM.com interFoam skeleton adapter.
 
     The adapter prepares deterministic case files and records dependency,
     command, timeout, and parser failures. It reports ``succeeded`` only on
@@ -617,9 +584,7 @@ class OpenFoamLocalAdapter:
             job_id=case.job_spec.job_id,
             solver_profile=case.job_spec.solver_profile,
             solver_name=case.solver_profile.solver_name or OPENFOAM_SOLVER_NAME,
-            required_solver_version=(
-                case.solver_profile.required_solver_version or OPENFOAM_REQUIRED_VERSION
-            ),
+            required_solver_version=case.solver_profile.required_solver_version,
             speed_mps=case.job_spec.speed_mps,
             seawater_density_kg_m3=case.job_spec.seawater_density_kg_m3,
             kinematic_viscosity_m2_s=case.job_spec.kinematic_viscosity_m2_s,
@@ -659,6 +624,11 @@ class OpenFoamLocalAdapter:
         )
         _write_json(case.job_dir / OPENFOAM_CASE_INPUT, openfoam_case)
         _write_json(case.job_dir / OPENFOAM_COMMAND_SPEC, command_spec)
+        if _uses_bound_mesh(case):
+            from kayakgen.eval.cfd.openfoam_v2512_interfoam.case_render import render_bound_case
+
+            render_bound_case(case, case_root)
+            return case
         _write_text(case_root / "system" / "controlDict", _openfoam_control_dict(case))
         _write_text(
             case_root / "constant" / "transportProperties",
@@ -717,9 +687,14 @@ class OpenFoamLocalAdapter:
             notes=["case_files_rendered_in_prepare"],
         )
 
-        version, version_logs, version_error = _probe_openfoam_version(case)
+        from kayakgen.eval.cfd.openfoam_v2512_interfoam.runner import resolve_openfoam_bashrc
+
+        bashrc = resolve_openfoam_bashrc()
+        probe, version_logs, version_error = _probe_openfoam_version(case, bashrc)
         if version_error is not None:
             return version_error
+        assert probe is not None
+        version = probe.application
 
         try:
             _clear_openfoam_run_outputs(case)
@@ -736,11 +711,7 @@ class OpenFoamLocalAdapter:
                 warnings=_openfoam_warnings(),
             )
 
-        # The adapter folds meshing into the single solver command, so
-        # the dedicated meshing stage records zero wall-clock and notes
-        # the limitation. Consumers that need real meshing wall-clock
-        # use the staged ``run_meshing_stage`` runner exercised by
-        # ``test_openfoam_v2512_smoke``.
+        bound_mesh = _uses_bound_mesh(case)
         meshing_started = _utc_stage_now()
         meshing_start_clock = time.monotonic()
         _emit_stage(
@@ -750,26 +721,30 @@ class OpenFoamLocalAdapter:
             started_at=meshing_started,
             completed_at=_utc_stage_now(),
             wall_clock_seconds=max(0.0, time.monotonic() - meshing_start_clock),
-            notes=["meshing_folded_into_solver_command"],
+            notes=["verified_mesh_from_package" if bound_mesh else "meshing_folded_into_solver_command"],
         )
 
-        # Mesh-evidence binding is intentionally not implemented in the
-        # adapter; the staged runner has its own evidence pipeline.
         _emit_stage(
             stages,
             name="mesh_evidence_binding",
-            state="skipped",
+            state="succeeded" if bound_mesh else "skipped",
             started_at=None,
             completed_at=None,
             wall_clock_seconds=None,
-            notes=["mesh_evidence_binding_not_implemented"],
+            notes=["verified_in_prepare" if bound_mesh else "mesh_evidence_binding_not_implemented"],
         )
+
+        if bound_mesh and resolve_real_solver_execution_opt_in(case.job_dir) is None:
+            return SolverRawResult(status="failed", error_kind="solver_success_blocked",
+                                   error_message="The bound OpenFOAM case requires real solver opt-in",
+                                   logs=version_logs, raw_records={"solver_release": probe.release},
+                                   warnings=_openfoam_warnings())
 
         solver_started = _utc_stage_now()
         solve_start = time.monotonic()
         try:
             completed = subprocess.run(
-                case.solver_profile.command_template,
+                _selected_command(case.solver_profile.command_template, bashrc, initialize_fields=bound_mesh),
                 cwd=case.job_dir,
                 capture_output=True,
                 check=False,
@@ -852,6 +827,19 @@ class OpenFoamLocalAdapter:
                 warnings=_openfoam_warnings(),
             )
 
+        if case.solver_profile.command_template[:1] == ["interFoam"]:
+            from kayakgen.eval.cfd.openfoam_v2512_interfoam.runner import probe_bashrc_release
+
+            final_probe = probe_bashrc_release(bashrc)
+            if (final_probe.release, final_probe.build) != (probe.release, probe.build):
+                return SolverRawResult(
+                    status="failed", error_kind="version_mismatch",
+                    error_message="OpenFOAM installation changed during the solver run",
+                    logs=logs, raw_records={"solver_release": probe.release,
+                                            "final_solver_release": final_probe.release},
+                    warnings=_openfoam_warnings(),
+                )
+
         _emit_stage(
             stages,
             name="solver_execution",
@@ -916,6 +904,8 @@ class OpenFoamLocalAdapter:
                 job_id=case.job_spec.job_id,
                 solver_name=case.solver_profile.solver_name or OPENFOAM_SOLVER_NAME,
                 solver_version=version or "",
+                solver_release=probe.release,
+                solver_build=probe.build,
                 speed_mps=case.job_spec.speed_mps,
                 seawater_density_kg_m3=case.job_spec.seawater_density_kg_m3,
                 kinematic_viscosity_m2_s=case.job_spec.kinematic_viscosity_m2_s,
@@ -956,9 +946,9 @@ class OpenFoamLocalAdapter:
                 notes=["validation_gate_not_implemented"],
             )
             audit = _build_solver_execution_audit(
-                case=case,
-                version=version,
+                probe=probe,
                 solve_seconds=solver_seconds,
+                bashrc=bashrc,
             )
             # Stash stages for ``collect`` to attach to the run record;
             # only emitted on the real succeeded path so blocked and
@@ -979,6 +969,8 @@ class OpenFoamLocalAdapter:
             job_id=case.job_spec.job_id,
             solver_name=case.solver_profile.solver_name or OPENFOAM_SOLVER_NAME,
             solver_version=version or "",
+            solver_release=probe.release,
+            solver_build=probe.build,
             speed_mps=case.job_spec.speed_mps,
             seawater_density_kg_m3=case.job_spec.seawater_density_kg_m3,
             kinematic_viscosity_m2_s=case.job_spec.kinematic_viscosity_m2_s,

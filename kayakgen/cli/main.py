@@ -28,6 +28,7 @@ from kayakgen.eval.form_metrics import (
 )
 from kayakgen.eval.turning import evaluate_turning_metrics
 from kayakgen.eval.mesh_package import (
+    DEFAULT_HANDOFF_BODY_STATIONS,
     open_wetted_surface_profile,
     watertight_solid_profile,
     write_mesh_package,
@@ -43,7 +44,7 @@ from kayakgen.eval.cfd.jobs import (
     solver_profile_names,
 )
 from kayakgen.io.json import load_hull, save_evaluation, save_hull
-from kayakgen.io.stl import write_stl
+from kayakgen.io.stl import write_closed_body_stl, write_stl
 from kayakgen.model.geometry import PartType
 from kayakgen.model.hull import Hull
 from kayakgen.model.validity import evaluate_design_validity
@@ -253,6 +254,9 @@ def mesh_package(
         "--solver-profile",
         help="Mesh solver profile: open-wetted-surface or watertight-solid.",
     ),
+    stations: int | None = typer.Option(
+        None, "--stations", min=2, help="Station count used by mesh-evidence when binding a closed body."
+    ),
     bind_evidence: Path | None = typer.Option(
         None,
         "--bind-evidence",
@@ -271,6 +275,7 @@ def mesh_package(
         MeshEvidenceBindError,
         SnappyHexMeshEvidence,
         bind_evidence_to_mesh_package,
+        copy_bound_polymesh,
         closed_body_content_sha256,
     )
     from kayakgen.eval.closed_volume import generated_hull_plus_deck_body
@@ -284,17 +289,19 @@ def mesh_package(
                 bind_evidence.read_text()
             )
             polymesh_dir = bind_evidence.parent / "polyMesh"
-            body = generated_hull_plus_deck_body(hull)
+            body = generated_hull_plus_deck_body(hull, stations=stations or DEFAULT_HANDOFF_BODY_STATIONS)
             closed_hash = closed_body_content_sha256(body)
             bound_diagnostic = bind_evidence_to_mesh_package(
                 evidence,
                 closed_body_hash=closed_hash,
-                polymesh_dir=polymesh_dir if polymesh_dir.is_dir() else None,
+                polymesh_dir=None,  # Verify the bytes copied into the package below.
             )
+            copy_bound_polymesh(evidence, polymesh_dir, out)
         manifest = write_mesh_package(
             hull,
             out,
             solver_profile=profile,
+            stations=stations,
             bound_volume_mesh_diagnostic=bound_diagnostic,
         )
     except MeshEvidenceBindError as exc:
@@ -321,15 +328,16 @@ def mesh_evidence(
         help="Output directory for the snappyHexMesh evidence artifacts.",
     ),
     stations: int = typer.Option(
-        12,
+        DEFAULT_HANDOFF_BODY_STATIONS,
         "--stations",
+        min=2,
         help="Number of stations to use when constructing the closed body.",
     ),
 ) -> None:
     """Run the meshing stage and write a SnappyHexMeshEvidence record.
 
     Refuses without ``KAYAKGEN_OPENFOAM_LOCAL_RUN=1`` and an actual
-    OpenFOAM-v2512 toolchain on PATH. Produces ``evidence.json``,
+    OpenCFD OpenFOAM toolchain on PATH. Produces ``evidence.json``,
     ``polyMesh/``, and ``provenance.json`` under ``--out``.
     """
     import os
@@ -337,7 +345,6 @@ def mesh_evidence(
 
     from kayakgen.eval.cfd.jobs import (
         OPENFOAM_LOCAL_RUN_ENV_VAR,
-        probe_openfoam_provenance,
     )
     from kayakgen.eval.cfd.openfoam_v2512_interfoam.case_render import (
         OpenFoamCaseSpec,
@@ -348,9 +355,8 @@ def mesh_evidence(
         build_snappy_hex_mesh_evidence_from_case,
     )
     from kayakgen.eval.cfd.openfoam_v2512_interfoam.runner import (
-        OpenFoamProbeBashrcRunner,
-        is_openfoam_available,
-        probe_commands_for_bashrc_runner,
+        probe_bashrc_release,
+        resolve_openfoam_bashrc,
         run_meshing_stage,
     )
     from kayakgen.eval.closed_volume import generated_hull_plus_deck_body
@@ -363,7 +369,7 @@ def mesh_evidence(
         )
         typer.echo(
             "mesh-evidence refuses to run: set "
-            f"{OPENFOAM_LOCAL_RUN_ENV_VAR}=1 and ensure the OpenFOAM-v2512 "
+            f"{OPENFOAM_LOCAL_RUN_ENV_VAR}=1 and ensure the OpenCFD OpenFOAM "
             "bashrc is sourceable with interFoam on PATH",
             err=True,
         )
@@ -376,11 +382,14 @@ def mesh_evidence(
             err=True,
         )
         raise typer.Exit(code=1)
-    if not is_openfoam_available():
+    bashrc = resolve_openfoam_bashrc()
+    provenance = probe_bashrc_release(bashrc)
+    accepted, reason = provenance.matches_required()
+    if not accepted:
         typer.echo("binding_code: openfoam_toolchain_unavailable", err=True)
         typer.echo(
-            "mesh-evidence refuses to run: OpenFOAM-v2512 toolchain "
-            "(sourceable bashrc + interFoam on PATH) was not detected",
+            "mesh-evidence refuses to run: OpenCFD OpenFOAM toolchain "
+            f"probe refused the selected installation: {reason}",
             err=True,
         )
         raise typer.Exit(code=1)
@@ -394,12 +403,12 @@ def mesh_evidence(
     case_dir = out / "case"
     case_dir.mkdir(parents=True, exist_ok=True)
     closed_body_stl = out / "closed_body.stl"
-    _write_closed_body_stl(body, closed_body_stl)
+    write_closed_body_stl(body, closed_body_stl)
     bounds = domain_bounds_from_stl(closed_body_stl)
     spec = OpenFoamCaseSpec(hull_stl_path=closed_body_stl, domain_bounds=bounds)
     render_case(spec, case_dir, stage="meshing")
 
-    meshing = run_meshing_stage(case_dir)
+    meshing = run_meshing_stage(case_dir, bashrc=bashrc)
     if not meshing.succeeded:
         typer.echo(
             f"mesh-evidence failed: meshing stage did not succeed "
@@ -408,16 +417,17 @@ def mesh_evidence(
         )
         raise typer.Exit(code=1)
 
-    provenance = probe_openfoam_provenance(
-        commands=probe_commands_for_bashrc_runner(),
-        runner=OpenFoamProbeBashrcRunner(),
-    )
+    final_probe = probe_bashrc_release(bashrc)
+    if (final_probe.release, final_probe.build) != (provenance.release, provenance.build):
+        typer.echo("binding_code: openfoam_installation_changed", err=True)
+        raise typer.Exit(code=1)
     evidence = build_snappy_hex_mesh_evidence_from_case(
         case_dir,
         spec,
         meshing,
         provenance,
         body_ref_hash=closed_hash,
+        required_version=provenance.release,
     )
 
     evidence_path = out / "evidence.json"
@@ -436,25 +446,6 @@ def mesh_evidence(
     typer.echo(f"wrote {poly_dst}")
     typer.echo(f"wrote {provenance_path}")
     typer.echo(f"dispatch_state: {evidence.dispatch_state}")
-
-
-def _write_closed_body_stl(body, path: Path) -> None:
-    """Write a binary STL of ``body`` to ``path``."""
-
-    import numpy as np
-    from stl import mesh as stl_mesh
-
-    triangles: list[tuple[tuple[float, float, float], ...]] = []
-    for part in body.parts:
-        vertices = [list(v) for v in part.vertices]
-        for face in part.faces:
-            triangles.append(tuple(tuple(vertices[idx]) for idx in face))
-    data = np.zeros(len(triangles), dtype=stl_mesh.Mesh.dtype)
-    obj = stl_mesh.Mesh(data)
-    for i, tri in enumerate(triangles):
-        for j in range(3):
-            obj.vectors[i][j] = tri[j]
-    obj.save(str(path))
 
 
 def _mesh_solver_profile(name: str):

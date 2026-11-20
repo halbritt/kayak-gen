@@ -28,7 +28,7 @@ Given a single Pydantic `Hull` record, kayakgen produces:
 - **Mesh packages**: deterministic manifest + STL surfaces; optional
   `--bind-evidence` flag to attach a `SnappyHexMeshEvidence` record (D026).
 - **CFD dispatch**: local job records with multiple profiles; opt-in
-  real OpenFOAM-v2512 execution (D012 + D027) producing
+  real OpenCFD OpenFOAM execution (D012 + D027) producing
   `raw_unvalidated` raw forces.
 - **Sweeps**: deterministic grid expansion with `pending` lifecycle,
   per-candidate records, optional STL and high-angle-GZ artifacts.
@@ -118,8 +118,11 @@ Enforced by Pydantic model validators and regression tests.
   fails Pydantic validation.
 - **Raw-unvalidated invariant.** Every real OpenFOAM-produced record has
   `claim_state="raw_unvalidated"` and empty `accepted_uses`.
-- **OpenFOAM v2512 provenance.** `OpenFoamProvenanceProbe.matches_required`
-  refuses env-only evidence; application/build/API evidence is required.
+- **OpenFOAM provenance.** The local profile resolves an installation once per
+  run. The solver banner supplies its OpenCFD release and build. Conflicting
+  solver versions, releases before v2512 and environment-only evidence fail
+  the provenance gate. An explicit profile pin requires an exact match.
+  Recorded mesh evidence and raw CFD results carry the observed `solver_release`.
 - **Ordinary mesh packages stay below `cfd_ready`** unless explicitly
   bound to passing volume-mesh evidence (RFC 0023 fixture or RFC 0045
   generated path with the three-hash gate from D026).

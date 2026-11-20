@@ -704,7 +704,7 @@ frontier is still frontier-ineligible under the conservative
 comparison view.
 
 `kayakgen search` does not run real CFD by itself. To use the
-OpenFOAM-v2512 succeeded path inside the loop, set the env knobs
+OpenCFD OpenFOAM succeeded path inside the loop, set the env knobs
 documented under `cfd run` above.
 
 ### `target-draft`
@@ -1016,7 +1016,7 @@ generated closed-body path and diagnostics.
 ### `mesh-evidence` (RFC 0045)
 
 `kayakgen mesh-evidence <hull>` runs the snappyHexMesh-evidence harness
-against an installed OpenFOAM-v2512 toolchain and writes the resulting
+against an installed OpenCFD OpenFOAM toolchain and writes the resulting
 `SnappyHexMeshEvidence` (case-template version, dictionary hashes,
 patch metadata, `CheckMeshSummary`, polyMesh artifact checksums,
 `OpenFoamProvenanceProbe`) into the package directory. The default
@@ -1026,15 +1026,22 @@ artifacts.
 
 ```bash
 export KAYAKGEN_OPENFOAM_LOCAL_RUN=1
-export KAYAKGEN_OPENFOAM_BASHRC=/usr/lib/openfoam/openfoam2512/etc/bashrc
+export KAYAKGEN_OPENFOAM_BASHRC=/usr/lib/openfoam/openfoam2606/etc/bashrc
 kayakgen mesh-evidence hull.json --out build/mesh-evidence
 kayakgen mesh-package hull.json --out build/watertight-package \
   --solver-profile watertight-solid \
   --bind-evidence build/mesh-evidence/evidence.json
 ```
 
+Both commands use 12 stations for the closed body by default. If you supply
+`mesh-evidence --stations N`, pass the same `--stations N` to `mesh-package`
+so its reconstructed body matches the evidence hash. The package contains
+the five verified `polyMesh` files. The local profile uses them to initialize
+the water field and run `interFoam` at the speed and fluid properties supplied
+to `cfd prepare`.
+
 The command refuses to run without `KAYAKGEN_OPENFOAM_LOCAL_RUN=1` and an
-OpenFOAM-v2512 toolchain reachable via `KAYAKGEN_OPENFOAM_BASHRC`. The
+OpenCFD OpenFOAM toolchain reachable via `KAYAKGEN_OPENFOAM_BASHRC`. The
 refusal emits a structured `binding_code` token
 (`openfoam_local_run_env_required` or
 `openfoam_toolchain_unavailable`). See the env-knob list under
@@ -1097,7 +1104,7 @@ kayakgen cfd profiles
 
 Built-in profiles are `unavailable-open-wetted-surface`,
 `unavailable-watertight-solid`, `mock-failing-local-command`,
-`fixture-local-command`, and `openfoam-v2512-interfoam-local`. The
+`fixture-local-command`, and `openfoam-interfoam-local`. The
 unavailable/mock/fixture profiles provide deterministic job-state behavior;
 `fixture-local-command` writes a `raw-result.json` fixture artifact for route
 and CLI plumbing tests, but it is not a real CFD solver and does not produce
@@ -1141,9 +1148,9 @@ available in the current CLI. The unavailable profiles report
 dispatch testing. The fixture local-command profile can produce a deterministic
 successful raw fixture record for tests.
 
-The `openfoam-v2512-interfoam-local` profile has a real local-execution path
+The `openfoam-interfoam-local` profile has a real local-execution path
 behind RFC 0046's three opt-in mechanisms. The CLI accepts any one of the
-three; an installed OpenFOAM-v2512 toolchain must still be sourceable via
+three; an installed OpenCFD OpenFOAM toolchain must still be sourceable via
 `KAYAKGEN_OPENFOAM_BASHRC`. The three mechanisms, ranked by precedence:
 
 1. **Profile flag** (highest precedence). `kayakgen cfd prepare
@@ -1153,7 +1160,7 @@ three; an installed OpenFOAM-v2512 toolchain must still be sourceable via
    appears in every artifact derived from that profile.
 2. **Persistent setting** (middle precedence).
    `~/.config/kayakgen/cfd.json` may carry an
-   `allow_real_solver_execution_profiles: ["openfoam-v2512-interfoam-local"]`
+   `allow_real_solver_execution_profiles: ["openfoam-interfoam-local"]`
    list. Use this for long-lived operator setups; the persistent setting
    is not embedded in any artifact, so prefer the profile flag when
    provenance matters.
@@ -1172,8 +1179,9 @@ toolchain source, has distinct roles:
   surface (`tests/test_openfoam_v2512_smoke.py` and the env-gated stage tests
   in `tests/test_cfd_run_stages.py`) only; the CLI does not consult it.
 - `KAYAKGEN_OPENFOAM_BASHRC`: environment source. Path to the OpenFOAM bashrc
-  the runner sources to acquire the WM/FOAM environment; defaults to
-  `/usr/lib/openfoam/openfoam2512/etc/bashrc`.
+  to source for this run. With no override, kayak-gen uses the active
+  `$WM_PROJECT_DIR/etc/bashrc`, then the newest numbered installation in
+  `/usr/lib/openfoam` if no installation is active.
 
 ```bash
 # Mechanism 1: per-job profile flag (preferred for CI / auditable runs).
@@ -1182,26 +1190,27 @@ kayakgen cfd prepare ... --allow-real-solver-execution --out runs/cfd
 # Mechanism 2: persistent setting (long-lived operator setup).
 mkdir -p ~/.config/kayakgen
 cat > ~/.config/kayakgen/cfd.json <<'JSON'
-{"allow_real_solver_execution_profiles": ["openfoam-v2512-interfoam-local"]}
+{"allow_real_solver_execution_profiles": ["openfoam-interfoam-local"]}
 JSON
 
 # Mechanism 3: env knob (shell-local convenience).
 export KAYAKGEN_OPENFOAM_LOCAL_RUN=1
-export KAYAKGEN_OPENFOAM_BASHRC=/usr/lib/openfoam/openfoam2512/etc/bashrc
+export KAYAKGEN_OPENFOAM_BASHRC=/usr/lib/openfoam/openfoam2606/etc/bashrc
 export KAYAKGEN_OPENFOAM_SMOKE=1   # only needed for the integration test suite
 ```
 
-With both opt-ins set, `kayakgen cfd run` against an
-`openfoam-v2512-interfoam-local` job calls
-`kayakgen.eval.cfd.openfoam_v2512_interfoam.render_case`, runs
-`blockMesh + surfaceFeatureExtract + snappyHexMesh -overwrite + checkMesh`
-(meshing stage) and `setFields + interFoam` (solve stage) under the sourced
-OpenFOAM environment, parses the resulting `postProcessing/forces/0/force.dat`,
-and writes a `CfdRunRecord` with `status="succeeded"` and a `CfdOpenFoamRawResult`
-payload. The payload preserves
-`case_template_version="openfoam-v2512-interfoam-dtchull-v1"`,
-`claim_state="raw_unvalidated"`, and empty `accepted_uses`. Without the env
-knobs the adapter still reports `error_kind="solver_success_blocked"`.
+For a new job, select `--solver-profile openfoam-interfoam-local`. The runner
+reads the release and build from the selected `interFoam -help` banner. v2512
+and v2606 have exercised the case template. The explicit historical profile
+`openfoam-v2512-interfoam-local` still requires v2512. Each persistent opt-in
+applies to its named profile.
+
+`mesh-evidence` runs the meshing tools and writes the observed `solver_release`
+to `evidence.json`. A successful local solver run writes `solver_release` and
+`solver_build` to `openfoam-raw-result.json` and the run's execution audit.
+The case dictionary format has its own identifier,
+`openfoam-v2512-interfoam-dtchull-v1`. Parsed force samples have
+`claim_state="raw_unvalidated"` and empty `accepted_uses`.
 
 The `CfdRunRecord` schema carries an additive `stages: list[CfdRunStage]`
 field that models the local CFD execution pipeline as explicit, named stages
@@ -1459,8 +1468,8 @@ state, not proof that a solver can produce meaningful drag numbers.
 
 The current local CFD layer is job plumbing: deterministic profile selection,
 mesh-package gating, local job directories, status records, and adapter error
-capture. The `openfoam-v2512-interfoam-local` profile can run a real local
-OpenFOAM-v2512 `interFoam` path only when an operator opts in and provides the
+capture. The `openfoam-interfoam-local` profile can run a real local
+OpenCFD OpenFOAM `interFoam` path only when an operator opts in and provides the
 toolchain; all such output remains `raw_unvalidated`. The layer does not
 normalize, validate, or calibrate external solver output.
 
@@ -1844,7 +1853,7 @@ python -m kayakgen.operations.release --repo /path/to/kayak-gen --source COMMIT 
 ```
 
 The command requires uv, Python, the pinned desktop/web/builder dependencies,
-Jinja2 and an actual OpenFOAM-v2512 installation. Override its bashrc with
+Jinja2 and an actual OpenCFD OpenFOAM installation. Override its bashrc with
 `--bashrc`. It creates a new inactive environment; the directory must not already
 exist, and failed attempts remain inspectable. `release-receipt.json` identifies
 the source tree, wheel and stage; `workflows/verification-receipt.json` records

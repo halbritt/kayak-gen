@@ -68,11 +68,11 @@ claim/readiness/source-use literal exposed in code is documented here.
 
 | Term | Definition |
 | --- | --- |
-| **Solver Profile** | A `kayakgen.eval.cfd.jobs.SolverProfile` declaring the solver name, version, case-template version (Literal-locked), required mesh profile, required readiness, and adapter kind. Public profile names today: `unavailable-open-wetted-surface`, `unavailable-watertight-solid`, `mock-failing-local-command`, `fixture-local-command`, `openfoam-v2512-interfoam-local`. |
+| **Solver Profile** | A `kayakgen.eval.cfd.jobs.SolverProfile` declaring the solver name, version, case-template version (Literal-locked), required mesh profile, required readiness, and adapter kind. Public profile names today: `unavailable-open-wetted-surface`, `unavailable-watertight-solid`, `mock-failing-local-command`, `fixture-local-command`, `openfoam-interfoam-local`. |
 | **CFD Job** | A prepared, on-disk directory containing `profile.json`, `job.json`, `run.json`. Written by `kayakgen cfd prepare`. |
 | **CfdRunRecord** | The terminal record for a CFD job. Carries status (`queued` / `running` / `succeeded` / `failed` / `unavailable`), error_kind (e.g. `solver_success_blocked` or `solver_unavailable`), claim_state, accepted_uses, optional raw output reference, and (RFC 0046) optional `real_solver_execution_opt_in` + `SolverExecutionAudit`. |
 | **CfdOpenFoamRawResult** | Output of a successful real OpenFOAM run. Pydantic Literal pins `case_template_version="openfoam-v2512-interfoam-dtchull-v1"`, `claim_state="raw_unvalidated"`, empty `accepted_uses`. |
-| **OpenFoamProvenanceProbe** | Records `interFoam -help` / `foamVersion -build|-api|<bare>` outputs plus `$WM_PROJECT_VERSION`. `matches_required("v2512")` accepts evidence from application/build/API channels; explicitly refuses env-only evidence. |
+| **OpenFoamProvenanceProbe** | Identifies the OpenCFD release from solver-reported output. The local runner reads the release and build from `interFoam -help`. An explicit profile pin must match that release. |
 | **SolverExecutionAudit** | Audit record on a `succeeded` `CfdRunRecord`: bashrc path, provenance summary, locked case-template version, meshing seconds, solve seconds. |
 
 ## Claim and source vocabulary
@@ -131,7 +131,7 @@ claim state. The literal set lives across `MeshPackageManifest.readiness_level`,
 | `cfd_ready` | watertight package whose `MeshPackageManifest` is matched by a bound `VolumeMeshDiagnostic`. Only the RFC 0023 fixture path and the RFC 0045 evidence-bound path can produce it. |
 | `unavailable` | `CfdRunRecord.status` for a solver profile that is permanently unavailable. |
 | `solver_unavailable` | an `error_kind` for unavailable solver profiles (e.g. `unavailable-watertight-solid`). |
-| `solver_success_blocked` | the adapter ran but no opt-in mechanism admitted the real path. Default outcome of `openfoam-v2512-interfoam-local` without RFC 0046 opt-in. |
+| `solver_success_blocked` | the adapter ran but no opt-in mechanism admitted the real path. Default outcome of `openfoam-interfoam-local` without RFC 0046 opt-in. |
 | `succeeded` | the real-solver path returned; the parsed payload preserves `claim_state="raw_unvalidated"` and the locked case-template version. |
 
 ## Identity and persistence

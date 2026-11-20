@@ -184,7 +184,7 @@ _REAL_SUCCEEDED_PATH_AVAILABLE = (
 _REAL_SUCCEEDED_PATH_SKIP_REASON = (
     "OpenFOAM-v2512 succeeded stage test is opt-in; set "
     "KAYAKGEN_OPENFOAM_SMOKE=1 and KAYAKGEN_OPENFOAM_LOCAL_RUN=1 and "
-    "ensure /usr/lib/openfoam/openfoam2512/etc/bashrc is sourceable "
+    "ensure the selected OpenFOAM bashrc is sourceable "
     "(override via KAYAKGEN_OPENFOAM_BASHRC)."
 )
 

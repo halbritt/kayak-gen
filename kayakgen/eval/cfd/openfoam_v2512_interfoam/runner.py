@@ -1,16 +1,4 @@
-"""bashrc-sourced OpenFOAM-v2512 subprocess runner.
-
-All commands are dispatched through one helper that wraps the command
-in ``bash -lc 'source $OPENFOAM_BASHRC && exec <cmd>'`` so the WM/FOAM
-environment is loaded exactly the way an operator's interactive shell
-does. The default bashrc lives at ``/usr/lib/openfoam/openfoam2512/etc/bashrc``
-and is overridable via the ``KAYAKGEN_OPENFOAM_BASHRC`` env var.
-
-Importing this module never invokes any OpenFOAM binary. The
-``is_openfoam_available`` helper performs a single short subprocess and
-is the only function in this module that touches a shell at import-time
-callers.
-"""
+"""Run OpenCFD commands under the installation selected for a local case."""
 
 from __future__ import annotations
 
@@ -30,19 +18,27 @@ from typing import BinaryIO, Sequence
 from kayakgen.eval.snappy_hex_mesh import CheckMeshSummary
 
 OPENFOAM_BASHRC_ENV_VAR = "KAYAKGEN_OPENFOAM_BASHRC"
+# Historical import for callers explicitly requesting the v2512 package.
 OPENFOAM_BASHRC = Path("/usr/lib/openfoam/openfoam2512/etc/bashrc")
 DEFAULT_PROBE_TIMEOUT_SECONDS = 30
 STREAM_CAPTURE_LIMIT_BYTES = 64 * 1024
 PROCESS_TERMINATION_GRACE_SECONDS = 0.5
 
 
-def _resolve_bashrc(bashrc: str | Path | None = None) -> Path:
-    if bashrc is not None:
-        return Path(bashrc)
-    env_value = os.environ.get(OPENFOAM_BASHRC_ENV_VAR)
-    if env_value:
-        return Path(env_value)
-    return OPENFOAM_BASHRC
+def resolve_openfoam_bashrc(bashrc: str | Path | None = None) -> Path:
+    """Freeze the selected installation path for one dispatch or staged run."""
+    override = bashrc or os.environ.get(OPENFOAM_BASHRC_ENV_VAR)
+    if override:
+        return Path(override).expanduser().resolve()
+    active = os.environ.get("WM_PROJECT_DIR")
+    if active:
+        return (Path(active) / "etc/bashrc").resolve()
+    root = Path("/usr/lib/openfoam")
+    installed = sorted(path for path in root.glob("openfoam[0-9][0-9][0-9][0-9]/etc/bashrc")
+                       if path.is_file())
+    if installed:
+        return installed[-1].resolve()
+    return root / "openfoam/etc/bashrc"
 
 
 @dataclass(frozen=True)
@@ -68,13 +64,13 @@ def bash_source_run(
     bashrc: str | Path | None = None,
     env: dict[str, str] | None = None,
 ) -> OpenFoamCommandResult:
-    """Run ``command`` inside a login shell that sources the OpenFOAM bashrc.
+    """Run ``command`` inside a shell that sources the OpenFOAM bashrc.
 
     ``command`` is a single shell snippet (already quoted as needed). The
-    helper composes ``bash -lc 'source <bashrc> >/dev/null 2>&1 && <command>'``.
+    helper composes ``bash -c 'source <bashrc> >/dev/null 2>&1 && <command>'``.
     """
 
-    bashrc_path = _resolve_bashrc(bashrc)
+    bashrc_path = resolve_openfoam_bashrc(bashrc)
     if not bashrc_path.is_file():
         raise FileNotFoundError(
             f"OpenFOAM bashrc not found at {bashrc_path}; set "
@@ -85,7 +81,7 @@ def bash_source_run(
         f"{command}"
     )
     completed = subprocess.run(
-        ["bash", "-lc", wrapped],
+        ["bash", "--noprofile", "--norc", "-c", wrapped],
         cwd=str(cwd) if cwd is not None else None,
         capture_output=True,
         text=True,
@@ -119,7 +115,7 @@ def bash_source_run_streamed(
     descendant-held pipes, with a bounded termination/reaping grace.
     """
 
-    bashrc_path = _resolve_bashrc(bashrc)
+    bashrc_path = resolve_openfoam_bashrc(bashrc)
     if not bashrc_path.is_file():
         raise FileNotFoundError(
             f"OpenFOAM bashrc not found at {bashrc_path}; set "
@@ -133,7 +129,7 @@ def bash_source_run_streamed(
     destination = open(log_path, "wb") if log_path is not None else nullcontext(None)
     with destination as log_file:
         process = subprocess.Popen(
-            ["bash", "-lc", wrapped],
+            ["bash", "--noprofile", "--norc", "-c", wrapped],
             cwd=str(cwd) if cwd is not None else None,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -240,60 +236,19 @@ def _drain_available(process: subprocess.Popen, capture: _StreamCapture) -> None
 
 
 def is_openfoam_available(bashrc: str | Path | None = None) -> bool:
-    """Return True when the OpenFOAM-v2512 bashrc is sourceable and ``interFoam`` is on PATH."""
+    """Return True when the selected interFoam binary reports a supported OpenCFD release."""
 
-    bashrc_path = _resolve_bashrc(bashrc)
-    if not bashrc_path.is_file():
-        return False
     try:
-        result = bash_source_run(
-            "command -v interFoam >/dev/null && interFoam -help 2>&1 | head -n 60",
-            timeout_s=DEFAULT_PROBE_TIMEOUT_SECONDS,
-            bashrc=bashrc_path,
-        )
-    except (subprocess.TimeoutExpired, OSError):
+        probe = probe_bashrc_release(resolve_openfoam_bashrc(bashrc))
+    except (OSError, subprocess.TimeoutExpired):
         return False
-    if not result.succeeded:
-        return False
-    return "OpenFOAM-2512" in result.stdout or "2512" in result.stdout
-
-
-# ---------------------------------------------------------------------------
-# Provenance probe wiring
+    return probe.matches_required()[0]
 
 
 class OpenFoamProbeBashrcRunner:
-    """Adapter that fits :func:`probe_openfoam_provenance`'s runner signature.
+    """Read the actual interFoam banner, including its release and build."""
 
-    The runner produces v2512 evidence by running ``interFoam -help`` through
-    a sourced bashrc and extracting the ``Using: OpenFOAM-<token>`` banner.
-    On v2512 builds without ``foamVersion`` we synthesise the build/api/
-    project_version channels from ``$WM_PROJECT_VERSION`` and ``$FOAM_API``
-    so the existing :class:`OpenFoamProvenanceProbe` contract still binds.
-
-    The runner is invoked via ``probe_openfoam_provenance`` with a command
-    map produced by :func:`probe_commands_for_bashrc_runner`; the runner
-    treats the command-list's last element as a shell snippet to evaluate
-    inside the sourced bashrc shell. This sidesteps the need to quote the
-    snippet through ``bash -c`` twice.
-    """
-
-    PROBE_COMMANDS: dict[str, str] = {
-        # First line carries the v2512 token so OpenFoamProvenanceProbe's
-        # ``_first_nonempty_line`` extractor matches; the interFoam banner is
-        # echoed afterwards as supporting evidence in the raw output.
-        "application": (
-            "echo \"OpenFOAM-$WM_PROJECT_VERSION application=interFoam\"; "
-            "interFoam -help 2>&1 | grep -i '^Using:' || true"
-        ),
-        "build": (
-            "echo \"OpenFOAM-$WM_PROJECT_VERSION build=$WM_PROJECT_VERSION api=$FOAM_API\""
-        ),
-        "api": "echo \"OpenFOAM-$WM_PROJECT_VERSION api=$FOAM_API\"",
-        "project_version": (
-            "echo \"OpenFOAM-$WM_PROJECT_VERSION project_version=$WM_PROJECT_VERSION\""
-        ),
-    }
+    PROBE_COMMANDS = {"application": "interFoam -help"}
 
     def __init__(
         self,
@@ -301,7 +256,7 @@ class OpenFoamProbeBashrcRunner:
         bashrc: str | Path | None = None,
         timeout_s: float = DEFAULT_PROBE_TIMEOUT_SECONDS,
     ) -> None:
-        self._bashrc = bashrc
+        self._bashrc = resolve_openfoam_bashrc(bashrc)
         self._timeout_s = timeout_s
 
     def __call__(self, command: Sequence[str]) -> tuple[int, str, str]:
@@ -312,6 +267,13 @@ class OpenFoamProbeBashrcRunner:
             bashrc=self._bashrc,
         )
         return result.returncode, result.stdout, result.stderr
+
+
+def probe_bashrc_release(bashrc: Path):
+    from kayakgen.eval.cfd.provenance import probe_openfoam_provenance
+
+    return probe_openfoam_provenance(runner=OpenFoamProbeBashrcRunner(bashrc=bashrc),
+                                     commands=probe_commands_for_bashrc_runner())
 
 
 def probe_commands_for_bashrc_runner() -> dict[str, list[str]]:
@@ -503,6 +465,7 @@ def run_meshing_stage(
     returned :class:`MeshingResult` carries a :class:`CheckMeshSummary`
     even on partial failure so the caller can decide how to surface it.
     """
+    bashrc = resolve_openfoam_bashrc(bashrc)
 
     import time
 
@@ -571,6 +534,7 @@ def run_solver_stage(
     the produced ``postProcessing/forces/0/force.dat`` if interFoam
     produced one.
     """
+    bashrc = resolve_openfoam_bashrc(bashrc)
 
     import time
 
@@ -637,6 +601,8 @@ __all__ = [
     "is_openfoam_available",
     "parse_check_mesh_output",
     "probe_commands_for_bashrc_runner",
+    "resolve_openfoam_bashrc",
+    "probe_bashrc_release",
     "run_meshing_stage",
     "run_solver_stage",
 ]

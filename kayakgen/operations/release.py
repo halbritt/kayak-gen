@@ -28,6 +28,8 @@ def validate_request(args) -> None:
     require(not args.out.exists(), 'Release output must be a new directory; failed attempts are retained')
     require(not any((parent / '.git').exists() for parent in (args.out, *args.out.parents)),
             'Release output must be outside a source checkout')
+    from kayakgen.eval.cfd.openfoam_v2512_interfoam.runner import resolve_openfoam_bashrc
+    args.bashrc = resolve_openfoam_bashrc(args.bashrc)
     for name in ('repo', 'constraints', 'python', 'bashrc', 'hull', 'context'):
         value = getattr(args, name)
         if value is not None:
@@ -170,7 +172,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument('--python', type=Path, default=Path(sys.executable))
     result.add_argument('--hull', type=Path)
     result.add_argument('--context', type=Path)
-    result.add_argument('--bashrc', type=Path, default=Path('/usr/lib/openfoam/openfoam2512/etc/bashrc'))
+    result.add_argument('--bashrc', type=Path, help='OpenFOAM installation bashrc (defaults to the active installation)')
     result.add_argument('--timeout', type=float, default=900., help='Installed worker deadline in seconds')
     result.add_argument('--step-timeout', type=float, default=45., help='Each real OpenFOAM command deadline')
     return result
