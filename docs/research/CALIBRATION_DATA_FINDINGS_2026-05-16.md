@@ -39,14 +39,11 @@ Triaged ranking against D006 + D013 + the validators:
     drag in figures only (not tabulated rows), no deposit, on-request only.
     <https://thesportjournal.org/article/experimental-and-numerical-study-of-the-flow-past-the-olympic-class-k-1-flat-water-racing-kayak-at-steady-speed/>
 - **C — in-envelope, geometry proprietary, partial uncertainty:**
-  - **Aalborg PhD** on sprint kayaking, Nelo Quattro M/ML/L hulls, PDF-only
-    tabulated drag. Open access PDF vendored under
-    `docs/research/aalborg_kayak_phd.pdf` for reference (SHA-256
-    `e7ecbf17de9c861dfac281de2025ca3e1b75d8385edbf1a5111f88c55419e8c5`,
-    3.59 MB). Nelo geometry is proprietary — cannot become a
-    `calibration_fixture`; at most a `validation_fixture` if rows were
-    extracted with author cooperation.
-    <https://vbn.aau.dk/ws/files/549494319/PHD_KKK_E_pdf.pdf>
+  - Kent Kongsøre Klitgaard's 2021 Aalborg PhD thesis reports sprint-kayak
+    drag for the Nelo Quattro M/ML/L hulls. The geometry is proprietary.
+    Author cooperation on the tabulated measurements could support a
+    `validation_fixture`. Calibration also requires the hull geometry.
+    [Kinetics and Kinematics of Sprint Kayaking On-Water](https://doi.org/10.54337/aau424048614)
   - **FEUP Porto** kayak hull design thesis. Could not be reached during
     download (repository redirect failed); refer to original repository
     if needed: <https://repositorio-aberto.up.pt/handle/10216/78441>.
@@ -61,24 +58,13 @@ Triaged ranking against D006 + D013 + the validators:
   - **SHIP-D / ShipGen (MIT DeCoDe)** — 30,000 hulls, parametric +
     potential-flow predictions; not measured.
     <https://github.com/noahbagz/ShipD>
-  - **Mendeley Sailboat Hull Resistance Dataset (Delft / Il Moro / USS)**,
-    1018 measured rows of dimensionless resistance, well-licensed
-    (CC BY 4.0).
-    *Out-of-envelope* (sailboat L/B regime, not kayak). Vendored as a
-    schema reference at
-    `tests/fixtures/research_references/sailboat_delft/` —
-    SHA-256:
-    - `sailboat_resistance_v01.csv` ⇒
-      `369a2dc305032526e16708dd91dd143dcbdbdae63fde9ae6c9344989a01e7a01`
-    - `sailboat_metadata_v01.csv` ⇒
-      `d6bdb389fb90d97cce681758987169938e62d607198febc40bbf13c352ddbb9c`
-    This dataset can **never** be promoted to a kayak
-    `calibration_fixture` per D013; it is preserved only as a reference
-    for the per-row schema (Rt·10³/Δ, Rn, Fn, Cp, Cm, Cb, Cw,
-    Lwl/Bwl, Bwl/Tc, Lwl/Tc, Lwl/Vol^(1/3), LCB/Lwl, LCF/Lwl,
-    LCB/LCF, Sc/Vol^(2/3), Aw/Vol^(2/3), Sc/Aw, Sc/Ax, Ax/Aw) that
-    future kayak ingest packets should learn from.
-    <https://data.mendeley.com/datasets/gw23dgzn6h/1>
+  - The Mendeley Sailboat Hull Resistance Dataset (Delft / Il Moro / USS)
+    contains 1,018 measured rows of dimensionless resistance under CC BY 4.0.
+    Its sailboat length-to-beam range falls outside the kayak calibration
+    envelope in D013. Its per-row resistance, Froude number, hull-form
+    coefficients and dimension ratios provide a schema reference for future
+    kayak measurements.
+    [Sailboat Hull Resistance Dataset, version 1](https://data.mendeley.com/datasets/gw23dgzn6h/1)
   - **AMECRC**, **Wolfson Unit**, **ITTC**, **MARIN/SSPA/NSWC Carderock**,
     **Heriot-Watt** — no kayak-class public datasets surfaced.
 
