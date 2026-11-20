@@ -206,8 +206,8 @@ Today the project's durable state is the filesystem:
 - The persistent operator setting at `~/.config/kayakgen/cfd.json`
   (RFC 0046).
 
-Phase 4 of `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md` proposes an
-`ArtifactStore` to consolidate these stores behind a queryable index.
+RFC 0049 describes how `ArtifactStore` and `SqliteIndex` support queries
+across runs while retaining the run files on disk.
 
 ## Domain events
 

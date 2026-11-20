@@ -72,8 +72,6 @@ The project considers durable:
 | `tests/fixtures/calibration/edinburgh/` | Vendored CC BY 4.0 validation fixture (D018 acquisition; D025 promoted to validation_fixture). |
 | `tests/fixtures/openfoam_v2512/` | Force.dat parser fixtures (D012). |
 | `kayakgen/eval/cfd/openfoam_v2512_interfoam/templates/` | Vendored case dicts. |
-| `tests/fixtures/research_references/` | Read-only research-grade fixtures (Mendeley sailboat). |
-| `docs/research/aalborg_kayak_phd.pdf` | Research reference document. |
 
 Anything not listed here is not part of the project's bounded context.
 

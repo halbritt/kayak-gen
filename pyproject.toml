@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "kayakgen"
 version = "0.1.0"
 description = "Parametric kayak hull generator and evaluation pipeline"
-readme = "AGENTS.md"
+readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Heath Albritton" }]

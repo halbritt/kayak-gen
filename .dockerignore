@@ -1,6 +1,11 @@
 .venv/
 .striatum/
 .claude/
+.codex/
+.gemini/
+.vscode/
+build/
+dist/
 .pytest_cache/
 __pycache__/
 *.egg-info/

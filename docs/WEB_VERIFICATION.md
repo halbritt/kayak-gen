@@ -81,9 +81,9 @@ viewports:
 
 The canonical render environment for the current baselines is:
 
-- OS: `Linux proximal 6.8.0-111-generic #111-Ubuntu SMP PREEMPT_DYNAMIC Sat Apr 11 23:16:02 UTC 2026 x86_64`
+- OS: `Ubuntu Linux, x86_64, kernel 6.8.0-111-generic`
 - Chromium: Playwright Chromium `147.0.7727.15`
-  (`/home/halbritt/.cache/ms-playwright/chromium-1217/chrome-linux64/chrome`)
+  (Playwright build 1217)
 - Capture date: `2026-06-02`
 
 The nondeterministic 3D `VtkRemoteView` region is masked before capture. Its

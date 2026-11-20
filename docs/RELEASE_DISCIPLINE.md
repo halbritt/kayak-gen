@@ -1,15 +1,5 @@
 # Release Discipline
 
-Date: 2026-05-16. Lives at the same level as `docs/PRD.md` /
-`docs/ROADMAP.md` / `docs/SPEC.md`; cited from `AGENTS.md` as a
-load-bearing process doc. Phase 9 of
-`ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`.
-
-This file consolidates the lightweight release-engineering practices
-the project already follows. It exists so a new contributor (human or
-agent) sees the rules in one place rather than discovering them via
-CI failures.
-
 ## One phase / one RFC per landing
 
 Land architectural changes in single coherent units. A phase or step
@@ -44,8 +34,7 @@ updates **every** affected file in this list:
 
 1. `docs/USER_GUIDE.md` — surface description.
 2. `docs/PRD.md` — if scope or status changes.
-3. `docs/ROADMAP.md` — track row and Future-Striatum-Batches
-   disposition.
+3. `docs/ROADMAP.md` — feature status and open work.
 4. `docs/rfcs/README.md` — RFC status header.
 5. `docs/DECISION_LOG.md` — new row when a decision changes; cite
    the RFC.
@@ -54,16 +43,6 @@ updates **every** affected file in this list:
    or durable-artifact table changes.
 8. `docs/UBIQUITOUS_LANGUAGE.md` — when a new term is introduced;
    the `tests/test_vocabulary_coverage.py` regression catches drift.
-9. `OPERATOR_REPORT.md` — checkpoint when an operator session lands
-   an externally-relevant change (network access, real-solver run,
-   external acquisition).
-
-The checklist exists because the cowboy 2026-05-15/16 sessions
-repeatedly discovered the same drift: code lands, the user guide
-forgets it; a decision lands, the changelog forgets it. The
-forbidden-copy regressions and the vocabulary-coverage test catch
-the most damaging drifts, but they do not catch every wording
-change.
 
 ## Pre-merge requirements
 
@@ -77,13 +56,9 @@ Every commit must pass, in this order:
    real-solver-path stage tests in `tests/test_cfd_run_stages.py`.
    When the env knobs are set, the gated tests must pass instead
    of skipping. Any other skip count means the environment is
-   missing extras and the run does **not** count as a gate
-   (audit R4, 2026-06-06: the previous "green or skipped" wording
-   let a `[dev]`-only env silently skip the desktop
-   forbidden-copy regressions).
+   missing dependencies or an unexpected test skip. Resolve it before merging.
 2. **`.venv/bin/python -m ruff check kayakgen tests`** — ruff must
-   pass. Phase 0 of the architecture plan installed ruff to
-   `[dev]`; new code must clear it.
+   pass. The `dev` extra installs Ruff.
 3. **No `git push --force`** to `main`. Force-push is only
    permitted on operator-owned feature branches, never on `main`
    even via `--force-with-lease`.
@@ -104,7 +79,8 @@ mise run test:full                                 # scripts/full-gate.sh, the r
 mise run test:full -- --receipt /outside/source/full-gate.json
 ```
 
-The two gate tasks run through the host's shared `host:exec` task, which
+The two mise gate tasks require the shared `host:exec` task. On other hosts,
+run `scripts/fast-gate.sh` or `scripts/full-gate.sh` directly. The shared task
 waits for host capacity, enforces a deadline (30 min fast, 60 min full)
 and stops every process the gate started. Exit 124 or 137 with a
 `timeout:` line, 143, or 75 from `host:exec` is a host condition, not a
@@ -121,7 +97,7 @@ enforces the count inside pytest, then parses the final pytest summary
 line as a redundant script-level check. The expected count is derived
 from the OpenFOAM env knobs: default gates expect 4 skips; a full
 OpenFOAM smoke+local-run opt-in expects those tests to pass instead of
-skip (audit G1, 2026-06-06; workflow 0067 gate-altitude follow-up).
+skip.
 The env knob is intentionally explicit so partial invocations such as
 `pytest tests/test_x.py` are not punished for having zero skips.
 
@@ -224,41 +200,14 @@ change the four-skip pin, add a git hook or promote physical validation.
 
 ## Local enforcement (pre-push hook)
 
-Audit R0 (2026-06-06) found the documented gate red on `main` for 12
-days with nothing making the red visible. Enforcement is two-layered:
+Install the fast pre-push hook once per clone:
 
-1. **Pre-push hook (fast subset).** Install once per clone:
+```sh
+scripts/install-hooks.sh
+```
 
-   ```bash
-   scripts/install-hooks.sh
-   ```
-
-   This installs `scripts/fast-gate.sh` as `.git/hooks/pre-push`. The
-   fast gate runs `ruff check kayakgen tests` plus the fast pytest
-   subset and refuses the push on failure — including on a green run
-   whose skip count differs from the pinned 4 (audit G1). The
-   canonical deselect list and the measured runtime live in the
-   script header (re-measured 2026-06-06 post-workflow-0066: 3m42s —
-   1087 passed / 4 skipped / 2 deselected — vs. 10:49 for the full
-   suite;
-   deselected: the browser/visual suite, the subprocess-lifecycle
-   suite, the CFD fixture-command integration tests, and the
-   measured runtime-dominant integration files).
-   `git push --no-verify` bypasses the hook in emergencies; the
-   bypass does not waive the full-suite pre-merge gate above.
-
-2. **Striatum slice gates (full suite).** Striatum workflow
-   review/apply jobs for this repo run `scripts/full-gate.sh` as
-   their slice-completion gate — the mechanical form of the FULL
-   suite requirement (`.venv/bin/python -m pytest -q` → 0 failed,
-   exactly the 4 documented OpenFOAM opt-in skips, enforced by the
-   script's skip-count pin) plus
-   `.venv/bin/python -m ruff check kayakgen tests`. A lane agent
-   cannot complete a slice on a red suite — or on a green one with
-   the wrong skip count.
-
-The fast gate is a convenience net between full-suite gates, not the
-release gate; pre-merge requirement 1 above is unchanged by it.
+The hook runs Ruff and the fast pytest subset, including the OpenFOAM skip
+check. Before merging, run `scripts/full-gate.sh` for the complete suite.
 
 ## No-claim invariants (load-bearing)
 
@@ -295,18 +244,6 @@ Any commit that proposes to widen one of the above must:
 3. Update `docs/SPEC.md` invariants list and `docs/PRD.md` "Roadmap
    And Deferrals" / "What is *not* on this list" sections.
 4. Update `docs/ARCHITECTURE_MAP.md` claim-state vocabulary table.
-
-## What this file does NOT prescribe
-
-- Branch naming (the project uses `striatum/<slug>` and
-  `claude/<slug>` and `feature/<slug>` historically; no rule).
-- Merge strategy (`main` accepts fast-forwards and merge commits;
-  no rebasing rule).
-- Issue tracking (the current Plane workspace and project are specified in `AGENTS.md`).
-- PR review process (single-operator project; no PR template).
-
-These items become load-bearing only if the project grows beyond
-one operator + agents.
 
 ## Persistent runtime observation (RFC 0080 / D066)
 

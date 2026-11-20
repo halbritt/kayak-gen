@@ -7,10 +7,9 @@ not yet a validated performance-prediction or production CFD system.
 
 ## Install From This Repo
 
-Use Python 3.11 or newer.
+Run these commands from the repository root with Python 3.11 or newer.
 
 ```bash
-cd /home/halbritt/git/kayak-gen
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install -U pip
@@ -32,7 +31,7 @@ python -m pip install -e '.[dev]'          # tests, linting, type checking
 After install, `kayakgen --help` should show the command list.
 
 For source changes, the release check is `scripts/full-gate.sh`: complete
-pytest, its documented skip pin, then Ruff. With mise installed,
+pytest, its documented skip pin, then Ruff. On hosts with the shared mise test tasks,
 `mise run test:full` runs the same gate and `mise run test -- <paths>`
 runs focused tests; `mise tasks ls` lists the tasks. A worktree can use
 `KAYAKGEN_PY=/path/to/supported/venv/bin/python`. To retain an outcome, add
@@ -73,6 +72,7 @@ analytical resistance, and inspect mesh quality:
 
 ```bash
 kayakgen init hull.json
+mkdir -p build
 kayakgen generate hull.json --stl-out build/default
 kayakgen evaluate hull.json --out build/default.eval.json
 kayakgen stability hull.json --out build/default.stability.json

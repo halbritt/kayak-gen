@@ -1,24 +1,20 @@
-.striatum/
 .venv/
 __pycache__/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
 .benchmarks/
-.claude/worktrees/
+/build/
+/dist/
+/*.stl
+/hull.json
 data/stability/fixtures/
 data/stability/fits/
 
-# Build artifacts at the repo root (AGENTS.md: "*.stl at repo root — build
-# artifacts; generated, not authored"). The historical kayak_*.stl files
-# were removed in 2026-05-16 cleanup; any new root-level STL output from
-# `kayakgen generate` or `python generator.py` is ignored.
-/*.stl
-
-# Striatum daemon status dump (transient operator-state snapshot written to the
-# repo root by `striatum status ... --output`); not authored, not tracked.
-/status.json
-.claude/
-
-# agy (gemini CLI) lane-local settings; not authored, not tracked.
+# Local editor and agent state
+/.vscode/
+/.codex/
+/.claude/
 /.gemini/
+/.striatum/
+/status.json
