@@ -2,8 +2,7 @@
 
 Status: landed kayakgen target-draft + target-trim subcommands
 Date: 2026-05-16
-Context: Phase 8 item 1 of
-`ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. Today's evaluators
+Context: Today's evaluators
 take a fully-specified `Hull` plus an explicit draft and return
 hydrostatics; designers asking "what draft does this hull need to
 carry 95 kg of paddler + cargo?" must run a search by hand. This RFC

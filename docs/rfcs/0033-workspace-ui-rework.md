@@ -2,19 +2,13 @@
 
 Status: superseded by RFC 0034 + RFC 0035 (closed by RFC 0064)
 Date: 2026-05-13
-Context: distills the Claude Design "UI Rework Handoff" bundle for
-`kayak-gen`. Companion to RFC 0008 (web frontend), RFC 0013 (Pareto
-comparison UI), RFC 0018 (web CFD job routes), and RFC 0031 (design
-constraint surfacing revision). The handoff provenance and source
-policy are captured in `docs/workflows/0044-workspace-ui-rework/SOURCES.md`;
-because the handoff bundle itself is not stored in the repo, this RFC
-is canonical for scope, copy, and acceptance criteria. See
-`striatum/0044-workspace-ui-rework/` for run artifacts once the
-workflow lands. Workflow 0044 landed the conservative safe slice:
+Context: RFCs 0008, 0013, 0018, and 0031 define the web frontend,
+comparison view, local CFD routes, and design constraints. This design
+brought those features into one workspace. The first release included
 shared theme tokens, structured advisory records, three-region web
 workspace shell, claim/readiness/status copy, desktop `Cm`/Export STLs
 touch-ups, and regression tests. RFC 0034 carries the dynamic follow-up
-items from the 0044 final review.
+items.
 
 ## Problem
 
@@ -371,9 +365,7 @@ assertion so this constraint is enforced going forward.
 7. Add `tests/test_web_layout.py` for the new layout, chip, and
    forbidden-string assertions, plus a `tests/test_ui_theme.py`
    covering the orphan-colour-literal lint.
-8. Update `CHANGELOG.md`, `docs/USER_GUIDE.md`, and the workflow-local
-   operator report if directed by the operator to describe the new
-   workspace. Do not update the repo-root `OPERATOR_REPORT.md`.
+8. Document the workspace in `CHANGELOG.md` and `docs/USER_GUIDE.md`.
 
 ## Domain Modeling
 

@@ -2,8 +2,7 @@
 
 Status: landed kayakgen build-export + 7 artifact writers under [builder] extras
 Date: 2026-05-16
-Context: Phase 8 item 2 of
-`ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. Today's hull
+Context: Today's hull
 exports stop at STL. STL is fine for digital previews and CFD, but it
 is not the right format for someone cutting plywood molds or
 plotting offsets on a building jig.

@@ -2,8 +2,7 @@
 
 Status: landed kayakgen calibration sub-app + tank/inclining/AcceptedFitRecord schemas + accepted-fit gate wiring
 Date: 2026-05-16
-Context: Phase 8 item 5 of
-`ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. RFCs 0042 / 0027
+Context: RFCs 0042 / 0027
 land the *acceptance* gates for a calibration fixture; D006 + D013
 keep promotion blocked because no in-envelope measured kayak source
 exists. The research finding 2026-05-16

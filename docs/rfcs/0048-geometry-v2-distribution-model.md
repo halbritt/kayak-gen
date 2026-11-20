@@ -2,7 +2,7 @@
 
 Status: landed v1 distribution_v2 + 6 cross-section families + hydrostatic cross-check + migrate-geometry CLI
 Date: 2026-05-16
-Context: Phase 6 of `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. The
+Context: The
 current `HullGeometry` lofts a single legacy geometry (parametrized by
 length, beam, draft, Cp, Cm, deck-flatness, parallel-mid-body, rake)
 with a small number of derived controls. `docs/design/kayak_hull_design_constraints.md`

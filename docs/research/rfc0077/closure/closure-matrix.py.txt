@@ -7,7 +7,7 @@ from kayakgen.eval.resistance import resistance_curve
 from kayakgen.model.hull import Hull
 from kayakgen.model.operating_state import OperatingPose
 from kayakgen.search.pareto import CandidatePoint,Objective,dominates,pareto_front
-repo=Path('/home/halbritt/.cache/agent-worktrees/kayak-gen/impl-numerical-policy')
+repo=Path(__file__).resolve().parents[4]
 out=Path(sys.argv[1])
 out.mkdir(exist_ok=False)
 files=['kayakgen/eval/contract.py','kayakgen/eval/michell_screening.py','kayakgen/eval/numerical_resistance.py','kayakgen/search/numerical_intervals.py','kayakgen/search/objectives.py','kayakgen/search/pareto.py']

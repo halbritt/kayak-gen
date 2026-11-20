@@ -2,11 +2,10 @@
 
 Status: landed safe-slice
 Date: 2026-05-14
-Context: successor to RFC 0033 and workflow 0044 final review. Uses
-`striatum/0044-workspace-ui-rework/final/FINAL_REVIEW.md` as the
-finding source and keeps RFC 0033's no-new-backend-capability boundary.
+Context: RFC 0033 introduced the workspace shell. This follow-up binds
+the remaining controls to existing data and backend capabilities.
 
-Status note (workflow 0045, 2026-05-14): landed the safe UI follow-up
+Status note (2026-05-14): landed the safe UI follow-up
 slice. Web class presets reseed and narrow canonical hull sliders, manual
 hull edits switch presets back to `custom`, the validity badge derives from
 current hull/class state, Resistance and Mesh cards render existing read
@@ -118,19 +117,10 @@ workflow 0044 final review:
   package creation immediately or remain a disabled entry until a
   workflow explicitly accepts web-side package authoring.
 
-## Implementation Path
+## Verification
 
-- Step 1 — First-pass traceability, domain/no-claims,
-  ergonomics/design, and ops/test reviews over this RFC and the 0044
-  final-review findings.
-- Step 2 — Consolidate findings into a ledger that distinguishes
-  safe-now UI bindings from any export behavior that requires a later
-  RFC.
-- Step 3 — Implement the accepted safe-now slice with Codex, using
-  parallel sub-agents for disjoint UI, controller/read-model, tests,
-  and docs scopes.
-- Step 4 — Run focused web/layout/read-model/browser tests and final
-  review before merging.
+The web layout, read-model and browser tests exercise the UI bindings.
+Export availability and claim-state copy are part of the regression coverage.
 
 ## Domain Modeling
 

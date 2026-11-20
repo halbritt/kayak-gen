@@ -2,13 +2,12 @@
 
 Status: landed Hull.{record,design}_hash + FilesystemArtifactStore + SqliteIndex + kayakgen runs CLI
 Date: 2026-05-16
-Context: Phase 4 of `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`.
-Today's sweep/search/CFD/comparison artifacts live as files in
+Context: Today's sweep/search/CFD/comparison artifacts live as files in
 operator-chosen directories with a single content-hash field
 (`Hull.hash()`) and no cross-run index. This scales to single-digit
 hundreds of candidates per run; it does not scale to active-search
-campaigns over thousands of candidates or to surfacing the
-provenance ledger the architecture review asks for.
+campaigns over thousands of candidates or to surfacing a
+searchable provenance ledger.
 
 ## Problem
 

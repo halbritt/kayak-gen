@@ -2,8 +2,7 @@
 
 Status: landed TurningMetrics + opt-in --turning flag + sweep evaluator
 Date: 2026-05-16
-Context: Phase 8 item 4 of
-`ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`. Today's
+Context: Today's
 hydrostatics evaluator computes upright displaced volume and
 waterplane area. Sea-kayak and surfski designers also care about
 turning behavior — and turning is dominated by the *edged*
