@@ -1,7 +1,6 @@
 """Regression: every claim/readiness/source-use literal exposed in code is
 documented in ``docs/UBIQUITOUS_LANGUAGE.md``.
 
-This is a Phase 1 deliverable of `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`.
 If a new literal is introduced anywhere in code, it must land in the glossary
 before this test passes.
 
@@ -212,6 +211,6 @@ def test_runs_jobs_state_vocabulary_matches_source_and_docs() -> None:
 
 
 def test_glossary_is_not_a_scaffold_placeholder(glossary_text: str) -> None:
-    """Regression against the original ``striatum init`` placeholder bodies."""
+    """Reject template placeholders in the published glossary."""
     assert "TODO — first domain term" not in glossary_text
     assert "TODO — definition" not in glossary_text

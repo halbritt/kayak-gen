@@ -2,9 +2,7 @@
 
 Provides the named ``SolverProfile`` factories used by the CLI/UI dispatch
 surface, plus the registry helpers that look profiles up by canonical name
-or known alias. Split out from the historical
-``kayakgen.eval.cfd.jobs`` per Phase 3A of
-``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md``.
+or known alias.
 """
 
 from __future__ import annotations

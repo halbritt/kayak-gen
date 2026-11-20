@@ -254,11 +254,8 @@ class LoftedHullGeometry(HullGeometry):
     def section_for_closed_body(self, x: float, part: PartType) -> np.ndarray:
         """Cross-section ring at ``x`` honoring exact plumb-stem closure.
 
-        Public entry point introduced by Phase 2 step 4 of
-        ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md``: replaces the
-        previous ``_get_slice_points(..., closed_body_endpoint=True)``
-        reach-in used by ``kayakgen.eval.closed_volume`` to assemble the
-        generated closed-body. At endpoints where ``bow_rake==0`` or
+        ``kayakgen.eval.closed_volume`` uses this ring to assemble a closed
+        body. At endpoints where ``bow_rake==0`` or
         ``stern_rake==0`` the section snaps to the exact plumb-stem ring
         instead of decaying to zero; elsewhere the behaviour is identical
         to :meth:`section`.

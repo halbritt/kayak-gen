@@ -1,30 +1,8 @@
-"""Render-verification tests for the web Generate panel label surfaces.
+"""Verify the widget labels, hints, and picklists on the web Generate panel.
 
-Closes audit finding ``AUD-O-009`` from
-``docs/audits/2026-05-23-code-doc-audit/operator-adoption/FINDINGS.md``
-(workflow 0035). RFC 0060 wires the ``HullParameterMetadata`` registry
-into the Generate panel form via the Vuetify ``:hint`` prop, but no
-existing test verifies that the hint actually attaches to the rendered
-``VTextField`` widgets on the base-hull rail. The round-trip / payload
-tests in :mod:`tests.test_generate_spec_form` and the layout / source
-checks in :mod:`tests.test_web_layout` pass even if a future refactor
-silently drops the ``hint=`` wiring; this module's purpose is to catch
-that drift.
-
-The strategy follows the audit's R4 recommendation: monkeypatch the
-``trame.widgets.vuetify3.VTextField.__init__`` (and ``VSelect.__init__``)
-constructor around a :func:`kayakgen.ui.web.app.create_app` call to
-capture every widget's keyword arguments, then assert the captured
-``hint`` / ``label`` / ``items`` keys carry the expected registry-
-sourced values keyed by the ``data-testid`` attribute. This is the
-cheapest render verification given Trame's client-side rendering — the
-captured constructor kwargs are exactly what get serialised into the
-client template.
-
-A complementary state-level assertion pins the seeded picklist items
-(objectives + variable selector) for completeness; those are the
-upstream truth value the Vue template iterates when rendering ``items``
-in the picklist widgets.
+Capture the Vuetify field constructors during application setup to inspect
+the labels and hints that Trame sends to the client. The picklist tests
+also check the seeded objective and variable choices.
 """
 
 from __future__ import annotations

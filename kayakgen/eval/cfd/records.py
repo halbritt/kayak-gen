@@ -6,11 +6,7 @@ describe what a job *is* (``CfdJobSpec``), what a run *did*
 (``SolverExecutionAudit``), and the prepared-case and adapter result
 wrappers consumed by the local adapter implementations.
 
-Split out from the historical ``kayakgen.eval.cfd.jobs`` per Phase 3A
-of ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md``. The original
-module continues to re-export every public name from here unchanged so
-existing ``from kayakgen.eval.cfd.jobs import ...`` imports keep
-working byte-stably.
+The compatibility module ``kayakgen.eval.cfd.jobs`` re-exports these names.
 """
 
 from __future__ import annotations
@@ -50,11 +46,8 @@ CfdRunStageState = Literal["pending", "running", "succeeded", "failed", "skipped
 class CfdRunStage(BaseModel):
     """One named stage of the local CFD execution pipeline.
 
-    Phase 7 of ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`` models
-    the CFD pipeline as explicit, named stages so consumers can see
-    which stage failed without parsing logs. ``stages`` is an additive
-    field on ``CfdRunRecord``; the default is an empty list, so
-    pre-existing serialized records round-trip byte-stably.
+    Consumers can identify a failed stage from its name and status.
+    ``CfdRunRecord.stages`` defaults to an empty list for older records.
     """
 
     model_config = ConfigDict(extra="forbid")

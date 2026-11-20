@@ -1,7 +1,5 @@
 """Regression: enforce architectural dependency direction for services.
 
-Per ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`` Phase 3D:
-
 - ``kayakgen.services`` imports nothing from ``ui`` or ``cli``. Services
   are the orchestration layer between evaluators / search / model and the
   surfaces that consume them; pulling a surface module into a service

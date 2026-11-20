@@ -1,7 +1,5 @@
 """Regression: enforce architectural dependency direction.
 
-Per `ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md` Phase 2:
-
 - ``kayakgen.model`` imports nothing from ``eval``, ``search``, ``ui``, or ``cli``.
 - ``kayakgen.eval`` imports nothing from ``ui`` or ``cli``.
 - ``kayakgen.search`` imports nothing from ``ui`` or ``cli``.

@@ -1,9 +1,6 @@
 """Tests for ``CfdRunStage`` and the OpenFOAM adapter's stage emission.
 
-Phase 7 of ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`` models
-the CFD execution pipeline as explicit, named stages on
-``CfdRunRecord`` so consumers can see which stage failed without
-parsing logs.
+``CfdRunRecord.stages`` identifies the point of failure during a CFD run.
 
 The tests split into:
 

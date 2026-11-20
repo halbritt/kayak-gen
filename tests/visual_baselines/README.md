@@ -7,7 +7,7 @@ acceptance test.
 
 ## Canonical Render Environment
 
-- Host: `Linux proximal 6.8.0-111-generic #111-Ubuntu SMP PREEMPT_DYNAMIC Sat Apr 11 23:16:02 UTC 2026 x86_64`
+- Operating system: Ubuntu Linux, kernel `6.8.0-111-generic` (x86_64)
 - Python: `3.12`
 - Playwright: `1.60.0`
 - Chromium: Chrome for Testing `147.0.7727.15` (`playwright chromium v1217`)

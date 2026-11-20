@@ -1,10 +1,7 @@
 """Shared solver-evidence contracts.
 
-Phase 2 step 5 of ``ARCHITECTURE_RECOMMENDATION_PLAN_2026-05-16.md`` collects
-the evidence records that the CFD / mesh / claim layers share into a single
-neutral namespace. The actual class bodies still live with their original
-modules (so existing imports and pickled state stay byte-stable); this
-package exposes them as a single import surface for new code.
+The CFD, mesh, and claim modules share these evidence records. Each class
+retains its original module path for imports and pickled data.
 
 Concretely::
 
